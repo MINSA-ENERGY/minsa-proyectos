@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Pruebas de extremo a extremo — MINSA Proyectos</title>
+<!-- Corre la app REAL (index.html + app.js) contra un Graph FALSO en memoria y un MSAL falso, y
+     recorre los escenarios del plan (cerebro/docs/plan-proyectos-app-2026-09-11.md § F) por rol.
+     Arnes copiado de calytek-planta-app/app/test/pruebas.html (2026-09-11) + search y root:/ruta.
+     Sin CSP a proposito (es herramienta de desarrollo, no se publica). Se corre asi, desde app/:
+
+       node servidor-local.js test/pruebas.html
+       msedge --headless=new --virtual-time-budget=30000 --dump-dom "http://localhost:8080/?rol=gerencia&refresco=0"
+
+     Modo SOLO MIRAR: `?rol=gerencia&vista=inicio` oculta este <pre> al terminar y deja esa pantalla
+     (inicio · proyectos · proyecto · mis) para una captura headless con --screenshot.
+
+     El resultado queda en <pre id="resultados"> y se manda a POST /guardar (_salida-dev.json).
+     El Graph falso VALIDA los valores de columnas choice contra esquema.json, como SharePoint. -->
+<style>
+  body { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+  #resultados { white-space: pre-wrap; background: #111; color: #ddd; padding: 1rem; }
+  #resultados .ok { color: #7fd48a; } #resultados .falla { color: #ff7b6b; font-weight: 700; } #resultados .nota { color: #ffd166; }
+</style>
+</head>
+<body>
+<pre id="resultados">arrancando…</pre>
+<div id="app-real"></div>
+
+<script>
+// ------------------------------------------------------------------ MSAL falso
+(function () {
+    const params = new URLSearchParams(location.search);
+    const cuenta = { username: params.get('quien') || (params.get('rol') || 'gerencia') + '@example.invalid', homeAccountId: 'x' };
+    class PublicClientApplication {
+        constructor(cfg) { this.cfg = cfg; }
+        async initialize() {}
+        async handleRedirectPromise() { return null; }
+        getAllAccounts() { return [cuenta]; }
+        async acquireTokenSilent() { return { accessToken: 'token-falso' }; }
+        async loginRedirect() { window.__PRUEBAS.log('nota', 'loginRedirect llamado'); }
+        async logoutRedirect() { window.__PRUEBAS.log('nota', 'logoutRedirect llamado'); }
+    }
+    class InteractionRequiredAuthError extends Error { constructor(m) { super(m); this.errorCode = 'interaction_required'; } }
+    window.msal = { PublicClientApplication, InteractionRequiredAuthError };
+    window.__CUENTA = cuenta;
+    Object.defineProperty(navigator, 'serviceWorker', { configurable: true, value: {
+        controller: null, addEventListener() {}, register() { return Promise.resolve({ update() {} }); }
+    } });
+    window.confirm = () => true;
+})();
+
+// ------------------------------------------------------------------ Graph falso
+(function () {
+    const fetchReal = window.fetch.bind(window);
+    const G = 'https://graph.microsoft.com/v1.0';
+    // Dos sitios: el de las listas (Administracion) y la biblioteca de CALYTEK; el resto contesta 403.
+    const SITIOS = { '/sites/Administracion': 'sitio-falso', '/sites/Ambiental-CALYTEK': 'sitio-calytek' };
+    const DB = { listas: {}, carpetas: [], archivos: [], siguienteId: 1, esquema: null, fallas: [], llamadas: [], filtros: [] };
+    window.__DB = DB;
+
+    function lista(id) { for (const l of Object.values(DB.listas)) if (l.id === id) return l; return null; }
+    function json(status, cuerpo) { return new Response(cuerpo === undefined ? null : JSON.stringify(cuerpo), { status, headers: { 'Content-Type': 'application/json' } }); }
+    function error(status, mensaje) { return json(status, { error: { code: 'falso', message: mensaje } }); }
+    function validarChoices(l, campos) {
+        const esq = DB.esquema.listas.find(x => x.nombre === l.nombre);
+        for (const c of esq.columnas) {
+            if (c.tipo === 'choice' && campos[c.nombre] !== undefined && campos[c.nombre] !== null && !c.opciones.includes(campos[c.nombre]))
+                return `El valor "${campos[c.nombre]}" no es una opción de la columna ${c.nombre} (choice sin allowTextEntry)`;
+        }
+        return null;
+    }
+    function item(it) { return { id: String(it.id), fields: { ...it.fields, id: String(it.id) } }; }
+    const OPS = { eq: (a, b) => String(a ?? '') === String(b), ne: (a, b) => String(a ?? '') !== String(b), ge: (a, b) => String(a ?? '') >= String(b), gt: (a, b) => String(a ?? '') > String(b), le: (a, b) => String(a ?? '') <= String(b), lt: (a, b) => String(a ?? '') < String(b) };
+    function odata(filtro, campos) {
+        return filtro.split(/\s+or\s+/i).some(t => t.split(/\s+and\s+/i).every(c => {
+            const m = /^\s*fields\/([A-Za-z0-9_]+)\s+(eq|ne|ge|gt|le|lt)\s+(.+?)\s*$/.exec(c);
+            if (!m) throw new Error('clausula no soportada: ' + c);
+            const crudo = m[3].trim(); const valor = /^'.*'$/.test(crudo) ? crudo.slice(1, -1).replace(/''/g, "'") : crudo;
+            return OPS[m[2]](campos[m[1]], valor);
+        }));
+    }
+
+    window.fetch = async function (url, opts = {}) {
+        const u = String(url);
+        if (!u.startsWith(G)) return fetchReal(url, opts);
+        const metodo = (opts.method || 'GET').toUpperCase();
+        const ruta = u.slice(G.length);
+        DB.llamadas.push(`${metodo} ${ruta}`);
+        const f = DB.fallas.find(x => x.metodo === metodo && ruta.includes(x.incluye) && x.veces > 0);
+        if (f) { f.veces--; return error(f.status, `falla inyectada (${f.incluye})`); }
+
+        let m;
+        if ((m = /^\/sites\/([^/]+):(\/[^?]+)$/.exec(ruta)) && metodo === 'GET') {
+            const id = SITIOS[m[2]]; return id ? json(200, { id }) : error(403, `Access denied (sin Sites.Selected sobre ${m[2]})`);
+        }
+        if (/^\/sites\/sitio-falso\/lists\?/.test(ruta) && metodo === 'GET')
+            return json(200, { value: Object.values(DB.listas).map(l => ({ id: l.id, name: l.nombre, displayName: l.nombre })) });
+        if ((m = /^\/sites\/sitio-falso\/lists\/([^/]+)\/items\?/.exec(ruta)) && metodo === 'GET') {
+            const l = lista(m[1]); if (!l) return error(404, 'lista');
+            const f2 = new URLSearchParams(ruta.slice(ruta.indexOf('?'))).get('$filter');
+            let items = l.items;
+            if (f2) { DB.filtros.push(f2); try { items = items.filter(it => odata(f2, it.fields)); } catch (e) { return error(400, 'el Graph falso no entiende el $filter: ' + f2); } }
+            return json(200, { value: items.map(item) });
+        }
+        if ((m = /^\/sites\/sitio-falso\/lists\/([^/]+)\/items$/.exec(ruta)) && metodo === 'POST') {
+            const l = lista(m[1]); if (!l) return error(404, 'lista');
+            const campos = JSON.parse(opts.body).fields;
+            const mal = validarChoices(l, campos); if (mal) return error(400, mal);
+            const it = { id: DB.siguienteId++, fields: { ...campos } };
+            l.items.push(it);
+            return json(201, item(it));
+        }
+        if ((m = /^\/sites\/sitio-falso\/lists\/([^/]+)\/items\/(\d+)\/fields$/.exec(ruta)) && metodo === 'PATCH') {
+            const l = lista(m[1]); const it = l && l.items.find(x => x.id === Number(m[2]));
+            if (!it) return error(404, 'renglón');
+            const campos = JSON.parse(opts.body);
+            const mal = validarChoices(l, campos); if (mal) return error(400, mal);
+            for (const k in campos) { if (campos[k] === null) delete it.fields[k]; else it.fields[k] = campos[k]; }
+            return json(200, it.fields);
+        }
+        if ((m = /^\/sites\/sitio-falso\/lists\/([^/]+)\/items\/(\d+)$/.exec(ruta)) && metodo === 'DELETE') {
+            const l = lista(m[1]); const i = l ? l.items.findIndex(x => x.id === Number(m[2])) : -1;
+            if (i < 0) return error(404, 'renglón');
+            l.items.splice(i, 1);
+            return new Response(null, { status: 204 });
+        }
+        // Biblioteca de CALYTEK: busqueda, existencia, carpetas, piezas.
+        if ((m = /^\/sites\/sitio-calytek\/drive\/root\/search\(q='([^']*)'\)/.exec(ruta)) && metodo === 'GET') {
+            const q = decodeURIComponent(m[1]).toLowerCase();
+            const v = DB.archivos.filter(a => a.nombre.toLowerCase().includes(q)).map(a => ({ id: a.id, name: a.nombre, file: {}, webUrl: 'https://tenant.example.invalid/' + a.ruta, parentReference: { path: '/drive/root:/' + a.ruta.slice(0, a.ruta.lastIndexOf('/')) }, lastModifiedDateTime: '2026-09-01T12:00:00Z', size: a.bytes }));
+            return json(200, { value: v });
+        }
+        if ((m = /^\/sites\/sitio-calytek\/drive\/root:\/(.+?)\?\$select=id$/.exec(ruta)) && metodo === 'GET') {
+            const r = decodeURIComponent(m[1]);
+            const c = DB.carpetas.find(x => x.ruta === r) || DB.archivos.find(x => x.ruta === r);
+            return c ? json(200, { id: c.id }) : error(404, 'itemNotFound');
+        }
+        if ((m = /^\/sites\/sitio-calytek\/drive\/root:\/(.+):\/children$/.exec(ruta)) && metodo === 'POST') {
+            const cuerpo = JSON.parse(opts.body);
+            let nombre = cuerpo.name; let n = 1;
+            while (DB.carpetas.find(c => c.ruta === decodeURIComponent(m[1]) + '/' + nombre)) nombre = `${cuerpo.name} ${++n}`;
+            const c = { id: 'carpeta-' + DB.siguienteId++, ruta: decodeURIComponent(m[1]) + '/' + nombre, nombre };
+            DB.carpetas.push(c);
+            return json(201, { id: c.id, name: nombre });
+        }
+        if ((m = /^\/sites\/sitio-calytek\/drive\/root:\/(.+):\/content$/.exec(ruta)) && metodo === 'PUT') {
+            const ruta2 = decodeURIComponent(m[1]);
+            const carpeta = ruta2.slice(0, ruta2.lastIndexOf('/'));
+            if (!DB.carpetas.find(c => c.ruta === carpeta)) return error(404, 'la carpeta no existe: ' + carpeta);
+            const bytes = opts.body ? (opts.body.byteLength || opts.body.length || 0) : 0;
+            const texto = opts.body && opts.body.byteLength ? new TextDecoder().decode(opts.body) : '';
+            DB.archivos.push({ id: 'archivo-' + DB.siguienteId++, ruta: ruta2, nombre: ruta2.slice(ruta2.lastIndexOf('/') + 1), bytes, texto });
+            return json(201, { name: ruta2.slice(ruta2.lastIndexOf('/') + 1) });
+        }
+        if ((m = /^\/sites\/sitio-calytek\/drive\/items\/([^/]+)$/.exec(ruta)) && metodo === 'DELETE') {
+            const c = DB.carpetas.find(x => x.id === m[1]);
+            if (!c) return error(404, 'carpeta');
+            DB.carpetas = DB.carpetas.filter(x => x !== c);
+            DB.archivos = DB.archivos.filter(a => !a.ruta.startsWith(c.ruta + '/'));
+            return new Response(null, { status: 204 });
+        }
+        return error(500, `el Graph falso no conoce ${metodo} ${ruta}`);
+    };
+
+    window.__sembrar = function (esquema, rol) {
+        DB.esquema = esquema;
+        for (const l of esquema.listas) DB.listas[l.clave] = { id: 'lista-' + l.clave, nombre: l.nombre, items: [] };
+        const roles = DB.listas.roles.items;
+        roles.push({ id: DB.siguienteId++, fields: { Title: window.__CUENTA.username, Nombre: 'Persona de Prueba', Rol: rol, Activo: true } });
+        roles.push({ id: DB.siguienteId++, fields: { Title: 'colega@example.invalid', Nombre: 'Colega Demo', Rol: 'colaborador', Activo: true } });
+        roles.push({ id: DB.siguienteId++, fields: { Title: 'jefa@example.invalid', Nombre: 'Jefa Demo', Rol: 'gerencia', Activo: true } });
+        // Archivos "ya archivados" en la biblioteca de CALYTEK, para el buscador.
+        DB.archivos.push({ id: 'archivo-a1', ruta: '04_SGI/02_Ambiental/2025-06-20_MINSA_plan-contingencia_rev01.pdf', nombre: '2025-06-20_MINSA_plan-contingencia_rev01.pdf', bytes: 1000 });
+        DB.archivos.push({ id: 'archivo-a2', ruta: '99_Pendiente-Archivar/2026-09-01_algo/plan-contingencia-viejo.pdf', nombre: 'plan-contingencia-viejo.pdf', bytes: 10 });
+        DB.carpetas.push({ id: 'carpeta-buzon', ruta: '99_Pendiente-Archivar', nombre: '99_Pendiente-Archivar' });
+    };
+})();
+
+// ------------------------------------------------------------------ bitacora de resultados
+(function () {
+    const pre = document.getElementById('resultados');
+    const R = { lineas: [], fallas: 0, oks: 0 };
+    R.log = (clase, texto) => { const s = document.createElement('span'); s.className = clase; s.textContent = `[${clase.toUpperCase()}] ${texto}\n`; pre.appendChild(s); R.lineas.push(`[${clase}] ${texto}`); };
+    R.ok = (nombre, cond, detalle) => { if (cond) { R.oks++; R.log('ok', nombre + (detalle ? ' — ' + detalle : '')); } else { R.fallas++; R.log('falla', nombre + (detalle ? ' — ' + detalle : '')); } };
+    R.cerrar = async () => {
+        const resumen = `${R.oks} ok · ${R.fallas} falla(s)`;
+        R.log(R.fallas ? 'falla' : 'ok', 'RESUMEN: ' + resumen);
+        document.title = 'PRUEBAS TERMINADAS: ' + resumen;
+        try { await fetch('/guardar', { method: 'POST', body: JSON.stringify({ resumen, rol: new URLSearchParams(location.search).get('rol') || 'gerencia', lineas: R.lineas, llamadas: window.__DB.llamadas.length }, null, 1) }); } catch (_) {}
+    };
+    window.__PRUEBAS = R;
+})();
+</script>
+
+<script type="module">
+const R = window.__PRUEBAS;
+const DB = window.__DB;
+const params = new URLSearchParams(location.search);
+const ROL = params.get('rol') || 'gerencia';
+const YO = window.__CUENTA.username;
+const $ = id => document.getElementById(id);
+const dormir = ms => new Promise(r => setTimeout(r, ms));
+async function esperar(fn, que, ms = 8000) {
+    const t0 = Date.now();
+    while (Date.now() - t0 < ms) { try { const v = fn(); if (v) return v; } catch (_) {} await dormir(25); }
+    throw new Error('tiempo agotado esperando: ' + que);
+}
+const visible = id => $(id).tagName === 'DIALOG' ? $(id).open : !$(id).classList.contains('oculto') && !$(id).hidden && $(id).offsetParent !== null;
+const avisoCon = texto => [...document.querySelectorAll('#avisos .mensaje, .dlg-avisos .mensaje')].find(m => m.textContent.includes(texto));
+const clic = id => $(id).click();
+const poner = (id, v) => { $(id).value = v; $(id).dispatchEvent(new Event('input', { bubbles: true })); $(id).dispatchEvent(new Event('change', { bubbles: true })); };
+const filas = clave => DB.listas[clave].items;
+const pestana = p => document.querySelector(`#pestanas button[data-p="${p}"]`).click();
+const tab = t => document.querySelector(`.tab[data-tab="${t}"]`).click();
+async function confirmar() { const d = $('dlg'); await esperar(() => d.open, 'diálogo abierto', 2000).catch(() => {}); if (d.open) clic('dlgOk'); }
+function archivosFalsos() {
+    const dt = new DataTransfer();
+    dt.items.add(new File([new Blob(['%PDF-1.4 falso'])], 'filosofia-borrador.pdf', { type: 'application/pdf' }));
+    dt.items.add(new File([new Blob(['hola'])], 'nota.txt', { type: 'text/plain' }));
+    $('sbArchivos').files = dt.files; $('sbArchivos').dispatchEvent(new Event('change', { bubbles: true }));
+}
+const actividad = accion => filas('actividad').filter(a => a.fields.Accion === accion);
+
+try {
+    // 1. Montar la app real dentro de esta pagina.
+    const html = await (await fetch('./index.html', { cache: 'reload' })).text();
+    const doc = new DOMParser().parseFromString(html, 'text/html');
+    for (const s of doc.querySelectorAll('script')) s.remove();
+    const cont = $('app-real');
+    for (const n of [...doc.body.childNodes]) cont.appendChild(document.adoptNode(n));
+    for (const href of ['./minsa-ui.css', './estilo.css']) { const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = href; document.head.appendChild(link); }
+    const esquema = await (await fetch('./esquema.json', { cache: 'reload' })).json();
+    window.__sembrar(esquema, ROL);
+    const gerencia = ROL === 'gerencia';
+    const escribe = ['gerencia', 'colaborador'].includes(ROL);
+    const CLAVE = gerencia ? 'lau-asea-03-001' : 'lau-demo';
+    let proyectoId = null;
+    if (!gerencia) {
+        // Un rol que no crea proyectos recibe uno sembrado (lo creo gerencia).
+        proyectoId = DB.siguienteId++;
+        filas('proyectos').push({ id: proyectoId, fields: { Title: 'LAU DEMO', Clave: 'lau-demo', Equipo: 'CALYTEK', Estado: 'activo', Responsable: 'jefa@example.invalid' } });
+        filas('tareas').push({ id: DB.siguienteId++, fields: { Title: 'Tarea sembrada para mí', ProyectoId: proyectoId, Columna: 'por-hacer', Asignado: YO, Prioridad: 'alta', Vence: '2026-09-01T18:00:00Z', Desde: '2026-09-01T18:00:00Z' } });
+        R.log('nota', `rol ${ROL}: proyecto y tarea sembrados directo en las listas`);
+    }
+    await import('./app.js');
+    R.log('nota', `app importada · rol de prueba: ${ROL} · ${$('pie').textContent}`);
+
+    // 2. Sesion: entra sola y aterriza en Inicio.
+    await esperar(() => !visible('pantallaEntrar'), 'sesión iniciada');
+    R.ok('sesión iniciada y rol resuelto', $('quien').textContent.includes(ROL), $('quien').textContent);
+    R.ok('pantalla inicial = Inicio', visible('p-inicio'));
+
+    // 3. Proyectos.
+    pestana('proyectos');
+    R.ok('botón Nuevo proyecto según rol', $('btnNuevoProyecto').disabled === !gerencia);
+    if (gerencia) {
+        clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo de proyecto');
+        poner('npTitulo', 'LAU ASEA-03-001 (Licencia Ambiental Única)');
+        R.ok('la clave se propone sola desde el nombre', $('npClave').value === 'lau-asea-03-001-licencia-ambiental-unica', $('npClave').value);
+        poner('npClave', 'LAU ASEA'); poner('npEquipo', 'CALYTEK');
+        clic('npGuardar'); await esperar(() => avisoCon('Clave:'), 'clave inválida rechazada');
+        R.ok('clave inválida rechazada', !!avisoCon('solo minúsculas') && filas('proyectos').length === 0);
+        poner('npClave', 'lau-asea-03-001'); poner('npVence', '31/10/2026'); poner('npResponsable', 'jefa@example.invalid'); poner('npDesc', 'Paquete de entregables para el gestor.');
+        clic('npGuardar'); await esperar(() => filas('proyectos').length === 1, 'proyecto creado');
+        const p = filas('proyectos')[0];
+        proyectoId = p.id;
+        R.ok('proyecto creado activo con clave, equipo y fin', p.fields.Estado === 'activo' && p.fields.Clave === 'lau-asea-03-001' && p.fields.Equipo === 'CALYTEK' && String(p.fields.Vence).startsWith('2026-10-31'), JSON.stringify(p.fields));
+        R.ok('PROY_Actividad: crear-proyecto', actividad('crear-proyecto').length === 1);
+        await esperar(() => visible('p-proyecto'), 'abre el proyecto recién creado');
+        R.ok('al crear se abre el proyecto', $('pTitulo').textContent.includes('LAU ASEA-03-001'));
+        // Clave duplicada.
+        pestana('proyectos'); clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo');
+        poner('npTitulo', 'Otro'); poner('npClave', 'lau-asea-03-001'); poner('npEquipo', 'PITEPEC');
+        clic('npGuardar'); await esperar(() => avisoCon('ya hay un proyecto con la clave'), 'duplicada');
+        R.ok('clave duplicada rechazada', filas('proyectos').length === 1);
+        clic('npCancelar');
+        R.log('nota', `filtros $filter usados: ${DB.filtros.join(' | ')}`);
+    } else {
+        // Forzar el guardado sin permiso: la funcion se niega aunque el boton este deshabilitado.
+        $('btnNuevoProyecto').disabled = false; clic('btnNuevoProyecto'); await dormir(80);
+        R.ok('rol sin gerencia: crear proyecto se niega aunque se fuerce el botón', !$('dlgProyecto').open && !!avisoCon('Solo gerencia'));
+    }
+    const abrirLau = async () => { pestana('proyectos'); await esperar(() => document.querySelector('#listaProyectos .renglon'), 'renglón'); document.querySelector('#listaProyectos .renglon').click(); await esperar(() => visible('p-proyecto'), 'proyecto abierto'); };
+    await abrirLau();
+    R.ok('el proyecto aparece en la lista y abre', visible('p-proyecto') && $('pEquipo').textContent === 'CALYTEK');
+    R.ok('Cerrar/Editar proyecto según rol', $('btnCerrarProyecto').disabled === !gerencia && $('btnEditarProyecto').disabled === !gerencia);
+    R.ok('Nueva tarea según rol', $('btnNuevaTarea').disabled === !escribe);
+
+    // 4. Tareas: crear, asignar, mover por las 4 columnas.
+    if (escribe) {
+        clic('btnNuevaTarea'); await esperar(() => $('dlgNuevaTarea').open, 'diálogo de tarea');
+        poner('ntTitulo', ''); clic('ntGuardar'); await dormir(60);
+        R.ok('tarea sin título se rechaza', !!avisoCon('necesita un título'));
+        poner('ntTitulo', 'Lista de insumos directos e indirectos'); poner('ntAsignado', 'colega@example.invalid'); poner('ntPrioridad', 'alta'); poner('ntVence', '19/09/2026'); poner('ntOrigen', 'ambiental/calytek/lau-entregables-gestor.md#renglon-7');
+        clic('ntGuardar'); await esperar(() => filas('tareas').some(t => t.fields.Title.startsWith('Lista de insumos')), 'tarea creada');
+        const t = filas('tareas').find(x => x.fields.Title.startsWith('Lista de insumos'));
+        R.ok('tarea creada en por-hacer, asignada, con origen y Desde', t.fields.Columna === 'por-hacer' && t.fields.Asignado === 'colega@example.invalid' && t.fields.Origen.includes('#renglon-7') && !!t.fields.Desde && Number(t.fields.ProyectoId) === proyectoId, JSON.stringify(t.fields));
+        R.ok('PROY_Actividad: crear-tarea', actividad('crear-tarea').length === 1);
+        poner('ntTitulo', 'Fecha mala'); clic('btnNuevaTarea'); await esperar(() => $('dlgNuevaTarea').open, 'diálogo'); poner('ntTitulo', 'Fecha mala'); poner('ntVence', '31/02/2026'); clic('ntGuardar'); await dormir(60);
+        R.ok('fecha inexistente se rechaza', !!avisoCon('no existe') && !filas('tareas').some(x => x.fields.Title === 'Fecha mala'));
+        clic('ntCancelar');
+        // Abrir la tarjeta desde el tablero y moverla por las 4 columnas.
+        await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta en el tablero');
+        R.ok('la tarjeta está en la columna por-hacer', !!document.querySelector(`.col[data-col="por-hacer"] .tarjeta[data-t="${t.id}"]`));
+        const mover = async col => {
+            document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta abierta');
+            document.querySelector(`#tMover button[data-move="${col}"]`).click();
+            await esperar(() => t.fields.Columna === col && !$('dlgTarea').open, 'movida a ' + col);
+        };
+        await mover('en-curso'); R.ok('→ en-curso, Desde reescrito, sin HechoPor', t.fields.Columna === 'en-curso' && !t.fields.HechoPor);
+        await mover('en-revision'); R.ok('→ en-revision', t.fields.Columna === 'en-revision');
+        await mover('hecho'); R.ok('→ hecho sella HechoPor/HechoEl', t.fields.HechoPor === YO && !!t.fields.HechoEl, t.fields.HechoPor);
+        await esperar(() => $('pPct').textContent.includes('1/'), 'avance repintado');
+        R.ok('panel de avance: 1 hecha', $('pPct').textContent.includes('1/'), $('pPct').textContent);
+        await mover('por-hacer'); R.ok('→ por-hacer limpia el sello', !t.fields.HechoPor && !t.fields.HechoEl);
+        R.ok('PROY_Actividad: 4 mover-tarea', actividad('mover-tarea').length === 4, String(actividad('mover-tarea').length));
+        R.ok('la tarjeta volvió a por-hacer en el tablero', !!document.querySelector(`.col[data-col="por-hacer"] .tarjeta[data-t="${t.id}"]`));
+        // Editar: reasignar a mí.
+        document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+        $('tEditar').open = true; poner('ftAsignado', YO); clic('btnGuardarTarea');
+        await esperar(() => t.fields.Asignado === YO, 'reasignada');
+        R.ok('editar reasigna y registra', t.fields.Asignado === YO && actividad('editar-tarea').length === 1);
+        // 503 reintenta; 403 nombra el permiso.
+        DB.fallas.push({ metodo: 'PATCH', incluye: `/items/${t.id}/fields`, status: 503, veces: 1 });
+        await mover('en-curso'); R.ok('503 en el PATCH: reintenta y la tarjeta se mueve', t.fields.Columna === 'en-curso');
+        DB.fallas.push({ metodo: 'PATCH', incluye: `/items/${t.id}/fields`, status: 403, veces: 1 });
+        document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+        document.querySelector('#tMover button[data-move="hecho"]').click(); await esperar(() => avisoCon('sin permiso (403)'), '403');
+        R.ok('403: el aviso nombra el permiso y la tarjeta no se mueve', t.fields.Columna === 'en-curso'); clic('tCerrar');
+        // Lista.
+        tab('lista'); await esperar(() => document.querySelector('#tab-lista tr.clic'), 'lista');
+        R.ok('la pestaña Lista trae la tarea con su origen', [...document.querySelectorAll('#tab-lista td.src')].some(x => x.textContent.includes('#renglon-7')));
+        // Mis tareas filtra por correo.
+        pestana('mis'); await esperar(() => visible('p-mis'), 'mis tareas');
+        R.ok('Mis tareas trae solo lo mío', [...document.querySelectorAll('#misLista .tarjeta')].length === (gerencia ? 1 : 2) && !!document.querySelector(`#misLista .tarjeta[data-t="${t.id}"]`), String(document.querySelectorAll('#misLista .tarjeta').length));
+        // Inicio: KPI y próximos.
+        pestana('inicio'); await esperar(() => document.querySelector('#inicioKpis .mn-kpi'), 'kpis');
+        R.ok('Inicio: KPI de proyectos activos = 1', document.querySelector('#inicioKpis .mn-kpi .mn-kpi-val').textContent === '1');
+        R.ok('Inicio: próximos vencimientos lista la tarea', $('inicioVence').textContent.includes('Lista de insumos'));
+        R.ok('Inicio: actividad reciente con verbos', $('inicioActividad').textContent.includes('movió') && $('inicioActividad').textContent.includes('creó'));
+
+        // 5. Docs: buscar, ligar, subir, 404 del buzon, 403 fuera del piloto.
+        await abrirLau(); tab('docs'); await esperar(() => !$('tab-docs').classList.contains('oculto'), 'docs');
+        R.ok('Docs: botones habilitados y biblioteca nombrada', !$('btnLigar').disabled && $('docsBiblioteca').textContent.includes('Ambiental-CALYTEK'));
+        clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar');
+        poner('lgTexto', 'contingencia'); clic('lgBuscar'); await esperar(() => document.querySelector('#lgResultados .lg-resultado'), 'resultados');
+        const res = [...document.querySelectorAll('#lgResultados .lg-resultado')];
+        R.ok('buscador: encuentra el archivado y excluye el del buzón', res.length === 1 && res[0].textContent.includes('rev01.pdf'), String(res.length));
+        poner('lgTarea', String(t.id)); res[0].querySelector('button').click();
+        await esperar(() => filas('ligas').length === 1, 'liga creada');
+        const lg = filas('ligas')[0];
+        R.ok('liga archivada con ruta, url, id y tarjeta', lg.fields.Tipo === 'archivado' && lg.fields.Ruta.startsWith('04_SGI/') && lg.fields.DriveItemId === 'archivo-a1' && Number(lg.fields.TareaId) === t.id && lg.fields.Unidad === 'CALYTEK', JSON.stringify(lg.fields));
+        R.ok('PROY_Actividad: ligar', actividad('ligar').length === 1);
+        await esperar(() => document.querySelector('#docsLista .doc'), 'docs repintado');
+        // Subir al buzon.
+        clic('btnSubir'); await esperar(() => $('dlgSubir').open, 'subir');
+        poner('sbConcepto', 'Borrador de filosofía de operación'); poner('sbTarea', String(t.id)); archivosFalsos();
+        clic('sbGuardar'); await esperar(() => filas('ligas').length === 2, 'lote subido', 10000);
+        const lote = filas('ligas')[1];
+        const carpeta = DB.carpetas.find(c => c.id === lote.fields.DriveItemId);
+        const piezas = DB.archivos.filter(a => a.ruta.startsWith(carpeta.ruta + '/'));
+        R.ok('lote en 99_Pendiente-Archivar con nombre fecha_Proyecto_clave_concepto', carpeta.ruta.startsWith('99_Pendiente-Archivar/') && carpeta.ruta.endsWith(`_Proyecto_${CLAVE}_borrador-de-filosofia-de-operacion`), carpeta.ruta);
+        R.ok('_lote.json va AL FINAL y firmado por minsa-proyectos', piezas.length === 3 && piezas[2].nombre === '_lote.json' && JSON.parse(piezas[2].texto).app === 'minsa-proyectos' && JSON.parse(piezas[2].texto).proyecto === CLAVE && JSON.parse(piezas[2].texto).tarea === t.id, piezas.map(p => p.nombre).join(','));
+        R.ok('el manifiesto lista las 2 piezas y propone destino fuera del buzón', JSON.parse(piezas[2].texto).archivos.length === 2 && !JSON.parse(piezas[2].texto).destino.startsWith('99_'), JSON.parse(piezas[2].texto).destino);
+        R.ok('liga tipo buzon con la ruta del lote', lote.fields.Tipo === 'buzon' && lote.fields.Ruta === carpeta.ruta);
+        R.ok('PROY_Actividad: subir', actividad('subir').length === 1);
+        await esperar(() => document.querySelectorAll('#docsLista .doc').length === 2, 'docs con 2');
+        R.ok('Docs muestra «en el buzón»', $('docsLista').textContent.includes('en el buzón'));
+        // La skill acomoda el lote: la carpeta desaparece -> 404 -> «ya lo acomodó la skill».
+        DB.carpetas = DB.carpetas.filter(c => c !== carpeta); DB.archivos = DB.archivos.filter(a => !a.ruta.startsWith(carpeta.ruta + '/'));
+        clic('btnActualizar'); await esperar(() => $('docsLista').textContent.includes('ya lo acomodó la skill'), '404 del buzón');
+        R.ok('404 del buzón = «ya lo acomodó la skill»', true);
+        // Subida a medias: la 2a pieza falla -> se borra la carpeta y no queda liga.
+        DB.fallas.push({ metodo: 'PUT', incluye: 'nota.txt', status: 403, veces: 1 });
+        clic('btnSubir'); await esperar(() => $('dlgSubir').open, 'subir'); poner('sbConcepto', 'A medias'); archivosFalsos(); clic('sbGuardar');
+        await esperar(() => avisoCon('No se pudo subir'), 'falla de subida');
+        R.ok('subida a medias: se borra la carpeta y no nace la liga', !DB.carpetas.some(c => c.ruta.includes('a-medias')) && filas('ligas').length === 2 && !!avisoCon('sin permiso (403)'));
+        clic('sbCancelar');
+        // Un equipo fuera del piloto: 403 al abrir el sitio, con el nombre.
+        if (gerencia) {
+            pestana('proyectos'); clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo');
+            poner('npTitulo', 'Inhibidor RABASA'); poner('npClave', 'inhibidor-rabasa'); poner('npEquipo', 'RABASA'); clic('npGuardar');
+            await esperar(() => filas('proyectos').length === 2 && visible('p-proyecto'), 'segundo proyecto');
+            tab('docs'); await esperar(() => $('docsBiblioteca').textContent.includes('fuera del piloto'), 'aviso de piloto');
+            clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar'); poner('lgTexto', 'algo'); clic('lgBuscar');
+            await esperar(() => avisoCon('Sin acceso a Quimicos-RABASA'), '403 con nombre');
+            R.ok('biblioteca fuera del piloto: 403 nombra el sitio', !!avisoCon('otorgar-permiso-sitio'));
+            clic('lgCerrar');
+            // Borrar tarjeta y cerrar proyecto: solo gerencia.
+            await abrirLau(); await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta');
+            document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+            R.ok('gerencia puede borrar', !$('tBorrar').disabled);
+            clic('tBorrar'); await confirmar(); await esperar(() => !filas('tareas').some(x => x.id === t.id), 'borrada');
+            R.ok('tarjeta borrada y la liga queda sin tarjeta', actividad('borrar-tarea').length === 1 && filas('ligas').every(l => l.fields.TareaId !== t.id));
+            clic('btnCerrarProyecto'); await confirmar(); await esperar(() => filas('proyectos')[0].fields.Estado === 'cerrado', 'cerrado');
+            const pc = filas('proyectos')[0];
+            R.ok('proyecto cerrado con sello', pc.fields.CerradoPor === YO && !!pc.fields.CerradoEl && actividad('cerrar-proyecto').length === 1);
+            R.ok('cerrado: sin Nueva tarea y sale de activos', $('btnNuevaTarea').disabled && $('pPct').textContent.includes('CERRADO'));
+            pestana('proyectos'); await esperar(() => $('listaCerrados').textContent.includes('LAU ASEA'), 'en cerrados');
+            R.ok('Proyectos: el cerrado aparece en «cerrados» y no en activos', !$('listaProyectos').textContent.includes('LAU ASEA'));
+        } else {
+            await abrirLau(); await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta');
+            document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+            R.ok('colaborador: Borrar deshabilitado', $('tBorrar').disabled);
+            $('tBorrar').disabled = false; clic('tBorrar'); await dormir(80);
+            R.ok('colaborador: borrar se niega aunque se fuerce', filas('tareas').some(x => x.id === t.id) && !!avisoCon('Solo gerencia'));
+            clic('tCerrar');
+            $('btnCerrarProyecto').disabled = false; clic('btnCerrarProyecto'); await dormir(80);
+            R.ok('colaborador: cerrar proyecto se niega aunque se fuerce', filas('proyectos')[0].fields.Estado === 'activo' && !!avisoCon('Solo gerencia'));
+        }
+        // Sesion caducada -> vuelve al login.
+        const pcaFalso = window.msal; let redirigio = false;
+        pcaFalso.PublicClientApplication.prototype.acquireTokenSilent = async () => { throw new pcaFalso.InteractionRequiredAuthError('interaction_required'); };
+        pcaFalso.PublicClientApplication.prototype.acquireTokenRedirect = async () => { redirigio = true; };
+        clic('btnActualizar'); await esperar(() => redirigio || avisoCon('No se pudieron releer'), 'token caducado');
+        R.ok('token caducado → acquireTokenRedirect (vuelve al login)', redirigio);
+    } else {
+        // 6. Lectura: ve todo, no escribe.
+        const t = filas('tareas')[0];
+        await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta');
+        document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+        R.ok('lectura: ve la tarjeta con el aviso de rol', !$('tDeny').classList.contains('oculto') && $('tDeny').textContent.includes('lectura'));
+        R.ok('lectura: botones de mover deshabilitados y sin editar', [...document.querySelectorAll('#tMover button')].every(b => b.disabled) && $('tEditar').classList.contains('oculto') && $('tBorrar').disabled);
+        const b = document.querySelector('#tMover button[data-move="hecho"]'); b.disabled = false; b.click(); await dormir(80);
+        R.ok('lectura: moverTarea se niega aunque se fuerce el botón', t.fields.Columna === 'por-hacer' && !!avisoCon('lectura'));
+        clic('tCerrar');
+        tab('docs'); await dormir(50);
+        R.ok('lectura: Ligar y Subir deshabilitados', $('btnLigar').disabled && $('btnSubir').disabled);
+        pestana('mis'); await esperar(() => visible('p-mis'), 'mis');
+        R.ok('lectura: Mis tareas trae la sembrada, vencida arriba', document.querySelectorAll('#misLista .tarjeta').length === 1 && $('misLista').textContent.includes('venció'));
+        pestana('inicio'); await dormir(50);
+        R.ok('lectura: Inicio muestra 1 vencida', [...document.querySelectorAll('#inicioKpis .mn-kpi')].some(k => k.textContent.includes('vencidas') && k.querySelector('.mn-kpi-val').textContent === '1'));
+    }
+} catch (e) {
+    R.ok('la corrida terminó sin excepción', false, (e && e.stack) || String(e));
+} finally {
+    await R.cerrar();
+    if (params.get('vista')) { $('resultados').hidden = true; const v = params.get('vista'); if (v === 'proyecto') { document.querySelector('#listaProyectos .renglon, #listaCerrados .renglon')?.click(); } else pestana(v); }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" id="metaTema" content="#f7f9fc">
+<!-- CSP estricta, misma que calytek-planta-app: sin scripts ni estilos en linea. Las fuentes van
+     vendorizadas en ./vendor/fuentes (OFL), por eso font-src sigue en 'self'. -->
+<meta http-equiv="Content-Security-Policy" content="
+  default-src 'self';
+  script-src 'self';
+  style-src 'self';
+  img-src 'self' blob: data:;
+  font-src 'self';
+  connect-src 'self' https://graph.microsoft.com https://login.microsoftonline.com;
+  frame-src https://login.microsoftonline.com;
+  form-action 'none';
+  base-uri 'none';
+  object-src 'none'">
+<title>MINSA Proyectos</title>
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./iconos/icono-192.png">
+<link rel="apple-touch-icon" href="./iconos/icono-192.png">
+<link rel="stylesheet" href="./minsa-ui.css">
+<link rel="stylesheet" href="./estilo.css">
+</head>
+<body>
+
+<!-- Un solo DOM para celular y computadora: el rail .mn-rail es columna en escritorio y barra de
+     pestanas abajo en celular (patrones.md §5). Nada de innerHTML en app.js: todo textContent. -->
+<div class="mn-shell app" id="shell">
+
+  <aside class="mn-rail rail oculto" id="rail">
+    <div class="marca"><img class="logo solo-claro" src="./marca/lockup.svg" alt="MINSA ENERGY" width="724" height="256"><img class="logo solo-oscuro" src="./marca/lockup-oscuro.svg" alt="MINSA ENERGY" width="724" height="256"><span>Proyectos</span></div>
+    <nav id="pestanas" role="tablist" aria-label="Secciones">
+      <button type="button" data-p="inicio" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8v10H3z"/><path d="M9 21v-6h6v6"/></svg><span>Inicio</span></button>
+      <button type="button" data-p="proyectos" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M4 10h16M9 10v9"/></svg><span>Proyectos</span><b class="mn-rail-hot" id="nProyectos" hidden></b></button>
+      <button type="button" data-p="mis" role="tab"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg><span>Mis tareas</span><b class="mn-rail-hot" id="nMis" hidden></b></button>
+    </nav>
+    <div class="equipos" id="railEquipos"></div>
+    <div class="sesion"><span id="quien" class="quien"></span><span class="sync" id="syncRail"></span><div class="sesion-botones"><button id="btnActualizar" class="mn-btn is-sm" type="button" title="Volver a leer las listas">Actualizar</button><button id="btnSalir" class="mn-btn is-sm" type="button">Salir</button><div class="tema" role="group" aria-label="Tema"><button type="button" data-tema="claro" title="Claro" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button><button type="button" data-tema="oscuro" title="Oscuro" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button></div></div></div>
+  </aside>
+
+  <main class="contenido">
+    <div id="barraMovil" class="barra-movil oculto"><span class="logo chica"><img class="logo solo-claro" src="./marca/lockup.svg" alt="MINSA ENERGY" width="724" height="256"><img class="logo solo-oscuro" src="./marca/lockup-oscuro.svg" alt="MINSA ENERGY" width="724" height="256"></span><span class="rol-movil" id="rolMovil"></span><details class="menu-movil" id="menuMovil"><summary aria-label="Menú">···</summary><div class="menu-caja"><button id="btnActualizarMovil" type="button">Actualizar ahora</button><div class="tema" role="group" aria-label="Tema"><button type="button" data-tema="claro" title="Claro" aria-pressed="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg></button><button type="button" data-tema="oscuro" title="Oscuro" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg></button></div><button id="btnSalirMovil" type="button">Salir</button></div></details></div>
+    <p class="sync oculto" id="syncMovil"></p>
+    <div id="avisos"></div>
+
+    <!-- Entrar -->
+    <section id="pantallaEntrar" class="entrada">
+      <div class="entrada-caja">
+        <img class="logo" src="./marca/lockup-oscuro.svg" alt="MINSA ENERGY" width="724" height="256">
+        <h1 class="entrada-titulo">Un frente,<br>un <em>tablero.</em></h1>
+        <p class="lema">Proyectos, tareas asignadas y documentos, para todo el equipo.</p>
+        <button id="btnEntrar" class="mn-btn is-primary is-block" type="button">Entrar con mi cuenta de MINSA</button>
+        <p id="textoEntrar" class="mn-label"></p>
+      </div>
+    </section>
+
+    <!-- Inicio -->
+    <section id="p-inicio" class="pantalla oculto">
+      <header class="cabecera"><h1>Inicio</h1><p class="sub" id="inicioSub"></p></header>
+      <div class="mn-kpis" id="inicioKpis"></div>
+      <div class="dos-columnas">
+        <section class="mn-card"><h2>Proyectos activos</h2><div class="lista" id="inicioProyectos"></div></section>
+        <div class="apilado">
+          <section class="mn-card"><h2>Próximos vencimientos</h2><div class="mini" id="inicioVence"></div></section>
+          <section class="mn-card" id="cardSinMov"><h2>Sin movimiento</h2><div class="mini" id="inicioSinMov"></div></section>
+          <section class="mn-card"><h2>Actividad reciente</h2><div class="mini" id="inicioActividad"></div></section>
+        </div>
+      </div>
+    </section>
+
+    <!-- Proyectos -->
+    <section id="p-proyectos" class="pantalla oculto">
+      <header class="cabecera"><h1>Proyectos</h1><button id="btnNuevoProyecto" class="mn-btn is-primary is-sm" type="button">Nuevo proyecto</button><p class="sub">Un proyecto es un frente con fin. El equipo es la unidad que lo lleva: filtra, no restringe.</p></header>
+      <div class="filtros" id="filtroEquipos"></div>
+      <div class="lista" id="listaProyectos"></div>
+      <details class="cerrados"><summary>Proyectos cerrados</summary><div class="lista" id="listaCerrados"></div></details>
+    </section>
+
+    <!-- Proyecto -->
+    <section id="p-proyecto" class="pantalla oculto">
+      <header class="cabecera proyecto-cab">
+        <button id="btnVolver" class="mn-btn is-ghost is-sm" type="button">← Proyectos</button>
+        <div class="titulo"><span class="mn-chip" id="pEquipo"></span> <h1 id="pTitulo"></h1></div>
+        <span class="mn-mono pct" id="pPct"></span>
+        <div class="acciones"><button id="btnEditarProyecto" class="mn-btn is-sm" type="button">Editar</button><button id="btnCerrarProyecto" class="mn-btn is-sm" type="button">Cerrar proyecto</button></div>
+        <p class="sub" id="pDesc"></p>
+      </header>
+      <div class="dos-columnas ancha">
+        <div class="apilado">
+          <div class="tabs" role="tablist">
+            <button class="tab" data-tab="tablero" role="tab" type="button">Tablero</button>
+            <button class="tab" data-tab="lista" role="tab" type="button">Lista</button>
+            <button class="tab" data-tab="docs" role="tab" type="button">Documentos</button>
+            <button id="btnNuevaTarea" class="mn-btn is-primary is-sm" type="button">Nueva tarea</button>
+          </div>
+          <div id="tab-tablero" class="tablero"></div>
+          <div id="tab-lista" class="tabla oculto"></div>
+          <div id="tab-docs" class="docs oculto">
+            <div class="docs-acciones"><button id="btnLigar" class="mn-btn is-sm" type="button">Ligar archivo de la biblioteca</button><button id="btnSubir" class="mn-btn is-sm" type="button">Subir al buzón</button><span class="mn-label" id="docsBiblioteca"></span></div>
+            <div class="lista" id="docsLista"></div>
+          </div>
+        </div>
+        <div class="apilado lateral">
+          <section class="mn-card"><h2>Avance</h2><div class="barra"><i id="pBarra"></i></div><div class="kv" id="pAvance"></div></section>
+          <section class="mn-card"><h2>Quiénes</h2><div class="mini" id="pQuienes"></div></section>
+          <section class="mn-card"><h2>Próximos vencimientos</h2><div class="mini" id="pVence"></div></section>
+          <section class="mn-card"><h2>Actividad</h2><div class="mini" id="pActividad"></div></section>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mis tareas -->
+    <section id="p-mis" class="pantalla oculto">
+      <header class="cabecera"><h1 id="misTitulo">Mis tareas</h1><p class="sub">Tus tarjetas abiertas, en todos los proyectos. Las vencidas arriba.</p></header>
+      <div class="apilado" id="misLista"></div>
+    </section>
+
+    <p class="pie mn-mono" id="pie"></p>
+  </main>
+</div>
+
+<!-- Tarjeta (ver / mover / editar) -->
+<dialog id="dlgTarea" class="mn-dialog">
+  <div class="mn-dialog-head"><h2 id="tTitulo"></h2><button class="mn-btn is-ghost is-sm" id="tCerrar" type="button">Cerrar</button></div>
+  <div class="mn-dialog-body">
+    <div class="dlg-avisos"></div>
+    <div class="kv" id="tKv"></div>
+    <div id="tDeny" class="deny oculto"></div>
+    <div class="mn-label" id="tMoverEtiqueta">Mover a…</div>
+    <div class="mover" id="tMover"></div>
+    <details id="tEditar" class="editar"><summary>Editar la tarjeta</summary>
+      <form id="formTarea" class="forma" novalidate>
+        <div class="mn-field"><label for="ftTitulo">Tarea (verbo + objeto)</label><input id="ftTitulo" required maxlength="255"></div>
+        <div class="mn-row">
+          <div class="mn-field"><label for="ftAsignado">Asignado</label><select id="ftAsignado"></select></div>
+          <div class="mn-field"><label for="ftPrioridad">Prioridad</label><select id="ftPrioridad"><option value="alta">alta</option><option value="normal" selected>normal</option><option value="baja">baja</option></select></div>
+        </div>
+        <div class="mn-row">
+          <div class="mn-field"><label for="ftVence">Vence (dd/mm/aaaa)</label><input id="ftVence" class="fecha" inputmode="numeric" placeholder="sin fecha"></div>
+          <div class="mn-field"><label for="ftOrigen">Origen en la KB</label><input id="ftOrigen" placeholder="ambiental/…md#renglon-7"></div>
+        </div>
+        <div class="mn-field"><label for="ftDesc">Descripción</label><textarea id="ftDesc" rows="3"></textarea></div>
+        <div class="mn-dialog-foot"><button class="mn-btn is-primary is-sm" id="btnGuardarTarea" type="submit">Guardar cambios</button></div>
+      </form>
+    </details>
+  </div>
+  <div class="mn-dialog-foot"><button class="mn-btn is-danger is-sm" id="tBorrar" type="button">Borrar tarjeta</button></div>
+</dialog>
+
+<!-- Nueva tarea -->
+<dialog id="dlgNuevaTarea" class="mn-dialog">
+  <form id="formNuevaTarea" method="dialog" class="forma" novalidate>
+    <div class="mn-dialog-head"><h2>Nueva tarea</h2></div>
+    <div class="mn-dialog-body">
+      <div class="dlg-avisos"></div>
+      <div class="mn-field"><label for="ntTitulo">Tarea (verbo + objeto)</label><input id="ntTitulo" required maxlength="255" placeholder="Entregar el original de la fianza en ASEA"></div>
+      <div class="mn-row">
+        <div class="mn-field"><label for="ntAsignado">Asignado</label><select id="ntAsignado"></select></div>
+        <div class="mn-field"><label for="ntPrioridad">Prioridad</label><select id="ntPrioridad"><option value="alta">alta</option><option value="normal" selected>normal</option><option value="baja">baja</option></select></div>
+      </div>
+      <div class="mn-row">
+        <div class="mn-field"><label for="ntVence">Vence (dd/mm/aaaa)</label><input id="ntVence" class="fecha" inputmode="numeric" placeholder="sin fecha"></div>
+        <div class="mn-field"><label for="ntColumna">Columna</label><select id="ntColumna"></select></div>
+      </div>
+      <div class="mn-field"><label for="ntOrigen">Origen en la KB (opcional)</label><input id="ntOrigen" placeholder="ambiental/calytek/….md#renglon-7"></div>
+      <div class="mn-field"><label for="ntDesc">Descripción (opcional)</label><textarea id="ntDesc" rows="3"></textarea></div>
+    </div>
+    <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="ntCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="ntGuardar" type="submit">Crear tarea</button></div>
+  </form>
+</dialog>
+
+<!-- Nuevo / editar proyecto -->
+<dialog id="dlgProyecto" class="mn-dialog">
+  <form id="formProyecto" method="dialog" class="forma" novalidate>
+    <div class="mn-dialog-head"><h2 id="npTituloDlg">Nuevo proyecto</h2></div>
+    <div class="mn-dialog-body">
+      <div class="dlg-avisos"></div>
+      <div class="mn-field"><label for="npTitulo">Nombre</label><input id="npTitulo" required maxlength="255" placeholder="LAU ASEA-03-001 (Licencia Ambiental Única)"></div>
+      <div class="mn-row">
+        <div class="mn-field"><label for="npClave">Clave (slug)</label><input id="npClave" required placeholder="lau-asea-03-001"></div>
+        <div class="mn-field"><label for="npEquipo">Equipo</label><select id="npEquipo"></select></div>
+      </div>
+      <div class="mn-row">
+        <div class="mn-field"><label for="npVence">Fin del frente (dd/mm/aaaa)</label><input id="npVence" class="fecha" inputmode="numeric" placeholder="sin fecha"></div>
+        <div class="mn-field"><label for="npResponsable">Responsable</label><select id="npResponsable"></select></div>
+      </div>
+      <div class="mn-field"><label for="npDesc">Descripción</label><textarea id="npDesc" rows="3"></textarea></div>
+      <p class="mn-label" id="npNota">La clave es lo que se pega en el marcador ⏳ de la base de conocimiento: «· app: lau-asea-03-001». No cambia después.</p>
+    </div>
+    <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="npCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="npGuardar" type="submit">Crear proyecto</button></div>
+  </form>
+</dialog>
+
+<!-- Ligar archivo -->
+<dialog id="dlgLigar" class="mn-dialog">
+  <div class="mn-dialog-head"><h2>Ligar archivo de la biblioteca</h2><button class="mn-btn is-ghost is-sm" id="lgCerrar" type="button">Cerrar</button></div>
+  <div class="mn-dialog-body">
+    <div class="dlg-avisos"></div>
+    <p class="mn-label" id="lgBiblioteca"></p>
+    <div class="mn-row">
+      <div class="mn-field"><label for="lgTexto">Buscar por nombre</label><input id="lgTexto" placeholder="plan de contingencia"></div>
+      <div class="mn-field"><label for="lgTarea">Tarjeta (opcional)</label><select id="lgTarea"></select></div>
+    </div>
+    <div class="mn-dialog-foot"><button class="mn-btn is-primary is-sm" id="lgBuscar" type="button">Buscar</button></div>
+    <div class="lista" id="lgResultados"></div>
+  </div>
+</dialog>
+
+<!-- Subir al buzon -->
+<dialog id="dlgSubir" class="mn-dialog">
+  <form id="formSubir" method="dialog" class="forma" novalidate>
+    <div class="mn-dialog-head"><h2>Subir al buzón</h2></div>
+    <div class="mn-dialog-body">
+      <div class="dlg-avisos"></div>
+      <p class="mn-label" id="sbBiblioteca"></p>
+      <div class="mn-field"><label for="sbConcepto">Qué es (concepto)</label><input id="sbConcepto" required maxlength="120" placeholder="Borrador de filosofía de operación"></div>
+      <div class="mn-row">
+        <div class="mn-field"><label for="sbTarea">Tarjeta (opcional)</label><select id="sbTarea"></select></div>
+        <div class="mn-field"><label for="sbArchivos">Archivos</label><input id="sbArchivos" type="file" multiple required></div>
+      </div>
+      <p class="mn-label">Se deposita en <code>99_Pendiente-Archivar</code> de la biblioteca de la unidad, en una carpeta con fecha y con <code>_lote.json</code> al final. La skill de archivar lo acomoda después; la liga dice «en el buzón» hasta entonces.</p>
+      <p class="progreso mn-mono" id="sbProgreso"></p>
+    </div>
+    <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="sbCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="sbGuardar" type="submit">Subir</button></div>
+  </form>
+</dialog>
+
+<!-- Confirmacion propia (sustituye a confirm()) -->
+<dialog id="dlg" class="mn-dialog">
+  <div class="mn-dialog-head"><h2 id="dlgTitulo"></h2></div>
+  <div class="mn-dialog-body"><p id="dlgTexto"></p><div class="mn-field oculto" id="dlgMotivoCampo"><label for="dlgMotivo" id="dlgMotivoEtiqueta">Motivo</label><input id="dlgMotivo"><p class="deny oculto" id="dlgError">El motivo es obligatorio.</p></div></div>
+  <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="dlgCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="dlgOk" type="button">Confirmar</button></div>
+</dialog>
+
+<script src="./vendor/msal-browser.min.js"></script>
+<script type="module" src="./app.js"></script>
+</body>
+</html>
