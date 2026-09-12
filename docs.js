@@ -35,8 +35,11 @@ async function sitioDe(bib) {
     return estado.sitiosUnidad[bib.clave];
 }
 
-/** Puede ligar/subir en este proyecto: rol, proyecto activo y biblioteca en el piloto. */
-export function puedeLigarEn(p) { return PUEDE.ligar(estado.rol) && !!p && p.Estado === 'activo' && !!bibliotecaDe(p); }
+/** Puede ligar/subir en este proyecto: rol, proyecto activo y biblioteca AUTORIZADA (piloto).
+ *  A1 (2026-09-12): antes bastaba con que el equipo tuviera biblioteca, asi que sobre RABASA o
+ *  PITEPEC los botones seguian vivos y la busqueda terminaba en un 403 con la ruta de un script
+ *  que el colaborador no puede correr. El dato se sabe antes de abrir el dialogo. */
+export function puedeLigarEn(p) { const b = bibliotecaDe(p); return PUEDE.ligar(estado.rol) && !!p && p.Estado === 'activo' && !!b && b.piloto !== false; }
 /** Puede pegar un enlace (F4): rol y proyecto activo; la biblioteca no hace falta. */
 export function puedeEnlazarEn(p) { return PUEDE.ligar(estado.rol) && !!p && p.Estado === 'activo'; }
 
@@ -52,7 +55,12 @@ export async function pintarDocs(p) {
     const bib = bibliotecaDe(p);
     const puede = puedeLigarEn(p);
     $('btnLigar').disabled = !puede; $('btnSubir').disabled = !puede; $('btnEnlace').disabled = !puedeEnlazarEn(p);
-    $('docsBiblioteca').textContent = bib ? `Biblioteca: ${bib.nombre}${bib.piloto ? '' : ' (fuera del piloto: sin permiso todavía)'}` : 'Este equipo no tiene biblioteca ligada en el piloto: se ven las ligas guardadas y se pueden pegar enlaces.';
+    // A1: si la biblioteca no esta autorizada, el boton apagado lo dice; «Pegar un enlace» sigue vivo.
+    const porQue = bib && bib.piloto === false ? `Esta biblioteca (${bib.nombre}) aún no está autorizada; pídelo a gerencia. Mientras tanto: «Pegar un enlace».` : '';
+    for (const id of ['btnLigar', 'btnSubir']) $(id).title = porQue;
+    $('docsBiblioteca').textContent = bib
+        ? (bib.piloto ? `Biblioteca: ${bib.nombre}` : `Biblioteca: ${bib.nombre} — aún sin autorizar. Se pueden pegar enlaces; ligar y subir se abren cuando gerencia otorgue el permiso.`)
+        : 'Este equipo no tiene biblioteca ligada en el piloto: se ven las ligas guardadas y se pueden pegar enlaces.';
     const todas = estado.ligas.filter(l => Number(l.ProyectoId) === p.id);
     // U10: chips por tipo (solo si hay de mas de uno), grupos «Del proyecto» y por tarjeta, chip de estado junto al nombre.
     const fl = $('docsFiltro'); fl.textContent = '';
@@ -192,7 +200,13 @@ async function buscarDocumento() {
     $('lgBuscar').disabled = true;
     try {
         const s = await sitioDe(bib);
-        if (!s.id) { avisar(`Sin acceso a ${bib.nombre}: ${s.motivo}. En el piloto solo está autorizada Ambiental-CALYTEK; para las demás hay que otorgar el permiso (docs/otorgar-permiso-sitio.ps1).`, 'error'); return; }
+        // A1: la ruta del script solo le sirve a gerencia; a los demas les toca pedirlo, no correrlo.
+        if (!s.id) {
+            avisar(PUEDE.proyecto(estado.rol)
+                ? `Sin acceso a ${bib.nombre}: ${s.motivo}. En el piloto solo está autorizada Ambiental-CALYTEK; para las demás hay que otorgar el permiso (docs/otorgar-permiso-sitio.ps1).`
+                : `Todavía no hay permiso sobre ${bib.nombre}. Pídelo a gerencia; mientras tanto puedes pegar un enlace.`, 'error');
+            return;
+        }
         const r = await estado.cliente.buscarEnDrive(s.id, texto, CONFIG.buzon, m => avisar(m, 'ojo'));
         if (!r.length) { cont.appendChild(el('p', 'vacio', 'Nada con ese nombre fuera del buzón.')); return; }
         for (const x of r.slice(0, 30)) {

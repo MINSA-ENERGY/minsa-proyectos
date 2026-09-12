@@ -95,9 +95,17 @@ async function refrescarCliente() {
     }
     estado.cliente = crearCliente(CONFIG.graph, estado.token);
 }
+/* A5 (2026-09-12): el correo + rol en un solo span se partia a media palabra («gerenci / a»).
+   Ahora: nombre en negrita, rol como chip, correo en el title. */
 function ponerQuien(texto) {
-    for (const q of document.querySelectorAll('.quien')) q.textContent = texto;
-    $('rolMovil').textContent = texto.includes(' · ') ? texto.split(' · ').pop() : '';
+    const rol = texto.includes(' · ') ? texto.split(' · ').pop() : '';
+    const correo = texto.split(' · ')[0];
+    for (const q of document.querySelectorAll('.quien')) {
+        q.textContent = ''; q.title = correo;
+        q.appendChild(el('b', '', nombreDe(correo, estado.roles)));
+        if (rol) { const c = el('div'); c.appendChild(chip(rol, rol === 'gerencia' ? 'info' : null)); q.appendChild(c); }
+    }
+    $('rolMovil').textContent = rol;
 }
 function pintarSync(leyendo = false) {
     const t = Date.now() - estado.cargadoEl;
@@ -203,7 +211,7 @@ function irA(p) {
 // Router por hash (v0.2.0, F8): LEE location.hash y deja la pantalla como dice; es idempotente, asi
 // que las escrituras propias (fijarHash desde irA / abrirTarjeta) no repintan dos veces. Con Atras
 // del navegador se cierra la tarjeta o se vuelve a la pantalla anterior, que es lo que la gente espera.
-const RE_HASH = /^#(?:(inicio|proyectos|mis)|p\/([a-z0-9-]+)(?:\/(lista|docs|tablero))?)(?:\/t\/(\d+))?$/;
+const RE_HASH = /^#(?:(inicio|proyectos|mis)|p\/([a-z0-9-]+)(?:\/(lista|docs|tablero|resumen))?)(?:\/t\/(\d+))?$/;
 function esHashDeLaApp(h) { return RE_HASH.test(String(h || '')); }
 function aplicarHash() {
     if (!estado.siteId) return;
@@ -379,9 +387,23 @@ function pintarActividad() {
 /** Quien tiene que rol (PROY_Roles), solo lectura, con sus tarjetas abiertas. Cambiar roles sigue en SharePoint. */
 function abrirEquipo() {
     const tb = $('eqLista'); tb.textContent = '';
+    // A2: en celular la tabla de 5 columnas no cabe (354 px) y se corta despues de «Rol»; las mismas
+    // filas se pintan ademas como fichas, y el CSS elige cual se ve.
+    const fi = $('eqFichas'); fi.textContent = '';
     const roles = estado.roles.slice().sort((a, b) => String(a.Nombre || a.Title || '').localeCompare(String(b.Nombre || b.Title || '')));
     for (const r of roles) {
         const correo = String(r.Title || '').toLowerCase();
+        const abiertas = estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === correo && t.Columna !== 'hecho').length;
+        const fa = el('div', 'eq-ficha' + (r.Activo === false ? ' inactivo' : ''));
+        fa.appendChild(avatar(correo));
+        fa.appendChild(el('span', 'n', nombreDe(correo, estado.roles)));
+        const ch = el('span', 'ch');
+        ch.appendChild(chip(r.Rol || 'lectura', r.Rol === 'gerencia' ? 'info' : null));
+        if (r.Activo === false) ch.appendChild(chip('inactiva', 'danger'));
+        ch.appendChild(el('span', '', `${abiertas} abierta${abiertas === 1 ? '' : 's'}`));
+        fa.appendChild(ch);
+        fa.appendChild(el('span', 'c', correo));
+        fi.appendChild(fa);
         const tr = el('tr', r.Activo === false ? 'inactivo' : '');
         const td1 = el('td'); td1.appendChild(avatar(correo)); td1.appendChild(el('span', '', ' ' + nombreDe(correo, estado.roles))); tr.appendChild(td1);
         tr.appendChild(el('td', 'mn-mono', correo));
@@ -390,7 +412,7 @@ function abrirEquipo() {
         tr.appendChild(el('td', 'mn-mono', String(estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === correo && t.Columna !== 'hecho').length)));
         tb.appendChild(tr);
     }
-    if (!roles.length) { const tr = el('tr'); const td = el('td', 'vacio', 'PROY_Roles está vacía.'); td.colSpan = 5; tr.appendChild(td); tb.appendChild(tr); }
+    if (!roles.length) { const tr = el('tr'); const td = el('td', 'vacio', 'PROY_Roles está vacía.'); td.colSpan = 5; tr.appendChild(td); tb.appendChild(tr); fi.appendChild(el('p', 'vacio', 'PROY_Roles está vacía.')); }
     abrirDialogo('dlgEquipo');
 }
 
@@ -418,8 +440,22 @@ function abrirProyecto(id) {
     fijarProyectoAbierto(p); estado.tab = 'tablero';
     irA('proyecto');
 }
+/** B1: «Filtrar» dice cuantos filtros hay puestos; sin eso, plegarlos los esconde en silencio. */
+function pintarBotonFiltros() {
+    const f = estado.filtroTareas;
+    const n = [f.quien, f.alta, f.vencidas, f.texto].filter(Boolean).length;
+    const b = $('btnFiltros');
+    b.textContent = n ? `Filtrar · ${n}` : 'Filtrar';
+    b.classList.toggle('is-on', !!n || estado.filtrosAbiertos);
+    b.setAttribute('aria-expanded', estado.filtrosAbiertos ? 'true' : 'false');
+    b.classList.toggle('oculto', estado.tab === 'docs' || estado.tab === 'resumen');
+}
 function pintarProyecto() {
     const p = estado.proyectoAbierto; if (!p) { irA('proyectos'); return; }
+    // B2: «Resumen» solo existe en celular (en escritorio la lateral se ve siempre). Sin esto, un
+    // hash #p/<clave>/resumen abierto en la laptop —o girar el telefono a horizontal— dejaba el
+    // panel en BLANCO y sin pestaña marcada, porque el boton para salir es .solo-movil.
+    if (estado.tab === 'resumen' && !enCelular.matches) estado.tab = 'tablero';
     const eq = equipoDe(p); const ts = tareasDe(p, estado.tareas); const a = avance(ts);
     $('pEquipo').textContent = eq.nombre; $('pEquipo').style.background = eq.color + '33';
     $('pTitulo').textContent = p.Title; $('pDesc').textContent = p.Descripcion || '';
@@ -431,13 +467,26 @@ function pintarProyecto() {
     // F6: un cerrado se reabre (solo gerencia); el boton solo existe en ese estado.
     $('btnReabrirProyecto').classList.toggle('oculto', !(PUEDE.proyecto(estado.rol) && p.Estado === 'cerrado'));
     $('btnNuevaTarea').disabled = !PUEDE.tarea(estado.rol) || p.Estado !== 'activo';
+    // B2: la linea que resume el frente arriba, donde se lee sin bajar a la lateral.
+    const dias = diasPara(p.Vence);
+    const resumen = [`${a.porColumna['en-curso']} en curso`, `${a.porColumna['en-revision']} en revisión`];
+    if (dias !== null && p.Estado === 'activo') resumen.push(dias < 0 ? `venció hace ${-dias} d` : dias === 0 ? 'vence hoy' : `vence en ${dias} d`);
+    $('pResumen').textContent = resumen.join(' · ');
+    $('pResumen').classList.toggle('is-danger', dias !== null && dias < 0 && p.Estado === 'activo');
+    // B1: la descripcion va a una linea en celular; el clic la abre.
+    $('pDesc').title = p.Descripcion || '';
+    $('pDesc').classList.remove('abierta');
     for (const b of document.querySelectorAll('.tab')) { const on = b.dataset.tab === estado.tab; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }
     for (const t of ['tablero', 'lista', 'docs']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
-    $('filtroTareas').classList.toggle('oculto', estado.tab === 'docs');
-    if (estado.tab !== 'docs') pintarFiltroTareas(p);
+    // B2: «Resumen» es una pestana mas, solo en celular (en escritorio la lateral siempre se ve).
+    $('p-proyecto').classList.toggle('ver-resumen', estado.tab === 'resumen');
+    $('filtroTareas').classList.toggle('oculto', estado.tab === 'docs' || estado.tab === 'resumen');
+    $('filtroTareas').classList.toggle('plegado', !estado.filtrosAbiertos);
+    if (estado.tab !== 'docs' && estado.tab !== 'resumen') pintarFiltroTareas(p);
+    pintarBotonFiltros();
     if (estado.tab === 'tablero') pintarTablero(p);
     else if (estado.tab === 'lista') pintarLista(p);
-    else pintarDocs(p);
+    else if (estado.tab === 'docs') pintarDocs(p);
     // lateral
     $('pBarra').style.width = a.pct + '%';
     const kv = $('pAvance'); kv.textContent = '';
@@ -583,6 +632,22 @@ $('btnActualizar').addEventListener('click', recargar);
 $('btnActualizarMovil').addEventListener('click', () => { $('menuMovil').open = false; recargar(); });
 for (const b of document.querySelectorAll('#pestanas button')) b.addEventListener('click', () => irA(b.dataset.p));
 for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => { estado.tab = b.dataset.tab; pintarProyecto(); fijarHash(hashDe()); });
+// B1: filtros plegados en celular; el boton los abre y dice cuantos hay puestos.
+$('btnFiltros').addEventListener('click', () => { estado.filtrosAbiertos = !estado.filtrosAbiertos; pintarProyecto(); });
+$('pDesc').addEventListener('click', () => $('pDesc').classList.toggle('abierta'));
+// B1: el menu «···» del proyecto se cierra al elegir una accion y al tocar fuera.
+// TRAMPA (medida 2026-09-12): un <details> CERRADO no pinta a sus hijos aunque el CSS le ponga
+// `display: contents` al details y `display: flex` al hijo —lo decide el UA, no la cascada—, asi
+// que en escritorio los tres botones desaparecieron. Por eso el estado `open` lo lleva el viewport:
+// abierto siempre arriba de 720 px (con el summary en display:none no se nota), menu en celular.
+const enCelular = window.matchMedia('(max-width: 720px)');
+function acomodarAccMenu() { $('accMenu').open = !enCelular.matches; }
+// Al cruzar los 720 px (girar el telefono, redimensionar la ventana) se repinta el proyecto: ahi es
+// donde «Resumen» deja de existir y donde el menu «···» cambia de forma.
+enCelular.addEventListener('change', () => { acomodarAccMenu(); if (estado.pestana === 'proyecto' && estado.proyectoAbierto) pintarProyecto(); });
+acomodarAccMenu();
+document.addEventListener('click', e => { const m = $('accMenu'); if (m.open && enCelular.matches && !m.contains(e.target)) m.open = false; });
+$('accMenu').querySelector('.acciones').addEventListener('click', () => { if (enCelular.matches) $('accMenu').open = false; });
 $('btnVolver').addEventListener('click', () => irA('proyectos'));
 $('btnNuevoProyecto').addEventListener('click', () => abrirFormaProyecto(null));
 $('btnEditarProyecto').addEventListener('click', () => abrirFormaProyecto(estado.proyectoAbierto));

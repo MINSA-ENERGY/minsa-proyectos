@@ -262,6 +262,11 @@ try {
     const cont = $('app-real');
     for (const n of [...doc.body.childNodes]) cont.appendChild(document.adoptNode(n));
     for (const href of ['./minsa-ui.css', './estilo.css']) { const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = href; document.head.appendChild(link); }
+    // E3 (2026-09-12): el arnes adopta solo el <body> de index.html, asi que sin esto la pagina no
+    // tiene meta viewport y una emulacion movil la maqueta a 980 px (ninguna regla <=720 aplica).
+    for (const m of doc.querySelectorAll('meta[name="viewport"], meta[name="theme-color"]')) {
+        if (!document.querySelector(`meta[name="${m.name}"]`)) document.head.appendChild(document.adoptNode(m));
+    }
     const esquema = await (await fetch('./esquema.json', { cache: 'reload' })).json();
     window.__sembrar(esquema, ROL);
     const gerencia = ROL === 'gerencia';
@@ -334,6 +339,10 @@ try {
         clic('btnNuevaTarea'); await esperar(() => $('dlgNuevaTarea').open, 'diálogo de tarea');
         poner('ntTitulo', ''); clic('ntGuardar'); await dormir(60);
         R.ok('tarea sin título se rechaza', !!avisoCon('necesita un título'));
+        // C1: la validación corta ANTES del try/finally que repone los botones; «Crear y otra» se
+        // quedaba muerto para siempre tras el primer intento sin título.
+        clic('ntGuardarYOtra'); await dormir(60);
+        R.ok('C1: un intento sin título no deja muertos los botones de guardar', !$('ntGuardar').disabled && !$('ntGuardarYOtra').disabled);
         poner('ntTitulo', 'Lista de insumos directos e indirectos'); poner('ntAsignado', 'colega@example.invalid'); poner('ntPrioridad', 'alta'); poner('ntVence', '2026-09-19'); poner('ntOrigen', 'ambiental/calytek/lau-entregables-gestor.md#renglon-7');
         clic('ntGuardar'); await esperar(() => filas('tareas').some(t => t.fields.Title.startsWith('Lista de insumos')), 'tarea creada');
         const t = filas('tareas').find(x => x.fields.Title.startsWith('Lista de insumos'));
@@ -342,6 +351,26 @@ try {
         // U9 (v0.4.0): selector nativo; una fecha inexistente no se puede teclear (el input la deja vacía) y aIsoDia sigue validando lo que llegue.
         clic('btnNuevaTarea'); await esperar(() => $('dlgNuevaTarea').open, 'diálogo');
         R.ok('U9: los tres campos de fecha son selectores nativos y la tarea creada trae la fecha bien', $('ntVence').type === 'date' && $('ftVence').type === 'date' && $('npVence').type === 'date' && String(t.fields.Vence).startsWith('2026-09-19'), String(t.fields.Vence));
+        // C2 (v0.5.0): los atajos de fecha escriben el campo; «fin del frente» solo existe si el proyecto tiene Vence.
+        // El esperado se arma por OTRA vía (toLocaleDateString con la zona de la casa), no con la misma
+        // expresión del código: comparar `toISOString()` contra `toISOString()` pasa a cualquier hora y
+        // deja pasar justo el defecto que tenía (a partir de las 18:00 «hoy» se volvía mañana).
+        const hoyISO = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+        document.querySelector('#ntAtajos button[data-fecha]').click(); await dormir(40);
+        R.ok('C2: el atajo «hoy» escribe HOY en hora de México (no el día UTC) y lo deja leído en el formato de la casa',
+            $('ntVence').value === hoyISO && /^(lun|mar|mié|jue|vie|sáb|dom) \d{1,2} [a-z]{3}$/.test($('ntAtajos').querySelector('.leida').textContent),
+            `input=${$('ntVence').value} esperado=${hoyISO} · leída=«${$('ntAtajos').querySelector('.leida').textContent}»`);
+        R.ok('C2: «mañana» es el día siguiente, no dos', document.querySelectorAll('#ntAtajos button[data-fecha]')[1].dataset.fecha === new Date(new Date(hoyISO + 'T12:00:00').getTime() + 864e5).toLocaleDateString('en-CA'));
+        // C1 (v0.5.0): «Crear y otra» guarda, deja el diálogo abierto y conserva asignado/prioridad/columna/vence.
+        poner('ntTitulo', 'Segunda del tirón'); poner('ntAsignado', 'colega@example.invalid'); poner('ntPrioridad', 'alta'); poner('ntColumna', 'en-curso');
+        clic('ntGuardarYOtra'); await esperar(() => filas('tareas').some(x => x.fields.Title === 'Segunda del tirón'), 'segunda tarea');
+        const t2 = filas('tareas').find(x => x.fields.Title === 'Segunda del tirón');
+        R.ok('C1: «Crear y otra» crea, deja el diálogo abierto, limpia el título y conserva asignado, prioridad, columna y vence',
+            $('dlgNuevaTarea').open && $('ntTitulo').value === '' && $('ntAsignado').value === 'colega@example.invalid' && $('ntPrioridad').value === 'alta' && $('ntColumna').value === 'en-curso' && $('ntVence').value === hoyISO,
+            JSON.stringify({ abierto: $('dlgNuevaTarea').open, titulo: $('ntTitulo').value, col: $('ntColumna').value }));
+        R.ok('C1: la segunda tarjeta nace en la columna que quedó puesta', t2.fields.Columna === 'en-curso' && Number(t2.fields.ProyectoId) === proyectoId);
+        // Se retira del universo: las pruebas de mas abajo cuentan tarjetas con numeros fijos.
+        DB.listas.tareas.items = filas('tareas').filter(x => x.id !== t2.id);
         clic('ntCancelar');
         // Abrir la tarjeta desde el tablero y moverla por las 4 columnas.
         await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta en el tablero');
@@ -449,7 +478,23 @@ try {
         R.ok('clic en Tarea ordena alfabético', document.querySelector('#tab-lista th[data-sort="tarea"]').getAttribute('aria-sort') === 'ascending' && !document.querySelector('#tab-lista th[data-sort="vence"]').hasAttribute('aria-sort') && document.querySelector('#tab-lista tbody tr').textContent.startsWith('Lista de insumos'));
         document.querySelector('#tab-lista th[data-sort="tarea"]').click(); await dormir(30);
         R.ok('el segundo clic invierte', document.querySelector('#tab-lista th[data-sort="tarea"]').getAttribute('aria-sort') === 'descending' && document.querySelector('#tab-lista tbody tr').textContent.startsWith(gerencia ? 'Tarea normal' : 'Tarea sembrada'));
+        // B2 (v0.5.0): «Resumen» es una cuarta pestaña (solo se ve en celular) que trae la lateral, y viaja en el hash.
+        tab('resumen'); await dormir(40);
+        if (window.matchMedia('(max-width: 720px)').matches) {
+            R.ok('B2 (celular): la pestaña Resumen marca el proyecto, esconde las tres vistas y llega al hash',
+                $('p-proyecto').classList.contains('ver-resumen') && ['tablero', 'lista', 'docs'].every(x => $('tab-' + x).classList.contains('oculto')) && location.hash.endsWith('/resumen') && $('filtroTareas').classList.contains('oculto'),
+                location.hash);
+        } else {
+            // En escritorio «Resumen» no existe (la lateral siempre se ve): el estado cae a Tablero en vez de
+            // dejar el panel en blanco — el revisor lo vio con #p/<clave>/resumen abierto a 1366 px.
+            R.ok('B2 (escritorio): pedir Resumen cae a Tablero, sin pantalla en blanco',
+                !$('p-proyecto').classList.contains('ver-resumen') && !$('tab-tablero').classList.contains('oculto') && document.querySelector('.tab.is-on').dataset.tab === 'tablero',
+                location.hash);
+        }
+        // B1 (v0.5.0): el resumen de una línea con el estado del frente, sin bajar a la lateral.
+        R.ok('B1: la línea de resumen dice en curso, en revisión y el reloj del frente', /en curso/.test($('pResumen').textContent) && /en revisión/.test($('pResumen').textContent), $('pResumen').textContent);
         tab('tablero'); await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tablero');
+        R.ok('B2: al volver a Tablero, el proyecto deja de estar en modo Resumen', !$('p-proyecto').classList.contains('ver-resumen'));
         // T3 (v0.4.0): releer repinta siempre (los chips dependen del reloj) sin reventar; el scroll no se mide en headless.
         $('tableroCols').appendChild(document.createElement('i')).className = 'marca-e2e';
         await recargarYEsperar();
@@ -604,6 +649,10 @@ try {
         R.ok('F13: «Ver en SharePoint» apunta a la lista de tareas (webUrl real de Graph)', !$('lnkSharePoint').classList.contains('oculto') && $('lnkSharePoint').href.endsWith('/Lists/PROY_Tareas') && $('lnkSharePoint').target === '_blank');
         clic('btnEquipo'); await esperar(() => $('dlgEquipo').open, 'equipo');
         R.ok('F13: Equipo lista los 3 roles con nombre, correo, rol, activo y abiertas', document.querySelectorAll('#eqLista tr').length === 3 && $('eqLista').textContent.includes('Jefa Demo') && $('eqLista').textContent.includes('gerencia') && $('eqLista').textContent.includes('jefa@example.invalid') && document.querySelectorAll('#eqLista tr td:nth-child(4) .mn-chip.is-ok').length === 3);
+        // A2 (v0.5.0): las mismas filas como fichas para celular (la tabla de 5 columnas no cabe en 354 px).
+        R.ok('A2: Equipo pinta además una ficha por persona, con nombre, correo, rol y abiertas',
+            document.querySelectorAll('#eqFichas .eq-ficha').length === 3 && $('eqFichas').textContent.includes('jefa@example.invalid') && $('eqFichas').textContent.includes('abierta'),
+            $('eqFichas').textContent.slice(0, 120));
         clic('eqCerrar');
         // U11 (v0.4.0): Imprimir = window.print().
         let impreso = false; const printReal = window.print; window.print = () => { impreso = true; };
@@ -654,8 +703,13 @@ try {
             pestana('proyectos'); clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo');
             poner('npTitulo', 'Inhibidor RABASA'); poner('npClave', 'inhibidor-rabasa'); poner('npEquipo', 'RABASA'); clic('npGuardar');
             await esperar(() => filas('proyectos').length === 2 && visible('p-proyecto'), 'segundo proyecto');
-            tab('docs'); await esperar(() => $('docsBiblioteca').textContent.includes('fuera del piloto'), 'aviso de piloto');
-            clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar'); poner('lgTexto', 'algo'); clic('lgBuscar');
+            // A1 (v0.5.0): con la biblioteca sin autorizar, Ligar y Subir quedan APAGADOS antes de
+            // que nadie llegue al 403; «Pegar un enlace» sigue vivo porque no toca el sitio.
+            tab('docs'); await esperar(() => $('docsBiblioteca').textContent.includes('sin autorizar'), 'aviso de piloto');
+            R.ok('biblioteca fuera del piloto: Ligar y Subir apagados, con el porqué en el title, y Pegar un enlace vivo',
+                $('btnLigar').disabled && $('btnSubir').disabled && !$('btnEnlace').disabled && $('btnLigar').title.includes('gerencia'));
+            // Si aun asi se fuerza el boton, el 403 sigue nombrando el sitio (y a gerencia le dice el script).
+            $('btnLigar').disabled = false; clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar'); poner('lgTexto', 'algo'); clic('lgBuscar');
             await esperar(() => avisoCon('Sin acceso a Quimicos-RABASA'), '403 con nombre');
             R.ok('biblioteca fuera del piloto: 403 nombra el sitio', !!avisoCon('otorgar-permiso-sitio'));
             clic('lgCerrar');
@@ -671,6 +725,12 @@ try {
             document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
             R.ok('la tarjeta lista el enlace y ofrece pegar otro', $('tDocs').textContent.includes('Oficio ASEA') && !!document.querySelector(`#tDocs [data-enlace="${t.id}"]`));
             R.ok('gerencia puede borrar', !$('tBorrar').disabled);
+            // C5 (v0.5.0): el orden del diálogo sigue la frecuencia de uso: Mover antes que Notas y Documentos,
+            // y «Borrar tarjeta» deja de ser lo único fijo al pie — vive dentro de «Editar la tarjeta».
+            R.ok('C5: «Borrar tarjeta» está dentro de Editar, no en el pie del diálogo', $('tEditar').contains($('tBorrar')) && !document.querySelector('#dlgTarea > .mn-dialog-foot'));
+            const orden = [...$('dlgTarea').querySelectorAll('#tMover, #tNotasLista, #tDocs')].map(x => x.id);
+            R.ok('C5: Mover a… va antes que Notas y que Documentos', orden.join(',') === 'tMover,tNotasLista,tDocs', orden.join(','));
+            R.ok('C5: la columna actual se lee como «actual» y no es pulsable', document.querySelector('#tMover button.is-here').textContent.includes('actual') && document.querySelector('#tMover button.is-here').disabled);
             clic('tBorrar'); await confirmar(); await esperar(() => !filas('tareas').some(x => x.id === t.id), 'borrada');
             R.ok('tarjeta borrada y la liga queda sin tarjeta', actividad('borrar-tarea').length === 1 && filas('ligas').every(l => l.fields.TareaId !== t.id));
             clic('btnCerrarProyecto'); await confirmar(); await esperar(() => filas('proyectos')[0].fields.Estado === 'cerrado', 'cerrado');
@@ -698,10 +758,20 @@ try {
         }
         // Sesion caducada -> vuelve al login.
         const pcaFalso = window.msal; let redirigio = false;
-        pcaFalso.PublicClientApplication.prototype.acquireTokenSilent = async () => { throw new pcaFalso.InteractionRequiredAuthError('interaction_required'); };
-        pcaFalso.PublicClientApplication.prototype.acquireTokenRedirect = async () => { redirigio = true; };
-        clic('btnActualizar'); await esperar(() => redirigio || avisoCon('No se pudieron releer'), 'token caducado');
-        R.ok('token caducado → acquireTokenRedirect (vuelve al login)', redirigio);
+        // E2 (2026-09-12): esta prueba ROMPE el MSAL falso. Sin restaurarlo, cualquier herramienta que
+        // reuse la pagina despues de PRUEBAS TERMINADAS (el driver de capturas) recibe «No se pudieron
+        // releer las listas» al pulsar Actualizar. Se guarda el original y se repone en el finally.
+        const silentOrig = pcaFalso.PublicClientApplication.prototype.acquireTokenSilent;
+        const redirOrig = pcaFalso.PublicClientApplication.prototype.acquireTokenRedirect;
+        try {
+            pcaFalso.PublicClientApplication.prototype.acquireTokenSilent = async () => { throw new pcaFalso.InteractionRequiredAuthError('interaction_required'); };
+            pcaFalso.PublicClientApplication.prototype.acquireTokenRedirect = async () => { redirigio = true; };
+            clic('btnActualizar'); await esperar(() => redirigio || avisoCon('No se pudieron releer'), 'token caducado');
+            R.ok('token caducado → acquireTokenRedirect (vuelve al login)', redirigio);
+        } finally {
+            pcaFalso.PublicClientApplication.prototype.acquireTokenSilent = silentOrig;
+            pcaFalso.PublicClientApplication.prototype.acquireTokenRedirect = redirOrig;
+        }
     } else {
         // 6. Lectura: ve todo, no escribe.
         const t = filas('tareas')[0];
@@ -710,6 +780,10 @@ try {
         R.ok('lectura: ve la tarjeta con el aviso de rol', !$('tDeny').classList.contains('oculto') && $('tDeny').textContent.includes('lectura'));
         R.ok('lectura: botones de mover deshabilitados y sin editar', [...document.querySelectorAll('#tMover button')].every(b => b.disabled) && $('tEditar').classList.contains('oculto') && $('tBorrar').disabled);
         R.ok('lectura: sin «→ siguiente», sin Subir/Bajar, sin pegar enlace', !document.querySelector('[data-sig]') && !$('tOrden').querySelector('button') && !document.querySelector('#tDocs [data-enlace]'));
+        // v0.5.0: lo de la tanda 4 también con el rol que solo mira (antes sus 15 pruebas no tocaban nada nuevo).
+        R.ok('C5 (lectura): Mover a… antes que Notas y Documentos, y sin pie de borrar en el diálogo',
+            [...$('dlgTarea').querySelectorAll('#tMover, #tNotasLista, #tDocs')].map(x => x.id).join(',') === 'tMover,tNotasLista,tDocs' && !document.querySelector('#dlgTarea > .mn-dialog-foot'));
+        R.ok('A4 (lectura): «Copiar liga» es botón de icono con nombre accesible', $('tCompartir').classList.contains('is-icono') && !!$('tCompartir').getAttribute('aria-label') && !!$('tCompartir').querySelector('svg'));
         const b = document.querySelector('#tMover button[data-move="hecho"]'); b.disabled = false; b.click(); await dormir(80);
         R.ok('lectura: moverTarea se niega aunque se fuerce el botón', t.fields.Columna === 'por-hacer' && !!avisoCon('lectura'));
         clic('tCerrar');
@@ -719,6 +793,9 @@ try {
         R.ok('lectura: Mis tareas trae la sembrada, vencida arriba en «Urgentes» con los días grandes', document.querySelectorAll('#misLista .tarjeta').length === 1 && !!document.querySelector('#misLista .urgentes .urgente.is-danger .tarjeta') && $('misLista').textContent.includes('venció') && $('misLista').querySelector('.urgente .k b').textContent === String(-diasPara('2026-09-01T18:00:00Z')));
         pestana('inicio'); await dormir(50);
         R.ok('lectura: Inicio muestra 1 vencida', [...document.querySelectorAll('#inicioKpis .mn-kpi')].some(k => k.textContent.includes('vencidas') && k.querySelector('.mn-kpi-val').textContent === '1'));
+        clic('btnEquipo'); await esperar(() => $('dlgEquipo').open, 'equipo');
+        R.ok('A2 (lectura): Equipo trae tabla y fichas con la misma gente', document.querySelectorAll('#eqFichas .eq-ficha').length === document.querySelectorAll('#eqLista tr').length);
+        clic('eqCerrar');
     }
 } catch (e) {
     R.ok('la corrida terminó sin excepción', false, `hash=${location.hash} · dlgTarea=${$('dlgTarea').open} · pestaña=${[...document.querySelectorAll('.pantalla')].find(x => !x.classList.contains('oculto'))?.id} · ${String(e && e.message || e)}

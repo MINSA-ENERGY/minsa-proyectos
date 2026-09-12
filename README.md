@@ -6,6 +6,59 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.5.0** (2026-09-12) — **tanda 4: los 16 hallazgos del recorrido del 12-sep** (la app se corrió, no se leyó:
+27 pantallas a 390 / 820 / 1366 px con emulación real por CDP). Por cubetas:
+
+- **A · defectos reproducidos (los 8).** Con la biblioteca **fuera del piloto**, «Ligar» y «Subir» quedan
+  **apagados** con el porqué en el `title` y «Pegar un enlace» sigue vivo —antes llevaban a un 403 que le
+  enseñaba a un colaborador la ruta de un script que no puede correr; ese 403, si se fuerza, ya solo nombra el
+  script para gerencia— (A1) · **Equipo** se pinta además como **fichas** en ≤ 720 px: la tabla de 5 columnas
+  medía más que el diálogo (354 px) y se cortaba después de «Rol» (A2) · entre **721 y 900 px** el tablero es
+  **2 × 2** en vez de `repeat(4, 240px)` con scroll horizontal (A3) · «Copiar liga» es un **botón de icono**, así
+  que el título de la tarjeta deja de partirse en tres líneas (A4) · el usuario del rail es **nombre en negrita +
+  chip de rol**, con el correo en el `title` (antes partía «gerenci / a») (A5) · «Al día · leído hace N s» deja de
+  salir **dos veces** en escritorio (A6) · el botón flotante **se esconde** con cualquier diálogo abierto (A7) ·
+  los párrafos de ayuda usan **`.mn-help`** (cuerpo, minúsculas) en vez del rótulo en mayúsculas y mono (A8).
+- **B · celular.** La cabecera del proyecto se compacta —chip + título a 2 líneas, las tres acciones en un menú
+  «···», la descripción a una línea, filtros y buscador detrás de **«Filtrar · N»**—: la primera tarjeta pasa de
+  ~630 px a **496 px** medidos (B1) · la lateral (Avance · Quiénes · Vencimientos · Actividad), que caía a
+  ~1,900 px, es la pestaña **«Resumen»**, y bajo el título va la línea «3 en curso · 2 en revisión · vence en N d»
+  (B2) · los chips de persona se quedan en **avatar** (B4) · el FAB ya no tapa el pie de la última tarjeta (B5) ·
+  ningún objetivo táctil baja de 36 px **hasta 900 px** —`--control-h-sm` sube a 40 px, «→ siguiente» y «ver las N anteriores» a 36; el corte va en 900 y no en 720 porque A3 acaba de declarar tableta al rango 721-900— (B6) · la Lista
+  esconde «Origen en la KB» (B7).
+- **C · flujos.** **«Crear y otra»** guarda y deja el diálogo abierto conservando asignado, prioridad, columna y
+  vence (capturar 17 entregables eran 17 aperturas desde cero) (C1) · **atajos de fecha** (hoy · mañana · +7 d ·
+  fin del frente) bajo cada campo `Vence` (C2) · el diálogo de tarjeta se reordena por **frecuencia de uso**:
+  datos → Mover a… → Notas → Documentos → Editar, la columna actual se lee «En curso · actual» y **«Borrar
+  tarjeta» sale del pie** y vive dentro de «Editar» (C5).
+- **D · pulido.** Bajo cada fecha, la **fecha leída** en el formato de la casa («vie 18 sep»; vacío, «día/mes/año»): el campo nativo se
+  pinta en el idioma del **dispositivo** y `<html lang="es">` no lo cambia (D1) · `.mn-row` baja a una columna en
+  ≤ 480 px, así que los selects dejan de truncar nombres (D3).
+- **E · arnés.** El driver de capturas vive en **`herramientas-dev/capturas.mjs` + `driver.js`** (E1) · la prueba
+  de «token caducado» **restaura** el MSAL falso en un `finally` —dejaba `acquireTokenSilent` roto y «Actualizar»
+  fallaba después de la E2E— (E2) · el arnés copia el **meta viewport** de `index.html`, sin el cual una emulación
+  móvil maqueta a 980 px (E3).
+- **Lo que el `revisor-entregable` cazó con la E2E en verde, corregido antes del commit:** «Crear y otra» se quedaba
+  **muerto para siempre** tras un intento sin título (se apagaba fuera del `try/finally` que lo repone) · el atajo
+  «hoy» escribía **mañana a partir de las 18:00** hora de México (`toISOString()` es UTC; ahora el día se arma con
+  componentes locales) y la prueba no lo veía porque calculaba el esperado con la misma expresión · la pestaña
+  «Resumen» dejaba el panel **en blanco en escritorio** si se llegaba por el hash o girando el teléfono (ahora cae
+  a Tablero, y el cruce de 720 px repinta) · la línea-resumen se pintaba también en escritorio, junto a la lateral
+  que dice lo mismo (la clase de defecto de A6) · el barrido de capturas abría el **proyecto de UNA tarjeta** en casi
+  todas las vistas (el renglón 0, por orden de fecha) — ahora abre el frente rico y `resumen` está en la lista ·
+  con rol `lectura` el arnés salía con código 1 por diseño («NO APLICA» ya no cuenta como falla) · la sección
+  `## Pruebas` seguía con los números de v0.4.1 (obs. 512) · y «jue 18 sep»: el 18 es viernes.
+- **Hallazgo del propio barrido, que no estaba en los 36:** con ligas, **Documentos desbordaba 103 px** a 390 px
+  (`.doc` con la 2.ª columna en `1fr`, cuyo mínimo es el contenido: el `select` de «tarjeta:» empujaba la página).
+  Ahora `minmax(0, 1fr)`, y en celular el costado baja a su propia línea. **Lo cazó la captura, no la E2E.**
+
+Medido en v0.5.0: E2E **144 / 128 / 18** (gerencia / colaborador / lectura) en 6 corridas, `npm test` verde, y las
+**28 vistas × 3 anchos × 2 temas = 168 capturas con 0 desborde horizontal** y ningún botón < 36 px hasta 900 px
+(queda una liga de texto de 17 px dentro de un renglón de Documentos: prosa, no botón). Sin cambio de
+esquema: **v0.5.0 no necesita `provisionar.html`**. SW `minsa-proyectos-v6`. De los 36 hallazgos van **22**;
+quedan **14** para una tanda 5: B3, B8, C3, C4, C6, C7, C9, C10, D2, D4, D5, D6, E4 — y **C8 a medias** (el
+reloj del frente ya está en la cabecera; falta el mismo chip en la lista de Proyectos).
+
 **v0.4.1** (2026-09-12) — corrección del primer defecto reportado en operación: **ligar un archivo de la
 biblioteca contestaba «No se pudo ligar: no se pudo escribir en PROY_Ligas: HTTP 400. Invalid request»**
 (Carlos, la LAU, un `.docx` de 2024 archivado en `98_Archivo/` con nombre de 77 caracteres). **La causa no está
@@ -163,6 +216,29 @@ E2E contra Graph falso, 3 roles, desde PowerShell (Edge headless):
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\test\e2e.ps1
 ```
+
+Y las **capturas con medidas** a anchos reales (celular 390 · tableta 820 · escritorio 1366), que ven lo que la
+E2E no —desbordes, alturas, objetivos táctiles—; viven fuera del repo público:
+
+```bash
+node ../herramientas-dev/capturas.mjs --todas --anchos 390,820,1366 --temas claro,oscuro
+```
+
+**v0.5.0 (2026-09-12): 290/290** — gerencia 144 · colaborador 128 · lectura 18, en 6 corridas seguidas (3 anchos ×
+2 temas). Lo nuevo que cubre: Ligar/Subir apagados con biblioteca fuera del piloto (y el 403 si se fuerza); las
+fichas de Equipo; «Crear y otra» conserva asignado/prioridad/columna/vence y **un intento sin título no deja
+muertos los botones**; el atajo «hoy» escribe **hoy en hora de México** (el esperado se calcula por otra vía, no
+con la misma expresión del código) y «mañana» es +1; «Resumen» marca el proyecto y llega al hash en celular, y
+**en escritorio cae a Tablero** en vez de dejar el panel en blanco; la línea-resumen de la cabecera; el orden del
+diálogo de tarjeta y «Borrar» dentro de Editar; «Copiar liga» como icono con nombre accesible. El rol `lectura`
+pasa de 15 a 18: antes no tocaba nada de la tanda. **No cubre:** el mensaje de 403 **para no-gerencia** («Pídelo a
+gerencia», `docs.js`) — la rama vive en el `if (gerencia)` de la suite y el colaborador de la E2E trabaja sobre
+CALYTEK, que sí está en el piloto; los estilos de celular (el CSS solo se ve en las capturas); Safari/iOS. El
+barrido de capturas: **28 vistas × 3 anchos × 2 temas = 168, 0 desborde horizontal**; a ≤ 900 px quedan dos
+objetivos de menos de 36 px que no son botones —la liga de texto «Oficio ASEA en el correo» dentro de un renglón
+de Documentos (17 px de alto, prosa)— y ninguno más. Ojo del arnés: **todas las vistas abren el mismo frente** (la
+LAU rica) desde esta versión —antes el renglón 0, que por orden de fecha era el proyecto de UNA tarjeta y no
+scrolleaba—, así que `abrirProy` limpia filtro y pestaña de columna entre vista y vista.
 
 **v0.4.1 (2026-09-12): 265/265** — gerencia 131 · colaborador 119 · lectura 15, estable en 2 corridas seguidas. Lo
 nuevo: `archivo-l1` imita al tenant (nombre de 77, `webUrl` Doc.aspx de 268, búsqueda sin `parentReference.path`)

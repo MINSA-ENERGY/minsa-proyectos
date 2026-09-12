@@ -86,22 +86,30 @@
         <button id="btnVolver" class="mn-btn is-ghost is-sm" type="button">← Proyectos</button>
         <div class="titulo"><span class="mn-chip" id="pEquipo"></span> <h1 id="pTitulo"></h1></div>
         <span class="mn-mono pct" id="pPct"></span>
+        <!-- B1: en celular las tres acciones del proyecto viven en un menu «···»; en escritorio el
+             <details> es display:contents y se ven los tres botones de siempre. -->
+        <details class="acc-menu" id="accMenu"><summary aria-label="Acciones del proyecto" title="Imprimir · Editar · Cerrar proyecto">⋮</summary>
         <div class="acciones"><button id="btnImprimir" class="mn-btn is-ghost is-sm" type="button" title="Imprimir o guardar como PDF lo que está en pantalla">Imprimir</button><button id="btnEditarProyecto" class="mn-btn is-sm" type="button">Editar</button><button id="btnCerrarProyecto" class="mn-btn is-sm" type="button">Cerrar proyecto</button><button id="btnReabrirProyecto" class="mn-btn is-sm oculto" type="button">Reabrir</button></div>
-        <p class="sub" id="pDesc"></p>
+        </details>
+        <!-- B2: la linea que resume el frente sin bajar a la lateral (que en celular queda a ~1,900 px). -->
+        <p class="resumen-linea" id="pResumen"></p>
+        <p class="sub" id="pDesc" title=""></p>
       </header>
       <div class="dos-columnas ancha">
         <div class="apilado">
           <div class="tabs" role="tablist">
             <button class="tab" data-tab="tablero" role="tab" type="button">Tablero</button>
             <button class="tab" data-tab="lista" role="tab" type="button">Lista</button>
-            <button class="tab" data-tab="docs" role="tab" type="button">Documentos</button>
+            <button class="tab" data-tab="docs" role="tab" type="button"><span class="t-largo">Documentos</span><span class="t-corto">Docs</span></button>
+            <button class="tab solo-movil" data-tab="resumen" role="tab" type="button">Resumen</button>
+            <button id="btnFiltros" class="mn-btn is-sm solo-movil" type="button" aria-expanded="false">Filtrar</button>
             <button id="btnNuevaTarea" class="mn-btn is-primary is-sm" type="button">Nueva tarea</button>
           </div>
           <div class="filtros tareas-filtros oculto" id="filtroTareas"><div class="chips" id="filtroChips"></div><input id="filtroTexto" type="search" placeholder="Buscar en las tarjetas" aria-label="Buscar en las tarjetas" autocomplete="off"></div>
           <div id="tab-tablero" class="tablero-caja"><div class="col-tabs" id="colTabs" role="tablist" aria-label="Columna"></div><div class="tablero" id="tableroCols"></div></div>
           <div id="tab-lista" class="tabla oculto"></div>
           <div id="tab-docs" class="docs oculto">
-            <div class="docs-acciones"><button id="btnLigar" class="mn-btn is-sm" type="button">Ligar archivo de la biblioteca</button><button id="btnSubir" class="mn-btn is-sm" type="button">Subir al buzón</button><button id="btnEnlace" class="mn-btn is-sm" type="button">Pegar un enlace</button><span class="mn-label" id="docsBiblioteca"></span></div>
+            <div class="docs-acciones"><button id="btnLigar" class="mn-btn is-sm" type="button">Ligar archivo de la biblioteca</button><button id="btnSubir" class="mn-btn is-sm" type="button">Subir al buzón</button><button id="btnEnlace" class="mn-btn is-sm" type="button">Pegar un enlace</button><span class="mn-help" id="docsBiblioteca"></span></div>
             <div class="filtros" id="docsFiltro"></div>
             <div class="lista" id="docsLista"></div>
           </div>
@@ -128,12 +136,14 @@
 
 <!-- Tarjeta (ver / mover / editar) -->
 <dialog id="dlgTarea" class="mn-dialog">
-  <div class="mn-dialog-head"><h2 id="tTitulo"></h2><div class="head-botones"><button class="mn-btn is-ghost is-sm" id="tCompartir" type="button" title="Copiar la liga de esta tarjeta para mandarla por chat">Copiar liga</button><button class="mn-btn is-ghost is-sm" id="tCerrar" type="button">Cerrar</button></div></div>
+  <div class="mn-dialog-head"><h2 id="tTitulo"></h2><div class="head-botones"><button class="mn-btn is-ghost is-sm is-icono" id="tCompartir" type="button" title="Copiar la liga de esta tarjeta para mandarla por chat" aria-label="Copiar la liga de esta tarjeta"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1"/></svg></button><button class="mn-btn is-ghost is-sm" id="tCerrar" type="button">Cerrar</button></div></div>
   <div class="mn-dialog-body">
     <div class="dlg-avisos"></div>
     <div class="kv" id="tKv"></div>
-    <div class="mn-label">Documentos</div>
-    <div class="tdocs" id="tDocs"></div>
+    <div id="tDeny" class="deny oculto"></div>
+    <div class="mn-label" id="tMoverEtiqueta">Mover a…</div>
+    <div class="mover" id="tMover"></div>
+    <div class="orden" id="tOrden"></div>
     <div class="mn-label">Notas</div>
     <div class="notas" id="tNotasLista"></div>
     <form id="formNota" class="nota-forma" novalidate>
@@ -141,10 +151,8 @@
       <textarea id="tNota" rows="2" maxlength="250" placeholder="Anota qué pasó, qué falta o por qué está donde está (250 caracteres)"></textarea>
       <button class="mn-btn is-sm" id="tAnotar" type="submit">Anotar</button>
     </form>
-    <div id="tDeny" class="deny oculto"></div>
-    <div class="mn-label" id="tMoverEtiqueta">Mover a…</div>
-    <div class="mover" id="tMover"></div>
-    <div class="orden" id="tOrden"></div>
+    <div class="mn-label">Documentos</div>
+    <div class="tdocs" id="tDocs"></div>
     <details id="tEditar" class="editar"><summary>Editar la tarjeta</summary>
       <form id="formTarea" class="forma" novalidate>
         <div class="mn-field"><label for="ftTitulo">Tarea (verbo + objeto)</label><input id="ftTitulo" required maxlength="255"></div>
@@ -153,16 +161,15 @@
           <div class="mn-field"><label for="ftPrioridad">Prioridad</label><select id="ftPrioridad"><option value="alta">alta</option><option value="normal" selected>normal</option><option value="baja">baja</option></select></div>
         </div>
         <div class="mn-row">
-          <div class="mn-field"><label for="ftVence">Vence</label><input id="ftVence" type="date"></div>
+          <div class="mn-field"><label for="ftVence">Vence</label><input id="ftVence" type="date"><div class="atajos-fecha" id="ftAtajos"></div></div>
           <div class="mn-field"><label for="ftOrigen">Origen en la KB</label><input id="ftOrigen" placeholder="ambiental/…md#renglon-7"></div>
         </div>
         <div class="mn-field"><label for="ftDesc">Descripción</label><textarea id="ftDesc" rows="3"></textarea></div>
         <div class="mn-field oculto" id="ftProyectoCampo"><label for="ftProyecto">Proyecto (moverla a otro frente)</label><select id="ftProyecto"></select></div>
-        <div class="mn-dialog-foot"><button class="mn-btn is-primary is-sm" id="btnGuardarTarea" type="submit">Guardar cambios</button></div>
+        <div class="mn-dialog-foot"><button class="mn-btn is-primary is-sm" id="btnGuardarTarea" type="submit">Guardar cambios</button><button class="mn-btn is-danger is-sm" id="tBorrar" type="button">Borrar tarjeta</button></div>
       </form>
     </details>
   </div>
-  <div class="mn-dialog-foot"><button class="mn-btn is-danger is-sm" id="tBorrar" type="button">Borrar tarjeta</button></div>
 </dialog>
 
 <!-- Nueva tarea -->
@@ -177,13 +184,13 @@
         <div class="mn-field"><label for="ntPrioridad">Prioridad</label><select id="ntPrioridad"><option value="alta">alta</option><option value="normal" selected>normal</option><option value="baja">baja</option></select></div>
       </div>
       <div class="mn-row">
-        <div class="mn-field"><label for="ntVence">Vence</label><input id="ntVence" type="date"></div>
+        <div class="mn-field"><label for="ntVence">Vence</label><input id="ntVence" type="date"><div class="atajos-fecha" id="ntAtajos"></div></div>
         <div class="mn-field"><label for="ntColumna">Columna</label><select id="ntColumna"></select></div>
       </div>
       <div class="mn-field"><label for="ntOrigen">Origen en la KB (opcional)</label><input id="ntOrigen" placeholder="ambiental/calytek/….md#renglon-7"></div>
       <div class="mn-field"><label for="ntDesc">Descripción (opcional)</label><textarea id="ntDesc" rows="3"></textarea></div>
     </div>
-    <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="ntCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="ntGuardar" type="submit">Crear tarea</button></div>
+    <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="ntCancelar" type="button">Cancelar</button><button class="mn-btn is-sm" id="ntGuardarYOtra" type="button" title="Guarda y deja el diálogo abierto con asignado, prioridad, columna y vence">Crear y otra</button><button class="mn-btn is-primary is-sm" id="ntGuardar" type="submit">Crear tarea</button></div>
   </form>
 </dialog>
 
@@ -204,7 +211,7 @@
       </div>
       <div class="mn-field"><label for="npDesc">Descripción</label><textarea id="npDesc" rows="3"></textarea></div>
       <div class="mn-field"><label for="npCarpeta">Carpeta destino en la biblioteca (opcional)</label><input id="npCarpeta" maxlength="255" placeholder="03_Predios/Arrocera/Federal (ASEA) - LAU"></div>
-      <p class="mn-label" id="npNota">La clave es lo que se pega en el marcador ⏳ de la base de conocimiento: «· app: lau-asea-03-001». No cambia después.</p>
+      <p class="mn-help" id="npNota">La clave es lo que se pega en el marcador ⏳ de la base de conocimiento: «· app: lau-asea-03-001». No cambia después.</p>
     </div>
     <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="npCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="npGuardar" type="submit">Crear proyecto</button></div>
   </form>
@@ -215,7 +222,7 @@
   <div class="mn-dialog-head"><h2>Ligar archivo de la biblioteca</h2><button class="mn-btn is-ghost is-sm" id="lgCerrar" type="button">Cerrar</button></div>
   <div class="mn-dialog-body">
     <div class="dlg-avisos"></div>
-    <p class="mn-label" id="lgBiblioteca"></p>
+    <p class="mn-help" id="lgBiblioteca"></p>
     <p class="mn-label reemplazo oculto" id="lgNota"></p>
     <div class="mn-row">
       <div class="mn-field"><label for="lgTexto">Buscar por nombre</label><input id="lgTexto" placeholder="plan de contingencia"></div>
@@ -232,13 +239,13 @@
     <div class="mn-dialog-head"><h2>Subir al buzón</h2></div>
     <div class="mn-dialog-body">
       <div class="dlg-avisos"></div>
-      <p class="mn-label" id="sbBiblioteca"></p>
+      <p class="mn-help" id="sbBiblioteca"></p>
       <div class="mn-field"><label for="sbConcepto">Qué es (concepto)</label><input id="sbConcepto" required maxlength="120" placeholder="Borrador de filosofía de operación"></div>
       <div class="mn-row">
         <div class="mn-field"><label for="sbTarea">Tarjeta (opcional)</label><select id="sbTarea"></select></div>
         <div class="mn-field"><label for="sbArchivos">Archivos</label><input id="sbArchivos" type="file" multiple required></div>
       </div>
-      <p class="mn-label">Se deposita en <code>99_Pendiente-Archivar</code> de la biblioteca de la unidad, en una carpeta con fecha y con <code>_lote.json</code> al final. La skill de archivar lo acomoda después; la liga dice «en el buzón» hasta entonces.</p>
+      <p class="mn-help">Se deposita en <code>99_Pendiente-Archivar</code> de la biblioteca de la unidad, en una carpeta con fecha y con <code>_lote.json</code> al final. La skill de archivar lo acomoda después; la liga dice «en el buzón» hasta entonces.</p>
       <p class="progreso mn-mono" id="sbProgreso"></p>
     </div>
     <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="sbCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="sbGuardar" type="submit">Subir</button></div>
@@ -254,7 +261,7 @@
       <div class="mn-field"><label for="enTitulo">Qué es</label><input id="enTitulo" required maxlength="255" placeholder="Oficio de la autoridad (correo del gestor)"></div>
       <div class="mn-field"><label for="enUrl">Dirección (https://…)</label><input id="enUrl" type="url" inputmode="url" required placeholder="https://minsaenergy.sharepoint.com/…"></div>
       <div class="mn-field"><label for="enTarea">Tarjeta (opcional)</label><select id="enTarea"></select></div>
-      <p class="mn-label">Para lo que no vive en la biblioteca de la unidad: un correo, un oficio en Legal o Finanzas, una página. Se guarda la liga, no el archivo.</p>
+      <p class="mn-help">Para lo que no vive en la biblioteca de la unidad: un correo, un oficio en Legal o Finanzas, una página. Se guarda la liga, no el archivo.</p>
     </div>
     <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="enCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="enGuardar" type="submit">Guardar enlace</button></div>
   </form>
@@ -274,8 +281,9 @@
 <dialog id="dlgEquipo" class="mn-dialog">
   <div class="mn-dialog-head"><h2>Equipo</h2><button class="mn-btn is-ghost is-sm" id="eqCerrar" type="button">Cerrar</button></div>
   <div class="mn-dialog-body">
-    <div class="tabla"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Activo</th><th>Abiertas</th></tr></thead><tbody id="eqLista"></tbody></table></div>
-    <p class="mn-label">Los roles se cambian en la lista <code>PROY_Roles</code> de SharePoint, no aquí.</p>
+    <div class="tabla eq-tabla"><table><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Activo</th><th>Abiertas</th></tr></thead><tbody id="eqLista"></tbody></table></div>
+    <div class="eq-fichas" id="eqFichas"></div>
+    <p class="mn-help">Los roles se cambian en la lista <code>PROY_Roles</code> de SharePoint, no aquí.</p>
   </div>
 </dialog>
 

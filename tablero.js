@@ -6,7 +6,7 @@
 
 import { CONFIG } from './config.js';
 import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, columnaSiguiente, filtrarTareas, ordenarLista, reordenar } from './reglas.js';
-import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura } from './comun.js';
+import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
 
@@ -55,7 +55,8 @@ export function pintarFiltroTareas(proyecto) {
         const b = boton('', on ? 'is-on' : '', () => { alClic(); pintarFiltroTareas(proyecto); pintarSoloTareas(); }, datos);
         b.setAttribute('aria-pressed', on ? 'true' : 'false');
         if (conAvatar) b.appendChild(avatar(conAvatar));
-        b.appendChild(el('span', '', texto)); c.appendChild(b);
+        // B4: en celular el nombre se oculta por CSS y queda el avatar; el nombre vive en el title.
+        b.appendChild(el('span', 'nom', texto)); if (conAvatar) b.title = texto; c.appendChild(b);
     };
     const pilas = quienes.map(q => nombreDe(q, estado.roles).split(' ')[0]);
     for (const [i, q] of quienes.entries()) {
@@ -117,7 +118,7 @@ export function pintarLista(proyecto) {
     const tabla = el('table'); const thead = el('thead'); const tr = el('tr');
     // F10: clic en el encabezado ordena; segundo clic invierte. La flecha va en el activo (aria-sort).
     for (const [clave, texto] of COLUMNAS_LISTA) {
-        const th = el('th', '', texto); th.dataset.sort = clave;
+        const th = el('th', clave === 'origen' ? 'col-origen' : '', texto); th.dataset.sort = clave;   // B7: Origen se oculta en celular
         if (o.col === clave) th.setAttribute('aria-sort', o.dir === 1 ? 'ascending' : 'descending');
         th.addEventListener('click', () => { estado.ordenLista = o.col === clave ? { col: clave, dir: -o.dir } : { col: clave, dir: 1 }; pintarLista(proyecto); });
         tr.appendChild(th);
@@ -130,7 +131,7 @@ export function pintarLista(proyecto) {
         r.appendChild(el('td', '', t.Asignado ? nombreDe(t.Asignado, estado.roles) : '—'));
         const tdc = el('td'); tdc.appendChild(chip(nombreColumna(t.Columna), t.Columna === 'hecho' ? 'ok' : t.Columna === 'en-curso' ? 'info' : null)); r.appendChild(tdc);
         r.appendChild(el('td', 'mn-mono', fechaCorta(t.Vence)));
-        r.appendChild(el('td', 'src', t.Origen || ''));
+        r.appendChild(el('td', 'src col-origen', t.Origen || ''));
         r.addEventListener('click', () => abrirTarjeta(t.id));
         tbody.appendChild(r);
     }
@@ -217,8 +218,11 @@ export function abrirTarjeta(id) {
     $('tDeny').textContent = !PUEDE.mover(estado.rol) ? 'Tu rol es de lectura: puedes ver la tarjeta, pero moverla lo hace su asignado o cualquier colaborador.' : (p && p.Estado !== 'activo' ? 'El proyecto está cerrado: sus tarjetas quedan como registro.' : '');
     const mv = $('tMover'); mv.textContent = '';
     for (const c of CONFIG.columnas) {
-        const b = boton(c.nombre, 'mn-btn is-sm' + (t.Columna === c.clave ? ' is-here' : ''), () => moverTarea(t.id, c.clave), { move: c.clave });
-        b.disabled = !puedeMover || t.Columna === c.clave;
+        // C5: la columna actual se lee como «X · actual», no como el boton que hay que pulsar.
+        const aqui = t.Columna === c.clave;
+        const b = boton(aqui ? `${c.nombre} · actual` : c.nombre, 'mn-btn is-sm' + (aqui ? ' is-here' : ''), () => moverTarea(t.id, c.clave), { move: c.clave });
+        if (aqui) b.setAttribute('aria-current', 'true');
+        b.disabled = !puedeMover || aqui;
         mv.appendChild(b);
     }
     // F11: Subir / Bajar dentro de la columna (renumera Orden en el orden visual).
@@ -246,6 +250,7 @@ export function abrirTarjeta(id) {
     $('ftProyecto').value = String(t.ProyectoId);
     $('ftTitulo').value = t.Title || ''; $('ftAsignado').value = String(t.Asignado || '').toLowerCase(); $('ftPrioridad').value = t.Prioridad || 'normal';
     $('ftVence').value = diaInput(t.Vence); $('ftOrigen').value = t.Origen || ''; $('ftDesc').value = t.Descripcion || '';
+    atajosFecha('ftVence', 'ftAtajos', p && p.Vence);   // C2 + D1
     abrirDialogo('dlgTarea');
     fijarHash(hashDe(t.id));
 }
@@ -487,12 +492,17 @@ export function abrirNuevaTarea() {
     opciones($('ntColumna'), CONFIG.columnas, c => c.clave, c => c.nombre, null);
     $('ntColumna').value = 'por-hacer';
     $('ntTitulo').value = ''; $('ntPrioridad').value = 'normal'; $('ntVence').value = ''; $('ntOrigen').value = ''; $('ntDesc').value = '';
+    atajosFecha('ntVence', 'ntAtajos', p.Vence);   // C2 + D1
     abrirDialogo('dlgNuevaTarea');
     $('ntTitulo').focus();
 }
 
-async function guardarNuevaTarea(ev) {
-    ev.preventDefault();
+/**
+ * C1 (v0.5.0): «Crear y otra» guarda y deja el dialogo abierto con asignado, prioridad, columna y
+ * vence puestos: capturar los 17 entregables de un frente eran 17 aperturas con todo desde cero.
+ */
+async function guardarNuevaTarea(ev, seguirCapturando = false) {
+    if (ev) ev.preventDefault();
     const p = estado.proyectoAbierto; if (!p) return;
     if (!PUEDE.tarea(estado.rol)) { avisar('Tu rol es de lectura: no puedes crear tarjetas.', 'error'); return; }
     const titulo = $('ntTitulo').value.trim();
@@ -507,17 +517,24 @@ async function guardarNuevaTarea(ev) {
         Origen: $('ntOrigen').value.trim() || undefined, Descripcion: $('ntDesc').value.trim() || undefined, Desde: ahora,
         HechoPor: columna === 'hecho' ? estado.cuenta.username : undefined, HechoEl: columna === 'hecho' ? ahora : undefined
     });
-    $('ntGuardar').disabled = true;
+    // Los dos botones se apagan AQUI, dentro del alcance del `finally` que los repone: apagar
+    // «Crear y otra» en su propio manejador lo dejaba muerto para siempre si la validacion de
+    // arriba retornaba antes (p. ej. tarea sin titulo) — cazado por el revisor el 2026-09-12.
+    $('ntGuardar').disabled = true; $('ntGuardarYOtra').disabled = true;
     try {
         const n = await estado.cliente.crearRenglon(estado.siteId, L.tareas, campos, m => avisar(m, 'ojo'));
         estado.tareas.push(n);
-        cerrarDialogo('dlgNuevaTarea');
+        if (seguirCapturando) {
+            // Se limpia lo que cambia de una tarjeta a otra; lo demas se queda puesto a proposito.
+            $('ntTitulo').value = ''; $('ntDesc').value = ''; $('ntOrigen').value = '';
+            $('ntTitulo').focus();
+        } else cerrarDialogo('dlgNuevaTarea');
         avisar(`Tarea creada en ${nombreColumna(columna)}.`, 'ok');
         alCambiar();
         await registrarActividad('crear-tarea', `creó «${titulo.slice(0, 80)}»${campos.Asignado ? ' para ' + nombreDe(campos.Asignado, estado.roles) : ''}`, p.id, n.id);
         alCambiar();
     } catch (e) { avisar('No se pudo crear: ' + (e && e.message ? e.message : e), 'error'); }
-    finally { $('ntGuardar').disabled = false; }
+    finally { $('ntGuardar').disabled = false; $('ntGuardarYOtra').disabled = false; }
 }
 
 // ---------------------------------------------------------------- enganche
@@ -532,5 +549,6 @@ export function engancharTablero() {
     $('formTarea').addEventListener('submit', guardarEdicion);
     $('btnNuevaTarea').addEventListener('click', abrirNuevaTarea);
     $('formNuevaTarea').addEventListener('submit', guardarNuevaTarea);
+    $('ntGuardarYOtra').addEventListener('click', () => guardarNuevaTarea(null, true));   // C1
     $('ntCancelar').addEventListener('click', () => cerrarDialogo('dlgNuevaTarea'));
 }

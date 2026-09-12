@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { iniciales, nombreDe, diasPara, estadoVence } from './reglas.js';
 
-export const VERSION = '0.4.1';
+export const VERSION = '0.5.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -17,6 +17,9 @@ export const estado = {
     filtroEquipo: null,
     // v0.3.0: filtro y orden dentro del proyecto (F9/F10), columna visible en celular (U5), filtro de Mis tareas (U3)
     filtroTareas: { quien: null, alta: false, vencidas: false, texto: '' },
+    // v0.5.0 (B1): en celular los chips + buscador van plegados detras de «Filtrar»; en escritorio
+    // el CSS los muestra siempre y esta bandera no se nota.
+    filtrosAbiertos: false,
     ordenLista: { col: 'vence', dir: 1 },
     colMovil: 'por-hacer',
     filtroMis: null,
@@ -187,6 +190,50 @@ export function aIsoDia(texto) {
 }
 /** Valor para un <input type="date"> (U9, v0.4.0): la parte de dia del ISO guardado, o vacio. */
 export function diaInput(iso) { const s = String(iso || ''); return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : ''; }
+const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+/** D1: «jue 18 sep» — el input type=date se pinta en el idioma del DISPOSITIVO (mm/dd/yyyy en una
+ *  laptop en ingles) y <html lang="es"> no lo cambia; esta linea dice en el formato de la casa lo
+ *  que quedo escrito. */
+export function fechaLegible(iso) {
+    const s = diaInput(iso); if (!s) return '';
+    const d = new Date(Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10), 12));
+    return `${DIAS[d.getUTCDay()]} ${d.getUTCDate()} ${MESES[d.getUTCMonth()]}`;
+}
+/**
+ * C2 + D1: bajo un campo de fecha, los cuatro atajos (hoy · mañana · +7 d · fin del frente) y la
+ * fecha leida en el formato de la casa. El calendario nativo obliga a navegar para «mañana».
+ * `finDelFrente` es el Vence del proyecto, o null.
+ */
+export function atajosFecha(idInput, idCaja, finDelFrente) {
+    const inp = $(idInput), caja = $(idCaja); if (!inp || !caja) return;
+    // El dia se arma con los componentes LOCALES. Con `toISOString()` —que es UTC y aqui vamos
+    // UTC-6— «hoy» pasaba a ser MAÑANA a partir de las 18:00 hora de México, y eso no se pinta
+    // mal: se ESCRIBE mal en SharePoint (cazado por el revisor el 2026-09-12).
+    const dia = n => {
+        const d = new Date(); d.setDate(d.getDate() + n);
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    };
+    const pintar = () => {
+        caja.textContent = '';
+        const opciones = [['hoy', dia(0)], ['mañana', dia(1)], ['+7 d', dia(7)]];
+        const fin = diaInput(finDelFrente);
+        if (fin) opciones.push(['fin del frente', fin]);
+        for (const [texto, valor] of opciones) {
+            const b = boton(texto, inp.value === valor ? 'is-on' : '', () => { inp.value = valor; pintar(); }, { fecha: valor });
+            caja.appendChild(b);
+        }
+        // D1: con valor, la fecha leida en el formato de la casa; vacio, el formato que se espera
+        // (el campo nativo enseña mm/dd/yyyy si el DISPOSITIVO esta en ingles, que es el caso que
+        // motivo D1: justo cuando la persona va a teclear no habia ninguna pista).
+        caja.appendChild(el('span', 'leida', inp.value ? fechaLegible(inp.value) : 'día/mes/año'));
+    };
+    // El manejador se pone UNA vez y llama al `pintar` vigente: cada apertura del dialogo trae otro
+    // proyecto (otro «fin del frente»), y un `oninput = pintar` ademas pisaria cualquier otro manejador.
+    inp._pintarAtajos = pintar;
+    if (inp.dataset.atajos !== '1') { inp.addEventListener('input', () => inp._pintarAtajos()); inp.dataset.atajos = '1'; }
+    pintar();
+}
 /** Chip de vencimiento de una tarea (vencida / vence pronto / vence), o null. */
 export function chipVence(t) {
     const e = estadoVence(t, CONFIG.vencePronto);
