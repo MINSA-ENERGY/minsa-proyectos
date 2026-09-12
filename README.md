@@ -70,7 +70,12 @@ Docs: buscar (excluye el buzón), ligar, subir (`_lote.json` al final), 404 del 
 acomodó la skill», subida a medias borra la carpeta; 503 reintenta; 403 nombra el permiso;
 biblioteca fuera del piloto nombra el sitio; lectura sin botones y `moverTarea` niega;
 colaborador no borra ni cierra aunque se fuerce el botón; token caducado vuelve al login.
-Sin probar todavía: login real, celular, y las bibliotecas fuera del piloto.
+**En operación desde 2026-09-11 (noche)** — `https://minsa-energy.github.io/minsa-proyectos/`: app registrada en
+Entra, `Sites.Selected write` sobre Administración y Ambiental-CALYTEK, 5 listas provisionadas con
+versiones, 21 renglones sembrados (10 roles, proyecto `lau-asea-03-001`, 10 tareas), exportador diario
+a las 20:00. **Prueba real:** Francisco (`colaborador`) entró desde el celular y editó una tarjeta; el
+exporte de las 20:34 la trae en `PROY_Actividad` con su cuenta. Sin probar todavía: las bibliotecas
+fuera del piloto, y el resto del roster en el celular.
 
 ## Lo que la app NO protege
 
