@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { iniciales, nombreDe, diasPara, estadoVence } from './reglas.js';
 
-export const VERSION = '0.1.0';
+export const VERSION = '0.2.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -54,18 +54,35 @@ export function porId(coleccion, id) { return coleccion.find(x => x.id === Numbe
 
 // ---------------------------------------------------------------- avisos
 
-/** Un aviso REEMPLAZA al anterior: la pantalla dice el estado de la ultima accion, no la historia. */
+/**
+ * Un aviso REEMPLAZA al anterior: la pantalla dice el estado de la ultima accion, no la historia.
+ * Es un TOAST fijo abajo (v0.2.0, U1 de la auditoria): no mueve el scroll, lo anuncia el lector de
+ * pantalla (#avisos lleva role=status), el ok/info se va solo a los 4 s y el error se queda hasta
+ * cerrarlo. Dentro de un dialogo abierto se pinta en su .dlg-avisos, como antes.
+ */
+let temporizadorAviso = 0;
 export function avisar(texto, clase = '') {
     limpiarAvisos();
-    const d = el('div', 'mensaje' + (clase ? ' ' + clase : ''), texto);
-    $('avisos').appendChild(d);
+    const d = el('div', 'mensaje' + (clase ? ' ' + clase : ''));
+    d.appendChild(el('span', 'texto', texto));
     const dlg = document.querySelector('dialog[open] .dlg-avisos');
-    if (dlg) { dlg.textContent = ''; dlg.appendChild(d.cloneNode(true)); return; }
-    window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (dlg) { dlg.appendChild(d); return; }
+    const x = boton('×', 'cerrar', limpiarAvisos); x.setAttribute('aria-label', 'Cerrar el aviso'); d.appendChild(x);
+    $('avisos').appendChild(d);
+    if (clase !== 'error') temporizadorAviso = setTimeout(limpiarAvisos, CONFIG.avisoMs);
 }
-export function limpiarAvisos() { $('avisos').textContent = ''; for (const z of document.querySelectorAll('.dlg-avisos')) z.textContent = ''; }
+export function limpiarAvisos() {
+    clearTimeout(temporizadorAviso);
+    $('avisos').textContent = '';
+    for (const z of document.querySelectorAll('.dlg-avisos')) z.textContent = '';
+}
 export function abrirDialogo(id) { const d = $(id); limpiarAvisos(); if (!d.open) d.showModal(); d.scrollTo({ top: 0 }); }
-export function cerrarDialogo(id) { const d = $(id); if (d.open) d.close(); }
+export function cerrarDialogo(id) {
+    const d = $(id); if (d.open) d.close();
+    // La tarjeta vive en el hash: al cerrarla por codigo el hash vuelve AQUI, sincrono. El evento
+    // `close` (Esc, Atras) lo repite en tablero.js; con tiempo virtual (E2E) ese evento llega tarde.
+    if (id === 'dlgTarea') fijarHash(hashDe());
+}
 
 /** Confirmacion propia (sustituye al confirm() nativo). Devuelve {ok, motivo}. */
 export function confirmar({ titulo, texto, ok = 'Confirmar', motivo = false, etiquetaMotivo = 'Motivo' }) {
@@ -93,6 +110,38 @@ export function confirmar({ titulo, texto, ok = 'Confirmar', motivo = false, eti
         d.showModal();
         if (motivo) $('dlgMotivo').focus();
     });
+}
+
+// ---------------------------------------------------------------- ruta (hash) — v0.2.0, F8 de la auditoria
+
+/**
+ * El hash que describe lo que esta en pantalla: #inicio · #proyectos · #mis · #p/<clave> ·
+ * #p/<clave>/lista · #p/<clave>/docs, y con una tarjeta abierta se le pega /t/<id> (tambien sobre
+ * #mis). Es lo que se comparte («abre esta tarjeta») y lo que sobrevive a un F5. app.js lo LEE en
+ * hashchange (aplicarHash); aqui solo se ESCRIBE. La clave del proyecto es un slug estable, hecho
+ * para esto.
+ */
+export function hashDe(tareaId) {
+    let h;
+    if (estado.pestana === 'proyecto' && estado.proyectoAbierto) {
+        h = '#p/' + estado.proyectoAbierto.Clave;
+        if (estado.tab && estado.tab !== 'tablero') h += '/' + estado.tab;
+    } else h = '#' + (estado.pestana || 'inicio');
+    if (tareaId) h += '/t/' + tareaId;
+    return h;
+}
+/**
+ * Escribe el hash con pushState (SINCRONO y sin evento): `location.hash = x` es una navegacion que
+ * el navegador puede diferir y reordenar —medido en Edge headless el 2026-09-11: el close del
+ * dialogo y el hash se cruzaban y la pantalla se quedaba con el hash viejo—. Atras/Adelante llegan
+ * por popstate y una URL pegada por hashchange; los dos caen en aplicarHash (app.js), que es idempotente.
+ */
+export function fijarHash(h) { if (location.hash !== h) history.pushState(null, '', h); }
+/** La liga COMPLETA de una tarjeta, siempre por su proyecto (para compartir, aunque se abra desde Mis tareas). */
+export function ligaDeTarjeta(t) {
+    const p = porId(estado.proyectos, t.ProyectoId);
+    const base = location.href.split('#')[0];
+    return p ? `${base}#p/${p.Clave}/t/${t.id}` : `${base}#mis/t/${t.id}`;
 }
 
 // ---------------------------------------------------------------- fechas (dd/mm/aaaa en pantalla, ISO en SharePoint)
@@ -152,6 +201,17 @@ export async function registrarActividad(accion, frase, proyectoId, tareaId) {
         const n = await estado.cliente.crearRenglon(estado.siteId, L.actividad, limpiar(r));
         estado.actividad.unshift(n);
     } catch (e) { console.warn('no se pudo registrar la actividad:', e && e.message ? e.message : e); }
+}
+
+/** Frase de un renglon de actividad para las listas de «actividad reciente»: «Lorena movió …»; una nota va entre comillas. */
+export function fraseActividad(a) {
+    const quien = nombreDe(a.Quien, estado.roles).split(' ')[0];
+    return a.Accion === 'comentar' ? `${quien} anotó: «${a.Title}»` : `${quien} ${a.Title}`;
+}
+/** Las notas de una tarjeta (Accion=comentar), de la mas vieja a la mas nueva. */
+export function notasDe(tareaId) {
+    return estado.actividad.filter(a => a.Accion === 'comentar' && Number(a.TareaId) === Number(tareaId))
+        .sort((a, b) => String(a.Cuando || '').localeCompare(String(b.Cuando || '')));
 }
 
 /** Equipo (config) de un proyecto. */

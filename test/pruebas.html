@@ -12,7 +12,13 @@
        msedge --headless=new --virtual-time-budget=30000 --dump-dom "http://localhost:8080/?rol=gerencia&refresco=0"
 
      Modo SOLO MIRAR: `?rol=gerencia&vista=inicio` oculta este <pre> al terminar y deja esa pantalla
-     (inicio · proyectos · proyecto · mis) para una captura headless con --screenshot.
+     (inicio · proyectos · proyecto · docs · tarjeta · mis) para una captura headless con --screenshot.
+
+     TRAMPA del tiempo virtual (medida 2026-09-11): con --virtual-time-budget los timers corren
+     "instantaneos" y los eventos DOM encolados (el `close` de un <dialog>, un hashchange) pueden
+     llegar DESPUES de que un esperar() de 8 s agoto su tiempo. Regla: la app no deja estado
+     pendiente de un evento asincrono si puede escribirlo sincrono, y el arnes navega por URL con
+     irHash() (pushState + popstate), nunca con `location.hash =`.
 
      El resultado queda en <pre id="resultados"> y se manda a POST /guardar (_salida-dev.json).
      El Graph falso VALIDA los valores de columnas choice contra esquema.json, como SharePoint. -->
@@ -193,6 +199,7 @@
 </script>
 
 <script type="module">
+import { diasPara } from '../reglas.js';
 const R = window.__PRUEBAS;
 const DB = window.__DB;
 const params = new URLSearchParams(location.search);
@@ -220,6 +227,9 @@ function archivosFalsos() {
     $('sbArchivos').files = dt.files; $('sbArchivos').dispatchEvent(new Event('change', { bubbles: true }));
 }
 const actividad = accion => filas('actividad').filter(a => a.fields.Accion === accion);
+// Navegar por URL como lo haria Atras del navegador: pushState + popstate. `location.hash = x` es una
+// navegacion ASINCRONA en Edge headless con tiempo virtual y se reordena (medido 2026-09-11).
+const irHash = h => { history.pushState(null, '', h); window.dispatchEvent(new PopStateEvent('popstate')); };
 
 try {
     // 1. Montar la app real dentro de esta pagina.
@@ -242,13 +252,21 @@ try {
         filas('tareas').push({ id: DB.siguienteId++, fields: { Title: 'Tarea sembrada para mí', ProyectoId: proyectoId, Columna: 'por-hacer', Asignado: YO, Prioridad: 'alta', Vence: '2026-09-01T18:00:00Z', Desde: '2026-09-01T18:00:00Z' } });
         R.log('nota', `rol ${ROL}: proyecto y tarea sembrados directo en las listas`);
     }
+    // v0.2.0 (F8): lectura arranca con un deep link pegado del chat: #p/<clave>/t/<id>.
+    if (ROL === 'lectura') history.replaceState(null, '', `#p/lau-demo/t/${filas('tareas')[0].id}`);
     await import('./app.js');
     R.log('nota', `app importada · rol de prueba: ${ROL} · ${$('pie').textContent}`);
 
-    // 2. Sesion: entra sola y aterriza en Inicio.
+    // 2. Sesion: entra sola y aterriza en Inicio (o donde diga el hash).
     await esperar(() => !visible('pantallaEntrar'), 'sesión iniciada');
     R.ok('sesión iniciada y rol resuelto', $('quien').textContent.includes(ROL), $('quien').textContent);
-    R.ok('pantalla inicial = Inicio', visible('p-inicio'));
+    if (ROL === 'lectura') {
+        await esperar(() => $('dlgTarea').open, 'deep link al arrancar');
+        R.ok('deep link al arrancar: abre el proyecto y la tarjeta', visible('p-proyecto') && $('pTitulo').textContent === 'LAU DEMO' && $('tTitulo').textContent.startsWith('Tarea sembrada'));
+        clic('tCerrar'); await esperar(() => !$('dlgTarea').open && location.hash === '#p/lau-demo', 'hash sin tarjeta');
+        irHash('#inicio'); await esperar(() => visible('p-inicio'), 'inicio por hash');
+    }
+    R.ok('pantalla inicial = Inicio', visible('p-inicio') && location.hash === '#inicio', location.hash);
 
     // 3. Proyectos.
     pestana('proyectos');
@@ -327,6 +345,39 @@ try {
         document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
         document.querySelector('#tMover button[data-move="hecho"]').click(); await esperar(() => avisoCon('sin permiso (403)'), '403');
         R.ok('403: el aviso nombra el permiso y la tarjeta no se mueve', t.fields.Columna === 'en-curso'); clic('tCerrar');
+        // 4b. v0.2.0 — deep links (F8), notas (F5), docs desde la tarjeta (F3), toast (U1).
+        R.ok('hash: el proyecto abierto se ve en la URL', location.hash === `#p/${CLAVE}`, location.hash);
+        document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+        R.ok('hash: la tarjeta abierta se ve en la URL', location.hash === `#p/${CLAVE}/t/${t.id}`, location.hash);
+        R.ok('la tarjeta trae el campo de notas para quien escribe', !$('formNota').classList.contains('oculto') && $('tNotasLista').textContent.includes('Sin notas'));
+        poner('tNota', 'Esperando el original del gestor.'); clic('tAnotar');
+        await esperar(() => actividad('comentar').length === 1, 'nota guardada');
+        const nota = actividad('comentar')[0];
+        R.ok('nota = renglón comentar con la tarjeta, el texto y quién', Number(nota.fields.TareaId) === t.id && nota.fields.Title === 'Esperando el original del gestor.' && nota.fields.Quien === YO && Number(nota.fields.ProyectoId) === proyectoId, JSON.stringify(nota.fields));
+        await esperar(() => $('tNotasLista').textContent.includes('Esperando el original'), 'nota pintada');
+        R.ok('la nota se pinta en la tarjeta con quién la escribió', $('tNotasLista').textContent.includes('Persona de Prueba') && $('tNota').value === '');
+        R.ok('la tarjeta ofrece Ligar / Subir', !!document.querySelector(`#tDocs [data-ligar="${t.id}"]`) && !!document.querySelector(`#tDocs [data-subir="${t.id}"]`));
+        document.querySelector(`#tDocs [data-ligar="${t.id}"]`).click(); await esperar(() => $('dlgLigar').open, 'ligar desde la tarjeta');
+        R.ok('Ligar desde la tarjeta: la tarjeta ya va puesta y el diálogo de tarjeta se cerró', $('lgTarea').value === String(t.id) && !$('dlgTarea').open && $('lgNota').classList.contains('oculto'));
+        await esperar(() => location.hash === `#p/${CLAVE}`, 'hash sin tarjeta');
+        R.ok('hash: al cerrar la tarjeta la URL vuelve al proyecto', location.hash === `#p/${CLAVE}`, location.hash);
+        clic('lgCerrar');
+        document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+        document.querySelector(`#tDocs [data-subir="${t.id}"]`).click(); await esperar(() => $('dlgSubir').open, 'subir desde la tarjeta');
+        R.ok('Subir desde la tarjeta: la tarjeta ya va puesta', $('sbTarea').value === String(t.id) && !$('dlgTarea').open);
+        clic('sbCancelar'); await esperar(() => location.hash === `#p/${CLAVE}`, 'hash sin tarjeta');
+        // El hash MANDA: Atrás del navegador o una liga pegada en el chat.
+        irHash(`#p/${CLAVE}/t/${t.id}`); await esperar(() => $('dlgTarea').open, 'tarjeta por hash');
+        R.ok('#p/<clave>/t/<id> abre la tarjeta', $('tTitulo').textContent.startsWith('Lista de insumos'));
+        irHash(`#p/${CLAVE}/lista`); await esperar(() => !$('dlgTarea').open && !$('tab-lista').classList.contains('oculto'), 'lista por hash');
+        R.ok('#p/<clave>/lista cierra la tarjeta y cambia la pestaña', document.querySelector('.tab[data-tab="lista"]').classList.contains('is-on') && document.querySelector('.tab[data-tab="lista"]').getAttribute('aria-selected') === 'true');
+        irHash('#mis'); await esperar(() => visible('p-mis'), 'mis por hash');
+        R.ok('#mis navega a Mis tareas', visible('p-mis'));
+        irHash('#p/no-existe'); await esperar(() => visible('p-inicio') && avisoCon('No hay un proyecto'), 'clave desconocida');
+        R.ok('clave desconocida: aviso y a Inicio, hash corregido', location.hash === '#inicio', location.hash);
+        R.ok('el aviso es un toast con role=status y ×', $('avisos').getAttribute('role') === 'status' && !!$('avisos').querySelector('.mensaje .cerrar'));
+        $('avisos').querySelector('.mensaje .cerrar').click();
+        R.ok('la × cierra el aviso', !$('avisos').querySelector('.mensaje'));
         // Lista.
         tab('lista'); await esperar(() => document.querySelector('#tab-lista tr.clic'), 'lista');
         R.ok('la pestaña Lista trae la tarea con su origen', [...document.querySelectorAll('#tab-lista td.src')].some(x => x.textContent.includes('#renglon-7')));
@@ -376,6 +427,32 @@ try {
         await esperar(() => avisoCon('No se pudo subir'), 'falla de subida');
         R.ok('subida a medias: se borra la carpeta y no nace la liga', !DB.carpetas.some(c => c.ruta.includes('a-medias')) && filas('ligas').length === 2 && !!avisoCon('sin permiso (403)'));
         clic('sbCancelar');
+        // 5b. v0.2.0 — cambiar la tarjeta de una liga y Quitar (F1); reemplazar la liga del lote ya acomodado (F2).
+        await esperar(() => document.querySelector('#docsLista [data-quitar]'), 'botones de quitar');
+        const ligaArch = filas('ligas').find(l => l.fields.Tipo === 'archivado');
+        const selLiga = document.querySelector(`#docsLista [data-tarjeta-de="${ligaArch.id}"]`);
+        R.ok('cada liga trae su select de tarjeta con la actual', !!selLiga && selLiga.value === String(t.id));
+        selLiga.value = ''; selLiga.dispatchEvent(new Event('change', { bubbles: true }));
+        await esperar(() => ligaArch.fields.TareaId === undefined, 'liga sin tarjeta');
+        R.ok('cambiar la tarjeta de una liga: PATCH TareaId y bitácora', actividad('ligar').some(a => a.fields.Title.includes('proyecto entero')));
+        const loteViejo = filas('ligas').find(l => l.fields.Tipo === 'buzon');
+        DB.archivos.push({ id: 'archivo-a3', ruta: '02_Planta/2026-09-11_CALYTEK_filosofia-de-operacion_rev01.pdf', nombre: '2026-09-11_CALYTEK_filosofia-de-operacion_rev01.pdf', bytes: 500 });
+        await esperar(() => document.querySelector(`#docsLista [data-buscar="${loteViejo.id}"]`), 'botón Buscar el archivado');
+        document.querySelector(`#docsLista [data-buscar="${loteViejo.id}"]`).click(); await esperar(() => $('dlgLigar').open, 'ligar');
+        R.ok('Buscar el archivado: abre Ligar con el concepto, la tarjeta del lote y el aviso de reemplazo', $('lgTexto').value === 'Borrador de filosofía de operación' && $('lgTarea').value === String(t.id) && !$('lgNota').classList.contains('oculto') && $('lgNota').textContent.includes('Borrador de filosofía'), $('lgTexto').value + ' | ' + $('lgTarea').value);
+        await esperar(() => document.querySelector('#lgResultados .vacio') && !$('lgBuscar').disabled, 'la búsqueda automática con el concepto termina (sin resultado: el archivado ya se renombró)');
+        poner('lgTexto', 'filosofia'); clic('lgBuscar'); await esperar(() => document.querySelector('#lgResultados .lg-resultado'), 'resultados');
+        document.querySelector('#lgResultados .lg-resultado button').click();
+        await esperar(() => !filas('ligas').some(l => l.id === loteViejo.id) && filas('ligas').some(l => l.fields.DriveItemId === 'archivo-a3'), 'reemplazada');
+        const nueva = filas('ligas').find(l => l.fields.DriveItemId === 'archivo-a3');
+        R.ok('reemplazar: nace la liga archivada con la misma tarjeta y muere la del lote', Number(nueva.fields.TareaId) === t.id && actividad('desligar').length === 1 && actividad('desligar')[0].fields.Title.startsWith('reemplazó'), actividad('desligar').map(a => a.fields.Title).join('|'));
+        await esperar(() => document.querySelector(`#docsLista [data-quitar="${nueva.id}"]`), 'quitar');
+        document.querySelector(`#docsLista [data-quitar="${nueva.id}"]`).click(); await confirmar();
+        await esperar(() => !filas('ligas').some(l => l.id === nueva.id), 'quitada');
+        R.ok('Quitar liga: borra el renglón y deja «desligó»', filas('ligas').length === 1 && actividad('desligar').length === 2 && actividad('desligar')[1].fields.Title.startsWith('desligó'));
+        pestana('inicio'); await esperar(() => $('inicioActividad').textContent.includes('anotó'), 'actividad con la nota');
+        R.ok('Inicio: la nota sale como «anotó: …» en la actividad', $('inicioActividad').textContent.includes('anotó: «Esperando'));
+        await abrirLau(); tab('docs');
         // Un equipo fuera del piloto: 403 al abrir el sitio, con el nombre.
         if (gerencia) {
             pestana('proyectos'); clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo');
@@ -427,15 +504,23 @@ try {
         tab('docs'); await dormir(50);
         R.ok('lectura: Ligar y Subir deshabilitados', $('btnLigar').disabled && $('btnSubir').disabled);
         pestana('mis'); await esperar(() => visible('p-mis'), 'mis');
-        R.ok('lectura: Mis tareas trae la sembrada, vencida arriba', document.querySelectorAll('#misLista .tarjeta').length === 1 && $('misLista').textContent.includes('venció'));
+        R.ok('lectura: Mis tareas trae la sembrada, vencida arriba en «Urgentes» con los días grandes', document.querySelectorAll('#misLista .tarjeta').length === 1 && !!document.querySelector('#misLista .urgentes .urgente.is-danger .tarjeta') && $('misLista').textContent.includes('venció') && $('misLista').querySelector('.urgente .k b').textContent === String(-diasPara('2026-09-01T18:00:00Z')));
         pestana('inicio'); await dormir(50);
         R.ok('lectura: Inicio muestra 1 vencida', [...document.querySelectorAll('#inicioKpis .mn-kpi')].some(k => k.textContent.includes('vencidas') && k.querySelector('.mn-kpi-val').textContent === '1'));
     }
 } catch (e) {
-    R.ok('la corrida terminó sin excepción', false, (e && e.stack) || String(e));
+    R.ok('la corrida terminó sin excepción', false, `hash=${location.hash} · dlgTarea=${$('dlgTarea').open} · pestaña=${[...document.querySelectorAll('.pantalla')].find(x => !x.classList.contains('oculto'))?.id} · ${String(e && e.message || e)}
+` + ((e && e.stack) || ''));
 } finally {
     await R.cerrar();
-    if (params.get('vista')) { $('resultados').hidden = true; const v = params.get('vista'); if (v === 'proyecto') { document.querySelector('#listaProyectos .renglon, #listaCerrados .renglon')?.click(); } else pestana(v); }
+    if (params.get('vista')) {
+        $('resultados').hidden = true; const v = params.get('vista');
+        if (['proyecto', 'docs', 'tarjeta'].includes(v)) {
+            pestana('proyectos'); document.querySelector('#listaProyectos .renglon, #listaCerrados .renglon')?.click();
+            if (v === 'docs') tab('docs');
+            if (v === 'tarjeta') document.querySelector('#tab-tablero .tarjeta')?.click();
+        } else pestana(v);
+    }
 }
 </script>
 </body>

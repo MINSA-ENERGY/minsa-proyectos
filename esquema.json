@@ -80,7 +80,7 @@
         { "nombre": "Title", "titulo": "Que paso (frase)", "tipo": "text", "obligatorio": true },
         { "nombre": "ProyectoId", "titulo": "ID del proyecto", "tipo": "number", "indexada": true },
         { "nombre": "TareaId", "titulo": "ID de la tarea", "tipo": "number" },
-        { "nombre": "Accion", "titulo": "Accion", "tipo": "choice", "opciones": ["crear-proyecto", "editar-proyecto", "cerrar-proyecto", "crear-tarea", "editar-tarea", "mover-tarea", "borrar-tarea", "ligar", "subir"], "obligatorio": true },
+        { "nombre": "Accion", "titulo": "Accion", "tipo": "choice", "opciones": ["crear-proyecto", "editar-proyecto", "cerrar-proyecto", "crear-tarea", "editar-tarea", "mover-tarea", "borrar-tarea", "ligar", "subir", "desligar", "comentar"], "obligatorio": true, "nota": "«desligar» y «comentar» nacieron en v0.2.0 (2026-09-11): en una lista ya provisionada se AGREGAN con provisionar.html (PATCH de opciones, idempotente). «comentar» es la nota de una tarjeta: el texto va en Title (255 max) y se pinta en el dialogo de la tarjeta" },
         { "nombre": "Quien", "titulo": "Quien (correo)", "tipo": "text", "obligatorio": true },
         { "nombre": "Cuando", "titulo": "Cuando", "tipo": "dateTime", "obligatorio": true, "indexada": true }
       ]

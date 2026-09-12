@@ -2,17 +2,21 @@
 // unidad (buscador Graph, solo lectura, excluye el buzon) + «Subir al buzon» 99_Pendiente-Archivar
 // con `_lote.json` al final (lote.js). «En el buzon» se DERIVA en vivo: si la carpeta del lote ya
 // no existe (404) es que la skill de archivar lo acomodo. Nada se escribe fuera del buzon.
+//
+// v0.2.0 (tanda 1 de la auditoria): una liga se QUITA y se cambia de tarjeta desde la app (F1);
+// la liga cuyo lote ya acomodo la skill se REEMPLAZA buscando el archivado (F2); y ligar / subir
+// se abren tambien desde la tarjeta, con esa tarjeta ya puesta (F3).
 
 import { CONFIG } from './config.js';
 import { PUEDE, tareasDe, slug, fechaMexico, nombreDe } from './reglas.js';
 import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO } from './lote.js';
-import { $, L, VERSION, estado, el, boton, chip, avisar, abrirDialogo, cerrarDialogo, opciones, limpiar, porId, registrarActividad, equipoDe, fechaHora } from './comun.js';
+import { $, L, VERSION, estado, el, boton, chip, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaHora } from './comun.js';
 
 let alCambiar = () => {};
 export function alCambiarDocs(fn) { alCambiar = fn; }
 
-/** Biblioteca de la unidad del proyecto abierto, o null si el equipo no tiene una en el piloto. */
-function bibliotecaDe(p) {
+/** Biblioteca de la unidad de un proyecto, o null si el equipo no tiene una en el piloto. */
+export function bibliotecaDe(p) {
     const eq = equipoDe(p);
     const b = eq.unidad ? CONFIG.bibliotecas[eq.unidad] : null;
     return b ? { clave: eq.unidad, ...b } : null;
@@ -24,17 +28,25 @@ async function sitioDe(bib) {
     return estado.sitiosUnidad[bib.clave];
 }
 
+/** Puede ligar/subir en este proyecto: rol, proyecto activo y biblioteca en el piloto. */
+export function puedeLigarEn(p) { return PUEDE.ligar(estado.rol) && !!p && p.Estado === 'activo' && !!bibliotecaDe(p); }
+
+// Con que proyecto / tarjeta se abrio el dialogo de ligar o subir (desde Docs o desde la tarjeta).
+// `reemplaza` es la liga vieja que se quita al ligar el resultado (F2); `alTerminar` vuelve a la
+// tarjeta si se abrio desde ahi.
+let ctx = { proyecto: null, tareaId: null, reemplaza: null, alTerminar: null };
+
 // ---------------------------------------------------------------- pintar
 
 export async function pintarDocs(p) {
     const cont = $('docsLista'); cont.textContent = '';
     const bib = bibliotecaDe(p);
-    const puede = PUEDE.ligar(estado.rol) && p.Estado === 'activo' && !!bib;
+    const puede = puedeLigarEn(p);
     $('btnLigar').disabled = !puede; $('btnSubir').disabled = !puede;
     $('docsBiblioteca').textContent = bib ? `Biblioteca: ${bib.nombre}${bib.piloto ? '' : ' (fuera del piloto: sin permiso todavía)'}` : 'Este equipo no tiene biblioteca ligada en el piloto: solo se ven ligas ya guardadas.';
     const ligas = estado.ligas.filter(l => Number(l.ProyectoId) === p.id).sort((a, b) => b.id - a.id);
     if (!ligas.length) { cont.appendChild(el('p', 'vacio', 'Sin documentos ligados todavía.')); return; }
-    for (const l of ligas) cont.appendChild(doc(l, p));
+    for (const l of ligas) cont.appendChild(doc(l, p, puede));
     // «En el buzon» en vivo: una consulta por liga de tipo buzon, cacheada por carga.
     if (bib) {
         const s = await sitioDe(bib);
@@ -43,12 +55,17 @@ export async function pintarDocs(p) {
                 try { estado.buzonExiste[l.Ruta] = await estado.cliente.existeRuta(s.id, l.Ruta); } catch (_) { continue; }
             }
             const n = cont.querySelector(`[data-liga="${l.id}"] .estado`);
-            if (n && estado.buzonExiste[l.Ruta] === false) { n.textContent = ''; n.appendChild(chip('ya lo acomodó la skill', 'ok')); n.appendChild(el('span', 'p', 'busca y reemplaza la liga')); }
+            if (n && estado.buzonExiste[l.Ruta] === false) {
+                n.textContent = ''; n.appendChild(chip('ya lo acomodó la skill', 'ok'));
+                // F2: buscar el archivado y reemplazar la liga en una sola operacion.
+                if (puede) n.appendChild(boton('Buscar el archivado', 'mn-btn is-sm', () => abrirLigar({ proyecto: p, tareaId: l.TareaId, texto: l.Title, reemplaza: l }), { buscar: String(l.id) }));
+                else n.appendChild(el('span', 'p', 'busca y reemplaza la liga'));
+            }
         }
     }
 }
 
-function doc(l, p) {
+function doc(l, p, puede) {
     const d = el('div', 'doc'); d.dataset.liga = String(l.id);
     const ext = String(l.Ruta || l.Title || '').split('.').pop().slice(0, 4);
     d.appendChild(el('span', 'ico', l.Tipo === 'buzon' ? 'lote' : ext));
@@ -57,13 +74,61 @@ function doc(l, p) {
     if (l.Url) { const a = el('a', '', l.Title); a.href = l.Url; a.target = '_blank'; a.rel = 'noopener'; t.appendChild(a); } else t.textContent = l.Title;
     c.appendChild(t);
     c.appendChild(el('div', 'p', `${l.Unidad ? l.Unidad + '/' : ''}${l.Ruta || ''}`));
-    if (l.TareaId) { const tt = porId(estado.tareas, l.TareaId); c.appendChild(el('div', 'p', tt ? `tarjeta: ${tt.Title}` : `tarjeta #${l.TareaId}`)); }
+    if (puede) {
+        // F1: la tarjeta de la liga se cambia aqui mismo (o se deja para el proyecto entero).
+        const fila = el('label', 'p tarjeta-de'); fila.appendChild(el('span', '', 'tarjeta: '));
+        const sel = el('select'); sel.dataset.tarjetaDe = String(l.id); sel.setAttribute('aria-label', 'Tarjeta de la liga');
+        opcionesTarjetas(sel, p); sel.value = l.TareaId ? String(l.TareaId) : '';
+        sel.addEventListener('change', () => reasignarLiga(l, sel.value));
+        fila.appendChild(sel); c.appendChild(fila);
+    } else if (l.TareaId) { const tt = porId(estado.tareas, l.TareaId); c.appendChild(el('div', 'p', tt ? `tarjeta: ${tt.Title}` : `tarjeta #${l.TareaId}`)); }
     d.appendChild(c);
     const lado = el('div', 'lado');
     const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : chip('archivado', 'ok')); lado.appendChild(est);
     if (l.LigadoPor) lado.appendChild(el('span', 'p', nombreDe(l.LigadoPor, estado.roles)));
+    if (puede) lado.appendChild(boton('Quitar', 'mn-btn is-ghost is-sm', () => quitarLiga(l), { quitar: String(l.id) }));
     d.appendChild(lado);
     return d;
+}
+
+// ---------------------------------------------------------------- quitar / cambiar de tarjeta (F1)
+
+/**
+ * Quita una liga: borra su renglon de PROY_Ligas y deja «desligó» en la bitacora. El archivo no se
+ * toca. Quien liga, desliga (PUEDE.ligar). Con `reemplazadaPor` (F2) no pregunta: es la segunda
+ * mitad de «ligar el archivado».
+ */
+export async function quitarLiga(l, reemplazadaPor = null) {
+    if (!PUEDE.ligar(estado.rol)) { avisar('Tu rol es de lectura: no puedes quitar ligas.', 'error'); return false; }
+    if (!reemplazadaPor) {
+        const { ok } = await confirmar({ titulo: 'Quitar la liga', ok: 'Quitar', texto: `«${l.Title}» deja de estar ligado a este proyecto. El archivo no se toca: sigue en la biblioteca${l.Tipo === 'buzon' ? ' (o donde lo haya acomodado la skill)' : ''}.` });
+        if (!ok) return false;
+    }
+    try {
+        await estado.cliente.borrarRenglon(estado.siteId, L.ligas, l.id, m => avisar(m, 'ojo'));
+        estado.ligas = estado.ligas.filter(x => x.id !== l.id);
+        if (!reemplazadaPor) avisar(`Liga «${l.Title}» quitada.`, 'ok');
+        alCambiar();
+        await registrarActividad('desligar', reemplazadaPor ? `reemplazó la liga «${l.Title.slice(0, 60)}» por «${reemplazadaPor.slice(0, 60)}»` : `desligó «${l.Title.slice(0, 80)}»`, l.ProyectoId, l.TareaId);
+        alCambiar();
+        return true;
+    } catch (e) { avisar('No se pudo quitar la liga: ' + (e && e.message ? e.message : e), 'error'); return false; }
+}
+
+/** Cambia la tarjeta de una liga; vacio = del proyecto entero. */
+async function reasignarLiga(l, tareaId) {
+    if (!PUEDE.ligar(estado.rol)) { avisar('Tu rol es de lectura: no puedes cambiar ligas.', 'error'); return; }
+    const nuevo = tareaId ? Number(tareaId) : null;
+    if ((l.TareaId ? Number(l.TareaId) : null) === nuevo) return;
+    try {
+        await estado.cliente.actualizarRenglon(estado.siteId, L.ligas, l.id, { TareaId: nuevo }, m => avisar(m, 'ojo'));
+        l.TareaId = nuevo;
+        const t = nuevo ? porId(estado.tareas, nuevo) : null;
+        avisar(t ? `«${l.Title}» ahora es de la tarjeta «${t.Title}».` : `«${l.Title}» ahora es del proyecto entero.`, 'ok');
+        alCambiar();
+        await registrarActividad('ligar', t ? `pasó la liga «${l.Title.slice(0, 60)}» a «${t.Title.slice(0, 60)}»` : `dejó la liga «${l.Title.slice(0, 60)}» para el proyecto entero`, l.ProyectoId, nuevo);
+        alCambiar();
+    } catch (e) { avisar('No se pudo cambiar la tarjeta de la liga: ' + (e && e.message ? e.message : e), 'error'); alCambiar(); }
 }
 
 // ---------------------------------------------------------------- ligar
@@ -72,19 +137,28 @@ function opcionesTarjetas(sel, p) {
     opciones(sel, tareasDe(p, estado.tareas), t => t.id, t => t.Title.slice(0, 70), 'el proyecto entero');
 }
 
-export function abrirLigar() {
-    const p = estado.proyectoAbierto; const bib = p && bibliotecaDe(p);
+/**
+ * Abre «Ligar archivo». Sin argumentos es el boton de Docs (proyecto abierto). Desde la tarjeta
+ * (F3) llega { proyecto, tareaId, alTerminar }; desde «Buscar el archivado» (F2) llega ademas
+ * { texto, reemplaza }.
+ */
+export function abrirLigar(opts = {}) {
+    const p = opts.proyecto || estado.proyectoAbierto; const bib = p && bibliotecaDe(p);
     if (!p || !bib) return;
     if (!PUEDE.ligar(estado.rol)) { avisar('Tu rol es de lectura: no puedes ligar documentos.', 'error'); return; }
+    ctx = { proyecto: p, tareaId: opts.tareaId ? Number(opts.tareaId) : null, reemplaza: opts.reemplaza || null, alTerminar: opts.alTerminar || null };
     $('lgBiblioteca').textContent = `Busca en ${bib.nombre} (solo lectura; el buzón no aparece).`;
-    $('lgTexto').value = ''; $('lgResultados').textContent = '';
+    $('lgNota').textContent = ctx.reemplaza ? `Al ligar el resultado se quita la liga vieja «${ctx.reemplaza.Title}».` : '';
+    $('lgNota').classList.toggle('oculto', !ctx.reemplaza);
+    $('lgTexto').value = opts.texto || ''; $('lgResultados').textContent = '';
     opcionesTarjetas($('lgTarea'), p);
+    $('lgTarea').value = ctx.tareaId ? String(ctx.tareaId) : '';
     abrirDialogo('dlgLigar');
-    $('lgTexto').focus();
+    if ($('lgTexto').value) buscarDocumento(); else $('lgTexto').focus();
 }
 
 async function buscarDocumento() {
-    const p = estado.proyectoAbierto; const bib = bibliotecaDe(p);
+    const p = ctx.proyecto; const bib = bibliotecaDe(p);
     const texto = $('lgTexto').value.trim();
     const cont = $('lgResultados'); cont.textContent = '';
     if (texto.length < 2) { avisar('Escribe al menos dos letras.', 'ojo'); return; }
@@ -106,7 +180,7 @@ async function buscarDocumento() {
 }
 
 async function ligarDocumento(x) {
-    const p = estado.proyectoAbierto; const bib = bibliotecaDe(p);
+    const p = ctx.proyecto; const bib = bibliotecaDe(p);
     if (!PUEDE.ligar(estado.rol)) { avisar('Tu rol es de lectura: no puedes ligar documentos.', 'error'); return; }
     if (estado.ligas.some(l => Number(l.ProyectoId) === p.id && l.DriveItemId === x.id)) { avisar('Ese archivo ya está ligado a este proyecto.', 'ojo'); return; }
     const tareaId = $('lgTarea').value ? Number($('lgTarea').value) : undefined;
@@ -114,23 +188,29 @@ async function ligarDocumento(x) {
     try {
         const n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => avisar(m, 'ojo'));
         estado.ligas.push(n);
+        const vieja = ctx.reemplaza; const alTerminar = ctx.alTerminar;
         cerrarDialogo('dlgLigar');
-        avisar(`«${x.nombre}» ligado.`, 'ok');
+        avisar(vieja ? `«${x.nombre}» ligado en lugar de «${vieja.Title}».` : `«${x.nombre}» ligado.`, 'ok');
         alCambiar();
         await registrarActividad('ligar', `ligó «${x.nombre.slice(0, 80)}»`, p.id, tareaId);
+        if (vieja) await quitarLiga(vieja, x.nombre);   // F2: la vieja se va en la misma operacion, sin preguntar
         alCambiar();
+        if (alTerminar) alTerminar();
     } catch (e) { avisar('No se pudo ligar: ' + (e && e.message ? e.message : e), 'error'); }
 }
 
 // ---------------------------------------------------------------- subir al buzon
 
-export function abrirSubir() {
-    const p = estado.proyectoAbierto; const bib = p && bibliotecaDe(p);
+/** Abre «Subir al buzon». Sin argumentos es el boton de Docs; desde la tarjeta (F3) llega { proyecto, tareaId, alTerminar }. */
+export function abrirSubir(opts = {}) {
+    const p = opts.proyecto || estado.proyectoAbierto; const bib = p && bibliotecaDe(p);
     if (!p || !bib) return;
     if (!PUEDE.ligar(estado.rol)) { avisar('Tu rol es de lectura: no puedes subir documentos.', 'error'); return; }
+    ctx = { proyecto: p, tareaId: opts.tareaId ? Number(opts.tareaId) : null, reemplaza: null, alTerminar: opts.alTerminar || null };
     $('sbBiblioteca').textContent = `Va a ${bib.nombre}/${CONFIG.buzon}/.`;
     $('sbConcepto').value = ''; $('sbArchivos').value = ''; $('sbProgreso').textContent = '';
     opcionesTarjetas($('sbTarea'), p);
+    $('sbTarea').value = ctx.tareaId ? String(ctx.tareaId) : '';
     abrirDialogo('dlgSubir');
     $('sbConcepto').focus();
 }
@@ -141,7 +221,7 @@ export function abrirSubir() {
  */
 async function subirAlBuzon(ev) {
     ev.preventDefault();
-    const p = estado.proyectoAbierto; const bib = bibliotecaDe(p);
+    const p = ctx.proyecto; const bib = bibliotecaDe(p);
     if (!PUEDE.ligar(estado.rol)) { avisar('Tu rol es de lectura: no puedes subir documentos.', 'error'); return; }
     const concepto = $('sbConcepto').value.trim();
     const archivos = [...$('sbArchivos').files];
@@ -175,11 +255,13 @@ async function subirAlBuzon(ev) {
         const campos = limpiar({ Title: concepto, ProyectoId: p.id, TareaId: tareaId, Tipo: 'buzon', Unidad: bib.clave, Ruta: ruta, DriveItemId: carpeta.id, LigadoPor: estado.cuenta.username });
         const n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => prog(m));
         estado.ligas.push(n); estado.buzonExiste[ruta] = true;
+        const alTerminar = ctx.alTerminar;
         cerrarDialogo('dlgSubir');
         avisar(`Lote «${concepto}» en el buzón de ${bib.nombre} (${archivos.length} archivo(s)).`, 'ok');
         alCambiar();
         await registrarActividad('subir', `subió «${concepto.slice(0, 80)}» al buzón (${archivos.length} archivo(s))`, p.id, tareaId);
         alCambiar();
+        if (alTerminar) alTerminar();
     } catch (e) {
         if (carpeta && s && s.id) { try { await estado.cliente.borrarItemDrive(s.id, carpeta.id); prog('Lote a medias borrado.'); } catch (_) { prog('Quedó una carpeta a medias en el buzón; la skill la trata como lote incompleto.'); } }
         avisar('No se pudo subir: ' + (e && e.message ? e.message : e), 'error');
@@ -189,11 +271,11 @@ async function subirAlBuzon(ev) {
 // ---------------------------------------------------------------- enganche
 
 export function engancharDocs() {
-    $('btnLigar').addEventListener('click', abrirLigar);
+    $('btnLigar').addEventListener('click', () => abrirLigar());
     $('lgCerrar').addEventListener('click', () => cerrarDialogo('dlgLigar'));
     $('lgBuscar').addEventListener('click', buscarDocumento);
     $('lgTexto').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); buscarDocumento(); } });
-    $('btnSubir').addEventListener('click', abrirSubir);
+    $('btnSubir').addEventListener('click', () => abrirSubir());
     $('sbCancelar').addEventListener('click', () => cerrarDialogo('dlgSubir'));
     $('formSubir').addEventListener('submit', subirAlBuzon);
 }

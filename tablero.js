@@ -3,8 +3,9 @@
 // nada de drag & drop en el piloto.
 
 import { CONFIG } from './config.js';
-import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara } from './reglas.js';
-import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, aIsoDia, opciones, limpiar, porId, registrarActividad } from './comun.js';
+import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence } from './reglas.js';
+import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, ligaDeTarjeta, notasDe } from './comun.js';
+import { abrirLigar, abrirSubir, quitarLiga, puedeLigarEn } from './docs.js';
 
 let alCambiar = () => {};   // app.js la pone: repinta la pantalla actual tras una escritura
 export function alCambiarTareas(fn) { alCambiar = fn; }
@@ -70,15 +71,36 @@ export function pintarLista(proyecto) {
     tabla.appendChild(tbody); cont.appendChild(tabla);
 }
 
+/**
+ * Mis tareas (U4 de la auditoria, v0.2.0): ARRIBA las urgentes de todos los proyectos —vencidas y
+ * las que vencen en `vencePronto` dias— con el numero de dias grande; abajo la bandeja por proyecto
+ * con el resto. El mismo acomodo que Pendientes del tablero de escritorio.
+ */
 export function pintarMisTareas() {
     const yo = estado.cuenta.username.toLowerCase();
     $('misTitulo').textContent = 'Mis tareas · ' + nombreDe(yo, estado.roles);
     const cont = $('misLista'); cont.textContent = '';
     const mias = estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === yo && t.Columna !== 'hecho')
         .sort((a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')) || a.id - b.id);
-    const porProyecto = new Map();
-    for (const t of mias) { if (!porProyecto.has(t.ProyectoId)) porProyecto.set(t.ProyectoId, []); porProyecto.get(t.ProyectoId).push(t); }
     if (!mias.length) { cont.appendChild(el('p', 'vacio', 'Sin tareas abiertas asignadas a ti.')); return; }
+    const urgentes = mias.filter(t => ['danger', 'warn'].includes(estadoVence(t, CONFIG.vencePronto)));
+    if (urgentes.length) {
+        const card = el('section', 'mn-card urgentes');
+        card.appendChild(el('h2', '', `Urgentes · ${urgentes.length}`));
+        const grid = el('div', 'urgentes-grid');
+        for (const t of urgentes) {
+            const d = diasPara(t.Vence);
+            const caja = el('div', 'urgente' + (d < 0 ? ' is-danger' : ' is-warn'));
+            const k = el('span', 'k'); k.appendChild(el('b', '', String(Math.abs(d)))); k.appendChild(el('small', '', d < 0 ? (d === -1 ? 'día vencida' : 'días vencida') : d === 0 ? 'vence hoy' : d === 1 ? 'día' : 'días'));
+            caja.appendChild(k);
+            caja.appendChild(tarjeta(t, true));
+            grid.appendChild(caja);
+        }
+        card.appendChild(grid); cont.appendChild(card);
+    }
+    const resto = mias.filter(t => !urgentes.includes(t));
+    const porProyecto = new Map();
+    for (const t of resto) { if (!porProyecto.has(t.ProyectoId)) porProyecto.set(t.ProyectoId, []); porProyecto.get(t.ProyectoId).push(t); }
     for (const [pid, ts] of porProyecto) {
         const p = porId(estado.proyectos, pid);
         const card = el('section', 'mn-card');
@@ -92,6 +114,8 @@ export function pintarMisTareas() {
 // ---------------------------------------------------------------- tarjeta (dialogo)
 
 let tarjetaAbierta = null;
+/** Id de la tarjeta abierta en el dialogo, o null (lo lee el router de app.js). */
+export function tarjetaAbiertaId() { return $('dlgTarea').open && tarjetaAbierta ? tarjetaAbierta.id : null; }
 
 export function abrirTarjeta(id) {
     const t = porId(estado.tareas, id); if (!t) return;
@@ -108,8 +132,8 @@ export function abrirTarjeta(id) {
     if (t.Origen) par('Origen', t.Origen, 'src');
     if (t.Descripcion) par('Descripción', t.Descripcion);
     if (t.HechoPor) par('Hecho por', `${nombreDe(t.HechoPor, estado.roles)} · ${fechaCorta(t.HechoEl)}`);
-    const ligas = estado.ligas.filter(l => Number(l.TareaId) === t.id);
-    if (ligas.length) { const s = el('span'); for (const l of ligas) { const a = el('a', '', l.Title); if (l.Url) { a.href = l.Url; a.target = '_blank'; a.rel = 'noopener'; } s.appendChild(a); s.appendChild(el('span', '', ' ')); s.appendChild(chip(l.Tipo === 'buzon' ? 'en el buzón' : 'archivado', l.Tipo === 'buzon' ? 'info' : 'ok')); s.appendChild(el('br')); } kv.appendChild(el('b', '', 'Documentos')); kv.appendChild(s); }
+    pintarDocsDeTarjeta(t, p);
+    pintarNotas(t, p);
 
     const puedeMover = PUEDE.mover(estado.rol) && !!p && p.Estado === 'activo';
     $('tDeny').classList.toggle('oculto', puedeMover);
@@ -130,6 +154,79 @@ export function abrirTarjeta(id) {
     $('ftTitulo').value = t.Title || ''; $('ftAsignado').value = String(t.Asignado || '').toLowerCase(); $('ftPrioridad').value = t.Prioridad || 'normal';
     $('ftVence').value = t.Vence ? fechaCorta(t.Vence) : ''; $('ftOrigen').value = t.Origen || ''; $('ftDesc').value = t.Descripcion || '';
     abrirDialogo('dlgTarea');
+    fijarHash(hashDe(t.id));
+}
+
+/** Documentos de la tarjeta (F3): las ligas con «Quitar», y «Ligar archivo» / «Subir al buzón» con esta tarjeta ya puesta. */
+function pintarDocsDeTarjeta(t, p) {
+    const c = $('tDocs'); c.textContent = '';
+    const ligas = estado.ligas.filter(l => Number(l.TareaId) === t.id);
+    const puede = puedeLigarEn(p);
+    for (const l of ligas) {
+        const fila = el('div', 'tdoc');
+        const a = el('a', '', l.Title); if (l.Url) { a.href = l.Url; a.target = '_blank'; a.rel = 'noopener'; }
+        fila.appendChild(a);
+        fila.appendChild(chip(l.Tipo === 'buzon' ? 'en el buzón' : 'archivado', l.Tipo === 'buzon' ? 'info' : 'ok'));
+        if (puede) fila.appendChild(boton('Quitar', 'mn-btn is-ghost is-sm', async () => { if (await quitarLiga(l)) pintarDocsDeTarjeta(t, p); }, { quitar: String(l.id) }));
+        c.appendChild(fila);
+    }
+    if (!ligas.length) c.appendChild(el('span', 'vacio', puede ? 'Sin documentos: liga uno de la biblioteca o sube al buzón.' : 'Sin documentos.'));
+    if (puede) {
+        const acciones = el('div', 'tdoc-acciones');
+        const volver = () => abrirTarjeta(t.id);
+        acciones.appendChild(boton('Ligar archivo', 'mn-btn is-sm', () => { cerrarDialogo('dlgTarea'); abrirLigar({ proyecto: p, tareaId: t.id, alTerminar: volver }); }, { ligar: String(t.id) }));
+        acciones.appendChild(boton('Subir al buzón', 'mn-btn is-sm', () => { cerrarDialogo('dlgTarea'); abrirSubir({ proyecto: p, tareaId: t.id, alTerminar: volver }); }, { subir: String(t.id) }));
+        c.appendChild(acciones);
+    }
+}
+
+/** Notas de la tarjeta (F5): renglones de PROY_Actividad con Accion=comentar, en orden, y el campo para anotar. */
+function pintarNotas(t, p) {
+    const c = $('tNotasLista'); c.textContent = '';
+    const notas = notasDe(t.id);
+    for (const n of notas) {
+        const it = el('div', 'nota');
+        it.appendChild(avatar(n.Quien));
+        const cuerpo = el('div');
+        const cab = el('div', 'w'); cab.appendChild(el('span', '', nombreDe(n.Quien, estado.roles))); cab.appendChild(el('span', 'mn-mono', ' · ' + fechaHora(n.Cuando)));
+        cuerpo.appendChild(cab); cuerpo.appendChild(el('p', '', n.Title));
+        it.appendChild(cuerpo); c.appendChild(it);
+    }
+    if (!notas.length) c.appendChild(el('span', 'vacio', 'Sin notas todavía.'));
+    const puede = PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';
+    $('formNota').classList.toggle('oculto', !puede);
+    $('tNota').value = '';
+}
+
+async function anotar(ev) {
+    ev.preventDefault();
+    const t = tarjetaAbierta; if (!t) return;
+    if (!PUEDE.tarea(estado.rol)) { avisar('Tu rol es de lectura: no puedes anotar.', 'error'); return; }
+    const texto = $('tNota').value.trim();
+    if (!texto) { $('tNota').focus(); return; }
+    if (texto.length > 250) { avisar('La nota no cabe: máximo 250 caracteres (es un renglón de la bitácora).', 'error'); return; }
+    $('tAnotar').disabled = true;
+    try {
+        // A diferencia del resto de la bitacora, aqui la escritura ES la accion: si falla, se ve.
+        const r = { Title: texto, Accion: 'comentar', Quien: estado.cuenta.username, Cuando: new Date().toISOString(), ProyectoId: Number(t.ProyectoId), TareaId: t.id };
+        const n = await estado.cliente.crearRenglon(estado.siteId, L.actividad, r, m => avisar(m, 'ojo'));
+        estado.actividad.unshift(n);
+        pintarNotas(t, porId(estado.proyectos, t.ProyectoId));
+        avisar('Nota guardada.', 'ok');
+        alCambiar();
+    } catch (e) { avisar('No se pudo guardar la nota: ' + (e && e.message ? e.message : e), 'error'); }
+    finally { $('tAnotar').disabled = false; }
+}
+
+/** «Copiar liga» (F8): comparte o copia la URL de la tarjeta por su proyecto; si nada de eso existe, la deja en el aviso. */
+async function compartirTarjeta() {
+    const t = tarjetaAbierta; if (!t) return;
+    const url = ligaDeTarjeta(t);
+    try {
+        if (navigator.share) { await navigator.share({ title: t.Title, url }); return; }
+        if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(url); avisar('Liga copiada: pégala en el chat.', 'ok'); return; }
+    } catch (e) { if (e && e.name === 'AbortError') return; }
+    avisar(url, 'ojo');
 }
 
 async function moverTarea(id, columna) {
@@ -249,6 +346,9 @@ async function guardarNuevaTarea(ev) {
 
 export function engancharTablero() {
     $('tCerrar').addEventListener('click', () => cerrarDialogo('dlgTarea'));
+    $('dlgTarea').addEventListener('close', () => { fijarHash(hashDe()); });   // al cerrar (boton, Esc o Atras) el hash vuelve a la pantalla
+    $('tCompartir').addEventListener('click', compartirTarjeta);
+    $('formNota').addEventListener('submit', anotar);
     $('tBorrar').addEventListener('click', borrarTarea);
     $('formTarea').addEventListener('submit', guardarEdicion);
     $('btnNuevaTarea').addEventListener('click', abrirNuevaTarea);

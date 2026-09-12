@@ -13,8 +13,8 @@
 import { CONFIG } from './config.js';
 import { crearCliente } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, nombreDe, diasPara, estadoVence } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, activarMascaraFechas, opciones, limpiar, porId, registrarActividad, equipoDe } from './comun.js';
-import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas } from './tablero.js';
+import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, activarMascaraFechas, opciones, limpiar, porId, registrarActividad, equipoDe, hashDe, fijarHash, fraseActividad } from './comun.js';
+import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
@@ -50,7 +50,11 @@ async function entrar() {
     try {
         if (CONFIG.clientId.startsWith('PENDIENTE')) throw new Error('la app todavía no está registrada en Entra (docs/setup-carlos.md, tarea 1).');
         await prepararMsal();
-        if (pca.getAllAccounts().length === 0) { await pca.loginRedirect({ scopes: CONFIG.scopes }); return; }
+        if (pca.getAllAccounts().length === 0) {
+            // La ida y vuelta por login.microsoftonline.com pierde el hash: se guarda para aterrizar ahi.
+            try { if (esHashDeLaApp(location.hash)) sessionStorage.setItem('proy.destino', location.hash); } catch (_) {}
+            await pca.loginRedirect({ scopes: CONFIG.scopes }); return;
+        }
         await sesionIniciada();
     } catch (e) {
         avisar('No se pudo entrar: ' + (e && e.message ? e.message : e), 'error');
@@ -118,7 +122,12 @@ async function sesionIniciada() {
     $('barraMovil').classList.remove('oculto');
     $('syncMovil').classList.remove('oculto'); pintarSync();
     pintarRailEquipos();
-    irA('inicio');
+    // Aterriza donde diga el hash (deep link, F5, o el destino guardado antes del login); si no, Inicio.
+    let destino = null;
+    try { destino = sessionStorage.getItem('proy.destino'); sessionStorage.removeItem('proy.destino'); } catch (_) {}
+    if (!esHashDeLaApp(location.hash) && destino) fijarHash(destino);
+    estado.pestana = null;
+    aplicarHash();
 }
 
 // ---------------------------------------------------------------- carga
@@ -168,8 +177,32 @@ function irA(p) {
     }
     limpiarAvisos();
     repintar();
+    fijarHash(hashDe(tarjetaAbiertaId()));
     window.scrollTo({ top: 0 });
 }
+// Router por hash (v0.2.0, F8): LEE location.hash y deja la pantalla como dice; es idempotente, asi
+// que las escrituras propias (fijarHash desde irA / abrirTarjeta) no repintan dos veces. Con Atras
+// del navegador se cierra la tarjeta o se vuelve a la pantalla anterior, que es lo que la gente espera.
+const RE_HASH = /^#(?:(inicio|proyectos|mis)|p\/([a-z0-9-]+)(?:\/(lista|docs|tablero))?)(?:\/t\/(\d+))?$/;
+function esHashDeLaApp(h) { return RE_HASH.test(String(h || '')); }
+function aplicarHash() {
+    if (!estado.siteId) return;
+    const m = RE_HASH.exec(location.hash || '');
+    if (!m) { irA('inicio'); return; }
+    if (m[2]) {
+        const p = estado.proyectos.find(x => String(x.Clave || '') === m[2]);
+        if (!p) { irA('inicio'); avisar(`No hay un proyecto con la clave «${m[2]}».`, 'ojo'); return; }
+        const tab = m[3] || 'tablero';
+        if (estado.pestana !== 'proyecto' || !estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id || estado.tab !== tab) {
+            estado.proyectoAbierto = p; estado.tab = tab; irA('proyecto');
+        }
+    } else if (estado.pestana !== m[1]) irA(m[1]);
+    const id = m[4] ? Number(m[4]) : null;
+    if (id) { if (tarjetaAbiertaId() !== id) { if (porId(estado.tareas, id)) abrirTarjeta(id); else avisar(`No hay una tarjeta #${id}.`, 'ojo'); } }
+    else if ($('dlgTarea').open) cerrarDialogo('dlgTarea');
+}
+window.addEventListener('popstate', aplicarHash);     // Atras / Adelante (fijarHash escribe con pushState)
+window.addEventListener('hashchange', aplicarHash);   // una URL pegada o editada a mano
 function repintar() {
     pintarInsignias();
     if (estado.pestana === 'inicio') pintarInicio();
@@ -246,7 +279,7 @@ function pintarInicio() {
     for (const t of quietas.slice(0, 6)) { const p = porId(estado.proyectos, t.ProyectoId); sm.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', `${-diasPara(t.Desde)} d`, 'warn')); }
     $('cardSinMov').classList.toggle('oculto', quietas.length === 0);
     const act = $('inicioActividad'); act.textContent = '';
-    for (const a of estado.actividad.slice(0, 8)) { const p = porId(estado.proyectos, a.ProyectoId); act.appendChild(itemMini(a.Quien, `${nombreDe(a.Quien, estado.roles).split(' ')[0]} ${a.Title}`, p ? p.Title : '', fechaHora(a.Cuando))); }
+    for (const a of estado.actividad.slice(0, 8)) { const p = porId(estado.proyectos, a.ProyectoId); act.appendChild(itemMini(a.Quien, fraseActividad(a), p ? p.Title : '', fechaHora(a.Cuando))); }
     if (!estado.actividad.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
 }
 
@@ -285,7 +318,7 @@ function pintarProyecto() {
     const faltan = ts.filter(t => t.Columna !== 'hecho').length;
     $('btnCerrarProyecto').textContent = p.Estado !== 'activo' ? 'Cerrado' : faltan ? `Cerrar proyecto · faltan ${faltan}` : 'Cerrar proyecto';
     $('btnNuevaTarea').disabled = !PUEDE.tarea(estado.rol) || p.Estado !== 'activo';
-    for (const b of document.querySelectorAll('.tab')) b.classList.toggle('is-on', b.dataset.tab === estado.tab);
+    for (const b of document.querySelectorAll('.tab')) { const on = b.dataset.tab === estado.tab; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }
     for (const t of ['tablero', 'lista', 'docs']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
     if (estado.tab === 'tablero') pintarTablero(p);
     else if (estado.tab === 'lista') pintarLista(p);
@@ -306,7 +339,7 @@ function pintarProyecto() {
     for (const { tarea: t, dias } of proximos(ts, 5)) v.appendChild(itemMini(t.Asignado, t.Title, '', fechaCorta(t.Vence), dias < 0 ? 'danger' : dias <= CONFIG.vencePronto ? 'warn' : null));
     if (!v.childNodes.length) v.appendChild(el('p', 'vacio', 'Nada por vencer.'));
     const act = $('pActividad'); act.textContent = '';
-    for (const x of estado.actividad.filter(x => Number(x.ProyectoId) === p.id).slice(0, 6)) act.appendChild(itemMini(x.Quien, `${nombreDe(x.Quien, estado.roles).split(' ')[0]} ${x.Title}`, '', fechaHora(x.Cuando)));
+    for (const x of estado.actividad.filter(x => Number(x.ProyectoId) === p.id).slice(0, 6)) act.appendChild(itemMini(x.Quien, fraseActividad(x), '', fechaHora(x.Cuando)));
     if (!act.childNodes.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
 }
 
@@ -405,7 +438,7 @@ $('btnSalirMovil').addEventListener('click', salir);
 $('btnActualizar').addEventListener('click', recargar);
 $('btnActualizarMovil').addEventListener('click', () => { $('menuMovil').open = false; recargar(); });
 for (const b of document.querySelectorAll('#pestanas button')) b.addEventListener('click', () => irA(b.dataset.p));
-for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => { estado.tab = b.dataset.tab; pintarProyecto(); });
+for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => { estado.tab = b.dataset.tab; pintarProyecto(); fijarHash(hashDe()); });
 $('btnVolver').addEventListener('click', () => irA('proyectos'));
 $('btnNuevoProyecto').addEventListener('click', () => abrirFormaProyecto(null));
 $('btnEditarProyecto').addEventListener('click', () => abrirFormaProyecto(estado.proyectoAbierto));

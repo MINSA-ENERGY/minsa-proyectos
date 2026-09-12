@@ -79,5 +79,7 @@ export const CONFIG = {
     // Ventana de «vence pronto» en Inicio y en Mis tareas.
     vencePronto: 7,
     // Cada cuanto se releen las listas mientras la app esta a la vista (ms). 0 = solo con Actualizar.
-    refrescoMs: 120000
+    refrescoMs: 120000,
+    // Cuanto dura el toast de un aviso ok/info (ms); el error se queda hasta cerrarlo.
+    avisoMs: 4000
 };

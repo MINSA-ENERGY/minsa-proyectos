@@ -60,14 +60,20 @@
   .menu-caja .tema button { flex: 1; }
 }
 
-/* ---- avisos */
-#avisos { display: grid; gap: var(--sp-2); margin-bottom: var(--sp-3); }
-.mensaje { padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); background: var(--status-info-bg); color: var(--status-info-fg); font-size: .9rem; }
+/* ---- avisos: TOAST fijo abajo (U1). En celular queda encima de la barra de pestanas. */
+#avisos { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--sp-4) + env(safe-area-inset-bottom)); z-index: var(--z-pop); width: min(34rem, calc(100% - 2 * var(--sp-3))); display: grid; gap: var(--sp-2); pointer-events: none; }
+#avisos:empty { display: none; }
+.mensaje { display: flex; align-items: flex-start; gap: var(--sp-2); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); background: var(--status-info-bg); color: var(--status-info-fg); font-size: .9rem; box-shadow: var(--shadow-pop); pointer-events: auto; }
+.mensaje .texto { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.mensaje .cerrar { border: 0; background: transparent; color: inherit; font: inherit; font-size: 1.1rem; line-height: 1; cursor: pointer; padding: 0 var(--sp-1); opacity: .7; }
+.mensaje .cerrar:hover { opacity: 1; }
 .mensaje.error { background: var(--status-danger-bg); color: var(--status-danger-fg); }
 .mensaje.ok { background: var(--status-ok-bg); color: var(--status-ok-fg); }
 .mensaje.ojo { background: var(--status-warn-bg); color: var(--status-warn-fg); }
+@media (max-width: 720px) { #avisos { bottom: calc(var(--sp-7) + 16px + env(safe-area-inset-bottom)); } }
 .dlg-avisos:empty { display: none; }
 .dlg-avisos { margin-bottom: var(--sp-3); }
+.dlg-avisos .mensaje { box-shadow: none; }
 .deny { background: var(--status-danger-bg); color: var(--status-danger-fg); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); font-size: .85rem; }
 
 /* ---- entrada */
@@ -144,6 +150,16 @@
 .tarjeta .src { font-family: var(--font-data); font-size: .66rem; color: var(--text-faint); word-break: break-all; }
 .tarjeta .stale { color: var(--status-warn-fg); font-weight: 600; }
 
+/* ---- Mis tareas: lo urgente arriba (U4) */
+.urgentes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: var(--sp-2); }
+.urgente { display: grid; grid-template-columns: 64px 1fr; gap: var(--sp-2); align-items: stretch; border: 1px solid var(--border-hairline); border-left: 3px solid var(--status-warn-fg); border-radius: var(--r-sm); background: var(--surface-card); padding: var(--sp-2); min-width: 0; }
+.urgente.is-danger { border-left-color: var(--status-danger-fg); }
+.urgente .k { display: grid; align-content: center; justify-items: center; gap: 2px; font-family: var(--font-display); color: var(--status-warn-fg); }
+.urgente.is-danger .k { color: var(--status-danger-fg); }
+.urgente .k b { font-size: 1.8rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.urgente .k small { font-size: .62rem; text-align: center; line-height: 1.1; font-family: var(--font-data); text-transform: uppercase; letter-spacing: .04em; }
+.urgente .tarjeta { box-shadow: none; border: 0; padding: var(--sp-1) 0; }
+
 /* ---- lista (tabla) */
 .tabla { overflow-x: auto; }
 .tabla table { border-collapse: collapse; width: 100%; font-size: .85rem; }
@@ -164,6 +180,10 @@
 .doc .t a:hover { text-decoration: underline; }
 .doc .p { font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); word-break: break-all; }
 .doc .lado { display: grid; gap: var(--sp-1); justify-items: end; }
+.doc .estado { display: inline-flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.doc .tarjeta-de { display: flex; gap: var(--sp-1); align-items: center; }
+.doc .tarjeta-de select { max-width: 100%; min-height: var(--control-h-sm); font: inherit; font-family: var(--font-body); font-size: .74rem; color: var(--text-body); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); padding: 0 var(--sp-1); }
+.reemplazo { color: var(--status-warn-fg); }
 
 /* ---- dialogo de tarjeta */
 .kv { display: grid; grid-template-columns: 110px 1fr; gap: var(--sp-1) var(--sp-3); font-size: .85rem; margin-bottom: var(--sp-3); }
@@ -176,5 +196,20 @@
 .editar .forma .mn-dialog-foot { margin: var(--sp-3) 0 0; background: transparent; border: 0; padding: 0; }
 .progreso { font-size: .78rem; color: var(--text-muted); min-height: 1.2em; }
 .mn-dialog .kv:empty { display: none; }
+.head-botones { display: flex; gap: var(--sp-1); }
+/* documentos y notas de la tarjeta (F3 · F5) */
+.tdocs { display: grid; gap: var(--sp-1); margin: var(--sp-1) 0 var(--sp-3); font-size: .85rem; }
+.tdoc { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); align-items: center; }
+.tdoc a { color: var(--text-link); text-decoration: none; min-width: 0; overflow-wrap: anywhere; }
+.tdoc a:hover { text-decoration: underline; }
+.tdoc .mn-btn { margin-left: auto; }
+.tdoc-acciones { display: flex; gap: var(--sp-1); flex-wrap: wrap; margin-top: var(--sp-1); }
+.tdocs .vacio, .notas .vacio { color: var(--text-faint); font-size: .82rem; }
+.notas { display: grid; gap: var(--sp-2); margin: var(--sp-1) 0 var(--sp-2); font-size: .85rem; }
+.nota { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-2); align-items: start; }
+.nota .w { color: var(--text-muted); font-size: .74rem; }
+.nota p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.nota-forma { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2); align-items: end; margin-bottom: var(--sp-3); }
+.nota-forma textarea { font: inherit; font-size: .85rem; padding: var(--sp-2); border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); resize: vertical; min-width: 0; }
 .lg-resultado { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2); align-items: center; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); font-size: .85rem; }
 .lg-resultado .p { font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); word-break: break-all; }
