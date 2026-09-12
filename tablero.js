@@ -1,11 +1,14 @@
 // Tablero de un proyecto: 4 columnas fijas, lista, «Mis tareas», la tarjeta (ver / mover / editar /
 // borrar) y la tarea nueva. El movimiento canonico es el boton «Mover a…» (default del plan);
-// nada de drag & drop en el piloto.
+// nada de drag & drop en el piloto. v0.3.0 suma «→ siguiente» con Deshacer (U7), el filtro y el
+// orden dentro del proyecto (F9/F10), Subir/Bajar y mover de proyecto (F11), las pestanas de
+// columna en celular (U5) y el 412 de If-Match (T1): se relee, no se pisa.
 
 import { CONFIG } from './config.js';
-import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence } from './reglas.js';
-import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, ligaDeTarjeta, notasDe } from './comun.js';
-import { abrirLigar, abrirSubir, quitarLiga, puedeLigarEn } from './docs.js';
+import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, columnaSiguiente, filtrarTareas, ordenarLista, reordenar } from './reglas.js';
+import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura } from './comun.js';
+import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
+import { esConflicto } from './graph.js';
 
 let alCambiar = () => {};   // app.js la pone: repinta la pantalla actual tras una escritura
 export function alCambiarTareas(fn) { alCambiar = fn; }
@@ -30,31 +33,87 @@ export function tarjeta(t, conProyecto = false) {
     b.appendChild(f);
     if (t.Origen) b.appendChild(el('span', 'src', t.Origen));
     b.addEventListener('click', () => abrirTarjeta(t.id));
-    return b;
+    // U7: la accion mas frecuente sin abrir el dialogo. Va como HERMANO (un <button> no anida otro).
+    const caja = el('div', 'tarjeta-caja'); caja.appendChild(b);
+    const sig = columnaSiguiente(t.Columna); const p = porId(estado.proyectos, t.ProyectoId);
+    if (sig && PUEDE.mover(estado.rol) && p && p.Estado === 'activo') {
+        const s = boton(`→ ${nombreColumna(sig)}`, 'sig', () => moverSiguiente(t.id), { sig: String(t.id) });
+        s.title = `Mover a ${nombreColumna(sig)}`; caja.appendChild(s);
+    }
+    return caja;
 }
+
+// ---------------------------------------------------------------- filtro dentro del proyecto (F9)
+
+const CHIPS_FILTRO = [['alta', 'solo alta'], ['vencidas', 'solo vencidas']];
+/** Chips de filtro: una por persona con tarjetas en el proyecto, «solo alta» y «solo vencidas». El texto vive en #filtroTexto. */
+export function pintarFiltroTareas(proyecto) {
+    const f = estado.filtroTareas; const c = $('filtroChips'); c.textContent = '';
+    const ts = tareasDe(proyecto, estado.tareas);
+    const quienes = [...new Set(ts.map(x => String(x.Asignado || '').toLowerCase()).filter(Boolean))].sort();
+    const chipBtn = (texto, on, alClic, datos, conAvatar) => {
+        const b = boton('', on ? 'is-on' : '', () => { alClic(); pintarFiltroTareas(proyecto); pintarSoloTareas(); }, datos);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        if (conAvatar) b.appendChild(avatar(conAvatar));
+        b.appendChild(el('span', '', texto)); c.appendChild(b);
+    };
+    const pilas = quienes.map(q => nombreDe(q, estado.roles).split(' ')[0]);
+    for (const [i, q] of quienes.entries()) {
+        const nombre = pilas.filter(x => x === pilas[i]).length > 1 ? nombreDe(q, estado.roles) : pilas[i];   // dos «Ana»: nombre completo
+        chipBtn(nombre, f.quien === q, () => { f.quien = f.quien === q ? null : q; }, { quien: q }, q);
+    }
+    for (const [k, texto] of CHIPS_FILTRO) chipBtn(texto, !!f[k], () => { f[k] = !f[k]; }, { filtro: k });
+    const activo = !!(f.quien || f.alta || f.vencidas || f.texto);
+    if (activo) chipBtn('× limpiar', false, () => { estado.filtroTareas = { quien: null, alta: false, vencidas: false, texto: '' }; $('filtroTexto').value = ''; }, { filtro: 'limpiar' });
+}
+/** Repinta solo el tablero o la lista (no la pantalla entera: el foco del cuadro de texto se queda). */
+function pintarSoloTareas() {
+    const p = estado.proyectoAbierto; if (!p) return;
+    if (estado.tab === 'tablero') pintarTablero(p); else if (estado.tab === 'lista') pintarLista(p);
+}
+const tareasVisibles = proyecto => filtrarTareas(tareasDe(proyecto, estado.tareas), estado.filtroTareas);
 
 // ---------------------------------------------------------------- tablero y lista
 
 export function pintarTablero(proyecto) {
-    const cont = $('tab-tablero'); cont.textContent = '';
-    const ts = tareasDe(proyecto, estado.tareas);
+    const cont = $('tableroCols'); cont.textContent = '';
+    const ts = tareasVisibles(proyecto);
+    const filtrado = ts.length !== tareasDe(proyecto, estado.tareas).length;
+    // U5: en celular se ve UNA columna y estas pestanas la eligen; en escritorio el CSS las esconde.
+    const tabs = $('colTabs'); tabs.textContent = '';
+    if (!CONFIG.columnas.some(c => c.clave === estado.colMovil)) estado.colMovil = 'por-hacer';
     for (const c of CONFIG.columnas) {
-        const col = el('div', 'col'); col.dataset.col = c.clave;
+        const n = ts.filter(t => t.Columna === c.clave).length;
+        const b = boton('', estado.colMovil === c.clave ? 'is-on' : '', () => { estado.colMovil = c.clave; pintarTablero(proyecto); }, { colTab: c.clave });
+        b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', estado.colMovil === c.clave ? 'true' : 'false');
+        b.appendChild(el('span', '', c.nombre)); b.appendChild(el('span', 'n', String(n)));
+        tabs.appendChild(b);
+    }
+    for (const c of CONFIG.columnas) {
+        const col = el('div', 'col' + (estado.colMovil === c.clave ? ' is-activa' : '')); col.dataset.col = c.clave;
         const h = el('h3', '', c.nombre);
         const cs = ordenar(ts.filter(t => t.Columna === c.clave));
         h.appendChild(el('span', 'n', String(cs.length)));
         col.appendChild(h);
-        if (!cs.length) col.appendChild(el('div', 'vacio', c.clave === 'por-hacer' ? 'Nada por hacer.' : '—'));
+        if (!cs.length) col.appendChild(el('div', 'vacio', filtrado ? 'Nada con ese filtro.' : c.clave === 'por-hacer' ? 'Nada por hacer.' : '—'));
         for (const t of cs) col.appendChild(tarjeta(t));
         cont.appendChild(col);
     }
 }
 
+const COLUMNAS_LISTA = [['tarea', 'Tarea'], ['asignado', 'Asignado'], ['columna', 'Columna'], ['vence', 'Vence'], ['origen', 'Origen en la KB']];
 export function pintarLista(proyecto) {
     const cont = $('tab-lista'); cont.textContent = '';
-    const ts = tareasDe(proyecto, estado.tareas).slice().sort((a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')) || a.id - b.id);
+    const o = estado.ordenLista;
+    const ts = ordenarLista(tareasVisibles(proyecto), o.col, o.dir, c => nombreDe(c, estado.roles));
     const tabla = el('table'); const thead = el('thead'); const tr = el('tr');
-    for (const h of ['Tarea', 'Asignado', 'Columna', 'Vence', 'Origen en la KB']) tr.appendChild(el('th', '', h));
+    // F10: clic en el encabezado ordena; segundo clic invierte. La flecha va en el activo (aria-sort).
+    for (const [clave, texto] of COLUMNAS_LISTA) {
+        const th = el('th', '', texto); th.dataset.sort = clave;
+        if (o.col === clave) th.setAttribute('aria-sort', o.dir === 1 ? 'ascending' : 'descending');
+        th.addEventListener('click', () => { estado.ordenLista = o.col === clave ? { col: clave, dir: -o.dir } : { col: clave, dir: 1 }; pintarLista(proyecto); });
+        tr.appendChild(th);
+    }
     thead.appendChild(tr); tabla.appendChild(thead);
     const tbody = el('tbody');
     for (const t of ts) {
@@ -67,7 +126,7 @@ export function pintarLista(proyecto) {
         r.addEventListener('click', () => abrirTarjeta(t.id));
         tbody.appendChild(r);
     }
-    if (!ts.length) { const r = el('tr'); const td = el('td', 'vacio', 'Sin tareas todavía.'); td.colSpan = 5; r.appendChild(td); tbody.appendChild(r); }
+    if (!ts.length) { const r = el('tr'); const td = el('td', 'vacio', tareasDe(proyecto, estado.tareas).length ? 'Nada con ese filtro.' : 'Sin tareas todavía.'); td.colSpan = 5; r.appendChild(td); tbody.appendChild(r); }
     tabla.appendChild(tbody); cont.appendChild(tabla);
 }
 
@@ -76,13 +135,22 @@ export function pintarLista(proyecto) {
  * las que vencen en `vencePronto` dias— con el numero de dias grande; abajo la bandeja por proyecto
  * con el resto. El mismo acomodo que Pendientes del tablero de escritorio.
  */
+const FILTROS_MIS = [[null, 'Todas'], ['vencidas', 'Vencidas'], ['pronto', 'Vencen en 7 días']];
 export function pintarMisTareas() {
     const yo = estado.cuenta.username.toLowerCase();
     $('misTitulo').textContent = 'Mis tareas · ' + nombreDe(yo, estado.roles);
+    // U3: los KPI de Inicio aterrizan aqui con el filtro puesto; estos chips lo muestran y lo cambian.
+    const fm = $('filtroMis'); fm.textContent = '';
+    for (const [k, texto] of FILTROS_MIS) {
+        const b = boton(texto, estado.filtroMis === k ? 'is-on' : '', () => { estado.filtroMis = k; pintarMisTareas(); }, { mis: k || 'todas' });
+        b.setAttribute('aria-pressed', estado.filtroMis === k ? 'true' : 'false'); fm.appendChild(b);
+    }
     const cont = $('misLista'); cont.textContent = '';
-    const mias = estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === yo && t.Columna !== 'hecho')
+    const todas = estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === yo && t.Columna !== 'hecho')
         .sort((a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')) || a.id - b.id);
-    if (!mias.length) { cont.appendChild(el('p', 'vacio', 'Sin tareas abiertas asignadas a ti.')); return; }
+    const mias = estado.filtroMis === 'vencidas' ? todas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger')
+        : estado.filtroMis === 'pronto' ? todas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn') : todas;
+    if (!mias.length) { cont.appendChild(el('p', 'vacio', todas.length ? 'Nada con ese filtro.' : 'Sin tareas abiertas asignadas a ti.')); return; }
     const urgentes = mias.filter(t => ['danger', 'warn'].includes(estadoVence(t, CONFIG.vencePronto)));
     if (urgentes.length) {
         const card = el('section', 'mn-card urgentes');
@@ -144,6 +212,17 @@ export function abrirTarjeta(id) {
         b.disabled = !puedeMover || t.Columna === c.clave;
         mv.appendChild(b);
     }
+    // F11: Subir / Bajar dentro de la columna (renumera Orden en el orden visual).
+    const or = $('tOrden'); or.textContent = '';
+    if (puedeMover) {
+        const hermanas = ordenar(tareasDe(p, estado.tareas).filter(x => x.Columna === t.Columna));
+        const i = hermanas.findIndex(x => x.id === t.id);
+        if (hermanas.length > 1) {
+            or.appendChild(el('span', '', `Orden en ${nombreColumna(t.Columna)}: ${i + 1} de ${hermanas.length}`));
+            const up = boton('↑ Subir', 'mn-btn is-ghost is-sm', () => reordenarTarea(t.id, -1), { orden: 'subir' }); up.disabled = i <= 0; or.appendChild(up);
+            const dn = boton('↓ Bajar', 'mn-btn is-ghost is-sm', () => reordenarTarea(t.id, 1), { orden: 'bajar' }); dn.disabled = i >= hermanas.length - 1; or.appendChild(dn);
+        }
+    }
     $('tBorrar').disabled = !PUEDE.borrar(estado.rol);
     $('tBorrar').title = PUEDE.borrar(estado.rol) ? '' : 'Solo gerencia borra tarjetas';
     // Editar
@@ -151,6 +230,11 @@ export function abrirTarjeta(id) {
     $('tEditar').classList.toggle('oculto', !puedeEditar);
     $('tEditar').open = false;
     opciones($('ftAsignado'), personas(), x => x, x => nombreDe(x, estado.roles), 'sin asignar');
+    // F11: mover la tarjeta a otro frente (solo gerencia): select con los proyectos activos.
+    const puedeMoverProyecto = PUEDE.proyecto(estado.rol) && puedeEditar;
+    $('ftProyectoCampo').classList.toggle('oculto', !puedeMoverProyecto);
+    opciones($('ftProyecto'), estado.proyectos.filter(x => x.Estado === 'activo'), x => x.id, x => x.Title, null);
+    $('ftProyecto').value = String(t.ProyectoId);
     $('ftTitulo').value = t.Title || ''; $('ftAsignado').value = String(t.Asignado || '').toLowerCase(); $('ftPrioridad').value = t.Prioridad || 'normal';
     $('ftVence').value = t.Vence ? fechaCorta(t.Vence) : ''; $('ftOrigen').value = t.Origen || ''; $('ftDesc').value = t.Descripcion || '';
     abrirDialogo('dlgTarea');
@@ -166,17 +250,22 @@ function pintarDocsDeTarjeta(t, p) {
         const fila = el('div', 'tdoc');
         const a = el('a', '', l.Title); if (l.Url) { a.href = l.Url; a.target = '_blank'; a.rel = 'noopener'; }
         fila.appendChild(a);
-        fila.appendChild(chip(l.Tipo === 'buzon' ? 'en el buzón' : 'archivado', l.Tipo === 'buzon' ? 'info' : 'ok'));
-        if (puede) fila.appendChild(boton('Quitar', 'mn-btn is-ghost is-sm', async () => { if (await quitarLiga(l)) pintarDocsDeTarjeta(t, p); }, { quitar: String(l.id) }));
+        fila.appendChild(chip(l.Tipo === 'buzon' ? 'en el buzón' : l.Tipo === 'enlace' ? 'enlace' : 'archivado', l.Tipo === 'buzon' ? 'info' : l.Tipo === 'enlace' ? null : 'ok'));
+        if (puede || (l.Tipo === 'enlace' && puedeEnlazarEn(p))) fila.appendChild(boton('Quitar', 'mn-btn is-ghost is-sm', async () => { if (await quitarLiga(l)) pintarDocsDeTarjeta(t, p); }, { quitar: String(l.id) }));
         c.appendChild(fila);
     }
-    if (!ligas.length) c.appendChild(el('span', 'vacio', puede ? 'Sin documentos: liga uno de la biblioteca o sube al buzón.' : 'Sin documentos.'));
+    if (!ligas.length) c.appendChild(el('span', 'vacio', puede ? 'Sin documentos: liga uno de la biblioteca, sube al buzón o pega un enlace.' : puedeEnlazarEn(p) ? 'Sin documentos: pega un enlace.' : 'Sin documentos.'));
     if (puede) {
         const acciones = el('div', 'tdoc-acciones');
         const volver = () => abrirTarjeta(t.id);
         acciones.appendChild(boton('Ligar archivo', 'mn-btn is-sm', () => { cerrarDialogo('dlgTarea'); abrirLigar({ proyecto: p, tareaId: t.id, alTerminar: volver }); }, { ligar: String(t.id) }));
         acciones.appendChild(boton('Subir al buzón', 'mn-btn is-sm', () => { cerrarDialogo('dlgTarea'); abrirSubir({ proyecto: p, tareaId: t.id, alTerminar: volver }); }, { subir: String(t.id) }));
         c.appendChild(acciones);
+    }
+    // F4: un enlace no necesita biblioteca; se ofrece aunque el equipo no tenga una en el piloto.
+    if (puedeEnlazarEn(p)) {
+        const acc = c.querySelector('.tdoc-acciones') || c.appendChild(el('div', 'tdoc-acciones'));
+        acc.appendChild(boton('Pegar un enlace', 'mn-btn is-ghost is-sm', () => { cerrarDialogo('dlgTarea'); abrirEnlace({ proyecto: p, tareaId: t.id, alTerminar: () => abrirTarjeta(t.id) }); }, { enlace: String(t.id) }));
     }
 }
 
@@ -229,25 +318,91 @@ async function compartirTarjeta() {
     avisar(url, 'ojo');
 }
 
+/**
+ * Un 412 (T1): alguien cambio la tarjeta desde que se leyo. No se pisa: se releen las listas, se avisa
+ * y, si el dialogo estaba abierto, se vuelve a abrir con lo nuevo para que la persona decida.
+ */
+async function conflicto(t) {
+    const estabaAbierta = $('dlgTarea').open;
+    await pedirRelectura();
+    const fresca = porId(estado.tareas, t.id);
+    if (estabaAbierta && fresca) abrirTarjeta(t.id);   // abrir limpia los avisos: el aviso va DESPUES, dentro del dialogo
+    avisar(fresca ? `Alguien cambió «${fresca.Title.slice(0, 60)}» hace un momento: se releyó. Revisa y vuelve a intentarlo.` : 'Esa tarjeta ya no existe: alguien la borró hace un momento.', 'ojo');
+}
+
+/** Nucleo de mover: PATCH con If-Match, sello, bitacora. Devuelve true si se movio. `deshacer` cambia el verbo. */
+async function ejecutarMovimiento(t, columna, deshacer = false) {
+    const antes = t.Columna;
+    const campos = camposDeMovimiento(columna, estado.cuenta.username);
+    await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, t.id, campos, m => avisar(m, 'ojo'), t._etag);
+    aplicar(t, campos);
+    alCambiar();
+    await registrarActividad('mover-tarea', `${deshacer ? 'devolvió' : 'movió'} «${t.Title.slice(0, 80)}» de ${nombreColumna(antes)} a ${nombreColumna(columna)}`, t.ProyectoId, t.id);
+    alCambiar();
+    return antes;
+}
+
 async function moverTarea(id, columna) {
     const t = porId(estado.tareas, id); if (!t) return;
     if (!PUEDE.mover(estado.rol)) { avisar('Tu rol es de lectura: no puedes mover tarjetas.', 'error'); return; }
     const p = porId(estado.proyectos, t.ProyectoId);
     if (!p || p.Estado !== 'activo') { avisar('El proyecto está cerrado.', 'error'); return; }
-    const antes = t.Columna;
-    const campos = camposDeMovimiento(columna, estado.cuenta.username);
     for (const b of $('tMover').querySelectorAll('button')) b.disabled = true;
     try {
-        await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, t.id, campos, m => avisar(m, 'ojo'));
-        Object.assign(t, campos);
+        await ejecutarMovimiento(t, columna);
         cerrarDialogo('dlgTarea');
         avisar(`«${t.Title}» → ${nombreColumna(columna)}.`, 'ok');
-        alCambiar();
-        await registrarActividad('mover-tarea', `movió «${t.Title.slice(0, 80)}» de ${nombreColumna(antes)} a ${nombreColumna(columna)}`, t.ProyectoId, t.id);
-        alCambiar();
     } catch (e) {
+        if (esConflicto(e)) { await conflicto(t); return; }
         avisar('No se pudo mover: ' + (e && e.message ? e.message : e), 'error');
         for (const b of $('tMover').querySelectorAll('button')) b.disabled = b.dataset.move === t.Columna;
+    }
+}
+
+/** U7: «→ siguiente» desde la tarjeta, con «Deshacer» en el toast durante 5 s (mueve de vuelta y lo registra). */
+async function moverSiguiente(id) {
+    const t = porId(estado.tareas, id); if (!t) return;
+    if (!PUEDE.mover(estado.rol)) { avisar('Tu rol es de lectura: no puedes mover tarjetas.', 'error'); return; }
+    const p = porId(estado.proyectos, t.ProyectoId);
+    if (!p || p.Estado !== 'activo') { avisar('El proyecto está cerrado.', 'error'); return; }
+    const columna = columnaSiguiente(t.Columna); if (!columna) return;
+    try {
+        const antes = await ejecutarMovimiento(t, columna);
+        avisar(`«${t.Title}» → ${nombreColumna(columna)}.`, 'ok', { ms: 5000, accion: 'Deshacer', alClic: async () => {
+            const viva = porId(estado.tareas, t.id);   // un refresco en esos 5 s reemplaza los objetos de estado
+            if (!viva) { avisar('Esa tarjeta ya no está.', 'ojo'); return; }
+            try { await ejecutarMovimiento(viva, antes, true); avisar(`«${viva.Title}» de vuelta en ${nombreColumna(antes)}.`, 'ok'); }
+            catch (e) { if (esConflicto(e)) { await conflicto(viva); return; } avisar('No se pudo deshacer: ' + (e && e.message ? e.message : e), 'error'); }
+        } });
+    } catch (e) {
+        if (esConflicto(e)) { await conflicto(t); return; }
+        avisar('No se pudo mover: ' + (e && e.message ? e.message : e), 'error');
+    }
+}
+
+/** F11: Subir / Bajar. Renumera lo que cambie (reordenar()); cada cambio es un PATCH con If-Match. */
+async function reordenarTarea(id, delta) {
+    const t = porId(estado.tareas, id); if (!t) return;
+    if (!PUEDE.mover(estado.rol)) { avisar('Tu rol es de lectura: no puedes reordenar.', 'error'); return; }
+    const p = porId(estado.proyectos, t.ProyectoId);
+    if (!p || p.Estado !== 'activo') { avisar('El proyecto está cerrado.', 'error'); return; }
+    const cambios = reordenar(tareasDe(p, estado.tareas).filter(x => x.Columna === t.Columna), t.id, delta);
+    if (!cambios.length) return;
+    for (const b of $('tOrden').querySelectorAll('button')) b.disabled = true;
+    try {
+        for (const c of cambios) {
+            const x = porId(estado.tareas, c.id);
+            await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, x.id, { Orden: c.Orden }, m => avisar(m, 'ojo'), x._etag);
+            aplicar(x, { Orden: c.Orden });
+        }
+        alCambiar();
+        abrirTarjeta(t.id);
+        avisar(delta < 0 ? 'Subida un lugar.' : 'Bajada un lugar.', 'ok');
+    } catch (e) {
+        if (esConflicto(e)) { await conflicto(t); return; }
+        // Los PATCH van en serie: si fallo el segundo, el primero ya aplico. Se relee para no quedar a medias.
+        await pedirRelectura(); if (porId(estado.tareas, t.id)) abrirTarjeta(t.id);
+        avisar('No se pudo reordenar: ' + (e && e.message ? e.message : e), 'error');
     }
 }
 
@@ -264,17 +419,31 @@ async function guardarEdicion(ev) {
         Origen: $('ftOrigen').value.trim() || null, Descripcion: $('ftDesc').value.trim() || null
     };
     const cambioAsignado = String(t.Asignado || '').toLowerCase() !== String(campos.Asignado || '').toLowerCase();
+    // F11: a otro frente (solo gerencia). Cae al final de por-hacer/su columna en el proyecto nuevo y arrastra sus ligas.
+    const proyectoNuevo = !$('ftProyectoCampo').classList.contains('oculto') && $('ftProyecto').value && Number($('ftProyecto').value) !== Number(t.ProyectoId) ? porId(estado.proyectos, $('ftProyecto').value) : null;
+    if (proyectoNuevo && !PUEDE.proyecto(estado.rol)) { avisar('Solo gerencia mueve tarjetas entre proyectos.', 'error'); return; }
+    if (proyectoNuevo && proyectoNuevo.Estado !== 'activo') { avisar('Ese proyecto está cerrado.', 'error'); return; }
+    if (proyectoNuevo) { campos.ProyectoId = proyectoNuevo.id; campos.Orden = tareasDe(proyectoNuevo, estado.tareas).filter(x => x.Columna === t.Columna).length + 1; }
+    const proyectoViejo = t.ProyectoId;
     $('btnGuardarTarea').disabled = true;
     try {
-        await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, t.id, campos, m => avisar(m, 'ojo'));
-        Object.assign(t, campos);
+        await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, t.id, campos, m => avisar(m, 'ojo'), t._etag);
+        aplicar(t, campos);
         cerrarDialogo('dlgTarea');
-        avisar('Tarjeta actualizada.', 'ok');
+        avisar(proyectoNuevo ? `«${titulo}» ahora es de «${proyectoNuevo.Title}».` : 'Tarjeta actualizada.', 'ok');
         alCambiar();
-        await registrarActividad('editar-tarea', cambioAsignado && campos.Asignado ? `asignó «${titulo.slice(0, 80)}» a ${nombreDe(campos.Asignado, estado.roles)}` : `editó «${titulo.slice(0, 80)}»`, t.ProyectoId, t.id);
+        if (proyectoNuevo) {
+            for (const l of estado.ligas) if (Number(l.TareaId) === t.id) {
+                try { await estado.cliente.actualizarRenglon(estado.siteId, L.ligas, l.id, { ProyectoId: proyectoNuevo.id }, undefined, l._etag); aplicar(l, { ProyectoId: proyectoNuevo.id }); } catch (_) { /* la liga se queda en el proyecto viejo; Docs la muestra ahi */ }
+            }
+            await registrarActividad('editar-tarea', `pasó «${titulo.slice(0, 80)}» al proyecto «${proyectoNuevo.Title.slice(0, 60)}»`, proyectoViejo, t.id);
+            await registrarActividad('editar-tarea', `trajo «${titulo.slice(0, 80)}» de otro proyecto`, proyectoNuevo.id, t.id);
+        } else await registrarActividad('editar-tarea', cambioAsignado && campos.Asignado ? `asignó «${titulo.slice(0, 80)}» a ${nombreDe(campos.Asignado, estado.roles)}` : `editó «${titulo.slice(0, 80)}»`, t.ProyectoId, t.id);
         alCambiar();
-    } catch (e) { avisar('No se pudo guardar: ' + (e && e.message ? e.message : e), 'error'); }
-    finally { $('btnGuardarTarea').disabled = false; }
+    } catch (e) {
+        if (esConflicto(e)) { await conflicto(t); return; }
+        avisar('No se pudo guardar: ' + (e && e.message ? e.message : e), 'error');
+    } finally { $('btnGuardarTarea').disabled = false; }
 }
 
 async function borrarTarea() {
@@ -288,7 +457,7 @@ async function borrarTarea() {
         // Las ligas de la tarjeta se quedan en el proyecto, ya sin tarjeta (best-effort: si falla, el
         // Docs las muestra como «tarjeta #N» y nada mas).
         for (const l of estado.ligas) if (Number(l.TareaId) === t.id) {
-            try { await estado.cliente.actualizarRenglon(estado.siteId, L.ligas, l.id, { TareaId: null }); l.TareaId = null; } catch (_) { /* se queda colgada */ }
+            try { await estado.cliente.actualizarRenglon(estado.siteId, L.ligas, l.id, { TareaId: null }, undefined, l._etag); aplicar(l, { TareaId: null }); } catch (_) { /* se queda colgada */ }
         }
         cerrarDialogo('dlgTarea');
         avisar('Tarjeta borrada.', 'ok');
@@ -345,6 +514,7 @@ async function guardarNuevaTarea(ev) {
 // ---------------------------------------------------------------- enganche
 
 export function engancharTablero() {
+    $('filtroTexto').addEventListener('input', () => { estado.filtroTareas.texto = $('filtroTexto').value; if (estado.proyectoAbierto) pintarFiltroTareas(estado.proyectoAbierto); pintarSoloTareas(); });
     $('tCerrar').addEventListener('click', () => cerrarDialogo('dlgTarea'));
     $('dlgTarea').addEventListener('close', () => { fijarHash(hashDe()); });   // al cerrar (boton, Esc o Atras) el hash vuelve a la pantalla
     $('tCompartir').addEventListener('click', compartirTarjeta);

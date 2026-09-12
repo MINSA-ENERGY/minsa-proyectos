@@ -49,7 +49,7 @@ export function fechaMexico(ahora = new Date()) {
 /** Texto a slug: minusculas, sin acentos, guiones. Para claves y nombres de carpeta. */
 export function slug(texto) {
     return String(texto || '')
-        .normalize('NFD').replace(/[̀-ͯ]/g, '')
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, '-')
         .replace(/^-+|-+$/g, '')
@@ -128,6 +128,76 @@ export function ordenar(tareas) {
         || ((peso[a.Prioridad] ?? 1) - (peso[b.Prioridad] ?? 1))
         || String(a.Vence || '9').localeCompare(String(b.Vence || '9'))
         || (Number(a.id) - Number(b.id)));
+}
+
+/** La columna que sigue a `columna` (U7, «→ siguiente»), o null en la ultima. */
+export function columnaSiguiente(columna) {
+    const i = COLUMNAS.indexOf(columna);
+    return i >= 0 && i < COLUMNAS.length - 1 ? COLUMNAS[i + 1] : null;
+}
+
+const sinAcentos = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+/**
+ * Filtro de tarjetas dentro de un proyecto (F9): por persona, «solo alta», «solo vencidas» y texto
+ * (titulo o descripcion, sin distinguir acentos ni mayusculas). Un filtro vacio deja pasar todo.
+ */
+export function filtrarTareas(tareas, f = {}, hoy = new Date()) {
+    const quien = String(f.quien || '').trim().toLowerCase();
+    const texto = sinAcentos(f.texto).trim();
+    return (tareas || []).filter(t =>
+        (!quien || String(t.Asignado || '').toLowerCase() === quien)
+        && (!f.alta || t.Prioridad === 'alta')
+        && (!f.vencidas || estadoVence(t, 0, hoy) === 'danger')
+        && (!texto || sinAcentos(t.Title).includes(texto) || sinAcentos(t.Descripcion).includes(texto)));
+}
+
+/**
+ * Orden de la Lista por columna (F10): `col` = tarea | asignado | columna | vence | origen;
+ * `dir` = 1 asc, -1 desc. La columna del tablero ordena por su posicion, no alfabeticamente;
+ * sin fecha va al final en las dos direcciones. `nombre(correo)` pinta el asignado como se ve.
+ */
+export function ordenarLista(tareas, col = 'vence', dir = 1, nombre = x => x) {
+    const llave = {
+        tarea: t => String(t.Title || '').toLowerCase(),
+        asignado: t => t.Asignado ? String(nombre(t.Asignado)).toLowerCase() : null,
+        columna: t => COLUMNAS.indexOf(t.Columna),
+        vence: t => t.Vence ? String(t.Vence) : null,
+        origen: t => String(t.Origen || '').toLowerCase()
+    }[col] || (t => t.id);
+    return [...(tareas || [])].sort((a, b) => {
+        const x = llave(a), y = llave(b);
+        if (x === null && y === null) return a.id - b.id;
+        if (x === null) return 1;
+        if (y === null) return -1;
+        const c = typeof x === 'number' ? x - y : String(x).localeCompare(String(y));
+        return (c * dir) || (a.id - b.id);
+    });
+}
+
+/**
+ * Subir / Bajar (F11): los cambios de Orden ({ id, Orden }) que mueven `id` `delta` posiciones dentro
+ * de su columna, renumerando 1..n en el orden visual (ordenar()). Devuelve SOLO los que cambian:
+ * la primera vez puede ser toda la columna (las sembradas no traen Orden); despues, dos.
+ */
+export function reordenar(tareasColumna, id, delta) {
+    const lista = ordenar(tareasColumna);
+    const i = lista.findIndex(t => Number(t.id) === Number(id));
+    if (i < 0) return [];
+    const j = i + delta;
+    if (j < 0 || j >= lista.length) return [];
+    const [t] = lista.splice(i, 1); lista.splice(j, 0, t);
+    return lista.map((x, k) => ({ id: x.id, Orden: k + 1 })).filter((c, k) => Number(lista[k].Orden) !== c.Orden);
+}
+
+/** Sin esquema http(s) no es un enlace que la app pinte como liga (F4): evita javascript: y rutas locales. */
+export function validarUrl(texto) {
+    const s = String(texto || '').trim();
+    if (!s) return { ok: false, motivo: 'pega la dirección del enlace' };
+    let u;
+    try { u = new URL(s); } catch (_) { return { ok: false, motivo: 'no es una dirección válida (empieza con https://)' }; }
+    if (!['http:', 'https:'].includes(u.protocol)) return { ok: false, motivo: 'solo enlaces http(s)' };
+    return { ok: true, url: u.href };
 }
 
 /**

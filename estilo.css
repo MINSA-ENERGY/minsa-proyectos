@@ -32,6 +32,8 @@
 .rail .equipos .mn-label { padding: 0 var(--sp-3) var(--sp-1); }
 .rail .equipos button { min-height: var(--control-h-sm); font-weight: 500; font-size: .82rem; }
 .rail .equipos button i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex: none; }
+.rail .equipos button .n { margin-left: auto; font-family: var(--font-data); font-size: .7rem; font-weight: 500; color: var(--text-faint); }
+.rail .equipos button.is-on .n { color: inherit; }
 .rail .sesion { margin-top: auto; padding: var(--sp-3) var(--sp-2) 0; border-top: 1px solid var(--border-hairline); display: grid; gap: var(--sp-2); font-size: .8rem; color: var(--text-muted); }
 .rail .sesion .quien { word-break: break-all; color: var(--text-strong); }
 .rail .sesion-botones { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }
@@ -70,6 +72,10 @@
 .mensaje.error { background: var(--status-danger-bg); color: var(--status-danger-fg); }
 .mensaje.ok { background: var(--status-ok-bg); color: var(--status-ok-fg); }
 .mensaje.ojo { background: var(--status-warn-bg); color: var(--status-warn-fg); }
+.mensaje .accion { border: 1px solid currentColor; background: transparent; color: inherit; font: inherit; font-size: .82rem; font-weight: 600; border-radius: var(--r-sm); padding: 2px var(--sp-2); cursor: pointer; white-space: nowrap; }
+/* T2: sin red se ve, no se guarda. La banda va arriba del contenido; el cuerpo lleva .sin-red y apaga lo que escribe. */
+.sin-red-banda { background: var(--status-warn-bg); color: var(--status-warn-fg); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); font-size: .85rem; font-weight: 600; margin-bottom: var(--sp-3); }
+.sin-red .mn-btn.is-primary, .sin-red #tMover button, .sin-red #tOrden button, .sin-red .sig, .sin-red #tAnotar, .sin-red [data-quitar], .sin-red [data-buscar], .sin-red [data-ligar], .sin-red [data-subir], .sin-red [data-enlace], .sin-red [data-tarjeta-de], .sin-red #btnCerrarProyecto, .sin-red #btnReabrirProyecto, .sin-red #btnEditarProyecto, .sin-red #btnLigar, .sin-red #btnSubir, .sin-red #btnEnlace { opacity: .5; pointer-events: none; }
 @media (max-width: 720px) { #avisos { bottom: calc(var(--sp-7) + 16px + env(safe-area-inset-bottom)); } }
 .dlg-avisos:empty { display: none; }
 .dlg-avisos { margin-bottom: var(--sp-3); }
@@ -117,6 +123,15 @@
 .filtros { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 .filtros button { min-height: var(--control-h-sm); padding: 0 var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-muted); font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; }
 .filtros button.is-on { background: var(--surface-selected); color: var(--brand-primary); border-color: var(--brand-primary); }
+.filtros button .av { width: 18px; height: 18px; font-size: .55rem; margin: 0 var(--sp-1) 0 calc(-1 * var(--sp-2)); vertical-align: middle; }
+/* F9: filtro de tarjetas dentro del proyecto (chips + texto) */
+.tareas-filtros { align-items: center; }
+.tareas-filtros .chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.tareas-filtros input { margin-left: auto; min-height: var(--control-h-sm); font: inherit; font-size: .85rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); min-width: 0; width: min(16rem, 100%); }
+.tareas-filtros input:focus { outline: 2px solid var(--brand-primary); outline-offset: 1px; }
+/* U3: los KPI de Inicio son botones */
+button.mn-kpi { font: inherit; text-align: left; color: inherit; cursor: pointer; display: block; width: 100%; }
+button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
 
 /* ---- mini listas (vencimientos, actividad, quienes) */
 .mini { display: grid; gap: var(--sp-2); }
@@ -138,6 +153,17 @@
 /* ---- tablero de 4 columnas */
 .tablero { display: grid; grid-template-columns: repeat(4, minmax(170px, 1fr)); gap: var(--sp-3); overflow-x: auto; padding-bottom: var(--sp-1); }
 @media (max-width: 900px) { .tablero { grid-template-columns: repeat(4, 240px); } }
+/* U5: en celular, pestanas de columna y UNA columna a lo ancho; en escritorio las pestanas no existen. */
+.tablero-caja { display: grid; gap: var(--sp-2); min-width: 0; }
+.col-tabs { display: none; }
+@media (max-width: 720px) {
+  .col-tabs { display: flex; gap: var(--sp-1); overflow-x: auto; padding-bottom: 2px; }
+  .col-tabs button { flex: none; min-height: var(--control-h-sm); padding: 0 var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-muted); font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; display: inline-flex; gap: var(--sp-1); align-items: center; }
+  .col-tabs button .n { font-family: var(--font-data); font-size: .72rem; font-weight: 500; }
+  .col-tabs button.is-on { background: var(--surface-selected); color: var(--brand-primary); border-color: var(--brand-primary); }
+  .tablero { grid-template-columns: 1fr; overflow-x: visible; }
+  .col:not(.is-activa) { display: none; }
+}
 .col { background: var(--surface-sunken); border-radius: var(--r-md); padding: var(--sp-2); display: grid; gap: var(--sp-2); align-content: start; min-height: 200px; }
 .col h3 { margin: 0; font-family: var(--font-display); font-size: .82rem; font-weight: 600; color: var(--text-strong); display: flex; gap: var(--sp-2); align-items: center; padding: var(--sp-1) var(--sp-1) 0; }
 .col h3 .n { margin-left: auto; font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); font-weight: 500; }
@@ -149,6 +175,10 @@
 .tarjeta .f .av { width: 20px; height: 20px; font-size: .58rem; }
 .tarjeta .src { font-family: var(--font-data); font-size: .66rem; color: var(--text-faint); word-break: break-all; }
 .tarjeta .stale { color: var(--status-warn-fg); font-weight: 600; }
+/* U7: la tarjeta (un <button>) y su accion rapida «→ siguiente» son hermanos: un boton no puede anidar otro. */
+.tarjeta-caja { display: grid; gap: 2px; min-width: 0; }
+.tarjeta-caja .sig { justify-self: end; border: 0; background: transparent; color: var(--text-link); font: inherit; font-size: .74rem; font-weight: 600; cursor: pointer; padding: 2px var(--sp-1); border-radius: var(--r-sm); min-height: 24px; }
+.tarjeta-caja .sig:hover { background: var(--surface-hover); }
 
 /* ---- Mis tareas: lo urgente arriba (U4) */
 .urgentes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: var(--sp-2); }
@@ -168,6 +198,12 @@
 .tabla td.src { font-family: var(--font-data); font-size: .7rem; color: var(--text-muted); }
 .tabla tr.clic { cursor: pointer; }
 .tabla tr.clic:hover td { background: var(--surface-hover); }
+/* F10: ordenar por columna */
+.tabla th[data-sort] { cursor: pointer; user-select: none; white-space: nowrap; }
+.tabla th[data-sort]:hover { color: var(--text-strong); }
+.tabla th[aria-sort="ascending"]::after { content: " ↑"; }
+.tabla th[aria-sort="descending"]::after { content: " ↓"; }
+.tabla .vacio { color: var(--text-faint); }
 
 /* ---- documentos */
 .docs { display: grid; gap: var(--sp-3); }
@@ -191,6 +227,8 @@
 .kv .src { font-family: var(--font-data); font-size: .74rem; word-break: break-all; }
 .mover { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); margin: var(--sp-1) 0 var(--sp-3); }
 .mover .mn-btn.is-here { background: var(--surface-selected); border-color: var(--brand-primary); color: var(--brand-primary); }
+.orden { display: flex; gap: var(--sp-2); align-items: center; margin: 0 0 var(--sp-3); font-size: .8rem; color: var(--text-muted); }
+.orden:empty { display: none; }
 .editar summary { cursor: pointer; font-size: .85rem; color: var(--text-link); padding: var(--sp-2) 0; }
 .forma .mn-dialog-foot { margin: var(--sp-3) calc(-1 * var(--sp-4)) calc(-1 * var(--sp-4)); }
 .editar .forma .mn-dialog-foot { margin: var(--sp-3) 0 0; background: transparent; border: 0; padding: 0; }

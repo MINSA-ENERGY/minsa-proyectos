@@ -1,5 +1,7 @@
 // MINSA Proyectos — proyectos multiusuario del holding. v0.1.0: piloto (Inicio · Proyectos ·
-// Proyecto [Tablero / Lista / Documentos] · Mis tareas).
+// Proyecto [Tablero / Lista / Documentos] · Mis tareas). v0.3.0: tanda 2 de la auditoria (reabrir,
+// carpeta destino, filtros y orden, subir/bajar, mover de proyecto, KPI y rail vivos, «→ siguiente»
+// con Deshacer, tablero por pestanas en celular, If-Match, sin red, enlaces).
 //
 // Estructura heredada de calytek-planta-app: MSAL por REDIRECCION (el popup se rompe en celulares),
 // token en sessionStorage, nada de innerHTML (todo textContent), y la app es DUEÑA del estado
@@ -11,10 +13,10 @@
 // traza real de quien hizo que la deja SharePoint en Creado por / Modificado por y en PROY_Actividad.
 
 import { CONFIG } from './config.js';
-import { crearCliente } from './graph.js';
+import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, nombreDe, diasPara, estadoVence } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, activarMascaraFechas, opciones, limpiar, porId, registrarActividad, equipoDe, hashDe, fijarHash, fraseActividad } from './comun.js';
-import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId } from './tablero.js';
+import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, activarMascaraFechas, opciones, limpiar, porId, registrarActividad, equipoDe, hashDe, fijarHash, fraseActividad, aplicar, fijarReleer, pedirRelectura } from './comun.js';
+import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
@@ -164,6 +166,18 @@ if (CONFIG.refrescoMs > 0 && new URLSearchParams(location.search).get('refresco'
     setInterval(() => { if (estado.siteId && document.visibilityState === 'visible' && !document.querySelector('dialog[open]')) recargar(); }, CONFIG.refrescoMs);
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && estado.siteId && Date.now() - estado.cargadoEl > 60000 && !document.querySelector('dialog[open]')) recargar(); });
+fijarReleer(recargar);   // un 412 (alguien cambio el renglon) se resuelve releyendo: la verdad esta en SharePoint
+
+// T2: sin red se ve, no se guarda. La banda lo dice; graph.js falla YA en cualquier escritura; al
+// volver la red se releen las listas (no se reintenta el ultimo cambio: un cambio viejo sorprende).
+function pintarRed() {
+    const sin = navigator.onLine === false;
+    $('sinRed').classList.toggle('oculto', !sin);
+    document.body.classList.toggle('sin-red', sin);
+}
+window.addEventListener('offline', pintarRed);
+window.addEventListener('online', () => { pintarRed(); if (estado.siteId) recargar(); });
+pintarRed();
 
 // ---------------------------------------------------------------- navegacion
 
@@ -194,7 +208,7 @@ function aplicarHash() {
         if (!p) { irA('inicio'); avisar(`No hay un proyecto con la clave «${m[2]}».`, 'ojo'); return; }
         const tab = m[3] || 'tablero';
         if (estado.pestana !== 'proyecto' || !estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id || estado.tab !== tab) {
-            estado.proyectoAbierto = p; estado.tab = tab; irA('proyecto');
+            fijarProyectoAbierto(p); estado.tab = tab; irA('proyecto');
         }
     } else if (estado.pestana !== m[1]) irA(m[1]);
     const id = m[4] ? Number(m[4]) : null;
@@ -203,8 +217,17 @@ function aplicarHash() {
 }
 window.addEventListener('popstate', aplicarHash);     // Atras / Adelante (fijarHash escribe con pushState)
 window.addEventListener('hashchange', aplicarHash);   // una URL pegada o editada a mano
+/** Deja `p` como proyecto abierto; si es OTRO proyecto, el filtro de tarjetas y la columna del celular vuelven al default. */
+function fijarProyectoAbierto(p) {
+    if (!estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id) {
+        estado.filtroTareas = { quien: null, alta: false, vencidas: false, texto: '' }; $('filtroTexto').value = '';
+        estado.colMovil = 'por-hacer'; estado.ordenLista = { col: 'vence', dir: 1 };
+    }
+    estado.proyectoAbierto = p;
+}
 function repintar() {
     pintarInsignias();
+    pintarRailEquipos();
     if (estado.pestana === 'inicio') pintarInicio();
     else if (estado.pestana === 'proyectos') pintarProyectos();
     else if (estado.pestana === 'proyecto') pintarProyecto();
@@ -223,12 +246,17 @@ function pintarInsignias() {
     $('nMis').classList.toggle('is-danger', vencidas > 0);
     const n = activos().length; $('nProyectos').textContent = String(n); $('nProyectos').hidden = n === 0;
 }
+/** Rail de equipos (U2): el filtro puesto se ve (is-on) y cada equipo trae cuantos proyectos activos lleva. */
 function pintarRailEquipos() {
     const c = $('railEquipos'); c.textContent = '';
     c.appendChild(el('div', 'mn-label', 'Equipos'));
     for (const e of CONFIG.equipos) {
-        const b = boton('', '', () => { estado.filtroEquipo = estado.filtroEquipo === e.clave ? null : e.clave; irA('proyectos'); });
+        const on = estado.filtroEquipo === e.clave;
+        const b = boton('', on ? 'is-on' : '', () => { estado.filtroEquipo = on ? null : e.clave; if (estado.pestana === 'proyectos') repintar(); else irA('proyectos'); }, { equipo: e.clave });
+        b.setAttribute('aria-pressed', on ? 'true' : 'false');
         const i = el('i'); i.style.background = e.color; b.appendChild(i); b.appendChild(el('span', '', e.nombre));
+        const n = activos().filter(p => p.Equipo === e.clave).length;
+        if (n) b.appendChild(el('span', 'n', String(n)));
         c.appendChild(b);
     }
 }
@@ -263,11 +291,23 @@ function pintarInicio() {
     $('inicioSub').textContent = `${yo} · ${estado.rol} · ${activos().length} proyecto(s) activo(s)`;
     const abiertas = estado.tareas.filter(t => t.Columna !== 'hecho' && activos().some(p => p.id === Number(t.ProyectoId)));
     const mias = misAbiertas();
-    const s7 = abiertas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn').length;
-    const ven = abiertas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger').length;
+    // U3: los dos KPI de vencimiento cuentan lo MIO, porque el boton aterriza en Mis tareas con ese
+    // filtro y el numero tiene que ser el que se ve al llegar (revision 2026-09-11). Lo global sigue
+    // en «Proximos vencimientos» y «Sin movimiento», al lado.
+    const s7 = mias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn').length;
+    const ven = mias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger').length;
     const k = $('inicioKpis'); k.textContent = '';
-    const kpi = (v, l, cls) => { const d = el('div', 'mn-kpi' + (cls ? ' is-' + cls : '')); d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v))); k.appendChild(d); };
-    kpi(activos().length, 'proyectos activos', 'info'); kpi(mias.length, 'mis tareas abiertas'); kpi(s7, 'vencen en 7 días', s7 ? 'warn' : null); kpi(ven, 'vencidas', ven ? 'danger' : 'ok');
+    // U3: cada KPI es un boton que lleva a donde se ve el detalle (Mis tareas con ese filtro, o Proyectos).
+    const kpi = (v, l, cls, ir) => {
+        const d = el('button', 'mn-kpi is-clickable' + (cls ? ' is-' + cls : '')); d.type = 'button'; d.dataset.kpi = ir.kpi;
+        d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v)));
+        d.addEventListener('click', () => { if (ir.mis !== undefined) estado.filtroMis = ir.mis; irA(ir.a); });
+        k.appendChild(d);
+    };
+    kpi(activos().length, 'proyectos activos', 'info', { kpi: 'proyectos', a: 'proyectos' });
+    kpi(mias.length, 'mis tareas abiertas', null, { kpi: 'mis', a: 'mis', mis: null });
+    kpi(s7, 'mías que vencen en 7 días', s7 ? 'warn' : null, { kpi: 'pronto', a: 'mis', mis: 'pronto' });
+    kpi(ven, 'mías vencidas', ven ? 'danger' : 'ok', { kpi: 'vencidas', a: 'mis', mis: 'vencidas' });
     const lp = $('inicioProyectos'); lp.textContent = '';
     for (const p of activos().sort((a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')))) lp.appendChild(renglonProyecto(p));
     if (!activos().length) lp.appendChild(el('p', 'vacio', PUEDE.proyecto(estado.rol) ? 'Sin proyectos activos: crea el primero en Proyectos.' : 'Sin proyectos activos todavía.'));
@@ -304,7 +344,7 @@ function pintarProyectos() {
 
 function abrirProyecto(id) {
     const p = porId(estado.proyectos, id); if (!p) return;
-    estado.proyectoAbierto = p; estado.tab = 'tablero';
+    fijarProyectoAbierto(p); estado.tab = 'tablero';
     irA('proyecto');
 }
 function pintarProyecto() {
@@ -317,9 +357,13 @@ function pintarProyecto() {
     $('btnCerrarProyecto').disabled = !PUEDE.proyecto(estado.rol) || p.Estado !== 'activo';
     const faltan = ts.filter(t => t.Columna !== 'hecho').length;
     $('btnCerrarProyecto').textContent = p.Estado !== 'activo' ? 'Cerrado' : faltan ? `Cerrar proyecto · faltan ${faltan}` : 'Cerrar proyecto';
+    // F6: un cerrado se reabre (solo gerencia); el boton solo existe en ese estado.
+    $('btnReabrirProyecto').classList.toggle('oculto', !(PUEDE.proyecto(estado.rol) && p.Estado === 'cerrado'));
     $('btnNuevaTarea').disabled = !PUEDE.tarea(estado.rol) || p.Estado !== 'activo';
     for (const b of document.querySelectorAll('.tab')) { const on = b.dataset.tab === estado.tab; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }
     for (const t of ['tablero', 'lista', 'docs']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
+    $('filtroTareas').classList.toggle('oculto', estado.tab === 'docs');
+    if (estado.tab !== 'docs') pintarFiltroTareas(p);
     if (estado.tab === 'tablero') pintarTablero(p);
     else if (estado.tab === 'lista') pintarLista(p);
     else pintarDocs(p);
@@ -357,11 +401,12 @@ function abrirFormaProyecto(p) {
     $('npTitulo').value = p ? p.Title : ''; $('npClave').value = p ? p.Clave : ''; $('npClave').disabled = !!p;
     $('npEquipo').value = p ? p.Equipo : CONFIG.equipos[0].clave; $('npVence').value = p && p.Vence ? fechaCorta(p.Vence) : '';
     $('npResponsable').value = p ? String(p.Responsable || '').toLowerCase() : ''; $('npDesc').value = p ? (p.Descripcion || '') : '';
-    $('npNota').textContent = p ? `Carpeta destino en la biblioteca: ${p.Carpeta || '(default de la unidad)'} — se cambia desde la lista PROY_Proyectos.` : 'La clave es lo que se pega en el marcador ⏳ de la base de conocimiento: «· app: lau-asea-03-001». No cambia después.';
+    $('npCarpeta').value = p ? (p.Carpeta || '') : '';
+    $('npNota').textContent = p ? 'La carpeta destino es a dónde PROPONE ir lo que se sube al buzón desde Documentos (ruta relativa a la raíz de la biblioteca de la unidad); vacía = el default de la unidad. La skill de archivar la valida.' : 'La clave es lo que se pega en el marcador ⏳ de la base de conocimiento: «· app: lau-asea-03-001». No cambia después.';
     abrirDialogo('dlgProyecto');
     $('npTitulo').focus();
 }
-$('npTitulo').addEventListener('input', () => { if (!proyectoEnEdicion && !$('npClave').dataset.tocada) $('npClave').value = $('npTitulo').value.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40); });
+$('npTitulo').addEventListener('input', () => { if (!proyectoEnEdicion && !$('npClave').dataset.tocada) $('npClave').value = $('npTitulo').value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40); });
 $('npClave').addEventListener('input', () => { $('npClave').dataset.tocada = '1'; });
 
 async function guardarProyecto(ev) {
@@ -371,13 +416,15 @@ async function guardarProyecto(ev) {
     if (!titulo) { avisar('El proyecto necesita un nombre.', 'error'); $('npTitulo').focus(); return; }
     let vence;
     try { vence = aIsoDia($('npVence').value); } catch (e) { avisar(e.message, 'error'); return; }
+    // F7: la carpeta destino se escribe como ruta relativa, sin diagonales sobrantes ni barras invertidas.
+    const carpeta = $('npCarpeta').value.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
     $('npGuardar').disabled = true;
     try {
         if (proyectoEnEdicion) {
             const p = proyectoEnEdicion;
-            const campos = { Title: titulo, Equipo: $('npEquipo').value, Vence: vence, Responsable: $('npResponsable').value || null, Descripcion: $('npDesc').value.trim() || null };
-            await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'));
-            Object.assign(p, campos);
+            const campos = { Title: titulo, Equipo: $('npEquipo').value, Vence: vence, Responsable: $('npResponsable').value || null, Descripcion: $('npDesc').value.trim() || null, Carpeta: carpeta || null };
+            await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
+            aplicar(p, campos);
             cerrarDialogo('dlgProyecto'); avisar('Proyecto actualizado.', 'ok'); repintar();
             await registrarActividad('editar-proyecto', `editó el proyecto «${titulo.slice(0, 80)}»`, p.id, null); repintar();
             return;
@@ -387,7 +434,7 @@ async function guardarProyecto(ev) {
         if (!v.ok) { avisar('Clave: ' + v.motivo, 'error'); $('npClave').focus(); return; }
         const enVivo = await estado.cliente.renglones(estado.siteId, L.proyectos, `fields/Clave eq '${v.clave.replace(/'/g, "''")}'`);
         if (enVivo.length) { avisar(`Clave: ya hay un proyecto con la clave ${v.clave} (lo creó alguien más hace un momento).`, 'error'); return; }
-        const campos = limpiar({ Title: titulo, Clave: v.clave, Equipo: $('npEquipo').value, Estado: 'activo', Vence: vence || undefined, Responsable: $('npResponsable').value || undefined, Descripcion: $('npDesc').value.trim() || undefined });
+        const campos = limpiar({ Title: titulo, Clave: v.clave, Equipo: $('npEquipo').value, Estado: 'activo', Vence: vence || undefined, Responsable: $('npResponsable').value || undefined, Descripcion: $('npDesc').value.trim() || undefined, Carpeta: carpeta || undefined });
         const n = await estado.cliente.crearRenglon(estado.siteId, L.proyectos, campos, m => avisar(m, 'ojo'));
         estado.proyectos.push(n);
         cerrarDialogo('dlgProyecto');
@@ -395,8 +442,10 @@ async function guardarProyecto(ev) {
         $('npClave').dataset.tocada = '';
         await registrarActividad('crear-proyecto', `creó el proyecto «${titulo.slice(0, 80)}»`, n.id, null);
         abrirProyecto(n.id);
-    } catch (e) { avisar('No se pudo guardar el proyecto: ' + (e && e.message ? e.message : e), 'error'); }
-    finally { $('npGuardar').disabled = false; }
+    } catch (e) {
+        if (esConflicto(e)) { cerrarDialogo('dlgProyecto'); avisar('Alguien cambió este proyecto hace un momento: se releyó. Revisa y vuelve a guardar.', 'ojo'); await pedirRelectura(); return; }
+        avisar('No se pudo guardar el proyecto: ' + (e && e.message ? e.message : e), 'error');
+    } finally { $('npGuardar').disabled = false; }
 }
 
 async function cerrarProyecto() {
@@ -407,11 +456,33 @@ async function cerrarProyecto() {
     if (!ok) return;
     const campos = { Estado: 'cerrado', CerradoPor: estado.cuenta.username, CerradoEl: new Date().toISOString() };
     try {
-        await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'));
-        Object.assign(p, campos);
+        await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
+        aplicar(p, campos);
         avisar(`Proyecto «${p.Title}» cerrado.`, 'ok'); repintar();
         await registrarActividad('cerrar-proyecto', `cerró el proyecto «${p.Title.slice(0, 80)}»${faltan ? ` con ${faltan} tarjeta(s) abiertas` : ''}`, p.id, null); repintar();
-    } catch (e) { avisar('No se pudo cerrar: ' + (e && e.message ? e.message : e), 'error'); }
+    } catch (e) {
+        if (esConflicto(e)) { avisar('Alguien cambió este proyecto hace un momento: se releyó.', 'ojo'); await pedirRelectura(); return; }
+        avisar('No se pudo cerrar: ' + (e && e.message ? e.message : e), 'error');
+    }
+}
+
+/** F6: un cierre por error se deshace aqui, no en SharePoint. Solo gerencia; limpia el sello y deja «reabrió». */
+async function reabrirProyecto() {
+    const p = estado.proyectoAbierto; if (!p) return;
+    if (!PUEDE.proyecto(estado.rol)) { avisar('Solo gerencia reabre proyectos.', 'error'); return; }
+    if (p.Estado !== 'cerrado') return;
+    const { ok } = await confirmar({ titulo: 'Reabrir el proyecto', ok: 'Reabrir', texto: `«${p.Title}» vuelve a activo y a Inicio; se borra el sello de cierre (${nombreDe(p.CerradoPor, estado.roles)} · ${fechaCorta(p.CerradoEl)}). Sus tarjetas quedan como están.` });
+    if (!ok) return;
+    const campos = { Estado: 'activo', CerradoPor: null, CerradoEl: null };
+    try {
+        await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
+        aplicar(p, campos);
+        avisar(`Proyecto «${p.Title}» reabierto.`, 'ok'); repintar();
+        await registrarActividad('reabrir-proyecto', `reabrió el proyecto «${p.Title.slice(0, 80)}»`, p.id, null); repintar();
+    } catch (e) {
+        if (esConflicto(e)) { avisar('Alguien cambió este proyecto hace un momento: se releyó.', 'ojo'); await pedirRelectura(); return; }
+        avisar('No se pudo reabrir: ' + (e && e.message ? e.message : e), 'error');
+    }
 }
 
 // ---------------------------------------------------------------- tema
@@ -443,6 +514,7 @@ $('btnVolver').addEventListener('click', () => irA('proyectos'));
 $('btnNuevoProyecto').addEventListener('click', () => abrirFormaProyecto(null));
 $('btnEditarProyecto').addEventListener('click', () => abrirFormaProyecto(estado.proyectoAbierto));
 $('btnCerrarProyecto').addEventListener('click', cerrarProyecto);
+$('btnReabrirProyecto').addEventListener('click', reabrirProyecto);
 $('formProyecto').addEventListener('submit', guardarProyecto);
 $('npCancelar').addEventListener('click', () => cerrarDialogo('dlgProyecto'));
 engancharTablero();

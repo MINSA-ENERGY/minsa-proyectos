@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { iniciales, nombreDe, diasPara, estadoVence } from './reglas.js';
 
-export const VERSION = '0.2.0';
+export const VERSION = '0.3.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -15,6 +15,11 @@ export const estado = {
     proyectoAbierto: null,   // renglon de PROY_Proyectos
     pestana: 'inicio', tab: 'tablero',
     filtroEquipo: null,
+    // v0.3.0: filtro y orden dentro del proyecto (F9/F10), columna visible en celular (U5), filtro de Mis tareas (U3)
+    filtroTareas: { quien: null, alta: false, vencidas: false, texto: '' },
+    ordenLista: { col: 'vence', dir: 1 },
+    colMovil: 'por-hacer',
+    filtroMis: null,
     cargadoEl: 0,
     // Sitios de bibliotecas de unidad ya resueltos: clave -> { id, motivo }
     sitiosUnidad: {},
@@ -61,16 +66,24 @@ export function porId(coleccion, id) { return coleccion.find(x => x.id === Numbe
  * cerrarlo. Dentro de un dialogo abierto se pinta en su .dlg-avisos, como antes.
  */
 let temporizadorAviso = 0;
-export function avisar(texto, clase = '') {
+/** `opts.accion` + `opts.alClic` ponen un boton en el toast («Deshacer», U7); `opts.ms` cambia cuanto dura. */
+export function avisar(texto, clase = '', opts = {}) {
     limpiarAvisos();
     const d = el('div', 'mensaje' + (clase ? ' ' + clase : ''));
     d.appendChild(el('span', 'texto', texto));
+    if (opts.accion) d.appendChild(boton(opts.accion, 'accion', () => { limpiarAvisos(); if (opts.alClic) opts.alClic(); }, { accion: '1' }));
     const dlg = document.querySelector('dialog[open] .dlg-avisos');
     if (dlg) { dlg.appendChild(d); return; }
     const x = boton('×', 'cerrar', limpiarAvisos); x.setAttribute('aria-label', 'Cerrar el aviso'); d.appendChild(x);
     $('avisos').appendChild(d);
-    if (clase !== 'error') temporizadorAviso = setTimeout(limpiarAvisos, CONFIG.avisoMs);
+    if (clase !== 'error') temporizadorAviso = setTimeout(limpiarAvisos, opts.ms || CONFIG.avisoMs);
 }
+/** Tras un PATCH propio el `_etag` leido ya no vale (Graph no lo devuelve): se olvida hasta la siguiente lectura. */
+export function aplicar(renglon, campos) { Object.assign(renglon, campos); delete renglon._etag; return renglon; }
+// Releer las listas (la pone app.js): es lo que hace un modulo al recibir 412 — la verdad esta en SharePoint.
+let releer = async () => {};
+export function fijarReleer(fn) { releer = fn; }
+export function pedirRelectura() { return releer(); }
 export function limpiarAvisos() {
     clearTimeout(temporizadorAviso);
     $('avisos').textContent = '';

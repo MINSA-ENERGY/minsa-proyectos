@@ -58,15 +58,29 @@ export function rutaUrl(ruta) {
  */
 export function aplanar(item) {
     const f = item && item.fields ? item.fields : (item || {});
-    return { ...f, id: Number(item.id ?? f.id) };
+    const etag = item && (item.eTag || item['@odata.etag']);
+    // `_etag` (v0.3.0, T1): la version del renglon al leerlo; actualizarRenglon lo manda como If-Match.
+    return { ...f, id: Number(item.id ?? f.id), ...(etag ? { _etag: String(etag) } : {}) };
 }
+
+/** Error con `status` (412 = alguien cambio el renglon; 0 = sin red) para que quien llama distinga. */
+function errorHttp(mensaje, status) { const e = new Error(mensaje); e.status = status; return e; }
+export const esConflicto = e => !!e && e.status === 412;
+export const esSinRed = e => !!e && e.sinRed === true;
 
 export function crearCliente(graph, token) {
     const cab = { Authorization: 'Bearer ' + token };
     const json = { 'Content-Type': 'application/json' };
     const listasPorNombre = new Map();
+    // Si Graph rechazara la cabecera If-Match con 400 (no se pudo medir contra el tenant desde el
+    // harness), se reintenta sin ella y se deja de mandar en esta sesion: la app sigue escribiendo.
+    let ifMatchSirve = true;
 
     async function pedir(url, opciones = {}, avisar) {
+        // T2 (v0.3.0): sin red, una escritura falla YA con un mensaje claro, sin 4 reintentos a ciegas.
+        if (typeof navigator !== 'undefined' && navigator.onLine === false && (opciones.method || 'GET') !== 'GET') {
+            const e = errorHttp('sin conexión: puedes ver, no guardar. Vuelve a intentarlo cuando regrese la red.', 0); e.sinRed = true; throw e;
+        }
         return conReintento(() => fetch(url, {
             ...opciones,
             headers: { ...cab, ...(opciones.headers || {}) }
@@ -149,12 +163,23 @@ export function crearCliente(graph, token) {
             return aplanar(await r.json());
         },
 
-        async actualizarRenglon(siteId, nombreLista, id, campos, avisar) {
+        /**
+         * PATCH de campos. Con `etag` (el `_etag` leido, T1) va como If-Match: si alguien cambio el
+         * renglon en medio, Graph contesta 412 y aqui se lanza un error con status 412 — quien llama
+         * relee y avisa, en vez de pisar el cambio ajeno sin enterarse. Sin etag es incondicional.
+         */
+        async actualizarRenglon(siteId, nombreLista, id, campos, avisar, etag) {
             const listaId = await this.idDeLista(siteId, nombreLista);
-            const r = await pedir(`${graph}/sites/${siteId}/lists/${listaId}/items/${id}/fields`, {
-                method: 'PATCH', headers: json, body: JSON.stringify(campos)
-            }, avisar);
-            if (!r.ok) throw new Error(`no se pudo actualizar el renglón ${id} de ${nombreLista}: ` + await motivo(r));
+            const url = `${graph}/sites/${siteId}/lists/${listaId}/items/${id}/fields`;
+            const hacer = conEtag => pedir(url, { method: 'PATCH', headers: conEtag ? { ...json, 'If-Match': etag } : json, body: JSON.stringify(campos) }, avisar);
+            let r = await hacer(ifMatchSirve && !!etag);
+            if (r.status === 400 && ifMatchSirve && etag) {
+                // ¿El 400 fue por la cabecera? Se repite sin ella: si tambien falla, era el cuerpo.
+                ifMatchSirve = false; r = await hacer(false);
+                if (r.status === 400) ifMatchSirve = true; else console.warn('Graph rechazó If-Match en esta lista; se deja de mandar en esta sesión.');
+            }
+            if (r.status === 412) throw errorHttp(`alguien cambió el renglón ${id} de ${nombreLista} hace un momento (412)`, 412);
+            if (!r.ok) throw errorHttp(`no se pudo actualizar el renglón ${id} de ${nombreLista}: ` + await motivo(r), r.status);
             return await r.json();
         },
 

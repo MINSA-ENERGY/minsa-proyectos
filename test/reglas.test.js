@@ -1,6 +1,6 @@
 // node test/reglas.test.js — reglas puras de MINSA Proyectos (decisiones del plan 2026-09-11).
 import assert from 'node:assert/strict';
-import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS } from '../reglas.js';
+import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, validarUrl } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -67,6 +67,25 @@ const m2 = camposDeMovimiento('en-curso', 'x@example.invalid', HOY);
 ok('fuera de hecho limpia el sello', m2.HechoPor === null && m2.HechoEl === null && m2.Columna === 'en-curso');
 assert.throws(() => camposDeMovimiento('terminado', 'x'), /columna desconocida/); n++;
 ok('las cuatro columnas fijas', COLUMNAS.join(',') === 'por-hacer,en-curso,en-revision,hecho');
+
+// --- v0.3.0: siguiente columna, filtro, orden de la lista, subir/bajar, enlaces
+ok('columnaSiguiente recorre las 4 y termina en null', columnaSiguiente('por-hacer') === 'en-curso' && columnaSiguiente('en-revision') === 'hecho' && columnaSiguiente('hecho') === null && columnaSiguiente('x') === null);
+const t10 = [...del10, { id: 7, ProyectoId: 10, Title: 'Revisión del plano', Columna: 'por-hacer', Asignado: 'Ana@example.invalid', Descripcion: 'con Colega' }];
+ok('filtrarTareas vacio deja pasar todo', filtrarTareas(t10, {}, HOY).length === 6);
+ok('filtrarTareas por persona ignora mayusculas', filtrarTareas(t10, { quien: 'ana@example.invalid' }, HOY).map(t => t.id).join(',') === '7');
+ok('filtrarTareas solo alta', filtrarTareas(t10, { alta: true }, HOY).map(t => t.id).join(',') === '1,3');
+ok('filtrarTareas solo vencidas (hechas fuera)', filtrarTareas(t10, { vencidas: true }, HOY).map(t => t.id).join(',') === '2');
+ok('filtrarTareas texto sin acentos, en titulo o descripcion', filtrarTareas(t10, { texto: 'revision' }, HOY).map(t => t.id).join(',') === '7' && filtrarTareas(t10, { texto: 'COLEGA' }, HOY).length === 1 && filtrarTareas(t10, { texto: 'zzz' }, HOY).length === 0);
+ok('filtrarTareas combina', filtrarTareas(t10, { alta: true, texto: 'c' }, HOY).map(t => t.id).join(',') === '3');
+ok('ordenarLista por vence: sin fecha al final en las dos direcciones', ordenarLista(t10, 'vence', 1).map(t => t.id).join(',') === '1,2,3,6,4,7' && ordenarLista(t10, 'vence', -1).map(t => t.id).join(',') === '6,3,2,1,4,7');
+ok('ordenarLista por columna = posicion en el tablero', ordenarLista(t10, 'columna', 1).map(t => t.Columna).join(',') === 'por-hacer,por-hacer,por-hacer,en-curso,en-revision,hecho');
+ok('ordenarLista por tarea alfabetico', ordenarLista(t10, 'tarea', 1)[0].id === 1 && ordenarLista(t10, 'tarea', -1)[0].id === 7);
+ok('ordenarLista por asignado usa el nombre visible y deja sin asignar al final', ordenarLista(t10, 'asignado', 1, c => 'Zoe').map(t => t.id)[0] === 7 && ordenarLista(t10, 'asignado', 1).slice(1).every(t => !t.Asignado));
+ok('reordenar: bajar la primera renumera solo lo que cambia', JSON.stringify(reordenar([{ id: 4, Orden: 1 }, { id: 3, Orden: 2 }], 4, 1)) === '[{"id":3,"Orden":1},{"id":4,"Orden":2}]');
+ok('reordenar: subir la ultima de una columna sin Orden numera toda la columna', JSON.stringify(reordenar([{ id: 8, Prioridad: 'alta' }, { id: 9 }], 9, -1)) === '[{"id":9,"Orden":1},{"id":8,"Orden":2}]');
+ok('reordenar: fuera de rango o id ajeno = sin cambios', reordenar([{ id: 4, Orden: 1 }], 4, -1).length === 0 && reordenar([{ id: 4, Orden: 1 }], 4, 1).length === 0 && reordenar([{ id: 4 }], 99, 1).length === 0);
+ok('validarUrl acepta http(s) y normaliza', validarUrl(' https://Example.invalid/oficio ').url === 'https://example.invalid/oficio');
+ok('validarUrl rechaza vacio, javascript: y texto suelto', !validarUrl('').ok && !validarUrl('javascript:alert(1)').ok && !validarUrl('oficio 123').ok && !validarUrl('file:///C:/x').ok);
 
 // --- nombres
 ok('iniciales de correo', iniciales('ana.perez@example.invalid') === 'AP' && iniciales('juan.lopez17@example.invalid') === "JL");

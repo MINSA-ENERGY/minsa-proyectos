@@ -6,11 +6,14 @@
 // v0.2.0 (tanda 1 de la auditoria): una liga se QUITA y se cambia de tarjeta desde la app (F1);
 // la liga cuyo lote ya acomodo la skill se REEMPLAZA buscando el archivado (F2); y ligar / subir
 // se abren tambien desde la tarjeta, con esa tarjeta ya puesta (F3).
+// v0.3.0 (tanda 2): el tercer tipo de liga es «enlace» (F4) — titulo + URL pegada, sin biblioteca:
+// un correo, un oficio en Legal o Finanzas, una pagina. No toca permisos del tenant.
 
 import { CONFIG } from './config.js';
-import { PUEDE, tareasDe, slug, fechaMexico, nombreDe } from './reglas.js';
+import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl } from './reglas.js';
 import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO } from './lote.js';
-import { $, L, VERSION, estado, el, boton, chip, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaHora } from './comun.js';
+import { $, L, VERSION, estado, el, boton, chip, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaHora, aplicar, pedirRelectura } from './comun.js';
+import { esConflicto } from './graph.js';
 
 let alCambiar = () => {};
 export function alCambiarDocs(fn) { alCambiar = fn; }
@@ -30,6 +33,8 @@ async function sitioDe(bib) {
 
 /** Puede ligar/subir en este proyecto: rol, proyecto activo y biblioteca en el piloto. */
 export function puedeLigarEn(p) { return PUEDE.ligar(estado.rol) && !!p && p.Estado === 'activo' && !!bibliotecaDe(p); }
+/** Puede pegar un enlace (F4): rol y proyecto activo; la biblioteca no hace falta. */
+export function puedeEnlazarEn(p) { return PUEDE.ligar(estado.rol) && !!p && p.Estado === 'activo'; }
 
 // Con que proyecto / tarjeta se abrio el dialogo de ligar o subir (desde Docs o desde la tarjeta).
 // `reemplaza` es la liga vieja que se quita al ligar el resultado (F2); `alTerminar` vuelve a la
@@ -42,11 +47,11 @@ export async function pintarDocs(p) {
     const cont = $('docsLista'); cont.textContent = '';
     const bib = bibliotecaDe(p);
     const puede = puedeLigarEn(p);
-    $('btnLigar').disabled = !puede; $('btnSubir').disabled = !puede;
-    $('docsBiblioteca').textContent = bib ? `Biblioteca: ${bib.nombre}${bib.piloto ? '' : ' (fuera del piloto: sin permiso todavía)'}` : 'Este equipo no tiene biblioteca ligada en el piloto: solo se ven ligas ya guardadas.';
+    $('btnLigar').disabled = !puede; $('btnSubir').disabled = !puede; $('btnEnlace').disabled = !puedeEnlazarEn(p);
+    $('docsBiblioteca').textContent = bib ? `Biblioteca: ${bib.nombre}${bib.piloto ? '' : ' (fuera del piloto: sin permiso todavía)'}` : 'Este equipo no tiene biblioteca ligada en el piloto: se ven las ligas guardadas y se pueden pegar enlaces.';
     const ligas = estado.ligas.filter(l => Number(l.ProyectoId) === p.id).sort((a, b) => b.id - a.id);
     if (!ligas.length) { cont.appendChild(el('p', 'vacio', 'Sin documentos ligados todavía.')); return; }
-    for (const l of ligas) cont.appendChild(doc(l, p, puede));
+    for (const l of ligas) cont.appendChild(doc(l, p, puede || (l.Tipo === 'enlace' && puedeEnlazarEn(p))));
     // «En el buzon» en vivo: una consulta por liga de tipo buzon, cacheada por carga.
     if (bib) {
         const s = await sitioDe(bib);
@@ -68,12 +73,12 @@ export async function pintarDocs(p) {
 function doc(l, p, puede) {
     const d = el('div', 'doc'); d.dataset.liga = String(l.id);
     const ext = String(l.Ruta || l.Title || '').split('.').pop().slice(0, 4);
-    d.appendChild(el('span', 'ico', l.Tipo === 'buzon' ? 'lote' : ext));
+    d.appendChild(el('span', 'ico', l.Tipo === 'buzon' ? 'lote' : l.Tipo === 'enlace' ? 'link' : ext));
     const c = el('div');
     const t = el('div', 't');
     if (l.Url) { const a = el('a', '', l.Title); a.href = l.Url; a.target = '_blank'; a.rel = 'noopener'; t.appendChild(a); } else t.textContent = l.Title;
     c.appendChild(t);
-    c.appendChild(el('div', 'p', `${l.Unidad ? l.Unidad + '/' : ''}${l.Ruta || ''}`));
+    c.appendChild(el('div', 'p', l.Tipo === 'enlace' ? String(l.Url || '').replace(/^https?:\/\//, '').slice(0, 90) : `${l.Unidad ? l.Unidad + '/' : ''}${l.Ruta || ''}`));
     if (puede) {
         // F1: la tarjeta de la liga se cambia aqui mismo (o se deja para el proyecto entero).
         const fila = el('label', 'p tarjeta-de'); fila.appendChild(el('span', '', 'tarjeta: '));
@@ -84,7 +89,7 @@ function doc(l, p, puede) {
     } else if (l.TareaId) { const tt = porId(estado.tareas, l.TareaId); c.appendChild(el('div', 'p', tt ? `tarjeta: ${tt.Title}` : `tarjeta #${l.TareaId}`)); }
     d.appendChild(c);
     const lado = el('div', 'lado');
-    const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : chip('archivado', 'ok')); lado.appendChild(est);
+    const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : l.Tipo === 'enlace' ? chip('enlace') : chip('archivado', 'ok')); lado.appendChild(est);
     if (l.LigadoPor) lado.appendChild(el('span', 'p', nombreDe(l.LigadoPor, estado.roles)));
     if (puede) lado.appendChild(boton('Quitar', 'mn-btn is-ghost is-sm', () => quitarLiga(l), { quitar: String(l.id) }));
     d.appendChild(lado);
@@ -121,14 +126,17 @@ async function reasignarLiga(l, tareaId) {
     const nuevo = tareaId ? Number(tareaId) : null;
     if ((l.TareaId ? Number(l.TareaId) : null) === nuevo) return;
     try {
-        await estado.cliente.actualizarRenglon(estado.siteId, L.ligas, l.id, { TareaId: nuevo }, m => avisar(m, 'ojo'));
-        l.TareaId = nuevo;
+        await estado.cliente.actualizarRenglon(estado.siteId, L.ligas, l.id, { TareaId: nuevo }, m => avisar(m, 'ojo'), l._etag);
+        aplicar(l, { TareaId: nuevo });
         const t = nuevo ? porId(estado.tareas, nuevo) : null;
         avisar(t ? `«${l.Title}» ahora es de la tarjeta «${t.Title}».` : `«${l.Title}» ahora es del proyecto entero.`, 'ok');
         alCambiar();
         await registrarActividad('ligar', t ? `pasó la liga «${l.Title.slice(0, 60)}» a «${t.Title.slice(0, 60)}»` : `dejó la liga «${l.Title.slice(0, 60)}» para el proyecto entero`, l.ProyectoId, nuevo);
         alCambiar();
-    } catch (e) { avisar('No se pudo cambiar la tarjeta de la liga: ' + (e && e.message ? e.message : e), 'error'); alCambiar(); }
+    } catch (e) {
+        if (esConflicto(e)) { avisar('Alguien cambió esa liga hace un momento: se releyó.', 'ojo'); await pedirRelectura(); return; }
+        avisar('No se pudo cambiar la tarjeta de la liga: ' + (e && e.message ? e.message : e), 'error'); alCambiar();
+    }
 }
 
 // ---------------------------------------------------------------- ligar
@@ -197,6 +205,46 @@ async function ligarDocumento(x) {
         alCambiar();
         if (alTerminar) alTerminar();
     } catch (e) { avisar('No se pudo ligar: ' + (e && e.message ? e.message : e), 'error'); }
+}
+
+// ---------------------------------------------------------------- pegar un enlace (F4)
+
+/** Abre «Pegar un enlace». Sin argumentos es el boton de Docs; desde la tarjeta llega { proyecto, tareaId, alTerminar }. */
+export function abrirEnlace(opts = {}) {
+    const p = opts.proyecto || estado.proyectoAbierto; if (!p) return;
+    if (!puedeEnlazarEn(p)) { avisar(PUEDE.ligar(estado.rol) ? 'El proyecto está cerrado.' : 'Tu rol es de lectura: no puedes pegar enlaces.', 'error'); return; }
+    ctx = { proyecto: p, tareaId: opts.tareaId ? Number(opts.tareaId) : null, reemplaza: null, alTerminar: opts.alTerminar || null };
+    $('enTitulo').value = ''; $('enUrl').value = '';
+    opcionesTarjetas($('enTarea'), p);
+    $('enTarea').value = ctx.tareaId ? String(ctx.tareaId) : '';
+    abrirDialogo('dlgEnlace');
+    $('enTitulo').focus();
+}
+
+async function guardarEnlace(ev) {
+    ev.preventDefault();
+    const p = ctx.proyecto; if (!p) return;
+    if (!puedeEnlazarEn(p)) { avisar('Tu rol es de lectura: no puedes pegar enlaces.', 'error'); return; }
+    const titulo = $('enTitulo').value.trim();
+    if (!titulo) { avisar('Di qué es el enlace.', 'error'); $('enTitulo').focus(); return; }
+    const v = validarUrl($('enUrl').value);
+    if (!v.ok) { avisar('Enlace: ' + v.motivo, 'error'); $('enUrl').focus(); return; }
+    if (estado.ligas.some(l => Number(l.ProyectoId) === p.id && l.Tipo === 'enlace' && l.Url === v.url)) { avisar('Ese enlace ya está en este proyecto.', 'ojo'); return; }
+    const tareaId = $('enTarea').value ? Number($('enTarea').value) : undefined;
+    const campos = limpiar({ Title: titulo, ProyectoId: p.id, TareaId: tareaId, Tipo: 'enlace', Url: v.url, LigadoPor: estado.cuenta.username });
+    $('enGuardar').disabled = true;
+    try {
+        const n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => avisar(m, 'ojo'));
+        estado.ligas.push(n);
+        const alTerminar = ctx.alTerminar;
+        cerrarDialogo('dlgEnlace');
+        avisar(`Enlace «${titulo}» guardado.`, 'ok');
+        alCambiar();
+        await registrarActividad('ligar', `pegó el enlace «${titulo.slice(0, 80)}»`, p.id, tareaId);
+        alCambiar();
+        if (alTerminar) alTerminar();
+    } catch (e) { avisar('No se pudo guardar el enlace: ' + (e && e.message ? e.message : e), 'error'); }
+    finally { $('enGuardar').disabled = false; }
 }
 
 // ---------------------------------------------------------------- subir al buzon
@@ -278,4 +326,7 @@ export function engancharDocs() {
     $('btnSubir').addEventListener('click', () => abrirSubir());
     $('sbCancelar').addEventListener('click', () => cerrarDialogo('dlgSubir'));
     $('formSubir').addEventListener('submit', subirAlBuzon);
+    $('btnEnlace').addEventListener('click', () => abrirEnlace());
+    $('enCancelar').addEventListener('click', () => cerrarDialogo('dlgEnlace'));
+    $('formEnlace').addEventListener('submit', guardarEnlace);
 }
