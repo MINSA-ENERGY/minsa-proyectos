@@ -15,7 +15,7 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, nombreDe, diasPara, estadoVence } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, hashDe, fijarHash, fraseActividad, aplicar, fijarReleer, pedirRelectura } from './comun.js';
+import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, hashDe, fijarHash, aplicar, fijarReleer, pedirRelectura } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
 
@@ -286,12 +286,32 @@ function renglonProyecto(p) {
     r.addEventListener('click', () => abrirProyecto(p.id));
     return r;
 }
+/** Un renglon de mini lista (2026-09-12): cabecera = quien + cuando; debajo la frase a todo el ancho;
+ *  debajo el proyecto en una linea. `texto` NO trae el nombre (lo pone la cabecera); si `texto` ES el
+ *  nombre completo (lista Equipo), la cabecera lo lleva entero y no hay frase. */
 function itemMini(quien, texto, sub, derecha, claseDerecha) {
     const it = el('div', 'it');
     it.appendChild(avatar(quien));
-    const c = el('div'); c.appendChild(el('span', '', texto)); if (sub) c.appendChild(el('div', 'w', sub)); it.appendChild(c);
-    it.appendChild(el('span', 'd' + (claseDerecha ? ' is-' + claseDerecha : ''), derecha || ''));
+    const c = el('div');
+    const nombre = nombreDe(quien, estado.roles), esNombre = texto === nombre;
+    const cab = el('div', 'cab'); cab.appendChild(el('span', 'q', esNombre ? nombre : nombre.split(' ')[0]));
+    cab.appendChild(el('span', 'd' + (claseDerecha ? ' is-' + claseDerecha : ''), derecha || '')); c.appendChild(cab);
+    if (!esNombre) c.appendChild(fraseMarcada(texto));
+    if (sub) { const w = el('div', 'w', sub); w.title = sub; c.appendChild(w); }
+    it.appendChild(c);
     return it;
+}
+/** La frase de actividad SIN el nombre (la cabecera de itemMini ya lo lleva); el resto igual que fraseActividad. */
+function queHizo(a) { return a.Accion === 'comentar' ? `anotó: «${a.Title}»` : String(a.Title || ''); }
+/** Parte «verbo «titulo» resto» en tres: el titulo en <b> (2 lineas, integro en title) y el resto en linea
+ *  propia; «de X a Y» sale como «X → Y». Sin «…» (un titulo de tarjeta), texto plano. Nunca innerHTML. */
+function fraseMarcada(texto) {
+    const f = el('div', 'f'); const m = /^(.*?)(«[^»]*»)(.*)$/s.exec(texto);
+    if (!m) { f.textContent = texto; return f; }
+    f.appendChild(document.createTextNode(m[1])); const b = el('b', '', m[2]); b.title = m[2]; f.appendChild(b);
+    const resto = m[3].trim();
+    if (resto) f.appendChild(el('span', 'sino', resto.replace(/^de (.+) a (.+)$/, '$1 → $2')));
+    return f;
 }
 function pintarInicio() {
     const yo = nombreDe(estado.cuenta.username, estado.roles);
@@ -326,9 +346,9 @@ function pintarInicio() {
     for (const t of quietas.slice(0, 6)) { const p = porId(estado.proyectos, t.ProyectoId); sm.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', `${-diasPara(t.Desde)} d`, 'warn')); }
     $('cardSinMov').classList.toggle('oculto', quietas.length === 0);
     const act = $('inicioActividad'); act.textContent = '';
-    for (const a of estado.actividad.slice(0, 8)) { const p = porId(estado.proyectos, a.ProyectoId); act.appendChild(itemMini(a.Quien, fraseActividad(a), p ? p.Title : '', fechaHora(a.Cuando))); }
+    for (const a of estado.actividad.slice(0, 5)) { const p = porId(estado.proyectos, a.ProyectoId); act.appendChild(itemMini(a.Quien, queHizo(a), p ? p.Title : '', fechaHora(a.Cuando))); }
     if (!estado.actividad.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
-    $('btnActividadInicio').hidden = estado.actividad.length <= 8;
+    $('btnActividadInicio').hidden = estado.actividad.length <= 5;
 }
 
 // ---------------------------------------------------------------- toda la actividad (F12) y el equipo (F13)
@@ -351,7 +371,7 @@ function pintarActividad() {
     for (const q of quienes) chipQ(nombreDe(q, estado.roles), q);
     const filtradas = todas.filter(a => !acCtx.quien || String(a.Quien || '').toLowerCase() === acCtx.quien);
     const l = $('acLista'); l.textContent = '';
-    for (const a of filtradas.slice(0, acCtx.n)) { const p = porId(estado.proyectos, a.ProyectoId); l.appendChild(itemMini(a.Quien, fraseActividad(a), acCtx.proyectoId ? '' : (p ? p.Title : ''), fechaHora(a.Cuando))); }
+    for (const a of filtradas.slice(0, acCtx.n)) { const p = porId(estado.proyectos, a.ProyectoId); l.appendChild(itemMini(a.Quien, queHizo(a), acCtx.proyectoId ? '' : (p ? p.Title : ''), fechaHora(a.Cuando))); }
     if (!filtradas.length) l.appendChild(el('p', 'vacio', 'Sin actividad.'));
     $('acMas').hidden = filtradas.length <= acCtx.n;
     $('acMas').textContent = `ver 50 más (${filtradas.length - Math.min(acCtx.n, filtradas.length)} restantes)`;
@@ -435,7 +455,7 @@ function pintarProyecto() {
     if (!v.childNodes.length) v.appendChild(el('p', 'vacio', 'Nada por vencer.'));
     const act = $('pActividad'); act.textContent = '';
     const deP = estado.actividad.filter(x => Number(x.ProyectoId) === p.id);
-    for (const x of deP.slice(0, 6)) act.appendChild(itemMini(x.Quien, fraseActividad(x), '', fechaHora(x.Cuando)));
+    for (const x of deP.slice(0, 6)) act.appendChild(itemMini(x.Quien, queHizo(x), '', fechaHora(x.Cuando)));
     if (!act.childNodes.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
     $('btnActividadProyecto').hidden = deP.length <= 6;
 }

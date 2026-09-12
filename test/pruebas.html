@@ -61,17 +61,21 @@
     const G = 'https://graph.microsoft.com/v1.0';
     // Dos sitios: el de las listas (Administracion) y la biblioteca de CALYTEK; el resto contesta 403.
     const SITIOS = { '/sites/Administracion': 'sitio-falso', '/sites/Ambiental-CALYTEK': 'sitio-calytek' };
-    const DB = { listas: {}, carpetas: [], archivos: [], siguienteId: 1, esquema: null, fallas: [], llamadas: [], filtros: [], ifMatch: 0 };
+    const DB = { listas: {}, carpetas: [], archivos: [], siguienteId: 1, esquema: null, fallas: [], llamadas: [], filtros: [], ifMatch: 0, textoLargo: [], itemsLeidos: [] };
     window.__DB = DB;
 
     function lista(id) { for (const l of Object.values(DB.listas)) if (l.id === id) return l; return null; }
     function json(status, cuerpo) { return new Response(cuerpo === undefined ? null : JSON.stringify(cuerpo), { status, headers: { 'Content-Type': 'application/json' } }); }
     function error(status, mensaje) { return json(status, { error: { code: 'falso', message: mensaje } }); }
+    // El webUrl que Graph da por un archivo de Office: Doc.aspx?sourcedoc={GUID}&file=<nombre>&action=default&mobileredirect=true(&DefaultItemOpen=1).
+    const webUrlDe = a => a.office ? `https://tenant.example.invalid/sites/Ambiental-CALYTEK/_layouts/15/Doc.aspx?sourcedoc=%7B${(a.guid || '00000000-0000-0000-0000-000000000000').toUpperCase()}%7D&file=${a.nombre}&action=default&mobileredirect=true&DefaultItemOpen=1` : 'https://tenant.example.invalid/' + a.ruta;
     function validarChoices(l, campos) {
         const esq = DB.esquema.listas.find(x => x.nombre === l.nombre);
         for (const c of esq.columnas) {
             if (c.tipo === 'choice' && campos[c.nombre] !== undefined && campos[c.nombre] !== null && !c.opciones.includes(campos[c.nombre]))
                 return `El valor "${campos[c.nombre]}" no es una opción de la columna ${c.nombre} (choice sin allowTextEntry)`;
+            // SharePoint: texto de una linea = 255; pasarse es un 400 «Invalid request» sin mas detalle (2026-09-12, LAU).
+            if (c.tipo === 'text' && typeof campos[c.nombre] === 'string' && campos[c.nombre].length > 255) { DB.textoLargo.push(`${l.nombre}.${c.nombre}=${campos[c.nombre].length}`); return 'Invalid request'; }
         }
         return null;
     }
@@ -138,8 +142,14 @@
         // Biblioteca de CALYTEK: busqueda, existencia, carpetas, piezas.
         if ((m = /^\/sites\/sitio-calytek\/drive\/root\/search\(q='([^']*)'\)/.exec(ruta)) && metodo === 'GET') {
             const q = decodeURIComponent(m[1]).toLowerCase();
-            const v = DB.archivos.filter(a => a.nombre.toLowerCase().includes(q)).map(a => ({ id: a.id, name: a.nombre, file: {}, webUrl: 'https://tenant.example.invalid/' + a.ruta, parentReference: { path: '/drive/root:/' + a.ruta.slice(0, a.ruta.lastIndexOf('/')) }, lastModifiedDateTime: '2026-09-01T12:00:00Z', size: a.bytes }));
+            const v = DB.archivos.filter(a => a.nombre.toLowerCase().includes(q)).map(a => ({ id: a.id, name: a.nombre, file: {}, webUrl: webUrlDe(a), parentReference: a.sinPath ? { driveId: 'drive-falso', id: a.id } : { path: '/drive/root:/' + a.ruta.slice(0, a.ruta.lastIndexOf('/')) }, lastModifiedDateTime: '2026-09-01T12:00:00Z', size: a.bytes }));
             return json(200, { value: v });
+        }
+        if ((m = /^\/sites\/sitio-calytek\/drive\/items\/([^/?]+)\?\$select=/.exec(ruta)) && metodo === 'GET') {
+            const a = DB.archivos.find(x => x.id === decodeURIComponent(m[1]));
+            if (!a) return error(404, 'itemNotFound');
+            DB.itemsLeidos.push(a.id);
+            return json(200, { id: a.id, name: a.nombre, webUrl: webUrlDe(a), parentReference: { path: '/drive/root:/' + a.ruta.slice(0, a.ruta.lastIndexOf('/')) }, sharepointIds: { listItemUniqueId: a.guid || '00000000-0000-0000-0000-000000000000' } });
         }
         if ((m = /^\/sites\/sitio-calytek\/drive\/root:\/(.+?)\?\$select=id$/.exec(ruta)) && metodo === 'GET') {
             const r = decodeURIComponent(m[1]);
@@ -183,6 +193,12 @@
         // Archivos "ya archivados" en la biblioteca de CALYTEK, para el buscador.
         DB.archivos.push({ id: 'archivo-a1', ruta: '04_SGI/02_Ambiental/2025-06-20_MINSA_plan-contingencia_rev01.pdf', nombre: '2025-06-20_MINSA_plan-contingencia_rev01.pdf', bytes: 1000 });
         DB.archivos.push({ id: 'archivo-a2', ruta: '99_Pendiente-Archivar/2026-09-01_algo/plan-contingencia-viejo.pdf', nombre: 'plan-contingencia-viejo.pdf', bytes: 10 });
+        // Dos mas para el reintento ante un 400 que no es de largo (a4) y el 400 persistente (a5); y uno del buzon sin path (a6).
+        DB.archivos.push({ id: 'archivo-l2', ruta: '04_SGI/02_Ambiental/2025-07-01_MINSA_matriz-riesgos_rev02.pdf', nombre: '2025-07-01_MINSA_matriz-riesgos_rev02.pdf', bytes: 900, guid: 'aaaaaaaa-0000-0000-0000-000000000004' });
+        DB.archivos.push({ id: 'archivo-l3', ruta: '04_SGI/02_Ambiental/2025-07-02_MINSA_matriz-aspectos_rev01.pdf', nombre: '2025-07-02_MINSA_matriz-aspectos_rev01.pdf', bytes: 900, guid: 'aaaaaaaa-0000-0000-0000-000000000005' });
+        DB.archivos.push({ id: 'archivo-l4', ruta: '99_Pendiente-Archivar/2026-09-02_otro/matriz-sin-path.pdf', nombre: 'matriz-sin-path.pdf', bytes: 9, sinPath: true });
+        // El caso del 2026-09-12: nombre de la convencion (77, sintetico del mismo largo), webUrl Doc.aspx de 268 y la busqueda SIN parentReference.path.
+        DB.archivos.push({ id: 'archivo-l1', ruta: '98_Archivo/2024-10-23_CALYTEK_Estudio_mercado-tema-de-ejemplo-sintetico-xx_borrador.docx', nombre: '2024-10-23_CALYTEK_Estudio_mercado-tema-de-ejemplo-sintetico-xx_borrador.docx', bytes: 5000, office: true, sinPath: true, guid: '8f2c4e1a-1111-2222-3333-444455556666' });
         DB.carpetas.push({ id: 'carpeta-buzon', ruta: '99_Pendiente-Archivar', nombre: '99_Pendiente-Archivar' });
     };
 })();
@@ -594,6 +610,45 @@ try {
         clic('btnImprimir'); window.print = printReal;
         R.ok('U11: «Imprimir» llama a window.print', impreso);
         await abrirLau(); tab('docs');
+        // v0.4.1: el caso del 2026-09-12 — nombre de la convencion (77), webUrl Doc.aspx de 268 y la
+        // busqueda sin carpeta. Antes: POST con Url de 268 → 400 «Invalid request» del tenant.
+        clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar largo');
+        poner('lgTexto', 'estudio_mercado'); clic('lgBuscar'); await esperar(() => document.querySelector('#lgResultados .lg-resultado'), 'resultado largo');
+        const res3 = [...document.querySelectorAll('#lgResultados .lg-resultado')];
+        R.ok('buscador: la carpeta que Graph no mandó se declara, no se pinta como raíz', res3.length === 1 && res3[0].textContent.includes('se resuelve al ligar'), res3.map(r => r.textContent).join('|'));
+        const ligasAntes = filas('ligas').length;
+        poner('lgTarea', ''); res3[0].querySelector('button').click();
+        await esperar(() => filas('ligas').length === ligasAntes + 1, 'liga larga creada');
+        const lg3 = filas('ligas').find(l => l.fields.DriveItemId === 'archivo-l1');
+        R.ok('liga larga: releyó el elemento por id, Ruta real y Url ≤ 255 en la forma corta con GUID', DB.itemsLeidos.includes('archivo-l1') && lg3.fields.Ruta.startsWith('98_Archivo/') && lg3.fields.Url.length <= 255 && lg3.fields.Url.includes('sourcedoc=%7B8F2C4E1A') && !lg3.fields.Url.includes('&file='), JSON.stringify({ ruta: lg3.fields.Ruta, url: lg3.fields.Url }));
+        R.ok('ningún texto > 255 llegó a Graph en toda la corrida (el falso lo rechaza como SharePoint)', DB.textoLargo.length === 0, DB.textoLargo.join('|'));
+        // Un enlace pegado de 300 caracteres se detiene en la app, con aviso, no en el 400.
+        clic('btnEnlace'); await esperar(() => $('dlgEnlace').open, 'enlace largo');
+        poner('enTitulo', 'Enlace kilométrico'); poner('enUrl', 'https://tenant.example.invalid/' + 'x'.repeat(280)); clic('enGuardar');
+        await esperar(() => avisoCon('pasa(n) de los 255'), 'aviso de 255');
+        R.ok('enlace > 255: la app avisa antes del POST y el renglón no nace', filas('ligas').length === ligasAntes + 1 && DB.textoLargo.length === 0);
+        clic('enCancelar');
+        // Un 400 que NO es de largo: la app reintenta UNA vez con la Url corta del GUID y la liga nace con ella.
+        DB.fallas.push({ metodo: 'POST', incluye: 'lista-ligas/items', status: 400, veces: 1 });
+        clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar a4');
+        poner('lgTexto', 'matriz-riesgos'); clic('lgBuscar'); await esperar(() => document.querySelector('#lgResultados .lg-resultado'), 'resultado a4');
+        poner('lgTarea', ''); document.querySelector('#lgResultados .lg-resultado button').click();
+        await esperar(() => filas('ligas').length === ligasAntes + 2, 'liga a4 tras reintento');
+        const lg4 = filas('ligas').find(l => l.fields.DriveItemId === 'archivo-l2');
+        R.ok('400 en el primer POST: reintenta con la Url corta (GUID) y la liga nace con ella', DB.llamadas.filter(c => c === 'POST /sites/sitio-falso/lists/lista-ligas/items').length >= 2 && lg4.fields.Url.endsWith('/sites/Ambiental-CALYTEK/_layouts/15/Doc.aspx?sourcedoc=%7BAAAAAAAA-0000-0000-0000-000000000004%7D&action=default'), lg4.fields.Url);
+        // Un 400 persistente: el aviso trae el largo de cada texto, no solo «Invalid request».
+        DB.fallas.push({ metodo: 'POST', incluye: 'lista-ligas/items', status: 400, veces: 2 });
+        clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar a5');
+        poner('lgTexto', 'matriz-aspectos'); clic('lgBuscar'); await esperar(() => document.querySelector('#lgResultados .lg-resultado'), 'resultado a5');
+        document.querySelector('#lgResultados .lg-resultado button').click();
+        await esperar(() => avisoCon('largos:'), 'aviso con largos');
+        R.ok('400 persistente: el aviso nombra el largo de cada campo y dice que ya reintentó', avisoCon('Url ') && avisoCon('ya reintentado') && filas('ligas').length === ligasAntes + 2, avisoCon('largos:').textContent.slice(0, 200));
+        // Un archivo del buzon que la busqueda devolvio sin carpeta: se detecta al releer y NO se liga como archivado.
+        poner('lgTexto', 'matriz-sin-path'); clic('lgBuscar'); await esperar(() => document.querySelector('#lgResultados .lg-resultado'), 'resultado a6');
+        document.querySelector('#lgResultados .lg-resultado button').click();
+        await esperar(() => avisoCon('está en el buzón'), 'aviso de buzón');
+        R.ok('archivo del buzón sin path en la búsqueda: al releer se detecta y no nace liga «archivado»', filas('ligas').length === ligasAntes + 2 && !filas('ligas').some(l => l.fields.DriveItemId === 'archivo-l4'));
+        clic('lgCerrar');
         // Un equipo fuera del piloto: 403 al abrir el sitio, con el nombre.
         if (gerencia) {
             pestana('proyectos'); clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo');

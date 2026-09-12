@@ -228,3 +228,49 @@ export function nombreDe(correo, roles) {
     if (r && r.Nombre) return r.Nombre;
     return c.split('@')[0].replace(/\d+/g, '').split(/[._-]+/).filter(Boolean).map(p => p[0].toUpperCase() + p.slice(1)).join(' ') || c;
 }
+
+// ---------------------------------------------------------------- ligas: el tope de 255 de SharePoint
+
+/** Largo maximo de una columna de texto de una linea en SharePoint; pasarlo es un 400 «Invalid request» sin mas detalle. */
+export const TEXTO_MAX = 255;
+
+/** La forma corta de SharePoint para abrir un elemento por su GUID (`sharepointIds.listItemUniqueId`): ~150 caracteres, abre lo mismo que el webUrl. null sin sitio o sin GUID. */
+export function urlCortaDeGuid(sitioUrl, guid) {
+    if (!sitioUrl || !guid) return null;
+    const g = String(guid).replace(/[{}]/g, '').toUpperCase();
+    return `${String(sitioUrl).replace(/\/+$/, '')}/_layouts/15/Doc.aspx?sourcedoc=%7B${g}%7D&action=default`;
+}
+
+/** Largo de cada campo de texto, para el aviso de un 400 que SharePoint no explica: 'Title 77 · Ruta 88 · Url 250'. */
+export function resumenLargos(campos) {
+    return Object.entries(campos || {}).filter(([, v]) => typeof v === 'string').map(([k, v]) => `${k} ${v.length}`).join(' · ');
+}
+
+/** Campos de texto que no caben en una columna de una linea: ['Url (268)', ...]. Vacio = todo cabe. */
+export function textosLargos(campos, max = TEXTO_MAX) {
+    return Object.entries(campos || {}).filter(([, v]) => typeof v === 'string' && v.length > max).map(([k, v]) => `${k} (${v.length})`);
+}
+
+/**
+ * La URL que se guarda en PROY_Ligas.Url (texto de una linea, 255). El `webUrl` que Graph da por un
+ * archivo de Office es la forma Doc.aspx?sourcedoc={GUID}&file=<nombre>&action=default&mobileredirect=true
+ * (a veces &DefaultItemOpen=1): con un nombre de la convencion de la casa (60-100 caracteres) pasa de
+ * 255 y SharePoint contesta 400 «Invalid request» (medido 2026-09-12 con el estudio de mercado de
+ * CALYTEK, 77 caracteres de nombre). Orden: el webUrl si cabe; si no, la forma corta con el GUID del
+ * elemento (`sharepointIds.listItemUniqueId`), que abre lo mismo; si no hay GUID, el Doc.aspx sin los
+ * parametros que sobran; null si nada cabe — quien llama avisa en vez de mandar el 400.
+ */
+export function urlParaLiga(webUrl, { sitioUrl, guid } = {}, max = TEXTO_MAX) {
+    const w = String(webUrl || '').trim();
+    if (w && w.length <= max) return w;
+    const corta = urlCortaDeGuid(sitioUrl, guid);
+    if (corta && corta.length <= max) return corta;
+    if (/\/_layouts\/15\/Doc\.aspx\?/i.test(w)) {
+        try {
+            const u = new URL(w);
+            for (const p of ['file', 'mobileredirect', 'DefaultItemOpen']) u.searchParams.delete(p);
+            if (u.href.length <= max) return u.href;
+        } catch (_) { /* no era una URL; se cae al null */ }
+    }
+    return null;
+}

@@ -1,6 +1,6 @@
 // node test/reglas.test.js — reglas puras de MINSA Proyectos (decisiones del plan 2026-09-11).
 import assert from 'node:assert/strict';
-import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, validarUrl } from '../reglas.js';
+import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -86,6 +86,18 @@ ok('reordenar: subir la ultima de una columna sin Orden numera toda la columna',
 ok('reordenar: fuera de rango o id ajeno = sin cambios', reordenar([{ id: 4, Orden: 1 }], 4, -1).length === 0 && reordenar([{ id: 4, Orden: 1 }], 4, 1).length === 0 && reordenar([{ id: 4 }], 99, 1).length === 0);
 ok('validarUrl acepta http(s) y normaliza', validarUrl(' https://Example.invalid/oficio ').url === 'https://example.invalid/oficio');
 ok('validarUrl rechaza vacio, javascript: y texto suelto', !validarUrl('').ok && !validarUrl('javascript:alert(1)').ok && !validarUrl('oficio 123').ok && !validarUrl('file:///C:/x').ok);
+
+// --- ligas: el tope de 255 de una columna de texto (v0.4.1, 2026-09-12)
+const NOMBRE_LARGO = '2024-10-23_CALYTEK_Estudio_mercado-tema-de-ejemplo-sintetico-xx_borrador.docx';
+const DOC_ASPX = `https://minsaenergy.sharepoint.com/sites/Ambiental-CALYTEK/_layouts/15/Doc.aspx?sourcedoc=%7B8F2C4E1A-1111-2222-3333-444455556666%7D&file=${NOMBRE_LARGO}&action=default&mobileredirect=true&DefaultItemOpen=1`;
+const SITIO = 'https://minsaenergy.sharepoint.com/sites/Ambiental-CALYTEK';
+ok('textosLargos nombra el campo y su largo, ignora numeros y lo que cabe', JSON.stringify(textosLargos({ Url: DOC_ASPX, Title: NOMBRE_LARGO, ProyectoId: 3 })) === '["Url (268)"]' && textosLargos({ Url: 'x'.repeat(255) }).length === 0);
+ok('urlParaLiga deja pasar lo que cabe', urlParaLiga('https://example.invalid/a.pdf', { sitioUrl: SITIO, guid: 'g' }) === 'https://example.invalid/a.pdf');
+ok('urlParaLiga: con GUID arma la forma corta de Doc.aspx (llaves fuera, mayusculas)', urlParaLiga(DOC_ASPX, { sitioUrl: SITIO + '/', guid: '{8f2c4e1a-1111-2222-3333-444455556666}' }) === SITIO + '/_layouts/15/Doc.aspx?sourcedoc=%7B8F2C4E1A-1111-2222-3333-444455556666%7D&action=default');
+ok('urlParaLiga: sin GUID recorta file/mobileredirect/DefaultItemOpen y conserva sourcedoc', (() => { const u = urlParaLiga(DOC_ASPX, {}); return u.length <= 255 && u.includes('sourcedoc=%7B8F2C4E1A') && !u.includes('file=') && u.includes('action=default'); })());
+ok('urlCortaDeGuid: null sin sitio o sin GUID; con los dos, 147 caracteres', urlCortaDeGuid(SITIO, null) === null && urlCortaDeGuid('', 'x') === null && urlCortaDeGuid(SITIO, '8f2c4e1a-1111-2222-3333-444455556666').length === 147);
+ok('resumenLargos: solo textos, con su largo', resumenLargos({ Title: 'abc', ProyectoId: 3, Url: 'xy' }) === 'Title 3 · Url 2');
+ok('urlParaLiga: una URL larga que no es Doc.aspx y sin GUID da null', urlParaLiga('https://example.invalid/' + 'a'.repeat(300), {}) === null && urlParaLiga('', {}) === null);
 
 // --- nombres
 ok('iniciales de correo', iniciales('ana.perez@example.invalid') === 'AP' && iniciales('juan.lopez17@example.invalid') === "JL");

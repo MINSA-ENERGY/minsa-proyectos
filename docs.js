@@ -8,9 +8,13 @@
 // se abren tambien desde la tarjeta, con esa tarjeta ya puesta (F3).
 // v0.3.0 (tanda 2): el tercer tipo de liga es «enlace» (F4) — titulo + URL pegada, sin biblioteca:
 // un correo, un oficio en Legal o Finanzas, una pagina. No toca permisos del tenant.
+// v0.4.1: PROY_Ligas.Url y .Ruta son texto de UNA linea (255): el webUrl de Graph por un .docx con
+// nombre de la convencion de la casa pasa de 255 y SharePoint contesta 400 «Invalid request» sin
+// decir por que (2026-09-12, LAU). Al ligar se relee el elemento por id (ruta real + GUID), la URL se
+// acorta con `urlParaLiga` y ningun texto sale hacia Graph sin pasar por `textosLargos`.
 
 import { CONFIG } from './config.js';
-import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl } from './reglas.js';
+import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX } from './reglas.js';
 import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO } from './lote.js';
 import { $, L, VERSION, estado, el, boton, chip, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaHora, aplicar, pedirRelectura } from './comun.js';
 import { esConflicto } from './graph.js';
@@ -193,7 +197,7 @@ async function buscarDocumento() {
         if (!r.length) { cont.appendChild(el('p', 'vacio', 'Nada con ese nombre fuera del buzón.')); return; }
         for (const x of r.slice(0, 30)) {
             const fila = el('div', 'lg-resultado');
-            const izq = el('div'); izq.appendChild(el('div', '', x.nombre)); izq.appendChild(el('div', 'p', `${x.ruta} · ${fechaHora(x.modificado)}`));
+            const izq = el('div'); izq.appendChild(el('div', '', x.nombre)); izq.appendChild(el('div', 'p', `${x.rutaConocida === false ? '(carpeta: se resuelve al ligar)' : x.ruta} · ${fechaHora(x.modificado)}`));
             fila.appendChild(izq);
             fila.appendChild(boton('Ligar', 'mn-btn is-primary is-sm', () => ligarDocumento(x)));
             cont.appendChild(fila);
@@ -207,16 +211,45 @@ async function ligarDocumento(x) {
     if (!PUEDE.ligar(estado.rol)) { avisar('Tu rol es de lectura: no puedes ligar documentos.', 'error'); return; }
     if (estado.ligas.some(l => Number(l.ProyectoId) === p.id && l.DriveItemId === x.id)) { avisar('Ese archivo ya está ligado a este proyecto.', 'ojo'); return; }
     const tareaId = $('lgTarea').value ? Number($('lgTarea').value) : undefined;
-    const campos = limpiar({ Title: x.nombre, ProyectoId: p.id, TareaId: tareaId, Tipo: 'archivado', Unidad: bib.clave, Ruta: x.ruta, Url: x.url, DriveItemId: x.id, LigadoPor: estado.cuenta.username });
     try {
-        const n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => avisar(m, 'ojo'));
+        // La busqueda no garantiza la carpeta ni trae el GUID: se relee el elemento por id. Un 404 es
+        // que ya no esta (se movio o borro desde que se busco); otro fallo liga con lo que trajo la
+        // busqueda (peor ruta, misma liga).
+        let item = x;
+        try { const s = await sitioDe(bib); if (s.id) item = { ...x, ...(await estado.cliente.itemDeDrive(s.id, x.id, m => avisar(m, 'ojo'))) }; }
+        catch (e) {
+            if (e && e.status === 404) { avisar(`«${x.nombre}» ya no está donde la búsqueda lo vio (lo movieron o borraron); vuelve a buscar.`, 'error'); return; }
+            console.warn('itemDeDrive:', e && e.message ? e.message : e);
+        }
+        // Con la carpeta real ya se sabe si es del buzon, que la busqueda solo excluye cuando Graph manda la ruta.
+        if (item.ruta === CONFIG.buzon || String(item.ruta || '').startsWith(CONFIG.buzon + '/')) { avisar(`«${item.nombre}» está en el buzón ${CONFIG.buzon}: todavía no está archivado. Cuando la skill lo acomode vuelve a ligarlo; si es tuyo, súbelo como lote desde «Subir al buzón».`, 'ojo'); return; }
+        const sitioUrl = `https://${CONFIG.sharepointHost}${bib.sitio}`;
+        const corta = urlCortaDeGuid(sitioUrl, item.guid);
+        const url = urlParaLiga(item.url, { sitioUrl, guid: item.guid });
+        if (!url) { avisar(`No se pudo ligar: la liga web de «${item.nombre}» mide ${String(item.url || '').length} caracteres y no cabe en los ${TEXTO_MAX} de la lista; renómbralo más corto o pega un enlace.`, 'error'); return; }
+        const campos = limpiar({ Title: item.nombre, ProyectoId: p.id, TareaId: tareaId, Tipo: 'archivado', Unidad: bib.clave, Ruta: item.ruta, Url: url, DriveItemId: item.id, LigadoPor: estado.cuenta.username });
+        const largos = textosLargos(campos);
+        if (largos.length) { avisar(`No se pudo ligar: ${largos.join(', ')} pasa(n) de los ${TEXTO_MAX} caracteres que admite una columna de texto de SharePoint.`, 'error'); return; }
+        let n;
+        try { n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => avisar(m, 'ojo')); }
+        catch (e) {
+            // El 400 de SharePoint no dice cual campo. Si la Url iba en la forma larga de Graph y hay
+            // forma corta, se reintenta UNA vez con ella (un 400 no escribe nada); si tambien falla,
+            // el aviso lleva el largo de cada texto para que el siguiente diagnostico tenga datos.
+            if (!(e && e.status === 400)) throw e;
+            if (!corta || campos.Url === corta) throw new Error(`${e.message} · largos: ${resumenLargos(campos)}`);
+            console.warn(`PROY_Ligas rechazó la Url larga (${campos.Url.length}); se reintenta con la corta (${corta.length}).`);
+            campos.Url = corta;
+            try { n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => avisar(m, 'ojo')); }
+            catch (e2) { throw (e2 && e2.status === 400) ? new Error(`${e2.message} · largos: ${resumenLargos(campos)} (ya reintentado con la Url corta)`) : e2; }
+        }
         estado.ligas.push(n);
         const vieja = ctx.reemplaza; const alTerminar = ctx.alTerminar;
         cerrarDialogo('dlgLigar');
-        avisar(vieja ? `«${x.nombre}» ligado en lugar de «${vieja.Title}».` : `«${x.nombre}» ligado.`, 'ok');
+        avisar(vieja ? `«${item.nombre}» ligado en lugar de «${vieja.Title}».` : `«${item.nombre}» ligado.`, 'ok');
         alCambiar();
-        await registrarActividad('ligar', `ligó «${x.nombre.slice(0, 80)}»`, p.id, tareaId);
-        if (vieja) await quitarLiga(vieja, x.nombre);   // F2: la vieja se va en la misma operacion, sin preguntar
+        await registrarActividad('ligar', `ligó «${item.nombre.slice(0, 80)}»`, p.id, tareaId);
+        if (vieja) await quitarLiga(vieja, item.nombre);   // F2: la vieja se va en la misma operacion, sin preguntar
         alCambiar();
         if (alTerminar) alTerminar();
     } catch (e) { avisar('No se pudo ligar: ' + (e && e.message ? e.message : e), 'error'); }
@@ -247,6 +280,8 @@ async function guardarEnlace(ev) {
     if (estado.ligas.some(l => Number(l.ProyectoId) === p.id && l.Tipo === 'enlace' && l.Url === v.url)) { avisar('Ese enlace ya está en este proyecto.', 'ojo'); return; }
     const tareaId = $('enTarea').value ? Number($('enTarea').value) : undefined;
     const campos = limpiar({ Title: titulo, ProyectoId: p.id, TareaId: tareaId, Tipo: 'enlace', Url: v.url, LigadoPor: estado.cuenta.username });
+    const largos = textosLargos(campos);
+    if (largos.length) { avisar(`Enlace: ${largos.join(', ')} pasa(n) de los ${TEXTO_MAX} caracteres que admite la lista; acórtalo (un enlace de SharePoint se acorta con «Copiar vínculo»).`, 'error'); $('enUrl').focus(); return; }
     $('enGuardar').disabled = true;
     try {
         const n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => avisar(m, 'ojo'));
@@ -300,6 +335,8 @@ async function subirAlBuzon(ev) {
     const manifiesto = construirManifiesto({ appVersion: VERSION, unidad: bib.clave, etiqueta: CONFIG.etiquetaLote, destino, fecha, concepto, archivos: archivos.map(a => a.name), proyecto: p.Clave, tarea: tareaId });
     const v = validarManifiesto(manifiesto);
     if (!v.ok) { avisar('El lote no es válido: ' + v.motivo, 'error'); return; }
+    const largos0 = textosLargos({ Title: concepto, Ruta: `${CONFIG.buzon}/${nombreCarpeta}` });
+    if (largos0.length) { avisar(`No se pudo subir: ${largos0.join(', ')} pasa(n) de los ${TEXTO_MAX} caracteres que admite la lista; acorta el concepto.`, 'error'); return; }
     const prog = t => { $('sbProgreso').textContent = t; };
     $('sbGuardar').disabled = true;
     let carpeta = null; let s = null;
@@ -316,6 +353,8 @@ async function subirAlBuzon(ev) {
         prog('Cerrando el lote…');
         await estado.cliente.subirPieza(s.id, ruta, NOMBRE_MANIFIESTO, bytesDelManifiesto(manifiesto), 'application/json', m => prog(m));
         const campos = limpiar({ Title: concepto, ProyectoId: p.id, TareaId: tareaId, Tipo: 'buzon', Unidad: bib.clave, Ruta: ruta, DriveItemId: carpeta.id, LigadoPor: estado.cuenta.username });
+        const largos = textosLargos(campos);
+        if (largos.length) throw new Error(`${largos.join(', ')} pasa(n) de los ${TEXTO_MAX} caracteres que admite la lista`);
         const n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => prog(m));
         estado.ligas.push(n); estado.buzonExiste[ruta] = true;
         const alTerminar = ctx.alTerminar;

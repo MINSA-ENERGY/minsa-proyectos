@@ -1,5 +1,5 @@
 // Cliente de Microsoft Graph para listas y documentos — copia literal de calytek-planta-app/app/graph.js
-// (2026-09-11) mas tres metodos para Docs: `buscarEnDrive`, `existeRuta` y `sitioOpcional`.
+// (2026-09-11) mas cuatro metodos para Docs: `buscarEnDrive`, `itemDeDrive`, `existeRuta` y `sitioOpcional`.
 //
 // Todo pasa por conReintento: en un celular, un fallo de red o un 429 es el caso normal. Lo que
 // NO se reintenta es un 403 o un 404: esos no mejoran repitiendo.
@@ -45,6 +45,13 @@ export async function motivo(r) {
     if (r.status === 404) return `no existe (404). ${detalle}`;
     if (r.status === 401) return 'la sesión caducó (401). Vuelve a entrar.';
     return `HTTP ${r.status}. ${detalle}`;
+}
+
+/** Carpeta de un driveItem, relativa a la raiz: `parentReference.path` viene como '/drive/root:/01_Empresa/Sub'. '' si Graph no la mando. */
+function carpetaDe(it) {
+    const p = String((it && it.parentReference && it.parentReference.path) || '');
+    const i = p.indexOf('root:');
+    return i >= 0 ? decodeURIComponent(p.slice(i + 5)).replace(/^\//, '') : '';
 }
 
 /** Codifica una ruta para Graph SIN destruir las diagonales. */
@@ -169,7 +176,7 @@ export function crearCliente(graph, token) {
             const r = await pedir(`${graph}/sites/${siteId}/lists/${listaId}/items`, {
                 method: 'POST', headers: json, body: JSON.stringify({ fields: campos })
             }, avisar);
-            if (!r.ok) throw new Error(`no se pudo escribir en ${nombreLista}: ` + await motivo(r));
+            if (!r.ok) throw errorHttp(`no se pudo escribir en ${nombreLista}: ` + await motivo(r), r.status);
             return aplanar(await r.json());
         },
 
@@ -260,17 +267,31 @@ export function crearCliente(graph, token) {
             const salida = [];
             for (const it of v) {
                 if (!it.file) continue;
-                // parentReference.path viene como '/drive/root:/01_Empresa/Sub'; lo de despues de 'root:' es la ruta.
-                const p = String((it.parentReference && it.parentReference.path) || '');
-                const i = p.indexOf('root:');
-                const carpeta = i >= 0 ? decodeURIComponent(p.slice(i + 5)).replace(/^\//, '') : '';
-                if (buzon && (carpeta === buzon || carpeta.startsWith(buzon + '/'))) continue;
+                // En los resultados de search() `parentReference.path` puede venir VACIO (medido
+                // 2026-09-12: un archivo de 98_Archivo salio con la ruta = su nombre); el buzon solo
+                // se excluye si la ruta se conoce, y quien liga vuelve a pedir el elemento por id.
+                const carpeta = carpetaDe(it);
+                if (buzon && carpeta && (carpeta === buzon || carpeta.startsWith(buzon + '/'))) continue;
                 salida.push({
-                    id: it.id, nombre: it.name, ruta: carpeta ? `${carpeta}/${it.name}` : it.name,
+                    id: it.id, nombre: it.name, ruta: carpeta ? `${carpeta}/${it.name}` : it.name, rutaConocida: !!carpeta,
                     url: it.webUrl, modificado: it.lastModifiedDateTime, tamano: it.size
                 });
             }
             return salida;
+        },
+
+        /**
+         * Un elemento de la biblioteca por su id, con lo que la busqueda no garantiza: la carpeta real
+         * (`parentReference.path`) y el GUID de SharePoint (`sharepointIds.listItemUniqueId`) con el que
+         * se arma una URL corta cuando el `webUrl` de Graph no cabe en los 255 de PROY_Ligas.Url.
+         * Devuelve { id, nombre, ruta, url, guid }.
+         */
+        async itemDeDrive(siteId, itemId, avisar) {
+            const r = await pedir(`${graph}/sites/${siteId}/drive/items/${encodeURIComponent(itemId)}?$select=id,name,webUrl,parentReference,sharepointIds`, {}, avisar);
+            if (!r.ok) throw errorHttp('no se pudo leer el archivo en la biblioteca: ' + await motivo(r), r.status);
+            const it = await r.json();
+            const carpeta = carpetaDe(it);
+            return { id: it.id, nombre: it.name, ruta: carpeta ? `${carpeta}/${it.name}` : it.name, url: it.webUrl, guid: it.sharepointIds && it.sharepointIds.listItemUniqueId || null };
         },
 
         /**

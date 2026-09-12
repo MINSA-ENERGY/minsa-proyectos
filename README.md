@@ -6,6 +6,28 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.4.1** (2026-09-12) — corrección del primer defecto reportado en operación: **ligar un archivo de la
+biblioteca contestaba «No se pudo ligar: no se pudo escribir en PROY_Ligas: HTTP 400. Invalid request»**
+(Carlos, la LAU, un `.docx` de 2024 archivado en `98_Archivo/` con nombre de 77 caracteres). **La causa no está
+demostrada** —PROY_Ligas nunca había recibido una escritura en real (el exporte del 11-sep trae 0 renglones) y el
+400 de SharePoint no dice cuál campo—; la hipótesis principal es el **tope de 255** de `PROY_Ligas.Url` (texto de
+una línea): el `webUrl` que Graph devuelve por un `.docx` es la forma
+`…/_layouts/15/Doc.aspx?sourcedoc=%7BGUID%7D&file=<nombre>&action=default&mobileredirect=true`, que con ese
+nombre mide **250** sin `&DefaultItemOpen=1` y **268** con él, y no se midió cuál de las dos da el tenant. A la
+vez la búsqueda (`drive/root/search`) devolvió el archivo **sin `parentReference.path`** y la app pintó la ruta
+como si estuviera en la raíz. Lo que hace v0.4.1, pensado para que sirva sea cual sea la causa: (1) al ligar
+**relee el elemento por id** (`itemDeDrive`: carpeta real + `sharepointIds.listItemUniqueId`; un 404 avisa y no
+liga; un archivo que resulta estar en el buzón tampoco se liga como «archivado»); (2) `urlParaLiga` guarda el
+`webUrl` si cabe y si no la **forma corta** `…/Doc.aspx?sourcedoc=%7BGUID%7D&action=default` (147 caracteres,
+abre lo mismo — verificado solo por razonamiento para `.docx`; para un `.pdf` con `webUrl` > 255 no está
+medido); (3) `textosLargos` detiene **en la app, con el campo y su largo**, cualquier texto > 255 antes de que
+salga hacia Graph — en Ligar, «Pegar un enlace» y «Subir al buzón» (aquí antes de subir las piezas); (4) **si
+SharePoint contesta 400 de todos modos**, la app reintenta **una** vez con la Url corta (un 400 no escribe nada)
+y, si vuelve a fallar, el aviso trae el largo de cada texto: «… · largos: Title 77 · Ruta 88 · Url 250 · …»
+— con eso el siguiente diagnóstico ya tiene datos. El Graph falso de la E2E rechaza ahora el texto > 255 igual
+que SharePoint (antes lo aceptaba: por eso 251 pruebas en verde no lo vieron) y admite 400 inyectados. Sin
+cambio de esquema. Los fixtures llevan un nombre **sintético** del mismo largo, no el del documento real.
+
 **v0.4.0** (2026-09-11, casi medianoche) — tanda 3 de la auditoría, los 10 P3, con lo que **cierra la auditoría
 del 11-sep** (33 hallazgos: 7 + 12 + 10 hechos, 4 «NO» a propósito): **«ver toda»** la actividad (global o
 del proyecto, chips por persona, de 50 en 50) · **«Ver en SharePoint»** en el rail (el `webUrl` real de
@@ -140,6 +162,15 @@ E2E contra Graph falso, 3 roles, desde PowerShell (Edge headless):
 powershell -NoProfile -ExecutionPolicy Bypass -File .\test\e2e.ps1
 ```
 
+**v0.4.1 (2026-09-12): 265/265** — gerencia 131 · colaborador 119 · lectura 15, estable en 2 corridas seguidas. Lo
+nuevo: `archivo-l1` imita al tenant (nombre de 77, `webUrl` Doc.aspx de 268, búsqueda sin `parentReference.path`)
+y la liga sale con `Ruta` real y `Url` ≤ 255; un enlace pegado de 300 se detiene con aviso; un 400 inyectado en el
+primer POST se resuelve con el reintento de Url corta; dos 400 seguidos dejan el aviso con «largos:»; un archivo
+del buzón sin path se detecta al releer; y el falso contesta 400 «Invalid request» a todo texto > 255 en cualquier
+POST/PATCH de la corrida (`DB.textoLargo` debe quedar vacío). `npm test`: 57 reglas. Ojo del arnés: los ids de
+fixture `archivo-a*` los usan también las pruebas de F2 (que empujan su propio `archivo-a3` a media corrida); los
+de v0.4.1 son `archivo-l*` para no chocar.
+
 **v0.4.0 (2026-09-11, casi medianoche): 251/251** — gerencia 124 · colaborador 112 · lectura 15, estable en 3 corridas
 seguidas. El Graph falso devuelve ahora `createdBy` / `createdDateTime` / `lastModifiedDateTime` por renglón y
 `webUrl` por lista. Lo nuevo que cubre: contador rojo = solo vencidas; fechas nativas (`type=date`) y la
@@ -202,6 +233,14 @@ Carlos corrió el paso de esquema de v0.3.0 (abajo, tal cual: consentir `Sites.F
 mover una tarjeta con la consola abierta no imprime «Graph rechazó If-Match» (SharePoint acepta la cabecera), y con la
 misma tarjeta en dos pestañas —mover en la 2.ª y luego en la 1.ª sin recargar— la 1.ª recibe el toast «alguien cambió
 el renglón … (412)» y relee: la protección T1 funciona en real. Las dos secciones siguientes quedan como registro.
+
+## Al publicar v0.4.1
+
+Sin cambio de esquema. `git push` (lo hace Carlos); el service worker va en `minsa-proyectos-v5`. Prueba de
+aceptación en real: Docs de la LAU → «Ligar archivo» → buscar `Estudio_mercado` → Ligar; debe aparecer con
+ruta `98_Archivo/…` y abrir desde la liga. Con la consola abierta (F12): si sale «PROY_Ligas rechazó la Url
+larga (N)» la causa era el largo y N dice cuánto medía el `webUrl` real. Si vuelve a dar 400 pese al reintento,
+el aviso trae «largos: …» — pegar ese texto es el siguiente dato del diagnóstico.
 
 ## Al publicar v0.4.0
 
