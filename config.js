@@ -8,7 +8,7 @@
 export const CONFIG = {
     // App registration "MINSA Proyectos" — la crea Carlos (docs/setup-carlos.md, tarea 1) y
     // pega aqui el Application (client) ID. Mientras diga PENDIENTE la app no puede entrar.
-    clientId: 'PENDIENTE-TAREA-1',
+    clientId: '6bc9c04a-9908-4195-a35e-40c06518edf3',
     tenantId: 'c28754af-c62e-44db-a72a-3eeab634074b',
 
     // Sites.Selected: el token NO alcanza nada por si mismo. El acceso lo da la autorizacion
