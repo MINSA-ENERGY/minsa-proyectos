@@ -28,6 +28,8 @@ y, si vuelve a fallar, el aviso trae el largo de cada texto: «… · largos: Ti
 que SharePoint (antes lo aceptaba: por eso 251 pruebas en verde no lo vieron) y admite 400 inyectados. Sin
 cambio de esquema. Los fixtures llevan un nombre **sintético** del mismo largo, no el del documento real.
 
+**También en v0.4.1** (2026-09-12, captura de Carlos): **«Actividad reciente» empujaba el Inicio hacia abajo** — cada entrada caía a una palabra por línea. Causa: `.mini .it` era una rejilla de tres columnas (`auto 1fr auto`) y la hora, en `nowrap`, se quedaba con ~100 px de los 268 de una lateral de 300 px; 8 entradas medían ~2,700 px. Arreglo: dos columnas (avatar · cuerpo) con **cabecera quién + cuándo**, la frase a todo el ancho, el título «…» en negrita y recortado a 2 líneas (íntegro en `title`), el «de X a Y» en línea propia como `X → Y`, filete entre entradas, lateral de **340 px** con principal `minmax(0, 1fr)`, y **5 entradas** en Inicio en vez de 8 («ver toda» sigue cubriendo el resto). `itemMini` ya no recibe el nombre dentro de la frase (`queHizo`, no `fraseActividad`), así que Próximos vencimientos, Sin movimiento, «Toda la actividad» y Equipo cambian de acomodo con ella. E2E 131/119/15. El CSS y el JS viajaron en el commit de la liga (20c3cf7, `-a` de una sesión paralela); la prueba en f59655d.
+
 **v0.4.0** (2026-09-11, casi medianoche) — tanda 3 de la auditoría, los 10 P3, con lo que **cierra la auditoría
 del 11-sep** (33 hallazgos: 7 + 12 + 10 hechos, 4 «NO» a propósito): **«ver toda»** la actividad (global o
 del proyecto, chips por persona, de 50 en 50) · **«Ver en SharePoint»** en el rail (el `webUrl` real de
