@@ -402,7 +402,7 @@ try {
         irHash('#p/no-existe'); await esperar(() => visible('p-inicio') && avisoCon('No hay un proyecto'), 'clave desconocida');
         R.ok('clave desconocida: aviso y a Inicio, hash corregido', location.hash === '#inicio', location.hash);
         R.ok('Inicio: la nota sale como «anotó: …» en la actividad', $('inicioActividad').textContent.includes('anotó: «Esperando'));
-        R.ok('Inicio: actividad reciente con verbos', $('inicioActividad').textContent.includes('movió') && $('inicioActividad').textContent.includes('creó'));
+        { const nAct = document.querySelectorAll('#inicioActividad .it').length; R.ok('Inicio: actividad reciente con verbos, tope de 5 renglones y «ver toda» si hay más (2026-09-12)', $('inicioActividad').textContent.includes('movió') && nAct <= 5 && (nAct < 5 ? $('btnActividadInicio').hidden : true), `${nAct} renglones`); }
         R.ok('el aviso es un toast con role=status y ×', $('avisos').getAttribute('role') === 'status' && !!$('avisos').querySelector('.mensaje .cerrar'));
         $('avisos').querySelector('.mensaje .cerrar').click();
         R.ok('la × cierra el aviso', !$('avisos').querySelector('.mensaje'));
