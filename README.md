@@ -21,18 +21,31 @@ el resto salió de recorrer la app buscando qué le falta a un chat que ya se us
   filete firme abajo y una línea de marca de 3 px arriba; con el pie ya hundido, el cuerpo (lo editable) queda como la
   única superficie clara. Dentro de la tarjeta, **Mover a… · Notas · Documentos · Editar** llevan un filete arriba y
   aire, para leerse como bloques y no como una lista continua de rótulos.
-- **Enlaces clicables** (`comun.js: textoConEnlaces`, dentro de `textoConMenciones`): una `https://…` pegada en el chat,
-  en una nota o en la actividad se abre en pestaña nueva sin `opener`; la puntuación pegada al final queda fuera.
+- **Enlaces clicables** (`comun.js: textoConEnlaces`, dentro de `textoConMenciones`): una `https://…` pegada en el chat o
+  en una nota se abre en pestaña nueva sin `opener`; la puntuación pegada al final queda fuera. En los renglones de
+  actividad (que ya son un botón que abre la tarjeta) el texto sigue plano: un `<a>` dentro de `<button>` es inválido y
+  dispararía dos acciones (lo cazó el `revisor-entregable`).
 - **«N nuevos desde tu última visita»** (`comun.js: chatVistoHasta · marcarChatVisto · comentariosNuevos`): por proyecto,
   este dispositivo guarda en `localStorage` hasta dónde se leyó; lo ajeno posterior pone el contador de la pestaña Chat
   en ámbar y una raya ámbar en el hilo justo antes del primero nuevo. La raya se fija **al entrar** al chat (el refresco
   de 120 s y «Actualizar» no la mueven) y desaparece al salir y volver. Sin marca (primera vez, navegador que no
-  guarda) nada es nuevo. No es «leído» compartido: es por dispositivo, a propósito.
+  guarda) nada es nuevo. No es «leído» compartido: es por dispositivo, a propósito. Límite declarado: `Cuando` lo pone
+  el reloj de cada cliente; un celular con la hora corrida puede dejar su comentario fuera de «nuevos» o meter la raya a
+  media conversación.
+- **Lo que el `revisor-entregable` cazó con la E2E en verde, corregido antes del cierre:** el enlace clicable entraba también
+  en los renglones-botón de actividad · el bote medía 2.75:1 en claro (`--text-faint` → `--text-muted`) · la cabecera en
+  oscuro se distinguía solo por el filete (1.08:1 entre hundido y tarjeta): ahora lleva un 7 % de marca mezclado en el
+  fondo, en los dos temas · la cuenta de la raya crecía con cada refresco (ahora el conjunto de «nuevos» se fija al
+  entrar) · «rol lectura no ve el botón» se afirmaba sin prueba (+2 en lectura: hilo con propio y ajeno sin bote, y
+  `borrarComentario` forzada se niega). Se declaran sin aplicar: la UI es cortesía —con `Sites.Selected write` cualquier
+  cuenta puede hacer `DELETE` a `PROY_Actividad` fuera de la app, como en todo lo demás (README, «Riesgos»)—; no hay
+  captura de la raya ni de la confirmación (solo E2E); y dos preexistentes: a 390 el redactor del chat queda bajo la barra
+  fija y el FAB tapa el hilo, y el anillo de foco de «Tarea» pisa el rótulo «Asignado» en Nueva tarea.
 - **Declarado sin aplicar:** Enter solo sigue sin enviar (Ctrl/Cmd+Enter envía; en celular Enter es salto de línea) —
   cambiarlo toca también la nota de la tarjeta y se decide aparte; editar un comentario ya mandado (borrar y reescribir
   cubre el caso sin un segundo formulario).
 
-Medido: `npm test` verde (74 reglas), E2E **217 / 197 / 20** (+13 / +11 / 0: botón por rol, confirmación y cancelar,
+Medido: `npm test` verde (74 reglas), E2E **217 / 197 / 22** (+13 / +11 / +2: botón por rol, confirmación y cancelar,
 DELETE y contador, ajeno solo gerencia, enlace, marca de visto, ámbar en pestaña, raya al entrar, raya que sobrevive a
 «Actualizar», raya que se va al volver). Capturas tarjeta · chat · nueva-tarea a 390 y 1366 × 2 temas, 0 desborde. SW
 `minsa-proyectos-v11`.

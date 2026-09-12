@@ -44,8 +44,8 @@ export function pintarChat(p) {
     const scrollAntes = hilo.scrollTop;
     // v0.9.0: la raya «nuevos» se fija al ENTRAR al chat de este proyecto (no en cada repintado: el refresco de
     // 120 s la movería sola). La marca de visto sube al final de cada pintada.
-    if (hilo.dataset.proyecto !== String(p.id)) { hilo.dataset.proyecto = String(p.id); hilo.dataset.vistoAlEntrar = chatVistoHasta(p.id); delete hilo.dataset.pintado; }
-    const nuevos = new Set(comentariosNuevos(p.id, hilo.dataset.vistoAlEntrar).map(c => c.id));
+    if (hilo.dataset.proyecto !== String(p.id)) { hilo.dataset.proyecto = String(p.id); delete hilo.dataset.pintado; hilo._nuevos = new Set(comentariosNuevos(p.id, chatVistoHasta(p.id)).map(c => c.id)); }
+    const nuevos = hilo._nuevos || new Set();   // fijado al entrar: lo que llegue durante el refresco no se suma a «tu ultima visita»
     hilo.textContent = '';
     if (!cs.length) hilo.appendChild(el('p', 'vacio', puedeComentarEn(p) ? 'Nadie ha escrito todavía. Aquí va lo que el equipo necesita leer del frente; con @nombre avisas a alguien.' : 'Nadie ha escrito todavía.'));
     let dia = null; let anterior = null; let rayaPuesta = false;
@@ -93,7 +93,7 @@ export function pintarChat(p) {
     hilo.scrollTop = estabaAlFondo ? hilo.scrollHeight : scrollAntes;
 }
 /** v0.9.0: app.js lo llama cuando el chat deja de estar en pantalla; la proxima pintada cuenta como «entrar». */
-export function salirDelChat() { const h = $('chatHilo'); if (h) { delete h.dataset.proyecto; delete h.dataset.vistoAlEntrar; delete h.dataset.pintado; } }
+export function salirDelChat() { const h = $('chatHilo'); if (h) { delete h.dataset.proyecto; delete h.dataset.pintado; h._nuevos = null; } }
 /** Tras enviar, siempre al fondo (es mi mensaje). */
 function alFondo() { const h = $('chatHilo'); h.scrollTop = h.scrollHeight; }
 

@@ -694,7 +694,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* ==== v0.9.0 (2026-09-12): borrar comentario, «nuevos desde tu ultima visita», enlaces clicables, cabecera de dialogo marcada ==== */
 /* ---- cabecera de dialogo: Carlos pidio que se distinga de lo editable. Fondo hundido, filete mas firme abajo y una
    linea de marca arriba; el pie ya era hundido, asi que el cuerpo (lo editable) queda como la unica superficie clara. */
-.mn-dialog-head { background: var(--surface-sunken); border-bottom: 1px solid var(--border-default); border-radius: var(--r-md) var(--r-md) 0 0; box-shadow: inset 0 3px 0 var(--brand-primary); padding-top: calc(var(--sp-4) + 2px); }
+.mn-dialog-head { background: color-mix(in srgb, var(--brand-primary) 7%, var(--surface-sunken)); border-bottom: 1px solid var(--border-default); border-radius: var(--r-md) var(--r-md) 0 0; box-shadow: inset 0 3px 0 var(--brand-primary); padding-top: calc(var(--sp-4) + 2px); }
 .mn-dialog-foot { border-top-color: var(--border-default); }
 /* Las secciones DENTRO del dialogo de tarjeta (Mover a… · Notas · Documentos · Editar): un filete arriba y aire, para que
    cada bloque se lea como bloque y no como una lista continua de rotulos. El primero no lleva filete. */
@@ -705,7 +705,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
    foco, en tactil (sin hover) siempre, para que exista sin ensuciar el hilo. */
 .msg.has-borrar { grid-template-columns: 26px minmax(0, 1fr) auto; }
 .nota.has-borrar { grid-template-columns: auto 1fr auto; }
-.borrar-msg { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-faint); cursor: pointer; align-self: start; opacity: 0; transition: opacity .12s, color .12s, background .12s; }
+.borrar-msg { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-muted); cursor: pointer; align-self: start; opacity: 0; transition: opacity .12s, color .12s, background .12s; }
 .borrar-msg svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .msg:hover .borrar-msg, .nota:hover .borrar-msg, .borrar-msg:focus-visible { opacity: 1; }
 .borrar-msg:hover, .borrar-msg:focus-visible { color: var(--status-danger-fg); background: var(--status-danger-bg); }

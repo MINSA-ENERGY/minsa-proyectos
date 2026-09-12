@@ -1018,6 +1018,13 @@ try {
         // v0.8.0: el chat se lee; el redactor no existe para este rol y una linea gris lo dice.
         tab('chat'); await dormir(50);
         R.ok('v0.8.0 (lectura): el chat se ve, sin redactor y con la línea «Solo lectura»', visible('tab-chat') && $('formChat').classList.contains('oculto') && !$('chatSoloLectura').classList.contains('oculto') && $('chatSoloLectura').textContent.startsWith('Solo lectura') && $('chatHilo').textContent.includes('Nadie ha escrito'));
+        // v0.9.0: con comentarios en el hilo (uno propio y uno ajeno), lectura no ve el botón de borrar en ninguno, y forzar la función se niega.
+        filas('actividad').push({ id: DB.siguienteId++, fields: { Title: 'comentario propio de lectura', Accion: 'comentar', Quien: YO, Cuando: new Date().toISOString(), ProyectoId: filas('proyectos')[0].id } });
+        filas('actividad').push({ id: DB.siguienteId++, fields: { Title: 'comentario ajeno', Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date().toISOString(), ProyectoId: filas('proyectos')[0].id } });
+        await recargarYEsperar(); tab('chat'); await esperar(() => document.querySelectorAll('#chatHilo .msg').length === 2, 'hilo con 2');
+        R.ok('v0.9.0 (lectura): ni el propio ni el ajeno traen borrar', !document.querySelector('#chatHilo .borrar-msg'));
+        { const mod = await import('../comun.js'); const c = mod.comentariosDe(filas('proyectos')[0].id)[0]; const nAntes = filas('actividad').length; await mod.borrarComentario(c, mod.estado.proyectoAbierto);
+          R.ok('v0.9.0 (lectura): borrarComentario se niega aunque se fuerce', filas('actividad').length === nAntes && !!avisoCon('Solo quien lo escribió')); }
         pestana('mis'); await esperar(() => visible('p-mis'), 'mis');
         R.ok('lectura: Mis tareas trae la sembrada, vencida arriba en «Urgentes» con los días grandes', document.querySelectorAll('#misLista .tarjeta').length === 1 && !!document.querySelector('#misLista .urgentes .urgente.is-danger .tarjeta') && $('misLista').textContent.includes('venció') && $('misLista').querySelector('.urgente .k b').textContent === String(-diasPara('2026-09-01T18:00:00Z')));
         pestana('inicio'); await dormir(50);

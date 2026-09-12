@@ -407,10 +407,11 @@ export function iconoArchivo(nombre, tipoLiga = null, tam = '') {
  * Un texto con sus @menciones como chips: quien fue mencionado se ve (y su nombre completo va en el
  * title). La mencion de la persona que mira lleva `is-yo`. Sin innerHTML: nodos de texto + <span>.
  */
-export function textoConMenciones(texto, yo = estado.cuenta && estado.cuenta.username) {
+export function textoConMenciones(texto, yo = estado.cuenta && estado.cuenta.username, conEnlaces = true) {
     const f = document.createDocumentFragment();
     for (const tr of trozosConMenciones(texto, estado.roles)) {
-        if (!tr.mencion) { f.appendChild(textoConEnlaces(tr.texto)); continue; }
+        // v0.9.0: `conEnlaces=false` cuando el texto va DENTRO de un boton (renglones de actividad): un <a> anidado es invalido y dispararia dos acciones.
+        if (!tr.mencion) { f.appendChild(conEnlaces ? textoConEnlaces(tr.texto) : document.createTextNode(tr.texto)); continue; }
         const m = el('span', 'mencion' + (yo && tr.mencion === String(yo).toLowerCase() ? ' is-yo' : ''), tr.texto);
         m.title = nombreDe(tr.mencion, estado.roles); m.dataset.mencion = tr.mencion;
         f.appendChild(m);

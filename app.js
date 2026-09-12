@@ -402,7 +402,7 @@ function itemActividad(a, conProyecto) {
 function fraseMarcada(texto) {
     const f = el('div', 'f'); const m = /^(.*?)(«[^»]*»)(.*)$/s.exec(texto);
     if (!m) { f.textContent = texto; return f; }
-    f.appendChild(document.createTextNode(m[1])); const b = el('b'); b.appendChild(textoConMenciones(m[2])); b.title = m[2]; f.appendChild(b);   // v0.8.0: las @menciones como chip tambien aqui
+    f.appendChild(document.createTextNode(m[1])); const b = el('b'); b.appendChild(textoConMenciones(m[2], undefined, false)); b.title = m[2]; f.appendChild(b);   // v0.8.0: las @menciones como chip tambien aqui
     const resto = m[3].trim();
     if (resto) f.appendChild(el('span', 'sino', resto.replace(/^de (.+) a (.+)$/, '$1 → $2')));
     return f;
