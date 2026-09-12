@@ -60,7 +60,13 @@ export function aplanar(item) {
     const f = item && item.fields ? item.fields : (item || {});
     const etag = item && (item.eTag || item['@odata.etag']);
     // `_etag` (v0.3.0, T1): la version del renglon al leerlo; actualizarRenglon lo manda como If-Match.
-    return { ...f, id: Number(item.id ?? f.id), ...(etag ? { _etag: String(etag) } : {}) };
+    // `_creado*` / `_modificado` (v0.4.0, U12/T3): lo que SharePoint sabe y la app no pedia.
+    const quien = u => (u && u.user && (u.user.email || u.user.displayName)) || undefined;
+    return {
+        ...f, id: Number(item.id ?? f.id), ...(etag ? { _etag: String(etag) } : {}),
+        _creado: item && item.createdDateTime || undefined, _creadoPor: quien(item && item.createdBy),
+        _modificado: item && item.lastModifiedDateTime || undefined
+    };
 }
 
 /** Error con `status` (412 = alguien cambio el renglon; 0 = sin red) para que quien llama distinga. */
@@ -72,6 +78,7 @@ export function crearCliente(graph, token) {
     const cab = { Authorization: 'Bearer ' + token };
     const json = { 'Content-Type': 'application/json' };
     const listasPorNombre = new Map();
+    const urlPorNombre = new Map();   // webUrl de cada lista (F13: «Ver en SharePoint»)
     // Si Graph rechazara la cabecera If-Match con 400 (no se pudo medir contra el tenant desde el
     // harness), se reintenta sin ella y se deja de mandar en esta sesion: la app sigue escribiendo.
     let ifMatchSirve = true;
@@ -96,12 +103,15 @@ export function crearCliente(graph, token) {
 
         /** Lista los nombres de listas del sitio (para provisionar y para resolver ids). */
         async listas(siteId) {
-            const r = await pedir(`${graph}/sites/${siteId}/lists?$select=id,name,displayName&$top=200`);
+            const r = await pedir(`${graph}/sites/${siteId}/lists?$select=id,name,displayName,webUrl&$top=200`);
             if (!r.ok) throw new Error('no se pudieron ver las listas del sitio: ' + await motivo(r));
             const v = (await r.json()).value;
-            for (const l of v) { listasPorNombre.set(l.displayName, l.id); listasPorNombre.set(l.name, l.id); }
+            for (const l of v) { listasPorNombre.set(l.displayName, l.id); listasPorNombre.set(l.name, l.id); if (l.webUrl) { urlPorNombre.set(l.displayName, l.webUrl); urlPorNombre.set(l.name, l.webUrl); } }
             return v;
         },
+
+        /** La URL web de una lista ya vista por `listas()` (o null): es lo que abre Microsoft Lists, con su vista Tablero. */
+        urlDeLista(nombre) { return urlPorNombre.get(nombre) || null; },
 
         async idDeLista(siteId, nombre) {
             if (!listasPorNombre.has(nombre)) await this.listas(siteId);

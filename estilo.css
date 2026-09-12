@@ -60,6 +60,31 @@
   .menu-caja button { min-height: var(--control-h); border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); font: inherit; font-weight: 600; cursor: pointer; }
   .menu-caja .tema { margin-left: 0; }
   .menu-caja .tema button { flex: 1; }
+  .menu-caja a { min-height: var(--control-h); display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border-default); border-radius: var(--r-sm); color: var(--text-body); font-weight: 600; text-decoration: none; }
+  /* U8: en celular «Nueva tarea» flota abajo a la derecha, encima de las pestanas; si no aplica, no estorba. */
+  #btnNuevaTarea { position: fixed; right: var(--sp-3); bottom: calc(var(--sp-7) + 20px + env(safe-area-inset-bottom)); z-index: var(--z-pop); border-radius: var(--r-pill); box-shadow: var(--shadow-pop); padding: 0 var(--sp-4); min-height: var(--control-h); }
+  #btnNuevaTarea:disabled { display: none; }
+}
+.rail .sesion a.mn-btn { text-decoration: none; }
+/* F12: «ver toda» pegado al titulo de la tarjeta de actividad */
+.mn-card h2 .ver-toda { float: right; font-weight: 500; text-transform: none; letter-spacing: 0; }
+/* U6: «ver las N anteriores» en Hecho */
+.col .mas { border: 0; background: transparent; color: var(--text-link); font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer; padding: var(--sp-1); text-align: left; }
+.col .mas:hover { text-decoration: underline; }
+/* U10: grupos de Documentos */
+.docs .grupo { margin: var(--sp-2) 0 0; font-family: var(--font-data); font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.doc .t .mn-chip { margin-right: var(--sp-1); vertical-align: middle; }
+/* U11: imprimir = lo que hay en pantalla, sin cromo. Ctrl+P o el boton «Imprimir». */
+@media print {
+  .mn-rail, .barra-movil, .sync, #avisos, #sinRed, .tabs, .filtros, .col-tabs, .proyecto-cab .acciones, .lateral, .sig, .col .mas, .ver-toda, .pie, .tema, #btnVolver, .docs-acciones { display: none !important; }
+  body { background: #fff; color: #000; }
+  .contenido { padding: 0; }
+  .mn-shell { display: block; }
+  .dos-columnas, .dos-columnas.ancha { grid-template-columns: 1fr; }
+  .tablero { grid-template-columns: repeat(4, 1fr); overflow: visible; }
+  .col, .tarjeta, .mn-card, .renglon, .doc { break-inside: avoid; box-shadow: none; }
+  .tabla { overflow: visible; }
+  a[href]::after { content: none; }
 }
 
 /* ---- avisos: TOAST fijo abajo (U1). En celular queda encima de la barra de pestanas. */

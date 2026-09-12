@@ -15,7 +15,7 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, nombreDe, diasPara, estadoVence } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, activarMascaraFechas, opciones, limpiar, porId, registrarActividad, equipoDe, hashDe, fijarHash, fraseActividad, aplicar, fijarReleer, pedirRelectura } from './comun.js';
+import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, hashDe, fijarHash, fraseActividad, aplicar, fijarReleer, pedirRelectura } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
 
@@ -124,6 +124,9 @@ async function sesionIniciada() {
     $('barraMovil').classList.remove('oculto');
     $('syncMovil').classList.remove('oculto'); pintarSync();
     pintarRailEquipos();
+    // F13: la misma lista en Microsoft Lists (su vista Tablero es el plan B gratis del plan).
+    const urlLista = estado.cliente.urlDeLista(L.tareas);
+    for (const id of ['lnkSharePoint', 'lnkSharePointMovil']) { $(id).classList.toggle('oculto', !urlLista); if (urlLista) $(id).href = urlLista; }
     // Aterriza donde diga el hash (deep link, F5, o el destino guardado antes del login); si no, Inicio.
     let destino = null;
     try { destino = sessionStorage.getItem('proy.destino'); sessionStorage.removeItem('proy.destino'); } catch (_) {}
@@ -157,7 +160,10 @@ async function recargar() {
         await cargarTodo();
         estado.rol = rolDe(estado.cuenta.username, estado.roles);
         ponerQuien(`${estado.cuenta.username} · ${estado.rol}`);
-        repintar();
+        // T3: se repinta SIEMPRE (los chips «venció»/«vence hoy» dependen del reloj, y el DOM viejo
+        // engancha objetos viejos), pero sin mover la posicion de lectura. «Solo si cambio» se
+        // intento y se retiro en la revision de v0.4.0 por esas dos razones.
+        const y = window.scrollY; repintar(); window.scrollTo({ top: y });
     } catch (e) { avisar('No se pudieron releer las listas: ' + (e && e.message ? e.message : e), 'error'); }
     finally { $('btnActualizar').disabled = false; }
 }
@@ -222,6 +228,7 @@ function fijarProyectoAbierto(p) {
     if (!estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id) {
         estado.filtroTareas = { quien: null, alta: false, vencidas: false, texto: '' }; $('filtroTexto').value = '';
         estado.colMovil = 'por-hacer'; estado.ordenLista = { col: 'vence', dir: 1 };
+        estado.hechoTodas = false; estado.filtroDocs = null;
     }
     estado.proyectoAbierto = p;
 }
@@ -241,9 +248,9 @@ const misAbiertas = () => { const yo = estado.cuenta.username.toLowerCase(); ret
 
 function pintarInsignias() {
     const mias = misAbiertas();
+    // T4: el contador del rail siempre es VENCIDAS (rojo) y nada si no hay; el total abierto vive en el KPI de Inicio.
     const vencidas = mias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger').length;
-    $('nMis').textContent = String(vencidas || mias.length); $('nMis').hidden = mias.length === 0;
-    $('nMis').classList.toggle('is-danger', vencidas > 0);
+    $('nMis').textContent = String(vencidas); $('nMis').hidden = vencidas === 0;
     const n = activos().length; $('nProyectos').textContent = String(n); $('nProyectos').hidden = n === 0;
 }
 /** Rail de equipos (U2): el filtro puesto se ve (is-on) y cada equipo trae cuantos proyectos activos lleva. */
@@ -321,6 +328,50 @@ function pintarInicio() {
     const act = $('inicioActividad'); act.textContent = '';
     for (const a of estado.actividad.slice(0, 8)) { const p = porId(estado.proyectos, a.ProyectoId); act.appendChild(itemMini(a.Quien, fraseActividad(a), p ? p.Title : '', fechaHora(a.Cuando))); }
     if (!estado.actividad.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
+    $('btnActividadInicio').hidden = estado.actividad.length <= 8;
+}
+
+// ---------------------------------------------------------------- toda la actividad (F12) y el equipo (F13)
+
+let acCtx = { proyectoId: null, quien: null, n: 50 };
+/** Toda la actividad, global (proyectoId null) o de un proyecto, filtrable por persona, de 50 en 50. */
+function abrirActividad(proyectoId) {
+    acCtx = { proyectoId: proyectoId || null, quien: null, n: 50 };
+    const p = proyectoId ? porId(estado.proyectos, proyectoId) : null;
+    $('acTitulo').textContent = p ? `Actividad · ${p.Title}` : 'Toda la actividad';
+    pintarActividad();
+    abrirDialogo('dlgActividad');
+}
+function pintarActividad() {
+    const todas = estado.actividad.filter(a => !acCtx.proyectoId || Number(a.ProyectoId) === acCtx.proyectoId);
+    const quienes = [...new Set(todas.map(a => String(a.Quien || '').toLowerCase()).filter(Boolean))].sort();
+    const f = $('acFiltro'); f.textContent = '';
+    const chipQ = (texto, q) => { const b = boton(texto, acCtx.quien === q ? 'is-on' : '', () => { acCtx.quien = q; acCtx.n = 50; pintarActividad(); }, { quien: q || 'todos' }); b.setAttribute('aria-pressed', acCtx.quien === q ? 'true' : 'false'); f.appendChild(b); };
+    chipQ('Todos', null);
+    for (const q of quienes) chipQ(nombreDe(q, estado.roles), q);
+    const filtradas = todas.filter(a => !acCtx.quien || String(a.Quien || '').toLowerCase() === acCtx.quien);
+    const l = $('acLista'); l.textContent = '';
+    for (const a of filtradas.slice(0, acCtx.n)) { const p = porId(estado.proyectos, a.ProyectoId); l.appendChild(itemMini(a.Quien, fraseActividad(a), acCtx.proyectoId ? '' : (p ? p.Title : ''), fechaHora(a.Cuando))); }
+    if (!filtradas.length) l.appendChild(el('p', 'vacio', 'Sin actividad.'));
+    $('acMas').hidden = filtradas.length <= acCtx.n;
+    $('acMas').textContent = `ver 50 más (${filtradas.length - Math.min(acCtx.n, filtradas.length)} restantes)`;
+}
+/** Quien tiene que rol (PROY_Roles), solo lectura, con sus tarjetas abiertas. Cambiar roles sigue en SharePoint. */
+function abrirEquipo() {
+    const tb = $('eqLista'); tb.textContent = '';
+    const roles = estado.roles.slice().sort((a, b) => String(a.Nombre || a.Title || '').localeCompare(String(b.Nombre || b.Title || '')));
+    for (const r of roles) {
+        const correo = String(r.Title || '').toLowerCase();
+        const tr = el('tr', r.Activo === false ? 'inactivo' : '');
+        const td1 = el('td'); td1.appendChild(avatar(correo)); td1.appendChild(el('span', '', ' ' + nombreDe(correo, estado.roles))); tr.appendChild(td1);
+        tr.appendChild(el('td', 'mn-mono', correo));
+        const tdr = el('td'); tdr.appendChild(chip(r.Rol || 'lectura', r.Rol === 'gerencia' ? 'info' : null)); tr.appendChild(tdr);
+        const tda = el('td'); tda.appendChild(r.Activo === false ? chip('no', 'danger') : chip('sí', 'ok')); tr.appendChild(tda);
+        tr.appendChild(el('td', 'mn-mono', String(estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === correo && t.Columna !== 'hecho').length)));
+        tb.appendChild(tr);
+    }
+    if (!roles.length) { const tr = el('tr'); const td = el('td', 'vacio', 'PROY_Roles está vacía.'); td.colSpan = 5; tr.appendChild(td); tb.appendChild(tr); }
+    abrirDialogo('dlgEquipo');
 }
 
 // ---------------------------------------------------------------- Proyectos
@@ -383,8 +434,10 @@ function pintarProyecto() {
     for (const { tarea: t, dias } of proximos(ts, 5)) v.appendChild(itemMini(t.Asignado, t.Title, '', fechaCorta(t.Vence), dias < 0 ? 'danger' : dias <= CONFIG.vencePronto ? 'warn' : null));
     if (!v.childNodes.length) v.appendChild(el('p', 'vacio', 'Nada por vencer.'));
     const act = $('pActividad'); act.textContent = '';
-    for (const x of estado.actividad.filter(x => Number(x.ProyectoId) === p.id).slice(0, 6)) act.appendChild(itemMini(x.Quien, fraseActividad(x), '', fechaHora(x.Cuando)));
+    const deP = estado.actividad.filter(x => Number(x.ProyectoId) === p.id);
+    for (const x of deP.slice(0, 6)) act.appendChild(itemMini(x.Quien, fraseActividad(x), '', fechaHora(x.Cuando)));
     if (!act.childNodes.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
+    $('btnActividadProyecto').hidden = deP.length <= 6;
 }
 
 // ---------------------------------------------------------------- nuevo / editar / cerrar proyecto
@@ -399,7 +452,7 @@ function abrirFormaProyecto(p) {
     const personas = estado.roles.filter(r => r.Activo !== false).map(r => String(r.Title || '').toLowerCase()).filter(Boolean);
     opciones($('npResponsable'), personas, x => x, x => nombreDe(x, estado.roles), 'sin responsable');
     $('npTitulo').value = p ? p.Title : ''; $('npClave').value = p ? p.Clave : ''; $('npClave').disabled = !!p;
-    $('npEquipo').value = p ? p.Equipo : CONFIG.equipos[0].clave; $('npVence').value = p && p.Vence ? fechaCorta(p.Vence) : '';
+    $('npEquipo').value = p ? p.Equipo : CONFIG.equipos[0].clave; $('npVence').value = diaInput(p && p.Vence);
     $('npResponsable').value = p ? String(p.Responsable || '').toLowerCase() : ''; $('npDesc').value = p ? (p.Descripcion || '') : '';
     $('npCarpeta').value = p ? (p.Carpeta || '') : '';
     $('npNota').textContent = p ? 'La carpeta destino es a dónde PROPONE ir lo que se sube al buzón desde Documentos (ruta relativa a la raíz de la biblioteca de la unidad); vacía = el default de la unidad. La skill de archivar la valida.' : 'La clave es lo que se pega en el marcador ⏳ de la base de conocimiento: «· app: lau-asea-03-001». No cambia después.';
@@ -519,7 +572,14 @@ $('formProyecto').addEventListener('submit', guardarProyecto);
 $('npCancelar').addEventListener('click', () => cerrarDialogo('dlgProyecto'));
 engancharTablero();
 engancharDocs();
-activarMascaraFechas();
+$('btnActividadInicio').addEventListener('click', () => abrirActividad(null));
+$('btnActividadProyecto').addEventListener('click', () => abrirActividad(estado.proyectoAbierto && estado.proyectoAbierto.id));
+$('acCerrar').addEventListener('click', () => cerrarDialogo('dlgActividad'));
+$('acMas').addEventListener('click', () => { acCtx.n += 50; pintarActividad(); });
+$('btnEquipo').addEventListener('click', abrirEquipo);
+$('btnEquipoMovil').addEventListener('click', () => { $('menuMovil').open = false; abrirEquipo(); });
+$('eqCerrar').addEventListener('click', () => cerrarDialogo('dlgEquipo'));
+$('btnImprimir').addEventListener('click', () => window.print());
 $('shell').classList.add('sin-sesion');
 
 if ('serviceWorker' in navigator) {

@@ -77,7 +77,7 @@
     }
     // Cada renglon lleva un eTag que sube en cada PATCH, como en SharePoint (v0.3.0, T1).
     const etagDe = it => `"${it.etag || 1}"`;
-    function item(it) { return { id: String(it.id), eTag: etagDe(it), fields: { ...it.fields, id: String(it.id) } }; }
+    function item(it) { return { id: String(it.id), eTag: etagDe(it), createdDateTime: it.creado || '2026-09-11T20:00:00Z', createdBy: { user: { email: it.creadoPor || window.__CUENTA.username, displayName: 'Quien sea' } }, lastModifiedDateTime: it.mod || '2026-09-11T20:00:00Z', fields: { ...it.fields, id: String(it.id) } }; }
     const OPS = { eq: (a, b) => String(a ?? '') === String(b), ne: (a, b) => String(a ?? '') !== String(b), ge: (a, b) => String(a ?? '') >= String(b), gt: (a, b) => String(a ?? '') > String(b), le: (a, b) => String(a ?? '') <= String(b), lt: (a, b) => String(a ?? '') < String(b) };
     function odata(filtro, campos) {
         return filtro.split(/\s+or\s+/i).some(t => t.split(/\s+and\s+/i).every(c => {
@@ -102,7 +102,7 @@
             const id = SITIOS[m[2]]; return id ? json(200, { id }) : error(403, `Access denied (sin Sites.Selected sobre ${m[2]})`);
         }
         if (/^\/sites\/sitio-falso\/lists\?/.test(ruta) && metodo === 'GET')
-            return json(200, { value: Object.values(DB.listas).map(l => ({ id: l.id, name: l.nombre, displayName: l.nombre })) });
+            return json(200, { value: Object.values(DB.listas).map(l => ({ id: l.id, name: l.nombre, displayName: l.nombre, webUrl: 'https://tenant.example.invalid/sites/Administracion/Lists/' + l.nombre })) });
         if ((m = /^\/sites\/sitio-falso\/lists\/([^/]+)\/items\?/.exec(ruta)) && metodo === 'GET') {
             const l = lista(m[1]); if (!l) return error(404, 'lista');
             const f2 = new URLSearchParams(ruta.slice(ruta.indexOf('?'))).get('$filter');
@@ -126,7 +126,7 @@
             const ifMatch = opts.headers && (opts.headers['If-Match'] || opts.headers['if-match']);
             if (ifMatch) { DB.ifMatch++; if (ifMatch !== etagDe(it)) return error(412, 'precondition failed: el renglón cambió'); }
             for (const k in campos) { if (campos[k] === null) delete it.fields[k]; else it.fields[k] = campos[k]; }
-            it.etag = (it.etag || 1) + 1;
+            it.etag = (it.etag || 1) + 1; it.mod = `2026-09-11T20:00:${String(it.etag).padStart(2, '0')}Z`;
             return json(200, it.fields);
         }
         if ((m = /^\/sites\/sitio-falso\/lists\/([^/]+)\/items\/(\d+)$/.exec(ruta)) && metodo === 'DELETE') {
@@ -285,7 +285,7 @@ try {
         poner('npClave', 'LAU ASEA'); poner('npEquipo', 'CALYTEK');
         clic('npGuardar'); await esperar(() => avisoCon('Clave:'), 'clave inválida rechazada');
         R.ok('clave inválida rechazada', !!avisoCon('solo minúsculas') && filas('proyectos').length === 0);
-        poner('npClave', 'lau-asea-03-001'); poner('npVence', '31/10/2026'); poner('npResponsable', 'jefa@example.invalid'); poner('npDesc', 'Paquete de entregables para el gestor.');
+        poner('npClave', 'lau-asea-03-001'); poner('npVence', '2026-10-31'); poner('npResponsable', 'jefa@example.invalid'); poner('npDesc', 'Paquete de entregables para el gestor.');
         poner('npCarpeta', '/03_Predios\\Arrocera/');
         clic('npGuardar'); await esperar(() => filas('proyectos').length === 1, 'proyecto creado');
         const p = filas('proyectos')[0];
@@ -318,13 +318,14 @@ try {
         clic('btnNuevaTarea'); await esperar(() => $('dlgNuevaTarea').open, 'diálogo de tarea');
         poner('ntTitulo', ''); clic('ntGuardar'); await dormir(60);
         R.ok('tarea sin título se rechaza', !!avisoCon('necesita un título'));
-        poner('ntTitulo', 'Lista de insumos directos e indirectos'); poner('ntAsignado', 'colega@example.invalid'); poner('ntPrioridad', 'alta'); poner('ntVence', '19/09/2026'); poner('ntOrigen', 'ambiental/calytek/lau-entregables-gestor.md#renglon-7');
+        poner('ntTitulo', 'Lista de insumos directos e indirectos'); poner('ntAsignado', 'colega@example.invalid'); poner('ntPrioridad', 'alta'); poner('ntVence', '2026-09-19'); poner('ntOrigen', 'ambiental/calytek/lau-entregables-gestor.md#renglon-7');
         clic('ntGuardar'); await esperar(() => filas('tareas').some(t => t.fields.Title.startsWith('Lista de insumos')), 'tarea creada');
         const t = filas('tareas').find(x => x.fields.Title.startsWith('Lista de insumos'));
         R.ok('tarea creada en por-hacer, asignada, con origen y Desde', t.fields.Columna === 'por-hacer' && t.fields.Asignado === 'colega@example.invalid' && t.fields.Origen.includes('#renglon-7') && !!t.fields.Desde && Number(t.fields.ProyectoId) === proyectoId, JSON.stringify(t.fields));
         R.ok('PROY_Actividad: crear-tarea', actividad('crear-tarea').length === 1);
-        poner('ntTitulo', 'Fecha mala'); clic('btnNuevaTarea'); await esperar(() => $('dlgNuevaTarea').open, 'diálogo'); poner('ntTitulo', 'Fecha mala'); poner('ntVence', '31/02/2026'); clic('ntGuardar'); await dormir(60);
-        R.ok('fecha inexistente se rechaza', !!avisoCon('no existe') && !filas('tareas').some(x => x.fields.Title === 'Fecha mala'));
+        // U9 (v0.4.0): selector nativo; una fecha inexistente no se puede teclear (el input la deja vacía) y aIsoDia sigue validando lo que llegue.
+        clic('btnNuevaTarea'); await esperar(() => $('dlgNuevaTarea').open, 'diálogo');
+        R.ok('U9: los tres campos de fecha son selectores nativos y la tarea creada trae la fecha bien', $('ntVence').type === 'date' && $('ftVence').type === 'date' && $('npVence').type === 'date' && String(t.fields.Vence).startsWith('2026-09-19'), String(t.fields.Vence));
         clic('ntCancelar');
         // Abrir la tarjeta desde el tablero y moverla por las 4 columnas.
         await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta en el tablero');
@@ -391,6 +392,7 @@ try {
         R.ok('la × cierra el aviso', !$('avisos').querySelector('.mensaje'));
         // 4c. v0.3.0 — tanda 2: KPI (U3), rail (U2), filtros (F9), pestañas de columna (U5), orden (F10),
         // subir/bajar (F11), «→ siguiente» con Deshacer (U7), 412 (T1), sin red (T2).
+        R.ok('T4: el contador rojo del rail es solo vencidas (gerencia: nada; colaborador: 1)', $('nMis').hidden === gerencia && (gerencia || $('nMis').textContent === '1'), `${$('nMis').hidden}/${$('nMis').textContent}`);
         R.ok('Inicio: los 4 KPI son botones', document.querySelectorAll('#inicioKpis button.mn-kpi').length === 4);
         document.querySelector('#inicioKpis [data-kpi="vencidas"]').click(); await esperar(() => visible('p-mis'), 'mis por kpi');
         R.ok('KPI «vencidas» abre Mis tareas con el filtro Vencidas puesto', location.hash === '#mis' && document.querySelector('#filtroMis button.is-on').dataset.mis === 'vencidas', location.hash);
@@ -432,8 +434,19 @@ try {
         document.querySelector('#tab-lista th[data-sort="tarea"]').click(); await dormir(30);
         R.ok('el segundo clic invierte', document.querySelector('#tab-lista th[data-sort="tarea"]').getAttribute('aria-sort') === 'descending' && document.querySelector('#tab-lista tbody tr').textContent.startsWith(gerencia ? 'Tarea normal' : 'Tarea sembrada'));
         tab('tablero'); await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tablero');
+        // T3 (v0.4.0): releer repinta siempre (los chips dependen del reloj) sin reventar; el scroll no se mide en headless.
+        $('tableroCols').appendChild(document.createElement('i')).className = 'marca-e2e';
+        await recargarYEsperar();
+        R.ok('T3: releer repinta (la marca se fue) y la tarjeta sigue', !document.querySelector('#tableroCols .marca-e2e') && !!document.querySelector(`.tarjeta[data-t="${t.id}"]`));
+        // U6 (v0.4.0): 7 hechas → se ven 5 y «ver las 2 anteriores».
+        for (let i = 1; i <= 7; i++) filas('tareas').push({ id: DB.siguienteId++, fields: { Title: `Hecha ${i}`, ProyectoId: proyectoId, Columna: 'hecho', Prioridad: 'normal', HechoPor: YO, HechoEl: `2026-09-0${i}T18:00:00Z`, Desde: `2026-09-0${i}T18:00:00Z` } });
+        await recargarYEsperar(); await esperar(() => document.querySelector('.col[data-col="hecho"] [data-mas]'), 'hecho colapsada');
+        R.ok('U6: Hecho enseña 5, cuenta 7 y ofrece «ver las 2 anteriores», las más recientes primero', document.querySelectorAll('.col[data-col="hecho"] .tarjeta').length === 5 && document.querySelector('.col[data-col="hecho"] h3 .n').textContent === '7' && document.querySelector('.col[data-col="hecho"] [data-mas]').textContent === 'ver las 2 anteriores' && document.querySelector('.col[data-col="hecho"] .tarjeta .t').textContent === 'Hecha 7');
+        document.querySelector('.col[data-col="hecho"] [data-mas]').click(); await dormir(30);
+        R.ok('U6: «ver las anteriores» enseña las 7', document.querySelectorAll('.col[data-col="hecho"] .tarjeta').length === 7 && !document.querySelector('.col[data-col="hecho"] [data-mas]'));
         // F11: Subir / Bajar dentro de la columna (las dos están en en-curso: t con Orden 1, la normal sin Orden).
         document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+        R.ok('U12: la tarjeta dice quién la creó y cuándo', $('tKv').textContent.includes('Creada') && $('tKv').textContent.includes('Persona de Prueba'), $('tKv').textContent.slice(-80));
         R.ok('la tarjeta dice su orden en la columna; Subir deshabilitado arriba', $('tOrden').textContent.includes('1 de 2') && $('tOrden').querySelector('[data-orden="subir"]').disabled && !$('tOrden').querySelector('[data-orden="bajar"]').disabled, $('tOrden').textContent);
         $('tOrden').querySelector('[data-orden="bajar"]').click();
         await esperar(() => $('tOrden').textContent.includes('2 de 2'), 'bajada');
@@ -554,6 +567,32 @@ try {
         R.ok('Docs pinta el enlace con su chip y la bitácora dice «pegó el enlace»', !!document.querySelector(`#docsLista [data-liga="${en.id}"] .ico`) && document.querySelector(`#docsLista [data-liga="${en.id}"] .ico`).textContent === 'link' && actividad('ligar').some(a => a.fields.Title.startsWith('pegó el enlace')));
         clic('btnEnlace'); await esperar(() => $('dlgEnlace').open, 'enlace'); poner('enTitulo', 'Repetido'); poner('enUrl', 'https://outlook.office.com/mail/id/abc'); clic('enGuardar'); await dormir(60);
         R.ok('enlace repetido en el proyecto se avisa y no se duplica', !!avisoCon('ya está en este proyecto') && filas('ligas').length === 2); clic('enCancelar');
+        // U10 (v0.4.0): Docs agrupa «Del proyecto» / por tarjeta, chip de estado junto al nombre, chips por tipo.
+        await esperar(() => document.querySelectorAll('#docsLista .grupo').length === 2, 'grupos');
+        const grupos = [...document.querySelectorAll('#docsLista .grupo')].map(g => g.textContent);
+        R.ok('U10: dos grupos, «Del proyecto» primero y luego la tarjeta', grupos[0] === 'Del proyecto' && grupos[1].startsWith('Tarjeta · Lista de insumos') && !!document.querySelector('#docsLista [data-liga] .t .estado .mn-chip'), grupos.join(' | '));
+        R.ok('U10: chips por tipo (hay archivado y enlace)', document.querySelectorAll('#docsFiltro button').length === 3);
+        document.querySelector('#docsFiltro [data-docs="enlace"]').click(); await dormir(30);
+        R.ok('U10: el chip «enlace» deja solo el enlace', document.querySelectorAll('#docsLista .doc').length === 1 && document.querySelector('#docsLista .doc .ico').textContent === 'link');
+        document.querySelector('#docsFiltro [data-docs="todos"]').click(); await dormir(30);
+        R.ok('U10: «Todos» los devuelve', document.querySelectorAll('#docsLista .doc').length === 2);
+        // F12 (v0.4.0): toda la actividad del proyecto, por persona.
+        R.ok('F12: el proyecto ofrece «ver toda» (más de 6 renglones)', !$('btnActividadProyecto').hidden);
+        clic('btnActividadProyecto'); await esperar(() => $('dlgActividad').open, 'actividad');
+        const deLau = filas('actividad').filter(a => Number(a.fields.ProyectoId) === proyectoId).length;
+        R.ok('F12: lista TODA la del proyecto con chips por persona y sin «ver más» (< 50)', $('acTitulo').textContent.includes('LAU') && document.querySelectorAll('#acLista .it').length === deLau && document.querySelectorAll('#acFiltro button').length === 2 && $('acMas').hidden, `${document.querySelectorAll('#acLista .it').length}/${deLau}`);
+        document.querySelector(`#acFiltro [data-quien="${YO}"]`).click(); await dormir(30);
+        R.ok('F12: el chip por persona filtra', document.querySelectorAll('#acLista .it').length === deLau && document.querySelector('#acFiltro button.is-on').dataset.quien === YO);
+        clic('acCerrar');
+        // F13 (v0.4.0): «Ver en SharePoint» y la pantalla Equipo.
+        R.ok('F13: «Ver en SharePoint» apunta a la lista de tareas (webUrl real de Graph)', !$('lnkSharePoint').classList.contains('oculto') && $('lnkSharePoint').href.endsWith('/Lists/PROY_Tareas') && $('lnkSharePoint').target === '_blank');
+        clic('btnEquipo'); await esperar(() => $('dlgEquipo').open, 'equipo');
+        R.ok('F13: Equipo lista los 3 roles con nombre, correo, rol, activo y abiertas', document.querySelectorAll('#eqLista tr').length === 3 && $('eqLista').textContent.includes('Jefa Demo') && $('eqLista').textContent.includes('gerencia') && $('eqLista').textContent.includes('jefa@example.invalid') && document.querySelectorAll('#eqLista tr td:nth-child(4) .mn-chip.is-ok').length === 3);
+        clic('eqCerrar');
+        // U11 (v0.4.0): Imprimir = window.print().
+        let impreso = false; const printReal = window.print; window.print = () => { impreso = true; };
+        clic('btnImprimir'); window.print = printReal;
+        R.ok('U11: «Imprimir» llama a window.print', impreso);
         await abrirLau(); tab('docs');
         // Un equipo fuera del piloto: 403 al abrir el sitio, con el nombre.
         if (gerencia) {

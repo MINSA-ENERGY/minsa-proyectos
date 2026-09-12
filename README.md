@@ -6,6 +6,19 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.4.0** (2026-09-11, casi medianoche) — tanda 3 de la auditoría, los 10 P3, con lo que **cierra la auditoría
+del 11-sep** (33 hallazgos: 7 + 12 + 10 hechos, 4 «NO» a propósito): **«ver toda»** la actividad (global o
+del proyecto, chips por persona, de 50 en 50) · **«Ver en SharePoint»** en el rail (el `webUrl` real de
+`PROY_Tareas`; Microsoft Lists puede enseñarla como Tablero: el plan B del plan) y la pantalla **Equipo**
+(`PROY_Roles` de solo lectura: nombre, correo, rol, activo y las abiertas de cada quien) · **Hecho colapsada** a las 5 más recientes
+con «ver las N anteriores» (Hecho siempre ordena por `HechoEl`, lo último arriba) · en celular **«Nueva tarea» flota** abajo a la derecha · las tres fechas son
+**selector nativo** (`type=date`; la máscara dd/mm/aaaa se fue, `aIsoDia` sigue aceptando las dos) ·
+**Documentos agrupa** «Del proyecto» y por tarjeta, chip de estado junto al nombre y chips por tipo ·
+**Imprimir** (`@media print` sin rail, barra, tabs, filtros, botones ni lateral + botón = `window.print()`) · la tarjeta dice **«Creada» por quién y
+cuándo** (`createdBy` / `createdDateTime` de SharePoint) · el refresco automático **conserva el scroll** · el contador rojo del rail
+es **solo vencidas**. Sin cambio de esquema: **este push no necesita `provisionar.html`** (el de v0.3.0 sí,
+si no se hizo).
+
 **v0.3.0** (2026-09-11, noche, tarde ya) — tanda 2 de la auditoría, los 12 P2: **Reabrir** un proyecto cerrado (gerencia) y
 la **carpeta destino** editable en el proyecto; **filtros** dentro del proyecto (persona · solo alta · solo
 vencidas · texto sin acentos) y la **Lista ordena por columna**; **Subir / Bajar** dentro de la columna y
@@ -81,16 +94,28 @@ Mis tareas. Fuera, a propósito: mensajes, calendario, línea de tiempo, analít
   sembrada (sin `Orden`) puede ser toda la columna; después, dos PATCH.
 - **En celular** (≤ 720 px) el tablero es **una columna** y una fila de pestañas la elige (`estado.colMovil`,
   vuelve a Por hacer al cambiar de proyecto). El DOM es el mismo en escritorio: el CSS esconde las pestañas
-  y enseña las cuatro columnas.
+  y enseña las cuatro columnas. Y «Nueva tarea» **flota** abajo a la derecha (v0.4.0); deshabilitado, no se ve.
+- **Refresco** (v0.4.0, T3): `recargar()` repinta **siempre** y devuelve el scroll a donde estaba. «Solo
+  si cambió» se intentó y se retiró en la revisión de v0.4.0: los chips «venció» / «vence hoy» y «sin
+  movimiento» dependen del reloj, no de los datos, y un DOM que sobrevive engancha objetos que `cargarTodo()`
+  ya reemplazó. Regla que quedó: **un handler resuelve el renglón por id al clic, nunca captura el objeto.**
+- **«Ver en SharePoint»** (v0.4.0, F13) usa el `webUrl` que Graph devuelve por lista (`$select=…,webUrl`),
+  no una URL deducida: la trampa de la casa es que el nombre interno no es el mostrado. Abre la lista en su
+  vista por defecto; la vista Tablero de Microsoft Lists se crea allá, si se quiere (no está verificada).
+- **Imprimir** (v0.4.0, U11) imprime **lo que está en pantalla** (tablero, lista o documentos) sin rail,
+  barra, botones ni lateral; no fuerza la Lista. Ctrl+P hace lo mismo.
+- **Hecho** (v0.4.0, U6) ordena siempre por `HechoEl` (lo último arriba), enseña 5 y «ver las N anteriores»
+  (`estado.hechoTodas`, vuelve a colapsar al cambiar de proyecto, igual que el filtro de Documentos). El
+  número del encabezado y el avance siempre son los reales.
 
 ## Archivos
 
 ```
 index.html      un solo DOM para celular y escritorio (rail → pestañas abajo)
-app.js          sesión, carga, Inicio (KPI botones), Proyectos, Proyecto, nuevo/editar/cerrar/reabrir, sin red
-tablero.js      tablero (pestañas de columna), lista (orden), filtros, Mis tareas, tarjeta (mover/«→ siguiente»/subir-bajar/editar/borrar), 412
-docs.js         Documentos: buscar, ligar, subir al buzón, pegar enlace, «en el buzón» derivado en vivo
-comun.js        estado, DOM sin innerHTML, avisos (toast con acción), confirmación, fechas, PROY_Actividad
+app.js          sesión, carga (firma T3), Inicio (KPI botones), Proyectos, Proyecto, nuevo/editar/cerrar/reabrir, sin red, toda la actividad, Equipo, imprimir
+tablero.js      tablero (pestañas de columna, Hecho colapsada), lista (orden), filtros, Mis tareas, tarjeta (mover/«→ siguiente»/subir-bajar/editar/borrar, creada por), 412
+docs.js         Documentos: buscar, ligar, subir al buzón, pegar enlace, grupos y chips por tipo, «en el buzón» derivado en vivo
+comun.js        estado, DOM sin innerHTML, avisos (toast con acción), confirmación, fechas (diaInput), PROY_Actividad
 reglas.js       reglas puras (roles, PUEDE, avance, próximos, sin movimiento, clave, filtrar, ordenar lista, reordenar, url)
 lote.js         el _lote.json (contrato 1)
 graph.js        cliente Graph (copia de calytek-planta + buscarEnDrive/existeRuta)
@@ -114,6 +139,15 @@ E2E contra Graph falso, 3 roles, desde PowerShell (Edge headless):
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File .\test\e2e.ps1
 ```
+
+**v0.4.0 (2026-09-11, casi medianoche): 251/251** — gerencia 124 · colaborador 112 · lectura 15, estable en 3 corridas
+seguidas. El Graph falso devuelve ahora `createdBy` / `createdDateTime` / `lastModifiedDateTime` por renglón y
+`webUrl` por lista. Lo nuevo que cubre: contador rojo = solo vencidas; fechas nativas (`type=date`) y la
+tarea creada con la fecha bien; releer repinta y no revienta; Hecho con 7
+enseña 5, cuenta 7, «ver las 2 anteriores» las trae; «Creada» con quién; Docs con dos grupos, chip junto al
+nombre, chips por tipo que filtran; «ver toda» del proyecto lista toda su actividad con chips por persona;
+«Ver en SharePoint» apunta al `webUrl` de `PROY_Tareas`; Equipo lista los 3 roles; «Imprimir» llama a
+`window.print`. **No cubre** (CSS puro, sin navegador real): el botón flotante en celular y la hoja de impresión.
 
 **v0.3.0 (2026-09-11, noche, tarde ya): 221/221** — gerencia 109 · colaborador 97 · lectura 15, estable en 3 corridas
 seguidas; `npm test` 50 comprobaciones de reglas. El Graph falso ahora lleva **eTag por renglón** (sube en
@@ -158,6 +192,11 @@ versiones, 21 renglones sembrados (10 roles, proyecto `lau-asea-03-001`, 10 tare
 a las 20:00. **Prueba real:** Francisco (`colaborador`) entró desde el celular y editó una tarjeta; el
 exporte de las 20:34 la trae en `PROY_Actividad` con su cuenta. Sin probar todavía: las bibliotecas
 fuera del piloto, y el resto del roster en el celular.
+
+## Al publicar v0.4.0
+
+Sin cambio de esquema. `git push` (lo hace Carlos); el service worker va en `minsa-proyectos-v4`. Si v0.3.0
+no se publicó antes, aplica primero su paso de esquema (abajo): sus dos opciones siguen haciendo falta.
 
 ## Al publicar v0.3.0: primero el esquema, luego el push
 

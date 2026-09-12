@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { iniciales, nombreDe, diasPara, estadoVence } from './reglas.js';
 
-export const VERSION = '0.3.0';
+export const VERSION = '0.4.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -20,6 +20,9 @@ export const estado = {
     ordenLista: { col: 'vence', dir: 1 },
     colMovil: 'por-hacer',
     filtroMis: null,
+    // v0.4.0: «ver las N anteriores» de Hecho (U6), filtro de Documentos (U10), firma de la ultima carga (T3)
+    hechoTodas: false,
+    filtroDocs: null,
     cargadoEl: 0,
     // Sitios de bibliotecas de unidad ya resueltos: clave -> { id, motivo }
     sitiosUnidad: {},
@@ -177,18 +180,13 @@ export function aIsoDia(texto) {
     let y, mo, d;
     if (m) { d = +m[1]; mo = +m[2]; y = m[3].length === 2 ? 2000 + +m[3] : +m[3]; }
     else if ((m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/))) { y = +m[1]; mo = +m[2]; d = +m[3]; }
-    else throw new Error(`Fecha «${s}» no válida: escríbela como dd/mm/aaaa`);
+    else throw new Error(`Fecha «${s}» no válida: elígela en el calendario (o escríbela como aaaa-mm-dd)`);
     const f = new Date(Date.UTC(y, mo - 1, d, 18));
-    if (f.getUTCFullYear() !== y || f.getUTCMonth() !== mo - 1 || f.getUTCDate() !== d) throw new Error(`Fecha «${s}» no existe: escríbela como dd/mm/aaaa`);
+    if (f.getUTCFullYear() !== y || f.getUTCMonth() !== mo - 1 || f.getUTCDate() !== d) throw new Error(`Fecha «${s}» no existe: elígela en el calendario`);
     return f.toISOString();
 }
-export function activarMascaraFechas() {
-    for (const inp of document.querySelectorAll('input.fecha')) inp.addEventListener('input', () => {
-        if (/^\d{4}-\d{2}-\d{2}$/.test(inp.value)) { inp.value = fechaCorta(inp.value); return; }
-        const dig = inp.value.replace(/\D/g, '').slice(0, 8);
-        inp.value = dig.length > 4 ? `${dig.slice(0, 2)}/${dig.slice(2, 4)}/${dig.slice(4)}` : dig.length > 2 ? `${dig.slice(0, 2)}/${dig.slice(2)}` : dig;
-    });
-}
+/** Valor para un <input type="date"> (U9, v0.4.0): la parte de dia del ISO guardado, o vacio. */
+export function diaInput(iso) { const s = String(iso || ''); return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : ''; }
 /** Chip de vencimiento de una tarea (vencida / vence pronto / vence), o null. */
 export function chipVence(t) {
     const e = estadoVence(t, CONFIG.vencePronto);

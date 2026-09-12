@@ -6,7 +6,7 @@
 
 import { CONFIG } from './config.js';
 import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, columnaSiguiente, filtrarTareas, ordenarLista, reordenar } from './reglas.js';
-import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura } from './comun.js';
+import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
 
@@ -75,6 +75,7 @@ const tareasVisibles = proyecto => filtrarTareas(tareasDe(proyecto, estado.tarea
 
 // ---------------------------------------------------------------- tablero y lista
 
+const HECHO_VISIBLES = 5;
 export function pintarTablero(proyecto) {
     const cont = $('tableroCols'); cont.textContent = '';
     const ts = tareasVisibles(proyecto);
@@ -92,11 +93,18 @@ export function pintarTablero(proyecto) {
     for (const c of CONFIG.columnas) {
         const col = el('div', 'col' + (estado.colMovil === c.clave ? ' is-activa' : '')); col.dataset.col = c.clave;
         const h = el('h3', '', c.nombre);
-        const cs = ordenar(ts.filter(t => t.Columna === c.clave));
+        let cs = ordenar(ts.filter(t => t.Columna === c.clave));
         h.appendChild(el('span', 'n', String(cs.length)));
         col.appendChild(h);
         if (!cs.length) col.appendChild(el('div', 'vacio', filtrado ? 'Nada con ese filtro.' : c.clave === 'por-hacer' ? 'Nada por hacer.' : '—'));
+        // U6: Hecho enseña las ultimas HECHO_VISIBLES (por HechoEl) y un boton para el resto; la cuenta de arriba es la real.
+        let ocultas = 0;
+        if (c.clave === 'hecho') {
+            cs = cs.slice().sort((a, b) => String(b.HechoEl || '').localeCompare(String(a.HechoEl || '')) || a.id - b.id);   // lo ultimo hecho, arriba
+            if (!estado.hechoTodas && cs.length > HECHO_VISIBLES) { ocultas = cs.length - HECHO_VISIBLES; cs = cs.slice(0, HECHO_VISIBLES); }
+        }
         for (const t of cs) col.appendChild(tarjeta(t));
+        if (ocultas) col.appendChild(boton(`ver las ${ocultas} anteriores`, 'mas', () => { estado.hechoTodas = true; pintarTablero(proyecto); }, { mas: 'hecho' }));
         cont.appendChild(col);
     }
 }
@@ -200,6 +208,7 @@ export function abrirTarjeta(id) {
     if (t.Origen) par('Origen', t.Origen, 'src');
     if (t.Descripcion) par('Descripción', t.Descripcion);
     if (t.HechoPor) par('Hecho por', `${nombreDe(t.HechoPor, estado.roles)} · ${fechaCorta(t.HechoEl)}`);
+    if (t._creado) par('Creada', `${t._creadoPor ? nombreDe(t._creadoPor, estado.roles) + ' · ' : ''}${fechaHora(t._creado)}`, 'creada');
     pintarDocsDeTarjeta(t, p);
     pintarNotas(t, p);
 
@@ -236,7 +245,7 @@ export function abrirTarjeta(id) {
     opciones($('ftProyecto'), estado.proyectos.filter(x => x.Estado === 'activo'), x => x.id, x => x.Title, null);
     $('ftProyecto').value = String(t.ProyectoId);
     $('ftTitulo').value = t.Title || ''; $('ftAsignado').value = String(t.Asignado || '').toLowerCase(); $('ftPrioridad').value = t.Prioridad || 'normal';
-    $('ftVence').value = t.Vence ? fechaCorta(t.Vence) : ''; $('ftOrigen').value = t.Origen || ''; $('ftDesc').value = t.Descripcion || '';
+    $('ftVence').value = diaInput(t.Vence); $('ftOrigen').value = t.Origen || ''; $('ftDesc').value = t.Descripcion || '';
     abrirDialogo('dlgTarea');
     fijarHash(hashDe(t.id));
 }

@@ -49,9 +49,23 @@ export async function pintarDocs(p) {
     const puede = puedeLigarEn(p);
     $('btnLigar').disabled = !puede; $('btnSubir').disabled = !puede; $('btnEnlace').disabled = !puedeEnlazarEn(p);
     $('docsBiblioteca').textContent = bib ? `Biblioteca: ${bib.nombre}${bib.piloto ? '' : ' (fuera del piloto: sin permiso todavía)'}` : 'Este equipo no tiene biblioteca ligada en el piloto: se ven las ligas guardadas y se pueden pegar enlaces.';
-    const ligas = estado.ligas.filter(l => Number(l.ProyectoId) === p.id).sort((a, b) => b.id - a.id);
-    if (!ligas.length) { cont.appendChild(el('p', 'vacio', 'Sin documentos ligados todavía.')); return; }
-    for (const l of ligas) cont.appendChild(doc(l, p, puede || (l.Tipo === 'enlace' && puedeEnlazarEn(p))));
+    const todas = estado.ligas.filter(l => Number(l.ProyectoId) === p.id);
+    // U10: chips por tipo (solo si hay de mas de uno), grupos «Del proyecto» y por tarjeta, chip de estado junto al nombre.
+    const fl = $('docsFiltro'); fl.textContent = '';
+    const tipos = [...new Set(todas.map(l => l.Tipo))];
+    if (tipos.length > 1) for (const [k, texto] of [[null, 'Todos'], ['archivado', 'archivado'], ['buzon', 'en el buzón'], ['enlace', 'enlace']]) {
+        if (k && !tipos.includes(k)) continue;
+        const b = boton(texto, estado.filtroDocs === k ? 'is-on' : '', () => { estado.filtroDocs = k; pintarDocs(p); }, { docs: k || 'todos' }); b.setAttribute('aria-pressed', estado.filtroDocs === k ? 'true' : 'false'); fl.appendChild(b);
+    } else estado.filtroDocs = null;
+    const ligas = todas.filter(l => !estado.filtroDocs || l.Tipo === estado.filtroDocs).sort((a, b) => b.id - a.id);
+    if (!ligas.length) { cont.appendChild(el('p', 'vacio', todas.length ? 'Nada con ese filtro.' : 'Sin documentos ligados todavía.')); return; }
+    const puedeDe = l => puede || (l.Tipo === 'enlace' && puedeEnlazarEn(p));
+    const delProyecto = ligas.filter(l => !l.TareaId);
+    if (delProyecto.length) { cont.appendChild(el('div', 'grupo', 'Del proyecto')); for (const l of delProyecto) cont.appendChild(doc(l, p, puedeDe(l))); }
+    const porTarjeta = new Map();
+    for (const l of ligas.filter(l => l.TareaId)) { const k = Number(l.TareaId); if (!porTarjeta.has(k)) porTarjeta.set(k, []); porTarjeta.get(k).push(l); }
+    const tarjetas = [...porTarjeta.keys()].sort((a, b) => { const ta = porId(estado.tareas, a), tb = porId(estado.tareas, b); return String(ta ? ta.Title : '').localeCompare(String(tb ? tb.Title : '')) || a - b; });
+    for (const k of tarjetas) { const tt = porId(estado.tareas, k); cont.appendChild(el('div', 'grupo', tt ? `Tarjeta · ${tt.Title}` : `Tarjeta #${k}`)); for (const l of porTarjeta.get(k)) cont.appendChild(doc(l, p, puedeDe(l))); }
     // «En el buzon» en vivo: una consulta por liga de tipo buzon, cacheada por carga.
     if (bib) {
         const s = await sitioDe(bib);
@@ -76,7 +90,8 @@ function doc(l, p, puede) {
     d.appendChild(el('span', 'ico', l.Tipo === 'buzon' ? 'lote' : l.Tipo === 'enlace' ? 'link' : ext));
     const c = el('div');
     const t = el('div', 't');
-    if (l.Url) { const a = el('a', '', l.Title); a.href = l.Url; a.target = '_blank'; a.rel = 'noopener'; t.appendChild(a); } else t.textContent = l.Title;
+    const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : l.Tipo === 'enlace' ? chip('enlace') : chip('archivado', 'ok')); t.appendChild(est);
+    if (l.Url) { const a = el('a', '', l.Title); a.href = l.Url; a.target = '_blank'; a.rel = 'noopener'; t.appendChild(a); } else t.appendChild(el('span', '', l.Title));
     c.appendChild(t);
     c.appendChild(el('div', 'p', l.Tipo === 'enlace' ? String(l.Url || '').replace(/^https?:\/\//, '').slice(0, 90) : `${l.Unidad ? l.Unidad + '/' : ''}${l.Ruta || ''}`));
     if (puede) {
@@ -89,7 +104,6 @@ function doc(l, p, puede) {
     } else if (l.TareaId) { const tt = porId(estado.tareas, l.TareaId); c.appendChild(el('div', 'p', tt ? `tarjeta: ${tt.Title}` : `tarjeta #${l.TareaId}`)); }
     d.appendChild(c);
     const lado = el('div', 'lado');
-    const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : l.Tipo === 'enlace' ? chip('enlace') : chip('archivado', 'ok')); lado.appendChild(est);
     if (l.LigadoPor) lado.appendChild(el('span', 'p', nombreDe(l.LigadoPor, estado.roles)));
     if (puede) lado.appendChild(boton('Quitar', 'mn-btn is-ghost is-sm', () => quitarLiga(l), { quitar: String(l.id) }));
     d.appendChild(lado);
@@ -121,7 +135,8 @@ export async function quitarLiga(l, reemplazadaPor = null) {
 }
 
 /** Cambia la tarjeta de una liga; vacio = del proyecto entero. */
-async function reasignarLiga(l, tareaId) {
+async function reasignarLiga(liga, tareaId) {
+    const l = porId(estado.ligas, liga.id) || liga;   // resolver por id AL CLIC: un refresco reemplaza los objetos de estado
     if (!PUEDE.ligar(estado.rol)) { avisar('Tu rol es de lectura: no puedes cambiar ligas.', 'error'); return; }
     const nuevo = tareaId ? Number(tareaId) : null;
     if ((l.TareaId ? Number(l.TareaId) : null) === nuevo) return;
