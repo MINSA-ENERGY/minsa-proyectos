@@ -14,9 +14,9 @@
 
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
-import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, nombreDe, diasPara, estadoVence } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, hashDe, fijarHash, aplicar, fijarReleer, pedirRelectura } from './comun.js';
-import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas } from './tablero.js';
+import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos } from './reglas.js';
+import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar } from './comun.js';
+import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
@@ -161,8 +161,10 @@ async function cargarTodo() {
     } finally { recargando = false; pintarSync(); }
 }
 async function recargar() {
+    // La guarda va ANTES de refrescar el token: dos cierres seguidos (cerrarDialogo + el evento close,
+    // E4) o dos clics llegaban los dos a cargarTodo si el primero seguia esperando la red (revisor, 2026-09-12).
     if (recargando) return;
-    $('btnActualizar').disabled = true;
+    recargando = true; $('btnActualizar').disabled = true;
     try {
         await refrescarCliente();
         await cargarTodo();
@@ -173,13 +175,21 @@ async function recargar() {
         // intento y se retiro en la revision de v0.4.0 por esas dos razones.
         const y = window.scrollY; repintar(); window.scrollTo({ top: y });
     } catch (e) { avisar('No se pudieron releer las listas: ' + (e && e.message ? e.message : e), 'error'); }
-    finally { $('btnActualizar').disabled = false; }
+    finally { recargando = false; $('btnActualizar').disabled = false; pintarSync(); }
 }
-// Refresco automatico mientras la app esta a la vista; nunca borra un dialogo abierto.
+// Refresco automatico mientras la app esta a la vista; nunca borra un dialogo de EDICION abierto.
+// E4 (v0.6.0): Equipo y Toda la actividad son de lectura y alguien los deja abiertos minutos; con
+// ellos abiertos se sigue releyendo, y al cerrarlos se relee si ya pasaron 60 s (la regla de visibilitychange).
+const DLG_EDICION = ['dlgTarea', 'dlgNuevaTarea', 'dlgProyecto', 'dlgLigar', 'dlgSubir', 'dlgEnlace', 'dlg'];
+const editando = () => DLG_EDICION.some(id => $(id).open);
+const rancio = () => estado.siteId && Date.now() - estado.cargadoEl > 60000;
 if (CONFIG.refrescoMs > 0 && new URLSearchParams(location.search).get('refresco') !== '0') {
-    setInterval(() => { if (estado.siteId && document.visibilityState === 'visible' && !document.querySelector('dialog[open]')) recargar(); }, CONFIG.refrescoMs);
+    setInterval(() => { if (estado.siteId && document.visibilityState === 'visible' && !editando()) recargar(); }, CONFIG.refrescoMs);
 }
-document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && estado.siteId && Date.now() - estado.cargadoEl > 60000 && !document.querySelector('dialog[open]')) recargar(); });
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && rancio() && !editando()) recargar(); });
+const DLG_LECTURA = ['dlgEquipo', 'dlgActividad'];
+fijarAlCerrar(id => { if (DLG_LECTURA.includes(id) && rancio() && !editando()) recargar(); });
+for (const id of DLG_LECTURA) $(id).addEventListener('close', () => { if (rancio() && !editando()) recargar(); });   // Esc no pasa por cerrarDialogo
 fijarReleer(recargar);   // un 412 (alguien cambio el renglon) se resuelve releyendo: la verdad esta en SharePoint
 
 // T2: sin red se ve, no se guarda. La banda lo dice; graph.js falla YA en cualquier escritura; al
@@ -234,7 +244,7 @@ window.addEventListener('hashchange', aplicarHash);   // una URL pegada o editad
 /** Deja `p` como proyecto abierto; si es OTRO proyecto, el filtro de tarjetas y la columna del celular vuelven al default. */
 function fijarProyectoAbierto(p) {
     if (!estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id) {
-        estado.filtroTareas = { quien: null, alta: false, vencidas: false, texto: '' }; $('filtroTexto').value = '';
+        estado.filtroTareas = { quien: null, alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = '';
         estado.colMovil = 'por-hacer'; estado.ordenLista = { col: 'vence', dir: 1 };
         estado.hechoTodas = false; estado.filtroDocs = null;
     }
@@ -260,6 +270,10 @@ function pintarInsignias() {
     const vencidas = mias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger').length;
     $('nMis').textContent = String(vencidas); $('nMis').hidden = vencidas === 0;
     const n = activos().length; $('nProyectos').textContent = String(n); $('nProyectos').hidden = n === 0;
+    // D5: el lector de pantalla leia «Mis tareas 1» sin decir que el 1 son vencidas.
+    const nombrar = (id, texto) => { $(id).setAttribute('aria-label', texto); $(id).title = texto; };
+    nombrar('nMis', `${vencidas} vencida${vencidas === 1 ? '' : 's'}`);
+    nombrar('nProyectos', `${n} activo${n === 1 ? '' : 's'}`);
 }
 /** Rail de equipos (U2): el filtro puesto se ve (is-on) y cada equipo trae cuantos proyectos activos lleva. */
 function pintarRailEquipos() {
@@ -278,6 +292,18 @@ function pintarRailEquipos() {
 
 // ---------------------------------------------------------------- Inicio
 
+/**
+ * C8 (v0.6.0): el reloj del frente CRUZADO con lo que falta — «vence en 6 d · faltan 10» (ámbar a
+ * `vencePronto` días, rojo vencido). Sin fecha, o lejos, devuelve null y la lista pinta «fin dd/mm».
+ */
+function chipReloj(p, ts) {
+    if (p.Estado !== 'activo' || !p.Vence) return null;
+    const d = diasPara(p.Vence); if (d === null || d > CONFIG.vencePronto) return null;
+    const faltan = ts.filter(t => t.Columna !== 'hecho').length;
+    const reloj = d < 0 ? `venció hace ${-d} d` : d === 0 ? 'vence hoy' : `vence en ${d} d`;
+    const c = chip(`${reloj} · faltan ${faltan}`, d < 0 ? 'danger' : 'warn'); c.dataset.reloj = String(p.id);
+    return c;
+}
 function renglonProyecto(p) {
     const ts = tareasDe(p, estado.tareas); const a = avance(ts); const eq = equipoDe(p);
     const r = el('button', 'renglon'); r.type = 'button'; r.dataset.open = String(p.id);
@@ -285,8 +311,13 @@ function renglonProyecto(p) {
     r.appendChild(el('span', 'mn-mono pct', `${a.hechas}/${a.total} · ${a.pct}%`));
     const m = el('span', 'm');
     m.appendChild(chip(eq.nombre));
+    const reloj = chipReloj(p, ts);
     if (p.Estado === 'cerrado') m.appendChild(chip(`cerrado ${fechaCorta(p.CerradoEl)}`, 'ok'));
-    else if (p.Vence) { const d = diasPara(p.Vence); m.appendChild(d < 0 ? chip(`venció ${fechaCorta(p.Vence)}`, 'danger') : chip(`fin ${fechaCorta(p.Vence)}`, d <= CONFIG.vencePronto ? 'warn' : null)); }
+    else if (reloj) m.appendChild(reloj);
+    else if (p.Vence) m.appendChild(chip(`fin ${fechaCorta(p.Vence)}`));
+    // C7: las tarjetas sin dueño no salen en Mis tareas de nadie; aqui se ven por proyecto.
+    const huerfanas = sinDueno(ts).length;
+    if (huerfanas && p.Estado === 'activo') { const h = chip(`sin dueño · ${huerfanas}`, 'warn'); h.dataset.sinDueno = String(p.id); m.appendChild(h); }
     const quienes = [...new Set(ts.map(x => String(x.Asignado || '').toLowerCase()).filter(Boolean))];
     const avs = el('span', 'avs'); for (const q of quienes.slice(0, 6)) avs.appendChild(avatar(q)); m.appendChild(avs);
     r.appendChild(m);
@@ -297,8 +328,10 @@ function renglonProyecto(p) {
 /** Un renglon de mini lista (2026-09-12): cabecera = quien + cuando; debajo la frase a todo el ancho;
  *  debajo el proyecto en una linea. `texto` NO trae el nombre (lo pone la cabecera); si `texto` ES el
  *  nombre completo (lista Equipo), la cabecera lo lleva entero y no hay frase. */
-function itemMini(quien, texto, sub, derecha, claseDerecha) {
-    const it = el('div', 'it');
+function itemMini(quien, texto, sub, derecha, claseDerecha, abrir) {
+    // C9 (v0.6.0): con `abrir` el renglon es un boton que lleva a la tarjeta (antes era texto que habia que buscar).
+    const it = el(abrir ? 'button' : 'div', 'it' + (abrir ? ' clic' : ''));
+    if (abrir) { it.type = 'button'; it.addEventListener('click', abrir); it.title = 'Abrir la tarjeta'; }
     it.appendChild(avatar(quien));
     const c = el('div');
     const nombre = nombreDe(quien, estado.roles), esNombre = texto === nombre;
@@ -311,6 +344,17 @@ function itemMini(quien, texto, sub, derecha, claseDerecha) {
 }
 /** La frase de actividad SIN el nombre (la cabecera de itemMini ya lo lleva); el resto igual que fraseActividad. */
 function queHizo(a) { return a.Accion === 'comentar' ? `anotó: «${a.Title}»` : String(a.Title || ''); }
+/** C9: un renglon de actividad con TareaId viva se abre en su proyecto (#p/<clave>/t/<id>); sin tarjeta, texto. */
+function abridorDe(a) {
+    const t = a.TareaId ? porId(estado.tareas, a.TareaId) : null; if (!t) return null;
+    const p = porId(estado.proyectos, t.ProyectoId); if (!p) return null;
+    return () => { if ($('dlgActividad').open) cerrarDialogo('dlgActividad'); irAHash(`#p/${p.Clave}/t/${t.id}`); };
+}
+/** Un renglon de actividad para las listas (Inicio, lateral, Toda la actividad). */
+function itemActividad(a, conProyecto) {
+    const p = porId(estado.proyectos, a.ProyectoId);
+    return itemMini(a.Quien, queHizo(a), conProyecto && p ? p.Title : '', fechaHora(a.Cuando), null, abridorDe(a));
+}
 /** Parte «verbo «titulo» resto» en tres: el titulo en <b> (2 lineas, integro en title) y el resto en linea
  *  propia; «de X a Y» sale como «X → Y». Sin «…» (un titulo de tarjeta), texto plano. Nunca innerHTML. */
 function fraseMarcada(texto) {
@@ -341,35 +385,57 @@ function pintarInicio() {
     };
     kpi(activos().length, 'proyectos activos', 'info', { kpi: 'proyectos', a: 'proyectos' });
     kpi(mias.length, 'mis tareas abiertas', null, { kpi: 'mis', a: 'mis', mis: null });
-    kpi(s7, 'mías que vencen en 7 días', s7 ? 'warn' : null, { kpi: 'pronto', a: 'mis', mis: 'pronto' });
+    kpi(s7, 'mías que vencen en 7 d', s7 ? 'warn' : null, { kpi: 'pronto', a: 'mis', mis: 'pronto' });
     kpi(ven, 'mías vencidas', ven ? 'danger' : 'ok', { kpi: 'vencidas', a: 'mis', mis: 'vencidas' });
+    // C7 (v0.6.0): las tarjetas sin dueño no salen en Mis tareas de NADIE. El KPI solo existe si hay
+    // alguna, y aterriza en el proyecto que mas tiene con el filtro «sin dueño» puesto.
+    const huerfanas = sinDueno(abiertas);
+    if (huerfanas.length) {
+        const d = el('button', 'mn-kpi is-clickable is-warn'); d.type = 'button'; d.dataset.kpi = 'sin-dueno';
+        d.appendChild(el('span', 'mn-kpi-label', 'sin dueño')); d.appendChild(el('span', 'mn-kpi-val', String(huerfanas.length)));
+        d.addEventListener('click', () => {
+            const porProyecto = new Map(); for (const t of huerfanas) porProyecto.set(t.ProyectoId, (porProyecto.get(t.ProyectoId) || 0) + 1);
+            const [pid] = [...porProyecto.entries()].sort((a, b) => b[1] - a[1])[0];
+            // El filtro se pone ENTERO: si ese proyecto ya estaba abierto, fijarProyectoAbierto no lo limpia
+            // y un «quien» previo se combinaria con «sin dueño» dejando el tablero vacio (revisor, 2026-09-12).
+            abrirProyecto(Number(pid)); estado.filtroTareas = { quien: null, alta: false, vencidas: false, sinDueno: true, texto: '' }; $('filtroTexto').value = ''; pintarProyecto();
+        });
+        k.appendChild(d);
+    }
     const lp = $('inicioProyectos'); lp.textContent = '';
-    for (const p of activos().sort((a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')))) lp.appendChild(renglonProyecto(p));
+    for (const p of ordenarProyectos(activos())) lp.appendChild(renglonProyecto(p));   // C10
     if (!activos().length) lp.appendChild(el('p', 'vacio', PUEDE.proyecto(estado.rol) ? 'Sin proyectos activos: crea el primero en Proyectos.' : 'Sin proyectos activos todavía.'));
     const v = $('inicioVence'); v.textContent = '';
-    for (const { tarea: t, dias } of proximos(abiertas, 6)) { const p = porId(estado.proyectos, t.ProyectoId); v.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', fechaCorta(t.Vence), dias < 0 ? 'danger' : dias <= CONFIG.vencePronto ? 'warn' : null)); }
+    // C9: tambien estos renglones abren su tarjeta (el revisor vio la inconsistencia con la actividad).
+    const abrirT = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; };
+    for (const { tarea: t, dias } of proximos(abiertas, 6)) { const p = porId(estado.proyectos, t.ProyectoId); v.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', fechaCorta(t.Vence), dias < 0 ? 'danger' : dias <= CONFIG.vencePronto ? 'warn' : null, abrirT(t))); }
     if (!v.childNodes.length) v.appendChild(el('p', 'vacio', 'Nada por vencer.'));
     const sm = $('inicioSinMov'); sm.textContent = '';
     const quietas = sinMovimiento(abiertas, CONFIG.sinMovimientoDias);
-    for (const t of quietas.slice(0, 6)) { const p = porId(estado.proyectos, t.ProyectoId); sm.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', `${-diasPara(t.Desde)} d`, 'warn')); }
+    for (const t of quietas.slice(0, 6)) { const p = porId(estado.proyectos, t.ProyectoId); sm.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', `${-diasPara(t.Desde)} d`, 'warn', abrirT(t))); }
     $('cardSinMov').classList.toggle('oculto', quietas.length === 0);
     const act = $('inicioActividad'); act.textContent = '';
-    for (const a of estado.actividad.slice(0, 5)) { const p = porId(estado.proyectos, a.ProyectoId); act.appendChild(itemMini(a.Quien, queHizo(a), p ? p.Title : '', fechaHora(a.Cuando))); }
+    // B3: en celular Inicio media 2,400 px; la actividad baja a 3 renglones (5 en escritorio).
+    const tope = enCelular.matches ? 3 : 5;
+    for (const a of estado.actividad.slice(0, tope)) act.appendChild(itemActividad(a, true));   // C9
     if (!estado.actividad.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
-    $('btnActividadInicio').hidden = estado.actividad.length <= 5;
+    $('btnActividadInicio').hidden = estado.actividad.length <= tope;
 }
 
 // ---------------------------------------------------------------- toda la actividad (F12) y el equipo (F13)
 
-let acCtx = { proyectoId: null, quien: null, n: 50 };
-/** Toda la actividad, global (proyectoId null) o de un proyecto, filtrable por persona, de 50 en 50. */
+let acCtx = { proyectoId: null, quien: null, tipo: null, n: 50 };
+/** Toda la actividad, global (proyectoId null) o de un proyecto, filtrable por persona y por tipo (C9), de 50 en 50. */
 function abrirActividad(proyectoId) {
-    acCtx = { proyectoId: proyectoId || null, quien: null, n: 50 };
+    acCtx = { proyectoId: proyectoId || null, quien: null, tipo: null, n: 50 };
     const p = proyectoId ? porId(estado.proyectos, proyectoId) : null;
     $('acTitulo').textContent = p ? `Actividad · ${p.Title}` : 'Toda la actividad';
     pintarActividad();
     abrirDialogo('dlgActividad');
 }
+// C9: la bitacora del sistema («creó el proyecto», «reabrió», «borró») pesa igual que las notas y los
+// movimientos, que es lo que la gente busca. Dos chips los separan; «Todos» sigue siendo el default.
+const TIPOS_ACTIVIDAD = [['notas', 'solo notas', a => a.Accion === 'comentar'], ['movimientos', 'solo movimientos', a => a.Accion === 'mover-tarea']];
 function pintarActividad() {
     const todas = estado.actividad.filter(a => !acCtx.proyectoId || Number(a.ProyectoId) === acCtx.proyectoId);
     const quienes = [...new Set(todas.map(a => String(a.Quien || '').toLowerCase()).filter(Boolean))].sort();
@@ -377,9 +443,16 @@ function pintarActividad() {
     const chipQ = (texto, q) => { const b = boton(texto, acCtx.quien === q ? 'is-on' : '', () => { acCtx.quien = q; acCtx.n = 50; pintarActividad(); }, { quien: q || 'todos' }); b.setAttribute('aria-pressed', acCtx.quien === q ? 'true' : 'false'); f.appendChild(b); };
     chipQ('Todos', null);
     for (const q of quienes) chipQ(nombreDe(q, estado.roles), q);
-    const filtradas = todas.filter(a => !acCtx.quien || String(a.Quien || '').toLowerCase() === acCtx.quien);
+    const ft = $('acTipo'); ft.textContent = '';
+    for (const [k, texto] of TIPOS_ACTIVIDAD) {
+        const on = acCtx.tipo === k;
+        const b = boton(texto, on ? 'is-on' : '', () => { acCtx.tipo = on ? null : k; acCtx.n = 50; pintarActividad(); }, { tipo: k });
+        b.setAttribute('aria-pressed', on ? 'true' : 'false'); ft.appendChild(b);
+    }
+    const pasaTipo = acCtx.tipo ? TIPOS_ACTIVIDAD.find(x => x[0] === acCtx.tipo)[2] : () => true;
+    const filtradas = todas.filter(a => (!acCtx.quien || String(a.Quien || '').toLowerCase() === acCtx.quien) && pasaTipo(a));
     const l = $('acLista'); l.textContent = '';
-    for (const a of filtradas.slice(0, acCtx.n)) { const p = porId(estado.proyectos, a.ProyectoId); l.appendChild(itemMini(a.Quien, queHizo(a), acCtx.proyectoId ? '' : (p ? p.Title : ''), fechaHora(a.Cuando))); }
+    for (const a of filtradas.slice(0, acCtx.n)) l.appendChild(itemActividad(a, !acCtx.proyectoId));
     if (!filtradas.length) l.appendChild(el('p', 'vacio', 'Sin actividad.'));
     $('acMas').hidden = filtradas.length <= acCtx.n;
     $('acMas').textContent = `ver 50 más (${filtradas.length - Math.min(acCtx.n, filtradas.length)} restantes)`;
@@ -424,13 +497,14 @@ function pintarProyectos() {
     const f = $('filtroEquipos'); f.textContent = '';
     f.appendChild(boton('Todos', estado.filtroEquipo ? '' : 'is-on', () => { estado.filtroEquipo = null; pintarProyectos(); }));
     for (const e of CONFIG.equipos) f.appendChild(boton(e.nombre, estado.filtroEquipo === e.clave ? 'is-on' : '', () => { estado.filtroEquipo = estado.filtroEquipo === e.clave ? null : e.clave; pintarProyectos(); }));
-    const filtro = p => !estado.filtroEquipo || p.Equipo === estado.filtroEquipo;
+    // C3 (v0.6.0): el mismo buscador sin acentos del tablero, sobre nombre, clave y descripcion.
+    const filtro = ps => filtrarProyectos(ps.filter(p => !estado.filtroEquipo || p.Equipo === estado.filtroEquipo), estado.textoProyectos);
     const l = $('listaProyectos'); l.textContent = '';
-    const act = activos().filter(filtro).sort((a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')));
+    const act = ordenarProyectos(filtro(activos()));   // C10: vence antes primero, sin fecha al final, empate por nombre
     for (const p of act) l.appendChild(renglonProyecto(p));
-    if (!act.length) l.appendChild(el('p', 'vacio', estado.filtroEquipo ? `Sin proyectos activos de ${estado.filtroEquipo}.` : 'Sin proyectos activos.'));
+    if (!act.length) l.appendChild(el('p', 'vacio', estado.textoProyectos ? 'Ningún proyecto con ese texto.' : estado.filtroEquipo ? `Sin proyectos activos de ${estado.filtroEquipo}.` : 'Sin proyectos activos.'));
     const c = $('listaCerrados'); c.textContent = '';
-    const cer = estado.proyectos.filter(p => p.Estado === 'cerrado' && filtro(p)).sort((a, b) => String(b.CerradoEl || '').localeCompare(String(a.CerradoEl || '')));
+    const cer = filtro(estado.proyectos.filter(p => p.Estado === 'cerrado')).sort((a, b) => String(b.CerradoEl || '').localeCompare(String(a.CerradoEl || '')));
     for (const p of cer) c.appendChild(renglonProyecto(p));
     if (!cer.length) c.appendChild(el('p', 'vacio', 'Ninguno cerrado.'));
 }
@@ -439,16 +513,6 @@ function abrirProyecto(id) {
     const p = porId(estado.proyectos, id); if (!p) return;
     fijarProyectoAbierto(p); estado.tab = 'tablero';
     irA('proyecto');
-}
-/** B1: «Filtrar» dice cuantos filtros hay puestos; sin eso, plegarlos los esconde en silencio. */
-function pintarBotonFiltros() {
-    const f = estado.filtroTareas;
-    const n = [f.quien, f.alta, f.vencidas, f.texto].filter(Boolean).length;
-    const b = $('btnFiltros');
-    b.textContent = n ? `Filtrar · ${n}` : 'Filtrar';
-    b.classList.toggle('is-on', !!n || estado.filtrosAbiertos);
-    b.setAttribute('aria-expanded', estado.filtrosAbiertos ? 'true' : 'false');
-    b.classList.toggle('oculto', estado.tab === 'docs' || estado.tab === 'resumen');
 }
 function pintarProyecto() {
     const p = estado.proyectoAbierto; if (!p) { irA('proyectos'); return; }
@@ -469,10 +533,14 @@ function pintarProyecto() {
     $('btnNuevaTarea').disabled = !PUEDE.tarea(estado.rol) || p.Estado !== 'activo';
     // B2: la linea que resume el frente arriba, donde se lee sin bajar a la lateral.
     const dias = diasPara(p.Vence);
+    // C8: el chip «vence en N d · faltan M» de la lista, junto al %, en escritorio y celular. Cuando
+    // existe (≤ 7 d o vencido), la linea-resumen de celular NO repite el reloj.
+    const caja = $('pReloj'); caja.textContent = '';
+    const reloj = chipReloj(p, ts); if (reloj) caja.appendChild(reloj);
     const resumen = [`${a.porColumna['en-curso']} en curso`, `${a.porColumna['en-revision']} en revisión`];
-    if (dias !== null && p.Estado === 'activo') resumen.push(dias < 0 ? `venció hace ${-dias} d` : dias === 0 ? 'vence hoy' : `vence en ${dias} d`);
+    if (dias !== null && p.Estado === 'activo' && !reloj) resumen.push(`vence en ${dias} d`);
     $('pResumen').textContent = resumen.join(' · ');
-    $('pResumen').classList.toggle('is-danger', dias !== null && dias < 0 && p.Estado === 'activo');
+    $('pResumen').classList.remove('is-danger');
     // B1: la descripcion va a una linea en celular; el clic la abre.
     $('pDesc').title = p.Descripcion || '';
     $('pDesc').classList.remove('abierta');
@@ -500,11 +568,11 @@ function pintarProyecto() {
     for (const k of quienes) q.appendChild(itemMini(k, nombreDe(k, estado.roles), `${ts.filter(t => String(t.Asignado || '').toLowerCase() === k && t.Columna !== 'hecho').length} abiertas`, ''));
     if (!quienes.length) q.appendChild(el('p', 'vacio', 'Nadie asignado todavía.'));
     const v = $('pVence'); v.textContent = '';
-    for (const { tarea: t, dias } of proximos(ts, 5)) v.appendChild(itemMini(t.Asignado, t.Title, '', fechaCorta(t.Vence), dias < 0 ? 'danger' : dias <= CONFIG.vencePronto ? 'warn' : null));
+    for (const { tarea: t, dias } of proximos(ts, 5)) v.appendChild(itemMini(t.Asignado, t.Title, '', fechaCorta(t.Vence), dias < 0 ? 'danger' : dias <= CONFIG.vencePronto ? 'warn' : null, () => irAHash(`#p/${p.Clave}/t/${t.id}`)));   // C9
     if (!v.childNodes.length) v.appendChild(el('p', 'vacio', 'Nada por vencer.'));
     const act = $('pActividad'); act.textContent = '';
     const deP = estado.actividad.filter(x => Number(x.ProyectoId) === p.id);
-    for (const x of deP.slice(0, 6)) act.appendChild(itemMini(x.Quien, queHizo(x), '', fechaHora(x.Cuando)));
+    for (const x of deP.slice(0, 6)) act.appendChild(itemActividad(x, false));   // C9
     if (!act.childNodes.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
     $('btnActividadProyecto').hidden = deP.length <= 6;
 }
@@ -644,10 +712,18 @@ const enCelular = window.matchMedia('(max-width: 720px)');
 function acomodarAccMenu() { $('accMenu').open = !enCelular.matches; }
 // Al cruzar los 720 px (girar el telefono, redimensionar la ventana) se repinta el proyecto: ahi es
 // donde «Resumen» deja de existir y donde el menu «···» cambia de forma.
-enCelular.addEventListener('change', () => { acomodarAccMenu(); if (estado.pestana === 'proyecto' && estado.proyectoAbierto) pintarProyecto(); });
+// B3: Inicio tambien depende del ancho (3 renglones de actividad en celular, 5 en escritorio).
+enCelular.addEventListener('change', () => { acomodarAccMenu(); if (estado.siteId) repintar(); });
 acomodarAccMenu();
 document.addEventListener('click', e => { const m = $('accMenu'); if (m.open && enCelular.matches && !m.contains(e.target)) m.open = false; });
 $('accMenu').querySelector('.acciones').addEventListener('click', () => { if (enCelular.matches) $('accMenu').open = false; });
+// D6: el pie del rail apilaba seis controles en 60 px; Equipo, Ver en SharePoint y Salir viven en un
+// menu «···» hacia arriba (Actualizar y el tema se quedan a la vista). Se cierra al elegir y al tocar fuera.
+document.addEventListener('click', e => { const m = $('menuRail'); if (m.open && !m.contains(e.target)) m.open = false; });
+$('menuRail').querySelector('.menu-caja').addEventListener('click', () => { $('menuRail').open = false; });
+// C3: buscador en Proyectos y en Mis tareas (misma normalizacion que el del tablero).
+$('textoProyectos').addEventListener('input', () => { estado.textoProyectos = $('textoProyectos').value; if (estado.pestana === 'proyectos') pintarProyectos(); });
+$('textoMis').addEventListener('input', () => { estado.textoMis = $('textoMis').value; if (estado.pestana === 'mis') pintarMisTareas(); });
 $('btnVolver').addEventListener('click', () => irA('proyectos'));
 $('btnNuevoProyecto').addEventListener('click', () => abrirFormaProyecto(null));
 $('btnEditarProyecto').addEventListener('click', () => abrirFormaProyecto(estado.proyectoAbierto));

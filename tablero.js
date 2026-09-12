@@ -5,8 +5,8 @@
 // columna en celular (U5) y el 412 de If-Match (T1): se relee, no se pisa.
 
 import { CONFIG } from './config.js';
-import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, columnaSiguiente, filtrarTareas, ordenarLista, reordenar } from './reglas.js';
-import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura } from './comun.js';
+import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, sinAcentos } from './reglas.js';
+import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
 
@@ -19,7 +19,10 @@ const personas = () => estado.roles.filter(r => r.Activo !== false).map(r => Str
 // ---------------------------------------------------------------- tarjeta (elemento)
 
 export function tarjeta(t, conProyecto = false) {
-    const b = el('button', 'tarjeta'); b.type = 'button'; b.dataset.t = String(t.id);
+    // D4 (v0.6.0): la prioridad alta es un atributo estable y va como BORDE izquierdo; el chip rojo
+    // se queda solo para «venció» — dos rojos lado a lado se leian como dos vencimientos.
+    const b = el('button', 'tarjeta' + (t.Prioridad === 'alta' ? ' alta' : '')); b.type = 'button'; b.dataset.t = String(t.id);
+    if (t.Prioridad === 'alta') b.title = 'Prioridad alta';
     b.appendChild(el('span', 't', t.Title));
     const f = el('span', 'f');
     f.appendChild(avatar(t.Asignado));
@@ -27,7 +30,6 @@ export function tarjeta(t, conProyecto = false) {
     if (conProyecto) { const p = porId(estado.proyectos, t.ProyectoId); if (p) f.appendChild(chip(p.Clave)); }
     if (conProyecto) f.appendChild(chip(nombreColumna(t.Columna), t.Columna === 'hecho' ? 'ok' : t.Columna === 'en-curso' ? 'info' : null));
     const v = chipVence(t); if (v) f.appendChild(v);
-    if (t.Prioridad === 'alta') f.appendChild(chip('alta', 'danger'));
     if (estado.ligas.some(l => Number(l.TareaId) === t.id && l.Tipo === 'buzon')) f.appendChild(chip('en el buzón', 'info'));
     if (sinMovimiento([t], CONFIG.sinMovimientoDias).length) f.appendChild(el('span', 'stale', `· sin movimiento ${-diasPara(t.Desde)} días`));
     b.appendChild(f);
@@ -45,7 +47,7 @@ export function tarjeta(t, conProyecto = false) {
 
 // ---------------------------------------------------------------- filtro dentro del proyecto (F9)
 
-const CHIPS_FILTRO = [['alta', 'solo alta'], ['vencidas', 'solo vencidas']];
+const CHIPS_FILTRO = [['alta', 'solo alta'], ['vencidas', 'solo vencidas'], ['sinDueno', 'sin dueño']];   // C7 (v0.6.0)
 /** Chips de filtro: una por persona con tarjetas en el proyecto, «solo alta» y «solo vencidas». El texto vive en #filtroTexto. */
 export function pintarFiltroTareas(proyecto) {
     const f = estado.filtroTareas; const c = $('filtroChips'); c.textContent = '';
@@ -64,12 +66,25 @@ export function pintarFiltroTareas(proyecto) {
         chipBtn(nombre, f.quien === q, () => { f.quien = f.quien === q ? null : q; }, { quien: q }, q);
     }
     for (const [k, texto] of CHIPS_FILTRO) chipBtn(texto, !!f[k], () => { f[k] = !f[k]; }, { filtro: k });
-    const activo = !!(f.quien || f.alta || f.vencidas || f.texto);
-    if (activo) chipBtn('× limpiar', false, () => { estado.filtroTareas = { quien: null, alta: false, vencidas: false, texto: '' }; $('filtroTexto').value = ''; }, { filtro: 'limpiar' });
+    const activo = !!(f.quien || f.alta || f.vencidas || f.sinDueno || f.texto);
+    if (activo) chipBtn('× limpiar', false, () => { estado.filtroTareas = { quien: null, alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = ''; }, { filtro: 'limpiar' });
+}
+/** B1: «Filtrar» dice cuantos filtros hay puestos; sin eso, plegarlos los esconde en silencio.
+ *  v0.6.0: vive aqui (no en app.js) para repintarse con CADA cambio de filtro — un chip pulsado
+ *  dejaba el boton en «Filtrar» hasta el siguiente repintado de la pantalla (lo cazo la E2E de C7). */
+export function pintarBotonFiltros() {
+    const f = estado.filtroTareas;
+    const n = [f.quien, f.alta, f.vencidas, f.sinDueno, f.texto].filter(Boolean).length;
+    const b = $('btnFiltros');
+    b.textContent = n ? `Filtrar · ${n}` : 'Filtrar';
+    b.classList.toggle('is-on', !!n || estado.filtrosAbiertos);
+    b.setAttribute('aria-expanded', estado.filtrosAbiertos ? 'true' : 'false');
+    b.classList.toggle('oculto', estado.tab === 'docs' || estado.tab === 'resumen');
 }
 /** Repinta solo el tablero o la lista (no la pantalla entera: el foco del cuadro de texto se queda). */
 function pintarSoloTareas() {
     const p = estado.proyectoAbierto; if (!p) return;
+    pintarBotonFiltros();
     if (estado.tab === 'tablero') pintarTablero(p); else if (estado.tab === 'lista') pintarLista(p);
 }
 const tareasVisibles = proyecto => filtrarTareas(tareasDe(proyecto, estado.tareas), estado.filtroTareas);
@@ -110,7 +125,8 @@ export function pintarTablero(proyecto) {
     }
 }
 
-const COLUMNAS_LISTA = [['tarea', 'Tarea'], ['asignado', 'Asignado'], ['columna', 'Columna'], ['vence', 'Vence'], ['origen', 'Origen en la KB']];
+// D4: la columna «P» lleva el mismo borde de prioridad alta que la tarjeta; no ordena (es un atributo, no una llave).
+const COLUMNAS_LISTA = [['prioridad', 'P'], ['tarea', 'Tarea'], ['asignado', 'Asignado'], ['columna', 'Columna'], ['vence', 'Vence'], ['origen', 'Origen en la KB']];
 export function pintarLista(proyecto) {
     const cont = $('tab-lista'); cont.textContent = '';
     const o = estado.ordenLista;
@@ -118,7 +134,9 @@ export function pintarLista(proyecto) {
     const tabla = el('table'); const thead = el('thead'); const tr = el('tr');
     // F10: clic en el encabezado ordena; segundo clic invierte. La flecha va en el activo (aria-sort).
     for (const [clave, texto] of COLUMNAS_LISTA) {
-        const th = el('th', clave === 'origen' ? 'col-origen' : '', texto); th.dataset.sort = clave;   // B7: Origen se oculta en celular
+        const th = el('th', clave === 'origen' ? 'col-origen' : clave === 'prioridad' ? 'col-p' : '', texto);   // B7: Origen se oculta en celular
+        if (clave === 'prioridad') { th.title = 'Prioridad alta'; th.setAttribute('aria-label', 'Prioridad'); tr.appendChild(th); continue; }
+        th.dataset.sort = clave;
         if (o.col === clave) th.setAttribute('aria-sort', o.dir === 1 ? 'ascending' : 'descending');
         th.addEventListener('click', () => { estado.ordenLista = o.col === clave ? { col: clave, dir: -o.dir } : { col: clave, dir: 1 }; pintarLista(proyecto); });
         tr.appendChild(th);
@@ -126,7 +144,8 @@ export function pintarLista(proyecto) {
     thead.appendChild(tr); tabla.appendChild(thead);
     const tbody = el('tbody');
     for (const t of ts) {
-        const r = el('tr', 'clic'); r.dataset.t = String(t.id);
+        const r = el('tr', 'clic' + (t.Prioridad === 'alta' ? ' alta' : '')); r.dataset.t = String(t.id);
+        const tdp = el('td', 'col-p'); if (t.Prioridad === 'alta') { tdp.appendChild(el('i', 'p-alta')); tdp.title = 'Prioridad alta'; } r.appendChild(tdp);
         r.appendChild(el('td', '', t.Title));
         r.appendChild(el('td', '', t.Asignado ? nombreDe(t.Asignado, estado.roles) : '—'));
         const tdc = el('td'); tdc.appendChild(chip(nombreColumna(t.Columna), t.Columna === 'hecho' ? 'ok' : t.Columna === 'en-curso' ? 'info' : null)); r.appendChild(tdc);
@@ -135,7 +154,7 @@ export function pintarLista(proyecto) {
         r.addEventListener('click', () => abrirTarjeta(t.id));
         tbody.appendChild(r);
     }
-    if (!ts.length) { const r = el('tr'); const td = el('td', 'vacio', tareasDe(proyecto, estado.tareas).length ? 'Nada con ese filtro.' : 'Sin tareas todavía.'); td.colSpan = 5; r.appendChild(td); tbody.appendChild(r); }
+    if (!ts.length) { const r = el('tr'); const td = el('td', 'vacio', tareasDe(proyecto, estado.tareas).length ? 'Nada con ese filtro.' : 'Sin tareas todavía.'); td.colSpan = COLUMNAS_LISTA.length; r.appendChild(td); tbody.appendChild(r); }
     tabla.appendChild(tbody); cont.appendChild(tabla);
 }
 
@@ -157,9 +176,12 @@ export function pintarMisTareas() {
     const cont = $('misLista'); cont.textContent = '';
     const todas = estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === yo && t.Columna !== 'hecho')
         .sort((a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')) || a.id - b.id);
-    const mias = estado.filtroMis === 'vencidas' ? todas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger')
-        : estado.filtroMis === 'pronto' ? todas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn') : todas;
-    if (!mias.length) { cont.appendChild(el('p', 'vacio', todas.length ? 'Nada con ese filtro.' : 'Sin tareas abiertas asignadas a ti.')); return; }
+    // C3 (v0.6.0): buscador por titulo, sin acentos, encima del filtro por vencimiento.
+    const q = sinAcentos(estado.textoMis).trim();
+    const conTexto = q ? todas.filter(t => sinAcentos(t.Title).includes(q)) : todas;
+    const mias = estado.filtroMis === 'vencidas' ? conTexto.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger')
+        : estado.filtroMis === 'pronto' ? conTexto.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn') : conTexto;
+    if (!mias.length) { cont.appendChild(el('p', 'vacio', todas.length ? (q ? 'Ninguna con ese texto.' : 'Nada con ese filtro.') : 'Sin tareas abiertas asignadas a ti.')); return; }
     const urgentes = mias.filter(t => ['danger', 'warn'].includes(estadoVence(t, CONFIG.vencePronto)));
     if (urgentes.length) {
         const card = el('section', 'mn-card urgentes');
@@ -200,8 +222,16 @@ export function abrirTarjeta(id) {
     const p = porId(estado.proyectos, t.ProyectoId);
     $('tTitulo').textContent = t.Title;
     const kv = $('tKv'); kv.textContent = '';
-    const par = (k, v, clase) => { kv.appendChild(el('b', '', k)); kv.appendChild(el('span', clase || '', v)); };
-    par('Proyecto', p ? p.Title : '—');
+    const par = (k, v, clase) => { kv.appendChild(el('b', '', k)); const s = el('span', clase || '', typeof v === 'string' ? v : null); if (typeof v !== 'string') s.appendChild(v); kv.appendChild(s); return s; };
+    // D2 (v0.6.0): desde Mis tareas, «Proyecto» era texto plano; ahora lleva al tablero y trae el chip del equipo.
+    if (p) {
+        const caja = el('span', 'proy'); const eq = equipoDe(p);
+        const a = el('a', '', p.Title); a.href = `#p/${p.Clave}`; a.dataset.proyecto = p.Clave;
+        a.addEventListener('click', ev => { ev.preventDefault(); cerrarDialogo('dlgTarea'); irAHash(`#p/${p.Clave}`); });
+        caja.appendChild(a);
+        const c = chip(eq.nombre); c.style.background = eq.color + '33'; caja.appendChild(c);
+        par('Proyecto', caja);
+    } else par('Proyecto', '—');
     par('Asignado', t.Asignado ? nombreDe(t.Asignado, estado.roles) : 'sin asignar');
     par('Columna', nombreColumna(t.Columna));
     par('Vence', fechaCorta(t.Vence));
@@ -214,8 +244,16 @@ export function abrirTarjeta(id) {
     pintarNotas(t, p);
 
     const puedeMover = PUEDE.mover(estado.rol) && !!p && p.Estado === 'activo';
-    $('tDeny').classList.toggle('oculto', puedeMover);
-    $('tDeny').textContent = !PUEDE.mover(estado.rol) ? 'Tu rol es de lectura: puedes ver la tarjeta, pero moverla lo hace su asignado o cualquier colaborador.' : (p && p.Estado !== 'activo' ? 'El proyecto está cerrado: sus tarjetas quedan como registro.' : '');
+    // C6 (v0.6.0): con rol lectura la tarjeta decia lo mismo tres veces (cuatro botones apagados, la
+    // banda roja y «Borrar» apagado). Ahora: sin «Mover a…», y una linea gris de una frase. La banda
+    // roja se queda para el proyecto CERRADO, que si es una alarma. Los botones se siguen armando
+    // (ocultos): moverTarea se niega sola aunque alguien los fuerce (la E2E lo prueba).
+    const lectura = !PUEDE.mover(estado.rol);
+    $('tSoloLectura').classList.toggle('oculto', !lectura);
+    $('tMoverEtiqueta').classList.toggle('oculto', lectura); $('tMover').classList.toggle('oculto', lectura);
+    const cerrado = !!p && p.Estado !== 'activo';
+    $('tDeny').classList.toggle('oculto', !cerrado);   // tambien lectura ve «cerrado»
+    $('tDeny').textContent = cerrado ? 'El proyecto está cerrado: sus tarjetas quedan como registro.' : '';
     const mv = $('tMover'); mv.textContent = '';
     for (const c of CONFIG.columnas) {
         // C5: la columna actual se lee como «X · actual», no como el boton que hay que pulsar.
@@ -298,13 +336,21 @@ function pintarNotas(t, p) {
     if (!notas.length) c.appendChild(el('span', 'vacio', 'Sin notas todavía.'));
     const puede = PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';
     $('formNota').classList.toggle('oculto', !puede);
-    $('tNota').value = '';
+    $('tNota').value = ''; contarNota();
+}
+/** C4: el contador «180/250» aparece a partir de 200 caracteres; antes el placeholder era la unica pista del limite. */
+const NOTA_MAX = 250, NOTA_AVISO = 200;
+function contarNota() {
+    const n = $('tNota').value.length; const c = $('tNotaCont');
+    c.textContent = n >= NOTA_AVISO ? `${n}/${NOTA_MAX}` : '';
+    c.classList.toggle('is-danger', n >= NOTA_MAX);
 }
 
 async function anotar(ev) {
     ev.preventDefault();
     const t = tarjetaAbierta; if (!t) return;
     if (!PUEDE.tarea(estado.rol)) { avisar('Tu rol es de lectura: no puedes anotar.', 'error'); return; }
+    if ($('tAnotar').disabled) return;   // C4: Ctrl+Enter no respeta `disabled` como el clic; sin esto, dos renglones
     const texto = $('tNota').value.trim();
     if (!texto) { $('tNota').focus(); return; }
     if (texto.length > 250) { avisar('La nota no cabe: máximo 250 caracteres (es un renglón de la bitácora).', 'error'); return; }
@@ -545,6 +591,9 @@ export function engancharTablero() {
     $('dlgTarea').addEventListener('close', () => { fijarHash(hashDe()); });   // al cerrar (boton, Esc o Atras) el hash vuelve a la pantalla
     $('tCompartir').addEventListener('click', compartirTarjeta);
     $('formNota').addEventListener('submit', anotar);
+    // C4: Ctrl/Cmd+Enter envia la nota (el unico envio era el boton) y el contador sigue al teclado.
+    $('tNota').addEventListener('input', contarNota);
+    $('tNota').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('formNota').requestSubmit(); } });
     $('tBorrar').addEventListener('click', borrarTarea);
     $('formTarea').addEventListener('submit', guardarEdicion);
     $('btnNuevaTarea').addEventListener('click', abrirNuevaTarea);

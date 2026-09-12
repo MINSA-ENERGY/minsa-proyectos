@@ -467,6 +467,78 @@ try {
         poner('filtroTexto', 'sin dueno'); await dormir(30);
         R.ok('el texto ignora acentos', document.querySelectorAll('#tableroCols .tarjeta').length === 1 && $('tableroCols').textContent.includes('sin dueño'));
         poner('filtroTexto', ''); await dormir(30);
+        // ---- v0.6.0 (tanda 5) ----
+        // C7: la tarjeta sin dueño no sale en Mis tareas de nadie: chip en el tablero, KPI en Inicio, chip en el renglón del proyecto.
+        document.querySelector('#filtroChips [data-filtro="sinDueno"]').click(); await dormir(30);
+        R.ok('C7: el chip «sin dueño» deja solo la huérfana', document.querySelectorAll('#tableroCols .tarjeta').length === 1 && document.querySelector('#tableroCols .tarjeta').dataset.t === String(normal.id) && $('btnFiltros').textContent.includes('1'));
+        document.querySelector('#filtroChips [data-filtro="limpiar"]').click(); await dormir(30);
+        // D4: la prioridad alta es un borde (clase .alta), ya no un chip rojo; la Lista gana la columna «P».
+        R.ok('D4: la tarjeta alta lleva la clase .alta y ningún chip rojo «alta»', document.querySelector(`.tarjeta[data-t="${t.id}"]`).classList.contains('alta') && !document.querySelector(`.tarjeta[data-t="${normal.id}"]`).classList.contains('alta') && ![...document.querySelectorAll('#tableroCols .mn-chip')].some(c => c.textContent === 'alta'));
+        tab('lista'); await esperar(() => document.querySelector('#tab-lista th.col-p'), 'lista con P');
+        R.ok('D4: la Lista trae «P» (sin ordenar) y solo la alta lleva la marca', !document.querySelector('#tab-lista th.col-p').dataset.sort && document.querySelectorAll('#tab-lista td.col-p .p-alta').length === (gerencia ? 1 : 2) && !!document.querySelector(`#tab-lista tr[data-t="${t.id}"] td.col-p .p-alta`));
+        tab('tablero'); await dormir(30);
+        pestana('inicio'); await esperar(() => document.querySelector('#inicioKpis [data-kpi="sin-dueno"]'), 'KPI sin dueño');
+        R.ok('C7: Inicio trae el KPI «sin dueño» = 1 y el renglón del proyecto lo dice', document.querySelector('#inicioKpis [data-kpi="sin-dueno"] .mn-kpi-val').textContent === '1' && !!document.querySelector(`#inicioProyectos [data-sin-dueno="${proyectoId}"]`) && document.querySelector(`#inicioProyectos [data-sin-dueno="${proyectoId}"]`).textContent === 'sin dueño · 1');
+        document.querySelector('#inicioKpis [data-kpi="sin-dueno"]').click(); await esperar(() => visible('p-proyecto') && document.querySelectorAll('#tableroCols .tarjeta').length === 1, 'proyecto filtrado');
+        R.ok('C7: el KPI aterriza en el proyecto con el filtro «sin dueño» puesto', document.querySelector('#filtroChips [data-filtro="sinDueno"]').classList.contains('is-on') && document.querySelector('#tableroCols .tarjeta').dataset.t === String(normal.id));
+        document.querySelector('#filtroChips [data-filtro="limpiar"]').click(); await dormir(30);
+        // D5: los contadores del rail tienen nombre accesible.
+        R.ok('D5: los contadores del rail llevan aria-label («N vencidas» / «N activos»)', $('nProyectos').getAttribute('aria-label') === '1 activo' && /^\d+ vencidas?$/.test($('nMis').getAttribute('aria-label')) && $('nProyectos').title === '1 activo', $('nMis').getAttribute('aria-label'));
+        // D6: el pie del rail — Equipo, Ver en SharePoint y Salir dentro del menú «···».
+        R.ok('D6: Equipo, Ver en SharePoint y Salir viven en el menú «···» del rail; Actualizar y el tema, fuera', $('menuRail').contains($('btnEquipo')) && $('menuRail').contains($('lnkSharePoint')) && $('menuRail').contains($('btnSalir')) && !$('menuRail').contains($('btnActualizar')) && !$('menuRail').contains(document.querySelector('.rail .tema')) && $('btnSalir') === $('menuRail').querySelector('.menu-caja').lastElementChild);
+        $('menuRail').open = true; clic('btnEquipo'); await esperar(() => $('dlgEquipo').open, 'equipo desde el menú');
+        R.ok('D6: elegir una opción cierra el menú', !$('menuRail').open);
+        // B8: Atrás cierra cualquier diálogo (los seis sin hash): el diálogo empuja una entrada y popstate lo cierra.
+        R.ok('B8: abrir Equipo empujó una entrada de historial sin cambiar el hash', history.state && history.state.dlg === 'dlgEquipo' && location.hash === '#p/' + CLAVE, JSON.stringify(history.state));
+        window.dispatchEvent(new PopStateEvent('popstate')); await esperar(() => !$('dlgEquipo').open, 'Atrás cerró Equipo');
+        R.ok('B8: Atrás cierra el diálogo y la pantalla se queda donde estaba', !$('dlgEquipo').open && visible('p-proyecto'));
+        // E4: el refresco automático no se pausa con un diálogo de lectura; al cerrarlo, si pasó más de 60 s, relee.
+        { const llamadasE4 = DB.llamadas.length;
+          clic('btnEquipo'); await esperar(() => $('dlgEquipo').open, 'equipo');
+          const mod = await import('../comun.js'); mod.estado.cargadoEl = Date.now() - 61000;
+          clic('eqCerrar'); await esperar(() => !$('btnActualizar').disabled && DB.llamadas.length > llamadasE4, 'relectura al cerrar Equipo');
+          R.ok('E4: cerrar un diálogo de lectura tras > 60 s relee las listas', DB.llamadas.length > llamadasE4); }
+        // C8: el reloj del frente cruzado con lo pendiente, en la cabecera y en el renglón de la lista.
+        { const mod = await import('../comun.js'); const p0 = mod.estado.proyectos.find(x => x.id === proyectoId); const venceAntes = p0.Vence;
+          p0.Vence = new Date(Date.now() + 3 * 864e5).toISOString(); await abrirLau();
+          R.ok('C8: la cabecera trae «vence en 3 d · faltan N» en ámbar', /^vence en 3 d · faltan \d+$/.test($('pReloj').textContent) && $('pReloj').querySelector('.mn-chip').classList.contains('is-warn'), $('pReloj').textContent);
+          pestana('proyectos'); await dormir(30);
+          R.ok('C8: el mismo chip en el renglón de Proyectos', !!document.querySelector(`#listaProyectos [data-reloj="${proyectoId}"]`) && document.querySelector(`#listaProyectos [data-reloj="${proyectoId}"]`).textContent.startsWith('vence en 3 d · faltan'));
+          p0.Vence = venceAntes; }
+        // C10: la lista de proyectos se ordena por fin del frente (sin fecha al final) y luego por nombre.
+        { const idsC10 = []; for (const [nombre, vence] of [['Zeta sin fecha', undefined], ['Alfa mismo día', '2026-10-31T18:00:00Z'], ['Antes que todos', '2026-09-20T18:00:00Z']]) { const id = DB.siguienteId++; idsC10.push(id); filas('proyectos').push({ id, fields: { Title: nombre, Clave: 'c10-' + id, Equipo: 'CALYTEK', Estado: 'activo', Vence: vence } }); }
+          await recargarYEsperar(); pestana('proyectos'); await esperar(() => document.querySelectorAll('#listaProyectos .renglon').length === 4, '4 proyectos');
+          const ordenC10 = [...document.querySelectorAll('#listaProyectos .renglon .t')].map(x => x.textContent);
+          R.ok('C10: Proyectos ordena por fin del frente y desempata por nombre, sin fecha al final', ordenC10[0] === 'Antes que todos' && ordenC10[1] === 'Alfa mismo día' && ordenC10[2].startsWith('LAU') && ordenC10[3] === 'Zeta sin fecha', ordenC10.join(' | '));
+          // C3: buscador en Proyectos (nombre / clave / descripción, sin acentos) y en Mis tareas (título).
+          poner('textoProyectos', 'ALFA'); await dormir(30);
+          R.ok('C3: el buscador de Proyectos filtra por nombre sin acentos ni mayúsculas', document.querySelectorAll('#listaProyectos .renglon').length === 1 && document.querySelector('#listaProyectos .renglon .t').textContent === 'Alfa mismo día');
+          poner('textoProyectos', 'c10-' + idsC10[0]); await dormir(30);
+          R.ok('C3: también por clave', document.querySelectorAll('#listaProyectos .renglon').length === 1 && document.querySelector('#listaProyectos .renglon .t').textContent === 'Zeta sin fecha');
+          poner('textoProyectos', 'zzz'); await dormir(30);
+          R.ok('C3: sin resultado lo dice', !!document.querySelector('#listaProyectos .vacio') && $('listaProyectos').textContent.includes('ese texto'));
+          poner('textoProyectos', ''); await dormir(30);
+          DB.listas.proyectos.items = filas('proyectos').filter(p => !idsC10.includes(p.id)); await recargarYEsperar(); }
+        pestana('mis'); await esperar(() => visible('p-mis'), 'mis');
+        poner('textoMis', 'INSUMOS'); await dormir(30);
+        R.ok('C3: el buscador de Mis tareas filtra por título', document.querySelectorAll('#misLista .tarjeta').length === 1 && !!document.querySelector(`#misLista .tarjeta[data-t="${t.id}"]`));
+        poner('textoMis', 'nada-de-nada'); await dormir(30);
+        R.ok('C3: Mis tareas sin resultado lo dice', $('misLista').textContent.includes('ese texto'));
+        poner('textoMis', ''); await dormir(30);
+        // C4: Ctrl+Enter envía la nota y el contador aparece a partir de 200 caracteres.
+        await abrirLau(); await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta');
+        document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+        poner('tNota', 'x'.repeat(199)); R.ok('C4: a 199 caracteres no hay contador', $('tNotaCont').textContent === '');
+        poner('tNota', 'y'.repeat(230)); R.ok('C4: a 230 el contador dice 230/250', $('tNotaCont').textContent === '230/250' && !$('tNotaCont').classList.contains('is-danger'));
+        poner('tNota', 'z'.repeat(250)); R.ok('C4: al tope va en rojo', $('tNotaCont').classList.contains('is-danger'));
+        poner('tNota', 'Nota por teclado.'); const notasAntes = actividad('comentar').length;
+        $('tNota').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true }));
+        await esperar(() => actividad('comentar').length === notasAntes + 1, 'nota por Ctrl+Enter');
+        R.ok('C4: Ctrl+Enter envía la nota', actividad('comentar')[actividad('comentar').length - 1].fields.Title === 'Nota por teclado.' && $('tNota').value === '' && $('tNotaCont').textContent === '');
+        $('tNota').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await dormir(40);
+        R.ok('C4: Enter solo no envía', actividad('comentar').length === notasAntes + 1);
+        clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+        tab('tablero'); await dormir(30);
         // U5: las pestañas de columna existen siempre (el CSS las enseña solo en celular).
         R.ok('pestañas de columna: 4 con su conteo, Por hacer activa', document.querySelectorAll('#colTabs button').length === 4 && document.querySelector('#colTabs [data-col-tab="en-curso"] .n').textContent === '2' && document.querySelector('.col[data-col="por-hacer"]').classList.contains('is-activa'));
         document.querySelector('#colTabs [data-col-tab="en-curso"]').click(); await dormir(30);
@@ -644,7 +716,20 @@ try {
         R.ok('F12: lista TODA la del proyecto con chips por persona y sin «ver más» (< 50)', $('acTitulo').textContent.includes('LAU') && document.querySelectorAll('#acLista .it').length === deLau && document.querySelectorAll('#acFiltro button').length === 2 && $('acMas').hidden, `${document.querySelectorAll('#acLista .it').length}/${deLau}`);
         document.querySelector(`#acFiltro [data-quien="${YO}"]`).click(); await dormir(30);
         R.ok('F12: el chip por persona filtra', document.querySelectorAll('#acLista .it').length === deLau && document.querySelector('#acFiltro button.is-on').dataset.quien === YO);
-        clic('acCerrar');
+        // C9 (v0.6.0): «solo notas» / «solo movimientos», y el renglon con tarjeta es un boton que la abre.
+        const notasLau = filas('actividad').filter(a => Number(a.fields.ProyectoId) === proyectoId && a.fields.Accion === 'comentar').length;
+        const movLau = filas('actividad').filter(a => Number(a.fields.ProyectoId) === proyectoId && a.fields.Accion === 'mover-tarea').length;
+        document.querySelector('#acTipo [data-tipo="notas"]').click(); await dormir(30);
+        R.ok('C9: «solo notas» deja las notas del proyecto', document.querySelectorAll('#acLista .it').length === notasLau && notasLau >= 1, `${document.querySelectorAll('#acLista .it').length}/${notasLau}`);
+        document.querySelector('#acTipo [data-tipo="movimientos"]').click(); await dormir(30);
+        R.ok('C9: «solo movimientos» deja los movimientos (y apaga «solo notas»)', document.querySelectorAll('#acLista .it').length === movLau && movLau >= 4 && document.querySelector('#acTipo [data-tipo="notas"]').getAttribute('aria-pressed') === 'false', String(document.querySelectorAll('#acLista .it').length));
+        R.ok('C9: el renglón con tarjeta viva es un botón; el de «creó el proyecto» no', document.querySelector('#acLista .it').tagName === 'BUTTON');
+        document.querySelector('#acLista button.it').click(); await esperar(() => $('dlgTarea').open && !$('dlgActividad').open, 'tarjeta desde la actividad');
+        R.ok('C9: clic en el renglón cierra la actividad y abre la tarjeta por su liga', $('dlgTarea').open && location.hash === `#p/${CLAVE}/t/${t.id}`, location.hash);
+        clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+        pestana('inicio'); await esperar(() => document.querySelector('#inicioActividad .it'), 'actividad en Inicio');
+        R.ok('C9: en Inicio el renglón de actividad con tarjeta también es botón', !!document.querySelector('#inicioActividad button.it'));
+        await abrirLau();
         // F13 (v0.4.0): «Ver en SharePoint» y la pantalla Equipo.
         R.ok('F13: «Ver en SharePoint» apunta a la lista de tareas (webUrl real de Graph)', !$('lnkSharePoint').classList.contains('oculto') && $('lnkSharePoint').href.endsWith('/Lists/PROY_Tareas') && $('lnkSharePoint').target === '_blank');
         clic('btnEquipo'); await esperar(() => $('dlgEquipo').open, 'equipo');
@@ -731,6 +816,11 @@ try {
             const orden = [...$('dlgTarea').querySelectorAll('#tMover, #tNotasLista, #tDocs')].map(x => x.id);
             R.ok('C5: Mover a… va antes que Notas y que Documentos', orden.join(',') === 'tMover,tNotasLista,tDocs', orden.join(','));
             R.ok('C5: la columna actual se lee como «actual» y no es pulsable', document.querySelector('#tMover button.is-here').textContent.includes('actual') && document.querySelector('#tMover button.is-here').disabled);
+            // B8 (v0.6.0): tambien la confirmacion se cierra con Atras, y cerrar asi es cancelar.
+            clic('tBorrar'); await esperar(() => $('dlg').open, 'confirmación');
+            R.ok('B8: la confirmación empuja su entrada de historial', history.state && history.state.dlg === 'dlg');
+            window.dispatchEvent(new PopStateEvent('popstate')); await esperar(() => !$('dlg').open, 'Atrás cerró la confirmación'); await dormir(40);
+            R.ok('B8: Atrás sobre la confirmación cancela (la tarjeta sigue) y la tarjeta de atrás sigue abierta', filas('tareas').some(x => x.id === t.id) && $('dlgTarea').open);
             clic('tBorrar'); await confirmar(); await esperar(() => !filas('tareas').some(x => x.id === t.id), 'borrada');
             R.ok('tarjeta borrada y la liga queda sin tarjeta', actividad('borrar-tarea').length === 1 && filas('ligas').every(l => l.fields.TareaId !== t.id));
             clic('btnCerrarProyecto'); await confirmar(); await esperar(() => filas('proyectos')[0].fields.Estado === 'cerrado', 'cerrado');
@@ -777,8 +867,10 @@ try {
         const t = filas('tareas')[0];
         await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta');
         document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
-        R.ok('lectura: ve la tarjeta con el aviso de rol', !$('tDeny').classList.contains('oculto') && $('tDeny').textContent.includes('lectura'));
+        // C6 (v0.6.0): una sola señal — la linea gris; ni banda roja ni «Mover a…» a la vista.
+        R.ok('C6 (lectura): una línea «Solo lectura», sin banda roja y sin «Mover a…»', !$('tSoloLectura').classList.contains('oculto') && $('tSoloLectura').textContent.startsWith('Solo lectura') && $('tDeny').classList.contains('oculto') && $('tMover').classList.contains('oculto') && $('tMoverEtiqueta').classList.contains('oculto'));
         R.ok('lectura: botones de mover deshabilitados y sin editar', [...document.querySelectorAll('#tMover button')].every(b => b.disabled) && $('tEditar').classList.contains('oculto') && $('tBorrar').disabled);
+        R.ok('D2 (lectura): «Proyecto» es un enlace a #p/<clave> con el chip del equipo', !!document.querySelector('#tKv a[data-proyecto="lau-demo"]') && !!document.querySelector('#tKv .proy .mn-chip'));
         R.ok('lectura: sin «→ siguiente», sin Subir/Bajar, sin pegar enlace', !document.querySelector('[data-sig]') && !$('tOrden').querySelector('button') && !document.querySelector('#tDocs [data-enlace]'));
         // v0.5.0: lo de la tanda 4 también con el rol que solo mira (antes sus 15 pruebas no tocaban nada nuevo).
         R.ok('C5 (lectura): Mover a… antes que Notas y Documentos, y sin pie de borrar en el diálogo',

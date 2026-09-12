@@ -1,6 +1,6 @@
 // node test/reglas.test.js — reglas puras de MINSA Proyectos (decisiones del plan 2026-09-11).
 import assert from 'node:assert/strict';
-import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos } from '../reglas.js';
+import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -77,6 +77,14 @@ ok('filtrarTareas solo alta', filtrarTareas(t10, { alta: true }, HOY).map(t => t
 ok('filtrarTareas solo vencidas (hechas fuera)', filtrarTareas(t10, { vencidas: true }, HOY).map(t => t.id).join(',') === '2');
 ok('filtrarTareas texto sin acentos, en titulo o descripcion', filtrarTareas(t10, { texto: 'revision' }, HOY).map(t => t.id).join(',') === '7' && filtrarTareas(t10, { texto: 'COLEGA' }, HOY).length === 1 && filtrarTareas(t10, { texto: 'zzz' }, HOY).length === 0);
 ok('filtrarTareas combina', filtrarTareas(t10, { alta: true, texto: 'c' }, HOY).map(t => t.id).join(',') === '3');
+// --- v0.6.0: sin dueño (C7), orden de proyectos (C10), busqueda de proyectos (C3)
+const conHuerfana = [...t10, { id: 8, ProyectoId: 10, Title: 'Huérfana abierta', Columna: 'por-hacer', Asignado: '  ' }, { id: 9, ProyectoId: 10, Title: 'Huérfana hecha', Columna: 'hecho' }];
+ok('filtrarTareas sinDueno: sin asignado (o solo espacios), hechas fuera como en «solo vencidas»', filtrarTareas(conHuerfana, { sinDueno: true }, HOY).map(t => t.id).join(',') === '2,3,4,6,8');
+ok('sinDueno(): abiertas sin asignado, las hechas fuera', sinDueno(conHuerfana).map(t => t.id).join(',') === '2,3,4,6,8');
+const proys = [{ id: 1, Title: 'Zeta', Vence: '2026-10-31T18:00:00Z' }, { id: 2, Title: 'Sin fecha' }, { id: 3, Title: 'Alfa', Vence: '2026-10-31T18:00:00.000Z' }, { id: 4, Title: 'Pronto', Vence: '2026-09-18T18:00:00Z' }];
+ok('ordenarProyectos: vence antes primero, empate por nombre (mismo dia aunque el ISO difiera), sin fecha al final', ordenarProyectos(proys).map(p => p.id).join(',') === '4,3,1,2');
+ok('ordenarProyectos no muta la entrada', proys[0].id === 1);
+ok('filtrarProyectos por nombre, clave o descripcion sin acentos', filtrarProyectos([{ Title: 'Licencia Única', Clave: 'lau-asea', Descripcion: 'fianza' }, { Title: 'Otro', Clave: 'otro' }], 'UNICA').length === 1 && filtrarProyectos([{ Title: 'x', Clave: 'lau-asea' }], 'asea').length === 1 && filtrarProyectos([{ Title: 'x', Descripcion: 'la fianza' }], 'fianza').length === 1 && filtrarProyectos([{ Title: 'x' }], '').length === 1);
 ok('ordenarLista por vence: sin fecha al final en las dos direcciones', ordenarLista(t10, 'vence', 1).map(t => t.id).join(',') === '1,2,3,6,4,7' && ordenarLista(t10, 'vence', -1).map(t => t.id).join(',') === '6,3,2,1,4,7');
 ok('ordenarLista por columna = posicion en el tablero', ordenarLista(t10, 'columna', 1).map(t => t.Columna).join(',') === 'por-hacer,por-hacer,por-hacer,en-curso,en-revision,hecho');
 ok('ordenarLista por tarea alfabetico', ordenarLista(t10, 'tarea', 1)[0].id === 1 && ordenarLista(t10, 'tarea', -1)[0].id === 7);

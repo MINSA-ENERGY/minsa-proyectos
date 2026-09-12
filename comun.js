@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { iniciales, nombreDe, diasPara, estadoVence } from './reglas.js';
 
-export const VERSION = '0.5.0';
+export const VERSION = '0.6.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -16,7 +16,9 @@ export const estado = {
     pestana: 'inicio', tab: 'tablero',
     filtroEquipo: null,
     // v0.3.0: filtro y orden dentro del proyecto (F9/F10), columna visible en celular (U5), filtro de Mis tareas (U3)
-    filtroTareas: { quien: null, alta: false, vencidas: false, texto: '' },
+    filtroTareas: { quien: null, alta: false, vencidas: false, sinDueno: false, texto: '' },
+    // v0.6.0 (C3): buscador fuera del proyecto — Proyectos (nombre, clave, descripcion) y Mis tareas (titulo).
+    textoProyectos: '', textoMis: '',
     // v0.5.0 (B1): en celular los chips + buscador van plegados detras de «Filtrar»; en escritorio
     // el CSS los muestra siempre y esta bandera no se nota.
     filtrosAbiertos: false,
@@ -95,13 +97,36 @@ export function limpiarAvisos() {
     $('avisos').textContent = '';
     for (const z of document.querySelectorAll('.dlg-avisos')) z.textContent = '';
 }
-export function abrirDialogo(id) { const d = $(id); limpiarAvisos(); if (!d.open) d.showModal(); d.scrollTo({ top: 0 }); }
+/**
+ * B8 (v0.6.0): Atras del navegador cierra CUALQUIER dialogo, no solo la tarjeta. La tarjeta ya vive
+ * en el hash; los otros seis empujan una entrada de historial SIN cambiar el hash al abrirse, y
+ * popstate los cierra. Al cerrar con su boton la entrada se queda (history.back() es asincrono y
+ * se cruzaria con el pushState de lo que la persona abra despues — medido con la E2E): un Atras de
+ * mas que no hace nada, contra el gesto de Android que sacaba de la pantalla con el dialogo abierto.
+ */
+export function abrirDialogo(id) {
+    const d = $(id); limpiarAvisos();
+    if (!d.open) {
+        if (id !== 'dlgTarea') { history.pushState({ dlg: id }, '', location.href); d.dataset.enHistorial = '1'; }
+        d.showModal();
+    }
+    d.scrollTo({ top: 0 });
+}
+// E4: app.js se entera SINCRONO de cada cierre (el evento `close` del <dialog> no llega bajo tiempo virtual).
+let alCerrar = () => {};
+export function fijarAlCerrar(fn) { alCerrar = fn; }
 export function cerrarDialogo(id) {
-    const d = $(id); if (d.open) d.close();
+    const d = $(id); if (d.open) { d.close(); alCerrar(id); }
+    delete d.dataset.enHistorial;
     // La tarjeta vive en el hash: al cerrarla por codigo el hash vuelve AQUI, sincrono. El evento
     // `close` (Esc, Atras) lo repite en tablero.js; con tiempo virtual (E2E) ese evento llega tarde.
     if (id === 'dlgTarea') fijarHash(hashDe());
 }
+window.addEventListener('popstate', () => {
+    for (const d of document.querySelectorAll('dialog[open][data-en-historial]')) { delete d.dataset.enHistorial; d.close(); if (d.id !== 'dlg') alCerrar(d.id); }   // #dlg avisa desde su onclose
+});
+/** Navega como lo haria una URL pegada: escribe el hash y dispara el router (app.js escucha popstate). */
+export function irAHash(h) { fijarHash(h); window.dispatchEvent(new PopStateEvent('popstate')); }
 
 /** Confirmacion propia (sustituye al confirm() nativo). Devuelve {ok, motivo}. */
 export function confirmar({ titulo, texto, ok = 'Confirmar', motivo = false, etiquetaMotivo = 'Motivo' }) {
@@ -116,7 +141,8 @@ export function confirmar({ titulo, texto, ok = 'Confirmar', motivo = false, eti
         $('dlgError').classList.add('oculto');
         const cerrar = ok2 => {
             $('dlgOk').onclick = $('dlgCancelar').onclick = d.onclose = null;
-            if (d.open) d.close();
+            delete d.dataset.enHistorial;
+            if (d.open) { d.close(); alCerrar('dlg'); }
             resolver({ ok: ok2, motivo: $('dlgMotivo').value.trim() });
         };
         $('dlgOk').onclick = () => {
@@ -126,6 +152,8 @@ export function confirmar({ titulo, texto, ok = 'Confirmar', motivo = false, eti
         $('dlgCancelar').onclick = () => cerrar(false);
         d.onclose = () => cerrar(false);
         $('dlgMotivo').oninput = () => $('dlgError').classList.add('oculto');
+        // B8: tambien la confirmacion se cierra con Atras (popstate → close → onclose → cerrar(false)).
+        history.pushState({ dlg: 'dlg' }, '', location.href); d.dataset.enHistorial = '1';
         d.showModal();
         if (motivo) $('dlgMotivo').focus();
     });

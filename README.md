@@ -6,6 +6,58 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.6.0** (2026-09-12) — **tanda 5: los 14 hallazgos que quedaban del recorrido del 12-sep, más C8 completo.** Con
+esto los **36 están cerrados**. Por cubetas:
+
+- **C · flujos.** Con rol **lectura** la tarjeta deja de decir lo mismo tres veces: sin «Mover a…», sin banda roja, una
+  línea gris «Solo lectura · la mueve su asignado o cualquier colaborador» (la banda roja se queda para el proyecto
+  CERRADO, que sí es una alarma; los botones se siguen armando ocultos y `moverTarea` se niega sola si alguien los
+  fuerza) (C6) · las tarjetas **sin dueño** —que no salen en Mis tareas de nadie— tienen KPI en Inicio (solo si hay,
+  aterriza en el proyecto que más tiene con el filtro puesto), chip «sin dueño · N» en cada renglón de proyecto y chip
+  de filtro en el tablero (C7) · **Proyectos se ordena** por fin del frente ascendente, sin fecha al final y a igual
+  DÍA por nombre — `ordenarProyectos()` compara los 10 caracteres del día, no el ISO entero: la app escribe
+  `…T18:00:00.000Z` y la siembra `…T18:00:00Z`, y comparar la cadena rompía el empate (lo cazó la E2E) (C10) · el
+  chip **«vence en 6 d · faltan 10»** (ámbar ≤ 7 d, rojo vencido) en la cabecera junto al % y en el renglón de la lista
+  de Proyectos (C8 completo) · **buscador** en Proyectos (nombre, clave, descripción) y en Mis tareas (título), la
+  misma normalización sin acentos del tablero (C3) · en la actividad, el renglón con tarjeta viva es un **botón** que
+  abre `#p/<clave>/t/<id>` (Inicio, lateral y «Toda la actividad»), y «Toda la actividad» gana los chips **«solo
+  notas» / «solo movimientos»** (C9) · en la tarjeta, **«Proyecto» es un enlace** al tablero con el chip del equipo
+  (D2) · las notas se mandan con **Ctrl/Cmd+Enter**, el contador «230/250» aparece desde 200 (rojo al tope) y en
+  celular «Anotar» va debajo a todo el ancho (C4).
+- **D · pulido.** La **prioridad alta es un borde** izquierdo de 3 px en la tarjeta (y una columna «P» en la Lista);
+  el rojo queda solo para «venció» (D4) · los contadores del rail llevan `aria-label` y `title` («1 vencida» / «4
+  activos») (D5) · el pie del rail deja Actualizar y el tema a la vista, y **Equipo · Ver en SharePoint · Salir** viven
+  en un menú «···» que abre hacia arriba (D6).
+- **B · celular.** Inicio: KPI en **una fila de «mini»** (el 5.º cae a la fila de abajo), actividad a **3 renglones**
+  (5 en escritorio; el cruce de 720 px repinta) — la página baja de ~2,400 a **2,221 px** medidos (B3) ·
+  **Atrás del navegador cierra cualquier diálogo**: los siete que no viven en el hash (incluida la confirmación) empujan una entrada de historial
+  sin cambiar la URL al abrirse y `popstate` los cierra. Al cerrar con el botón la entrada se queda —`history.back()`
+  es asíncrono y se cruzaba con el `pushState` de lo que se abre después—: un Atrás de más que no hace nada, contra el
+  gesto de Android que sacaba de la pantalla (B8).
+- **E · arnés.** El refresco automático **ya no se pausa** con Equipo ni con Toda la actividad (solo con los de
+  edición), y al cerrarlos relee si pasaron más de 60 s. **El evento `close` del `<dialog>` no llega bajo tiempo
+  virtual** (medido: 8 s de espera y nada), así que `cerrarDialogo` avisa síncrono por `fijarAlCerrar` y el `close`
+  queda como cinturón para Esc (E4).
+- **Lo que la E2E nueva cazó de v0.5.0:** «Filtrar · N» no se actualizaba al pulsar un chip (solo al repintar la
+  pantalla); `pintarBotonFiltros` vive ahora en `tablero.js` y se repinta con cada cambio de filtro.
+- **Lo que el `revisor-entregable` cazó antes del commit** (12 hallazgos, 7 aplicados): la confirmación (`#dlg`) no
+  entraba al historial de B8 (ahora sí, y Atrás sobre ella cancela) · `.mn-btn { display: inline-flex }` de la piel
+  **pisaba `[hidden]`** —«ver 50 más (0 restantes)» y «ver toda» se veían con `.hidden = true` y la E2E pasaba porque
+  comprobaba la propiedad— · Ctrl+Enter permitía **dos notas** durante el POST (no respeta `disabled` como el clic) ·
+  `recargar()` podía correr **dos veces** al cerrar Equipo (la guarda `recargando` se ponía después de esperar el
+  token) · el KPI «sin dueño» sobre un proyecto ya abierto se combinaba con un filtro previo; el chip del tablero
+  dejaba pasar las hechas · en celular la línea-resumen y el chip C8 decían el reloj dos veces · lectura no veía
+  «proyecto cerrado». Y dos que se declaran sin aplicar: Esc no relee (el `close` no llega bajo tiempo virtual y no
+  se probó) y los renglones de vencimientos y sin movimiento ahora también abren la tarjeta, por consistencia con C9.
+
+Medido en v0.6.0: E2E **175 / 157 / 19** (gerencia / colaborador / lectura), `npm test` verde (62 reglas), y **32
+vistas × 3 anchos × 2 temas = 192 capturas con 0 desborde horizontal**; a ≤ 900 px el único objetivo < 36 px sigue
+siendo la liga de texto «Oficio ASEA en el correo» dentro de un renglón de Documentos (prosa, 17 px; ya declarada
+en v0.5.0) — la liga «Proyecto» de D2 medía 17 px a 820 y ahora lleva 8 px de relleno. Sin
+cambio de esquema: **v0.6.0 no necesita `provisionar.html`**. SW `minsa-proyectos-v7`. Ojo del arnés: la vista
+`entrar` deja la pantalla de entrada encima y el rail oculto — va **siempre la última** de `VISTAS_TODAS` (las 4
+vistas nuevas se capturaron una vez después de ella y salieron en blanco).
+
 **v0.5.0** (2026-09-12) — **tanda 4: los 16 hallazgos del recorrido del 12-sep** (la app se corrió, no se leyó:
 27 pantallas a 390 / 820 / 1366 px con emulación real por CDP). Por cubetas:
 
@@ -223,6 +275,14 @@ E2E no —desbordes, alturas, objetivos táctiles—; viven fuera del repo públ
 ```bash
 node ../herramientas-dev/capturas.mjs --todas --anchos 390,820,1366 --temas claro,oscuro
 ```
+
+**v0.6.0 (2026-09-12): 351/351** — gerencia 175 · colaborador 157 · lectura 19. Lo nuevo que cubre: la tarjeta de
+lectura con una sola señal; el chip y el KPI «sin dueño» y su aterrizaje filtrado; el orden de Proyectos con el mismo
+día en dos ISO distintos; el reloj «vence en 3 d · faltan N» en cabecera y lista; los buscadores de Proyectos y Mis
+tareas; los chips de tipo de actividad y el renglón que abre la tarjeta; «Proyecto» como enlace; Ctrl+Enter y el
+contador de la nota; la clase `.alta` y la columna «P»; los `aria-label` del rail; el menú «···» del rail y que se
+cierra al elegir; Atrás cierra Equipo y cancela una confirmación (`history.state.dlg`); y la relectura al cerrar un diálogo de lectura tras 60 s.
+**No cubre:** Esc sobre un diálogo (el `close` no llega bajo tiempo virtual); el gesto real de Atrás en Android.
 
 **v0.5.0 (2026-09-12): 290/290** — gerencia 144 · colaborador 128 · lectura 18, en 6 corridas seguidas (3 anchos ×
 2 temas). Lo nuevo que cubre: Ligar/Subir apagados con biblioteca fuera del piloto (y el 403 si se fuerza); las

@@ -136,11 +136,13 @@ export function columnaSiguiente(columna) {
     return i >= 0 && i < COLUMNAS.length - 1 ? COLUMNAS[i + 1] : null;
 }
 
-const sinAcentos = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+/** Minusculas y sin acentos: lo que compara todo buscador de la app (C3, v0.6.0: tambien Proyectos y Mis tareas). */
+export const sinAcentos = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
 /**
- * Filtro de tarjetas dentro de un proyecto (F9): por persona, «solo alta», «solo vencidas» y texto
- * (titulo o descripcion, sin distinguir acentos ni mayusculas). Un filtro vacio deja pasar todo.
+ * Filtro de tarjetas dentro de un proyecto (F9): por persona, «solo alta», «solo vencidas», «sin
+ * dueño» (C7, v0.6.0) y texto (titulo o descripcion, sin distinguir acentos ni mayusculas). Un
+ * filtro vacio deja pasar todo.
  */
 export function filtrarTareas(tareas, f = {}, hoy = new Date()) {
     const quien = String(f.quien || '').trim().toLowerCase();
@@ -149,7 +151,35 @@ export function filtrarTareas(tareas, f = {}, hoy = new Date()) {
         (!quien || String(t.Asignado || '').toLowerCase() === quien)
         && (!f.alta || t.Prioridad === 'alta')
         && (!f.vencidas || estadoVence(t, 0, hoy) === 'danger')
+        && (!f.sinDueno || (t.Columna !== 'hecho' && !String(t.Asignado || '').trim()))
         && (!texto || sinAcentos(t.Title).includes(texto) || sinAcentos(t.Descripcion).includes(texto)));
+}
+
+/** Tarjetas abiertas sin asignado (C7): no salen en Mis tareas de nadie ni cuentan en ningun KPI si no es este. */
+export function sinDueno(tareas) {
+    return (tareas || []).filter(t => t.Columna !== 'hecho' && !String(t.Asignado || '').trim());
+}
+
+/**
+ * Orden de la lista de proyectos (C10, v0.6.0): el que vence antes va primero, sin fecha al final
+ * y, a igual fecha, por nombre. Antes cada pantalla ordenaba por su cuenta y ninguna desempataba.
+ */
+export function ordenarProyectos(proyectos) {
+    // Se compara el DIA (10 caracteres), no el ISO entero: el mismo dia escrito por la app
+    // («…T18:00:00.000Z») y por la siembra («…T18:00:00Z») no es un empate si se compara la cadena.
+    const dia = p => p.Vence ? String(p.Vence).slice(0, 10) : null;
+    return [...(proyectos || [])].sort((a, b) => {
+        const x = dia(a), y = dia(b);
+        if (x !== y) { if (x === null) return 1; if (y === null) return -1; const c = x.localeCompare(y); if (c) return c; }
+        return String(a.Title || '').localeCompare(String(b.Title || ''), 'es') || (Number(a.id) - Number(b.id));
+    });
+}
+
+/** Busqueda de proyectos por nombre, clave o descripcion (C3), sin acentos ni mayusculas. */
+export function filtrarProyectos(proyectos, texto) {
+    const q = sinAcentos(texto).trim();
+    if (!q) return proyectos || [];
+    return (proyectos || []).filter(p => sinAcentos(p.Title).includes(q) || sinAcentos(p.Clave).includes(q) || sinAcentos(p.Descripcion).includes(q));
 }
 
 /**
