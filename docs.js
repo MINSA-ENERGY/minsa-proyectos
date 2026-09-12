@@ -213,7 +213,7 @@ async function buscarDocumento() {
             const fila = el('div', 'lg-resultado');
             const izq = el('div'); izq.appendChild(el('div', '', x.nombre)); izq.appendChild(el('div', 'p', `${x.rutaConocida === false ? '(carpeta: se resuelve al ligar)' : x.ruta} · ${fechaHora(x.modificado)}`));
             fila.appendChild(izq);
-            fila.appendChild(boton('Ligar', 'mn-btn is-primary is-sm', () => ligarDocumento(x)));
+            fila.appendChild(boton('Ligar', 'mn-btn is-sm', () => ligarDocumento(x)));
             cont.appendChild(fila);
         }
     } catch (e) { avisar('No se pudo buscar: ' + (e && e.message ? e.message : e), 'error'); }

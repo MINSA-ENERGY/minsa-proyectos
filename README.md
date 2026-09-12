@@ -6,6 +6,28 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.7.1** (2026-09-12) — **consistencia de controles**, tras una auditoría medida con `capturas.mjs --medir-archivo`
+(64 vistas a 390 y 1366 px, cada control agrupado por clase → alto, padding, fuente, radio, borde). Catorce hallazgos,
+todos aplicados; sin cambios de lógica (E2E 177/177):
+
+- **Un solo botón.** Todo `.mn-btn` mide 32 px en escritorio y 40 en ≤900, pad 0·12, .82rem/600, radio 6, filete 1 px.
+  El pie del rail tenía tres estilos juntos (`.mn-rail button` pisaba a `.mn-btn` en borde, color y gap → regla
+  `.rail .mn-btn`); los menús «···»/«⋮» y el tema ya no re-implementan el botón (`.mn-btn.is-sm.is-icono` en el HTML);
+  «→ siguiente», «ver las N anteriores» y los tres botones de texto son `.mn-btn.is-ghost.is-sm`.
+- **Un chip-botón** (`.filtros button, .col-tabs button, .atajos-fecha button`) y **un select suelto** (píldora .85rem
+  para el filtro móvil y «tarjeta:» de Documentos, que estaba en 11.8 px). El buscador de tarjetas es `.buscador`.
+- **Diálogos.** El primario va siempre al final del pie y el destructivo solo a la izquierda (editar tarjeta iba al
+  revés); «Ligar» tenía 4 primarios y el pie en medio del cuerpo (ahora Buscar junto a los campos, un «Ligar» normal
+  por resultado); «Actividad» saca el pie del cuerpo y lo esconde si «ver 50 más» está oculto.
+- **Distancias y superficies.** Grupo de botones = `--sp-2` (cabecera del proyecto, cabecera del diálogo, acciones de
+  la tarjeta); `--sp-1` solo para chips y el pie del rail (232 px). La tarjeta del tablero pierde la sombra (la piel:
+  «se define por su filete»); `.doc` sube a `--r-md` como toda superficie de primer nivel; `.eqi` en la escala de
+  radios; avatar en DOS tamaños (26 / 20). Rótulos propios con la métrica de `.mn-label` (.68rem · .07em · 600); la
+  escala tipográfica pasa de 25 tamaños a 20 (.55→.58, .66→.68, .7→.72, .74→.75, .875→.85).
+- **Celular.** La pestaña «Resumen» estaba desalineada (`.solo-movil` la volvía `inline-flex` sin centrar).
+- `capturas.mjs --medir-archivo <ruta.js>`: la expresión de medición por archivo — el argumento inline desde
+  PowerShell se parte en los saltos de línea y en la primera comilla doble (64/64 `SyntaxError` con exit 0).
+
 **v0.7.0** (2026-09-12) — **rediseño de Proyectos con la paleta del Tablero.** Carlos no estaba convencido de cómo
 quedaba la app (12-sep); de un artifact con 3 formas de filtrar y 4 de pintar cada proyecto eligió **rail por rama** y
 **reloj primero**:

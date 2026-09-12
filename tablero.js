@@ -39,7 +39,7 @@ export function tarjeta(t, conProyecto = false) {
     const caja = el('div', 'tarjeta-caja'); caja.appendChild(b);
     const sig = columnaSiguiente(t.Columna); const p = porId(estado.proyectos, t.ProyectoId);
     if (sig && PUEDE.mover(estado.rol) && p && p.Estado === 'activo') {
-        const s = boton(`→ ${nombreColumna(sig)}`, 'sig', () => moverSiguiente(t.id), { sig: String(t.id) });
+        const s = boton(`→ ${nombreColumna(sig)}`, 'mn-btn is-ghost is-sm sig', () => moverSiguiente(t.id), { sig: String(t.id) });
         s.title = `Mover a ${nombreColumna(sig)}`; caja.appendChild(s);
     }
     return caja;
@@ -120,7 +120,7 @@ export function pintarTablero(proyecto) {
             if (!estado.hechoTodas && cs.length > HECHO_VISIBLES) { ocultas = cs.length - HECHO_VISIBLES; cs = cs.slice(0, HECHO_VISIBLES); }
         }
         for (const t of cs) col.appendChild(tarjeta(t));
-        if (ocultas) col.appendChild(boton(`ver las ${ocultas} anteriores`, 'mas', () => { estado.hechoTodas = true; pintarTablero(proyecto); }, { mas: 'hecho' }));
+        if (ocultas) col.appendChild(boton(`ver las ${ocultas} anteriores`, 'mn-btn is-ghost is-sm mas', () => { estado.hechoTodas = true; pintarTablero(proyecto); }, { mas: 'hecho' }));
         cont.appendChild(col);
     }
 }

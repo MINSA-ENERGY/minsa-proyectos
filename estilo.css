@@ -130,16 +130,16 @@
 /* v0.7.0: rotulo de RAMA como el .railgroup del tablero (mayusculas, tracking .15em) y cada equipo con su icono. */
 .rail .equipos .rama { padding: var(--sp-3) var(--sp-3) var(--sp-1); letter-spacing: .15em; color: var(--rail-tx-faint); }
 .rail .equipos button { min-height: var(--control-h-sm); font-weight: 500; font-size: .82rem; gap: var(--sp-2); }
-.rail .equipos button .n { margin-left: auto; font-family: var(--font-data); font-size: .7rem; font-weight: 500; padding: 1px 6px; border-radius: var(--r-pill); background: var(--rail-chip); color: var(--rail-tx); }
+.rail .equipos button .n { margin-left: auto; font-family: var(--font-data); font-size: .72rem; font-weight: 500; padding: 1px 6px; border-radius: var(--r-pill); background: var(--rail-chip); color: var(--rail-tx); }
 .rail .equipos button.is-on { background: var(--rail-on); color: var(--rail-tx-strong); font-weight: 600; }
 /* El elegido NO rellena el icono (revisor 12-sep: trazo blanco sobre los pasteles del oscuro daba 1.6–2.6:1); el fondo del boton ya lo marca, como en el tablero. */
 
 /* ---- icono de equipo (comun.js iconoEquipo): cuadro tenue del color del equipo, trazo del color. Reusa el
    mismo `--c` en rail, lista, cabecera del proyecto y tarjeta. color-mix: Chrome 111+ / Safari 16.2+. */
-.eqi { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 8px; flex: none; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
+.eqi { display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: var(--r-sm); flex: none; color: var(--c); background: color-mix(in srgb, var(--c) 16%, transparent); }
 .eqi svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.eqi.is-sm { width: 24px; height: 24px; border-radius: 6px; } .eqi.is-sm svg { width: 14px; height: 14px; }
-.eqi.is-lg { width: 40px; height: 40px; border-radius: 10px; } .eqi.is-lg svg { width: 22px; height: 22px; }
+.eqi.is-sm { width: 24px; height: 24px; border-radius: var(--r-sm); } .eqi.is-sm svg { width: 14px; height: 14px; }
+.eqi.is-lg { width: 40px; height: 40px; border-radius: var(--r-md); } .eqi.is-lg svg { width: 22px; height: 22px; }
 .kv .proy { display: inline-flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
 .kv .proy .eqi { vertical-align: middle; }
 .rail .sesion { margin-top: auto; padding: var(--sp-3) var(--sp-2) 0; border-top: 1px solid var(--border-hairline); display: grid; gap: var(--sp-2); font-size: .8rem; color: var(--text-muted); }
@@ -147,19 +147,25 @@
    «gerencia» en «gerenci» + «a»; `anywhere` solo parte cuando de verdad no cabe. */
 .rail .sesion .quien { overflow-wrap: anywhere; color: var(--text-strong); display: grid; gap: 2px; }
 .rail .sesion .quien b { font-weight: 600; }
+/* Auditoria 2026-09-12 (#1, #13): el pie del rail tenia tres botones distintos lado a lado —«Actualizar»
+   sin borde y gris, «···» en 700, sol/luna con filete tenue— porque `.mn-rail button` (0,1,1) pisa a
+   `.mn-btn` (0,1,0) en borde, fondo, color y gap. Todo control del rail que sea `.mn-btn` vuelve al
+   boton de la piel con esta regla (0,2,0); los menus ya no re-implementan el boton: llevan `.mn-btn.is-sm`
+   en el HTML. El gap sigue en --sp-1 solo aqui: el rail mide 232 px y con --sp-2 el pie se parte en dos. */
 .rail .sesion-botones { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }
+.rail .mn-btn { border: 1px solid var(--border-default); background: var(--surface-card); color: var(--text-body); justify-content: center; gap: var(--sp-2); }
+.rail .mn-btn:hover { background: var(--surface-hover); }
 /* D6 (v0.6.0): el pie del rail apilaba seis controles en dos renglones; Equipo, Ver en SharePoint y
    Salir van en un menu «···» que abre HACIA ARRIBA (el rail termina en el borde de la ventana). */
 .menu-rail { position: relative; }
-.menu-rail > summary { list-style: none; cursor: pointer; font-weight: 700; letter-spacing: .1em; }
+.menu-rail > summary { list-style: none; cursor: pointer; letter-spacing: .1em; }
 .menu-rail > summary::-webkit-details-marker { display: none; }
-.menu-rail .menu-caja { position: absolute; left: 0; bottom: calc(100% + 4px); z-index: var(--z-pop); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); padding: var(--sp-2); display: grid; gap: var(--sp-1); min-width: 190px; }
-.menu-rail .menu-caja button, .menu-rail .menu-caja a { min-height: var(--control-h-sm); border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); font: inherit; font-size: .82rem; font-weight: 600; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; text-decoration: none; }
-.menu-rail .menu-caja .salir { margin-top: var(--sp-1); border-top: 1px solid var(--border-hairline); border-radius: 0 0 var(--r-sm) var(--r-sm); }
+.menu-rail .menu-caja { position: absolute; left: 0; bottom: calc(100% + 4px); z-index: var(--z-pop); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); padding: var(--sp-2); display: grid; gap: var(--sp-2); min-width: 190px; }
+.menu-caja .salir { margin-top: var(--sp-1); }
 .sync { font-size: .72rem; color: var(--text-faint); }
 .sync.viejo { color: var(--status-warn-fg); }
-.tema { display: inline-flex; gap: 2px; margin-left: auto; }
-.tema button { min-height: var(--control-h-sm); min-width: var(--control-h-sm); padding: 0; border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-muted); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.tema { display: inline-flex; gap: var(--sp-1); margin-left: auto; }
+.tema .mn-btn { color: var(--text-muted); }
 .tema button[aria-pressed="true"] { color: var(--brand-primary); border-color: var(--brand-primary); }
 .tema svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 
@@ -173,13 +179,11 @@
   .barra-movil .logo.chica img { width: 84px; height: auto; }
   .barra-movil .rol-movil { font-size: .72rem; color: var(--text-muted); }
   .menu-movil { margin-left: auto; position: relative; }
-  .menu-movil summary { list-style: none; cursor: pointer; min-width: var(--control-h); min-height: var(--control-h); display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border-hairline); border-radius: var(--r-sm); font-weight: 700; }
+  .menu-movil summary { list-style: none; cursor: pointer; }
   .menu-movil summary::-webkit-details-marker { display: none; }
   .menu-caja { position: absolute; right: 0; top: calc(100% + 4px); z-index: var(--z-pop); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); padding: var(--sp-2); display: grid; gap: var(--sp-2); min-width: 200px; }
-  .menu-caja button { min-height: var(--control-h); border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); font: inherit; font-weight: 600; cursor: pointer; }
   .menu-caja .tema { margin-left: 0; }
   .menu-caja .tema button { flex: 1; }
-  .menu-caja a { min-height: var(--control-h); display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border-default); border-radius: var(--r-sm); color: var(--text-body); font-weight: 600; text-decoration: none; }
   /* U8: en celular «Nueva tarea» flota abajo a la derecha, encima de las pestanas; si no aplica, no estorba. */
   #btnNuevaTarea { position: fixed; right: var(--sp-3); bottom: calc(var(--sp-7) + 20px + env(safe-area-inset-bottom)); z-index: var(--z-pop); border-radius: var(--r-pill); box-shadow: var(--shadow-pop); padding: 0 var(--sp-4); min-height: var(--control-h); }
   #btnNuevaTarea:disabled { display: none; }
@@ -203,12 +207,13 @@
 .mn-dialog-head h2 { min-width: 0; overflow-wrap: anywhere; }
 .rail .sesion a.mn-btn { text-decoration: none; }
 /* F12: «ver toda» pegado al titulo de la tarjeta de actividad */
-.mn-card h2 .ver-toda { float: right; font-weight: 500; text-transform: none; letter-spacing: 0; }
-/* U6: «ver las N anteriores» en Hecho */
-.col .mas { border: 0; background: transparent; color: var(--text-link); font: inherit; font-size: .78rem; font-weight: 600; cursor: pointer; padding: var(--sp-1); text-align: left; }
-.col .mas:hover { text-decoration: underline; }
+.mn-card h2 .ver-toda { float: right; text-transform: none; letter-spacing: 0; }
+/* U6: «ver las N anteriores» en Hecho — un .mn-btn.is-ghost.is-sm mas (auditoria #8: era un boton de texto
+   propio de 27 px, radio 0 y .78rem; en la rejilla de la columna hay que anclarlo, o se estira a lo ancho). */
+.col .mas { justify-self: start; }
 /* U10: grupos de Documentos */
-.docs .grupo { margin: var(--sp-2) 0 0; font-family: var(--font-data); font-size: .68rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+/* Auditoria #14: los rotulos propios de la app llevan la metrica de .mn-label (.68rem · .07em · 600); los de «dias» (.62rem) igual entre si. */
+.docs .grupo { margin: var(--sp-2) 0 0; font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; font-weight: 600; text-transform: uppercase; color: var(--text-muted); }
 .doc .t .mn-chip { margin-right: var(--sp-1); vertical-align: middle; }
 /* U11: imprimir = lo que hay en pantalla, sin cromo. Ctrl+P o el boton «Imprimir». */
 @media print {
@@ -233,7 +238,7 @@
 .mensaje.error { background: var(--status-danger-bg); color: var(--status-danger-fg); }
 .mensaje.ok { background: var(--status-ok-bg); color: var(--status-ok-fg); }
 .mensaje.ojo { background: var(--status-warn-bg); color: var(--status-warn-fg); }
-.mensaje .accion { border: 1px solid currentColor; background: transparent; color: inherit; font: inherit; font-size: .82rem; font-weight: 600; border-radius: var(--r-sm); padding: 2px var(--sp-2); cursor: pointer; white-space: nowrap; }
+.mensaje .accion { border: 1px solid currentColor; background: transparent; color: inherit; font: inherit; font-size: .82rem; font-weight: 600; border-radius: var(--r-sm); padding: 0 var(--sp-2); min-height: 28px; cursor: pointer; white-space: nowrap; }
 /* T2: sin red se ve, no se guarda. La banda va arriba del contenido; el cuerpo lleva .sin-red y apaga lo que escribe. */
 .sin-red-banda { background: var(--status-warn-bg); color: var(--status-warn-fg); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); font-size: .85rem; font-weight: 600; margin-bottom: var(--sp-3); }
 .sin-red .mn-btn.is-primary, .sin-red #tMover button, .sin-red #tOrden button, .sin-red .sig, .sin-red #tAnotar, .sin-red [data-quitar], .sin-red [data-buscar], .sin-red [data-ligar], .sin-red [data-subir], .sin-red [data-enlace], .sin-red [data-tarjeta-de], .sin-red #btnCerrarProyecto, .sin-red #btnReabrirProyecto, .sin-red #btnEditarProyecto, .sin-red #btnLigar, .sin-red #btnSubir, .sin-red #btnEnlace { opacity: .5; pointer-events: none; }
@@ -260,7 +265,9 @@
 .cabecera .sub { flex-basis: 100%; margin: 0; color: var(--text-muted); font-size: .9rem; }
 .proyecto-cab .titulo { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: nowrap; min-width: 0; }
 .proyecto-cab .titulo h1 { min-width: 0; }
-.proyecto-cab .acciones { display: flex; gap: var(--sp-1); margin-left: auto; }
+/* Auditoria #9: un grupo de botones hermanos separa --sp-2 en toda la app (cabecera, pie de dialogo,
+   acciones de Documentos, acciones de la tarjeta); --sp-1 queda para chips y para el pie del rail. */
+.proyecto-cab .acciones { display: flex; gap: var(--sp-2); margin-left: auto; }
 /* B1: el menu «···» solo existe en celular; arriba de 720 px el <details> desaparece del acomodo. */
 .acc-menu { display: contents; }
 .acc-menu > summary { display: none; }
@@ -271,7 +278,7 @@
 .solo-movil { display: none; }
 .t-corto { display: none; }
 .pct { color: var(--text-muted); font-size: .85rem; }
-.pie { margin: var(--sp-6) 0 0; font-size: .7rem; color: var(--text-faint); }
+.pie { margin: var(--sp-6) 0 0; font-size: .72rem; color: var(--text-faint); }
 
 /* 2026-09-12: la lateral gana 40 px (300 → 340) y la principal lleva minmax(0, 1fr): en Inicio la principal
    casi siempre trae pocos proyectos y la lateral es la que tiene texto que leer (captura del 12-sep). */
@@ -292,7 +299,7 @@
 .renglon:first-child { border-top: 0; }
 .renglon:hover { background: var(--surface-hover); }
 .renglon .dias { font-family: var(--font-display); font-size: 1.6rem; font-weight: 600; line-height: 1; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-strong); display: grid; justify-items: end; }
-.renglon .dias small { font-family: var(--font-ui); font-size: .62rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--text-faint); margin-top: 3px; }
+.renglon .dias small { font-family: var(--font-data); font-size: .62rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--text-faint); margin-top: 3px; }
 .renglon.is-danger .dias b { color: var(--status-danger-fg); }
 .renglon.is-warn .dias b { color: var(--status-warn-fg); }
 .renglon.is-info .dias b { color: var(--status-info-fg); }
@@ -305,26 +312,32 @@
 .renglon .lado { display: grid; gap: var(--sp-1); justify-items: end; width: 200px; }
 .renglon .lado .chips { display: flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .renglon .lado .avs { display: inline-flex; }
-.renglon .lado .avs .av { width: 22px; height: 22px; font-size: .58rem; border: 2px solid var(--surface-card); margin-left: -6px; }
+/* Auditoria #12: el avatar tiene DOS tamanos, 26 (.av) y 20 (.av.is-sm); antes habia 26/22/20/18. */
+.av.is-sm, .renglon .lado .avs .av, .tarjeta .f .av, .filtros button .av { width: 20px; height: 20px; font-size: .58rem; }
+.renglon .lado .avs .av { border: 2px solid var(--surface-card); margin-left: -6px; }
 .renglon .lado .avs .av:first-child { margin-left: 0; }
 .segbar { display: flex; gap: 2px; height: 5px; width: 100%; }
 .segbar i { display: block; flex: 0; border-radius: 2px; }
 .segbar i.h { background: var(--status-ok-solid); } .segbar i.r { background: var(--status-info-solid); } .segbar i.c { background: var(--brand-primary); } .segbar i.p { background: var(--border-default); }
 /* Filtro por equipo en celular (el rail por rama no cabe en la barra de pestanas). */
 .filtro-movil { align-items: center; gap: var(--sp-2); }
-.filtro-movil select { min-height: var(--control-h-sm); font: inherit; font-size: .85rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); flex: 1; min-width: 0; }
+/* Auditoria #6: un solo select «suelto» (fuera de .mn-field): pildora, 32/40 px, .85rem. Lo usan el filtro movil y «tarjeta:» de Documentos. */
+.filtro-movil select, .doc .tarjeta-de select { min-height: var(--control-h-sm); font: inherit; font-family: var(--font-ui); font-size: .85rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); min-width: 0; }
+.filtro-movil select { flex: 1; }
 .barra { height: 6px; background: var(--surface-sunken); border-radius: var(--r-pill); overflow: hidden; }
 .barra i { display: block; height: 100%; background: var(--brand-accent); border-radius: var(--r-pill); width: 0; transition: width var(--dur); }
-.cerrados summary { cursor: pointer; color: var(--text-muted); font-size: .85rem; padding: var(--sp-2) 0; }
+.cerrados summary { cursor: pointer; color: var(--text-muted); font-size: .82rem; font-weight: 600; padding: 0; min-height: var(--control-h-sm); display: flex; align-items: center; }   /* misma metrica que .editar summary */
 .filtros { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
-.filtros button { min-height: var(--control-h-sm); padding: 0 var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-muted); font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; }
-.filtros button.is-on { background: var(--surface-selected); color: var(--brand-primary); border-color: var(--brand-primary); }
-.filtros button .av { width: 18px; height: 18px; font-size: .55rem; margin: 0 var(--sp-1) 0 calc(-1 * var(--sp-2)); vertical-align: middle; }
+/* Auditoria #5: UN chip-boton (pildora, 32/40 px, .8rem, pad 0 12) para los filtros, las pestanas de columna
+   en celular y los atajos de fecha; antes eran tres reglas con padding 12/12/8 y fuente .8/.8/.75. */
+.filtros button, .col-tabs button, .atajos-fecha button { min-height: var(--control-h-sm); padding: 0 var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-muted); font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; display: inline-flex; gap: var(--sp-1); align-items: center; }
+.filtros button.is-on, .col-tabs button.is-on, .atajos-fecha button.is-on { background: var(--surface-selected); color: var(--brand-primary); border-color: var(--brand-primary); }
+.filtros button .av { margin: 0 var(--sp-1) 0 calc(-1 * var(--sp-2)); vertical-align: middle; }
 /* F9: filtro de tarjetas dentro del proyecto (chips + texto) */
 .tareas-filtros { align-items: center; }
 .tareas-filtros .chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
-.tareas-filtros input { margin-left: auto; min-height: var(--control-h-sm); font: inherit; font-size: .85rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); min-width: 0; width: min(16rem, 100%); }
-.tareas-filtros input:focus { outline: 2px solid var(--brand-primary); outline-offset: 1px; }
+/* Auditoria #7: es el mismo .buscador de Proyectos y Mis tareas; aqui solo cambia el acomodo. */
+.tareas-filtros .buscador { margin-left: auto; min-width: 0; width: min(16rem, 100%); }
 /* C3 (v0.6.0): el mismo buscador en Proyectos y Mis tareas, a lo ancho del contenido. */
 .buscador { min-height: var(--control-h-sm); font: inherit; font-size: .85rem; padding: 0 var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); width: min(24rem, 100%); }
 .buscador:focus { outline: 2px solid var(--brand-primary); outline-offset: 1px; }
@@ -340,7 +353,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
    Ahora la cabecera lleva quien + cuando, la frase ocupa todo el ancho, el titulo «…» va en negrita y
    recortado a 2 lineas (integro en title), y el «de X a Y» baja a linea propia como «X → Y». */
 .mini { display: grid; }
-.mini .it { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-1) var(--sp-3); align-items: start; padding: var(--sp-2) 0; border-top: 1px solid var(--border-hairline); font-size: .875rem; line-height: 1.45; }
+.mini .it { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-1) var(--sp-3); align-items: start; padding: var(--sp-2) 0; border-top: 1px solid var(--border-hairline); font-size: .85rem; line-height: 1.45; }
 .mini .it:first-child { border-top: 0; padding-top: 0; }
 .mini .it .av { margin-top: 2px; }
 .mini .it .cab { display: flex; justify-content: space-between; gap: var(--sp-2); align-items: baseline; min-width: 0; }
@@ -378,9 +391,8 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .col-tabs { display: none; }
 @media (max-width: 720px) {
   .col-tabs { display: flex; gap: var(--sp-1); overflow-x: auto; padding-bottom: 2px; }
-  .col-tabs button { flex: none; min-height: var(--control-h-sm); padding: 0 var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-muted); font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; display: inline-flex; gap: var(--sp-1); align-items: center; }
+  .col-tabs button { flex: none; }
   .col-tabs button .n { font-family: var(--font-data); font-size: .72rem; font-weight: 500; }
-  .col-tabs button.is-on { background: var(--surface-selected); color: var(--brand-primary); border-color: var(--brand-primary); }
   .tablero { grid-template-columns: 1fr; overflow-x: visible; }
   .col:not(.is-activa) { display: none; }
 }
@@ -388,21 +400,20 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .col h3 { margin: 0; font-family: var(--font-display); font-size: .82rem; font-weight: 600; color: var(--text-strong); display: flex; gap: var(--sp-2); align-items: center; padding: var(--sp-1) var(--sp-1) 0; }
 .col h3 .n { margin-left: auto; font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); font-weight: 500; }
 .col .vacio { color: var(--text-faint); font-size: .78rem; padding: var(--sp-1); }
-.tarjeta { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-3); display: grid; gap: var(--sp-1); text-align: left; color: inherit; font: inherit; cursor: pointer; box-shadow: var(--shadow-raise); min-width: 0; }
+.tarjeta { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-3); display: grid; gap: var(--sp-1); text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0; }   /* auditoria #10: sin sombra, como .mn-card, .doc y .urgente; la piel lo dice */
 .tarjeta:hover { border-color: var(--border-default); }
 /* D4 (v0.6.0): prioridad alta = borde izquierdo de 3 px (atributo estable); el rojo queda para «venció» (alarma). */
 .tarjeta.alta { border-left: 3px solid var(--brand-primary); }
 .tabla .col-p { width: 14px; padding-left: var(--sp-1); padding-right: 0; }
 .tabla td.col-p .p-alta { display: block; width: 3px; height: 1.2em; border-radius: 2px; background: var(--brand-primary); }
 .tarjeta .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; line-height: 1.3; }
-.tarjeta .f { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; font-size: .74rem; color: var(--text-muted); }
-.tarjeta .f .av { width: 20px; height: 20px; font-size: .58rem; }
-.tarjeta .src { font-family: var(--font-data); font-size: .66rem; color: var(--text-faint); word-break: break-all; }
+.tarjeta .f { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; font-size: .75rem; color: var(--text-muted); }
+.tarjeta .src { font-family: var(--font-data); font-size: .68rem; color: var(--text-faint); word-break: break-all; }
 .tarjeta .stale { color: var(--status-warn-fg); font-weight: 600; }
 /* U7: la tarjeta (un <button>) y su accion rapida «→ siguiente» son hermanos: un boton no puede anidar otro. */
 .tarjeta-caja { display: grid; gap: 2px; min-width: 0; }
-.tarjeta-caja .sig { justify-self: end; border: 0; background: transparent; color: var(--text-link); font: inherit; font-size: .74rem; font-weight: 600; cursor: pointer; padding: 2px var(--sp-1); border-radius: var(--r-sm); min-height: 24px; }
-.tarjeta-caja .sig:hover { background: var(--surface-hover); }
+/* Auditoria #8: «→ siguiente» y «ver las N anteriores» son .mn-btn.is-ghost.is-sm (antes 24 y 27 px, .74/.78rem). */
+.tarjeta-caja .sig { justify-self: end; align-self: start; }   /* align-self: en .urgente la rejilla lo estiraba a 41 px */
 
 /* ---- Mis tareas: lo urgente arriba (U4) */
 .urgentes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: var(--sp-2); }
@@ -411,15 +422,15 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .urgente .k { display: grid; align-content: center; justify-items: center; gap: 2px; font-family: var(--font-display); color: var(--status-warn-fg); }
 .urgente.is-danger .k { color: var(--status-danger-fg); }
 .urgente .k b { font-size: 1.8rem; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
-.urgente .k small { font-size: .62rem; text-align: center; line-height: 1.1; font-family: var(--font-data); text-transform: uppercase; letter-spacing: .04em; }
-.urgente .tarjeta { box-shadow: none; border: 0; padding: var(--sp-1) 0; }
+.urgente .k small { font-size: .62rem; font-weight: 600; text-align: center; line-height: 1.1; font-family: var(--font-data); text-transform: uppercase; letter-spacing: .07em; }
+.urgente .tarjeta { border: 0; padding: var(--sp-1) 0; }
 
 /* ---- lista (tabla) */
 .tabla { overflow-x: auto; }
 .tabla table { border-collapse: collapse; width: 100%; font-size: .85rem; }
-.tabla th { text-align: left; font-family: var(--font-data); font-size: .66rem; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); padding: var(--sp-2); border-bottom: 1px solid var(--border-hairline); }
+.tabla th { text-align: left; font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; font-weight: 600; text-transform: uppercase; color: var(--text-muted); padding: var(--sp-2); border-bottom: 1px solid var(--border-hairline); }
 .tabla td { padding: var(--sp-2); border-bottom: 1px solid var(--border-hairline); vertical-align: top; }
-.tabla td.src { font-family: var(--font-data); font-size: .7rem; color: var(--text-muted); }
+.tabla td.src { font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); }
 .tabla tr.clic { cursor: pointer; }
 .tabla tr.clic:hover td { background: var(--surface-hover); }
 /* F10: ordenar por columna */
@@ -436,8 +447,8 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* 2026-09-12: la 2.a columna iba en `1fr` (minimo automatico = el contenido) y el select de
    «tarjeta:» empujaba la pagina 103 px a la derecha en cuanto el proyecto tenia ligas — lo cazo el
    barrido de capturas, no la E2E. `minmax(0, 1fr)` es lo que deja encoger de verdad. */
-.doc { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; padding: var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); min-width: 0; }
-.doc .ico { width: 32px; height: 38px; border-radius: 4px; background: var(--surface-sunken); border: 1px solid var(--border-hairline); font-family: var(--font-data); font-size: .58rem; display: flex; align-items: center; justify-content: center; color: var(--text-muted); text-transform: uppercase; }
+.doc { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; padding: var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-card); min-width: 0; }   /* auditoria #11: primer nivel = r-md; anidado (.urgente, .eq-ficha, .lg-resultado) = r-sm */
+.doc .ico { width: 32px; height: 38px; border-radius: var(--r-sm); background: var(--surface-sunken); border: 1px solid var(--border-hairline); font-family: var(--font-data); font-size: .58rem; display: flex; align-items: center; justify-content: center; color: var(--text-muted); text-transform: uppercase; }
 .doc .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; }
 .doc .t a { color: inherit; text-decoration: none; }
 .doc .t a:hover { text-decoration: underline; }
@@ -445,23 +456,27 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .doc .lado { display: grid; gap: var(--sp-1); justify-items: end; }
 .doc .estado { display: inline-flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .doc .tarjeta-de { display: flex; gap: var(--sp-1); align-items: center; }
-.doc .tarjeta-de select { max-width: 100%; min-height: var(--control-h-sm); font: inherit; font-family: var(--font-body); font-size: .74rem; color: var(--text-body); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); padding: 0 var(--sp-1); }
+.doc .tarjeta-de select { max-width: 100%; }
 .reemplazo { color: var(--status-warn-fg); }
 
 /* ---- dialogo de tarjeta */
 .kv { display: grid; grid-template-columns: 110px 1fr; gap: var(--sp-1) var(--sp-3); font-size: .85rem; margin-bottom: var(--sp-3); }
 .kv b { color: var(--text-muted); font-weight: 500; }
-.kv .src { font-family: var(--font-data); font-size: .74rem; word-break: break-all; }
+.kv .src { font-family: var(--font-data); font-size: .75rem; word-break: break-all; }
 .mover { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); margin: var(--sp-1) 0 var(--sp-3); }
 .mover .mn-btn.is-here { background: var(--surface-selected); border-color: var(--brand-primary); color: var(--brand-primary); }
 .orden { display: flex; gap: var(--sp-2); align-items: center; margin: 0 0 var(--sp-3); font-size: .8rem; color: var(--text-muted); }
 .orden:empty { display: none; }
-.editar summary { cursor: pointer; font-size: .85rem; color: var(--text-link); padding: var(--sp-2) 0; }
+.editar summary { cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--text-link); padding: 0; min-height: var(--control-h-sm); display: flex; align-items: center; }   /* misma altura que un .is-sm: 32 / 40 tactil */
 .forma .mn-dialog-foot { margin: var(--sp-3) calc(-1 * var(--sp-4)) calc(-1 * var(--sp-4)); }
+/* Auditoria #2: en todo pie el primario va al FINAL; el destructivo, solo, a la izquierda. */
+.mn-dialog-foot .is-danger { margin-right: auto; }
+/* Un pie cuyo unico boton esta oculto (Actividad sin «ver 50 mas») no deja la barra vacia. */
+.mn-dialog-foot:has(> [hidden]:only-child) { display: none; }
 .editar .forma .mn-dialog-foot { margin: var(--sp-3) 0 0; background: transparent; border: 0; padding: 0; }
 .progreso { font-size: .78rem; color: var(--text-muted); min-height: 1.2em; }
 .mn-dialog .kv:empty { display: none; }
-.head-botones { display: flex; gap: var(--sp-1); flex: none; }
+.head-botones { display: flex; gap: var(--sp-2); flex: none; }
 /* A2: Equipo. La tabla de 5 columnas mide mas que el dialogo en celular (354 px) y se cortaba
    despues de «Rol», sin barra visible que lo dijera. En <=720 px se pinta como fichas. */
 .eq-fichas { display: none; }
@@ -480,11 +495,11 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tdoc a { color: var(--text-link); text-decoration: none; min-width: 0; overflow-wrap: anywhere; }
 .tdoc a:hover { text-decoration: underline; }
 .tdoc .mn-btn { margin-left: auto; }
-.tdoc-acciones { display: flex; gap: var(--sp-1); flex-wrap: wrap; margin-top: var(--sp-1); }
+.tdoc-acciones { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-1); }
 .tdocs .vacio, .notas .vacio { color: var(--text-faint); font-size: .82rem; }
 .notas { display: grid; gap: var(--sp-2); margin: var(--sp-1) 0 var(--sp-2); font-size: .85rem; }
 .nota { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-2); align-items: start; }
-.nota .w { color: var(--text-muted); font-size: .74rem; }
+.nota .w { color: var(--text-muted); font-size: .75rem; }
 .nota p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .nota-forma { display: grid; grid-template-columns: 1fr auto auto; gap: var(--sp-2); align-items: end; margin-bottom: var(--sp-3); }
 .nota-forma textarea { font: inherit; font-size: .85rem; padding: var(--sp-2); border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); resize: vertical; min-width: 0; }
@@ -494,14 +509,13 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .nota-forma .cont.is-danger { color: var(--status-danger-fg); font-weight: 600; }
 /* C6: con rol lectura, una linea gris en vez de cuatro botones apagados + banda roja */
 .solo-lectura { margin: 0 0 var(--sp-3); }
+.lg-acciones { display: flex; justify-content: flex-end; margin: var(--sp-3) 0; }
 .lg-resultado { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2); align-items: center; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); font-size: .85rem; }
 .lg-resultado .p { font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); word-break: break-all; }
 
 /* C2 + D1: atajos de fecha y la fecha leida en el formato de la casa (el campo nativo la pinta en
    el idioma del DISPOSITIVO: mm/dd/yyyy en una laptop en ingles). */
 .atajos-fecha { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; margin-top: var(--sp-1); }
-.atajos-fecha button { min-height: var(--control-h-sm); padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-muted); font: inherit; font-size: .75rem; font-weight: 600; cursor: pointer; }
-.atajos-fecha button.is-on { background: var(--surface-selected); color: var(--brand-primary); border-color: var(--brand-primary); }
 .atajos-fecha .leida { font-size: .75rem; color: var(--text-body); }
 /* D3: a media anchura el select corta los nombres de mas de 15 caracteres («Persona de Pruel»).
    Cuatro dialogos heredan esta fila. */
@@ -522,6 +536,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .tabs::-webkit-scrollbar { display: none; }
   .tabs .tab, .tabs .mn-btn { flex: none; }
   .tabs .tab { padding: var(--sp-2); }
+  .tab.solo-movil { align-items: center; justify-content: center; }   /* auditoria #4: .solo-movil = inline-flex y el texto subia */
   .t-largo { display: none; }
   .t-corto { display: inline; }
   .proyecto-cab { gap: var(--sp-1) var(--sp-2); }
@@ -530,10 +545,9 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .proyecto-cab .pct { font-size: .75rem; }
   /* B1: las tres acciones, en menu */
   .acc-menu { display: block; margin-left: auto; position: relative; }
-  .acc-menu > summary { display: inline-flex; align-items: center; justify-content: center; list-style: none; cursor: pointer; min-width: var(--control-h); min-height: var(--control-h); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); font-weight: 700; color: var(--text-muted); }
+  .acc-menu > summary { display: inline-flex; list-style: none; cursor: pointer; color: var(--text-muted); }   /* el tamano y el borde los pone .mn-btn.is-sm.is-icono */
   .acc-menu > summary::-webkit-details-marker { display: none; }
   .acc-menu .acciones { position: absolute; right: 0; top: calc(100% + 4px); z-index: var(--z-pop); display: grid; gap: var(--sp-2); min-width: 200px; margin: 0; padding: var(--sp-2); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
-  .acc-menu .acciones .mn-btn { min-height: var(--control-h); }
   /* B1: la descripcion, a una linea con «más» (clic en el propio parrafo) */
   #pDesc { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
   #pDesc.abierta { -webkit-line-clamp: 99; }
@@ -582,7 +596,5 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
    —dedo, no raton— y dejarlo en 720 habria contado como resuelto un ancho que no lo estaba. */
 @media (max-width: 900px) {
   :root { --control-h-sm: 40px; }
-  .tarjeta-caja .sig { min-height: 36px; padding: 2px var(--sp-2); }
   .kv .proy a { display: inline-block; padding: 8px 0; }   /* D2: la liga «Proyecto» media 17 px a 820 */
-  .col .mas { min-height: 36px; }   /* «ver las N anteriores» media 27 px */
 }
