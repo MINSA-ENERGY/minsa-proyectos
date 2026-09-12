@@ -6,9 +6,10 @@
 
 import { CONFIG } from './config.js';
 import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, sinAcentos } from './reglas.js';
-import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo } from './comun.js';
+import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
+import { engancharSelectorMenciones } from './chat.js';
 
 let alCambiar = () => {};   // app.js la pone: repinta la pantalla actual tras una escritura
 export function alCambiarTareas(fn) { alCambiar = fn; }
@@ -32,6 +33,10 @@ export function tarjeta(t, conProyecto = false) {
     const v = chipVence(t); if (v) f.appendChild(v);
     if (estado.ligas.some(l => Number(l.TareaId) === t.id && l.Tipo === 'buzon')) f.appendChild(chip('en el buzón', 'info'));
     if (sinMovimiento([t], CONFIG.sinMovimientoDias).length) f.appendChild(el('span', 'stale', `· sin movimiento ${-diasPara(t.Desde)} días`));
+    // v0.8.0: insignias de la cara (Trello): cuantas notas y cuantos documentos trae, sin abrirla.
+    const nNotas = notasDe(t.id).length, nDocs = estado.ligas.filter(l => Number(l.TareaId) === t.id).length;
+    if (nNotas) f.appendChild(insignia(TRAZOS.burbuja, nNotas, `${nNotas} nota${nNotas === 1 ? '' : 's'}`, 'is-notas'));
+    if (nDocs) f.appendChild(insignia(TRAZOS.clip, nDocs, `${nDocs} documento${nDocs === 1 ? '' : 's'}`, 'is-docs'));
     b.appendChild(f);
     if (t.Origen) b.appendChild(el('span', 'src', t.Origen));
     b.addEventListener('click', () => abrirTarjeta(t.id));
@@ -79,7 +84,7 @@ export function pintarBotonFiltros() {
     b.textContent = n ? `Filtrar · ${n}` : 'Filtrar';
     b.classList.toggle('is-on', !!n || estado.filtrosAbiertos);
     b.setAttribute('aria-expanded', estado.filtrosAbiertos ? 'true' : 'false');
-    b.classList.toggle('oculto', estado.tab === 'docs' || estado.tab === 'resumen');
+    b.classList.toggle('oculto', ['docs', 'chat', 'resumen'].includes(estado.tab));
 }
 /** Repinta solo el tablero o la lista (no la pantalla entera: el foco del cuadro de texto se queda). */
 function pintarSoloTareas() {
@@ -108,7 +113,7 @@ export function pintarTablero(proyecto) {
     }
     for (const c of CONFIG.columnas) {
         const col = el('div', 'col' + (estado.colMovil === c.clave ? ' is-activa' : '')); col.dataset.col = c.clave;
-        const h = el('h3', '', c.nombre);
+        const h = el('h3'); h.appendChild(el('i', 'punto')); h.appendChild(el('span', '', c.nombre));   // v0.8.0: el punto lleva el color de la barra segmentada
         let cs = ordenar(ts.filter(t => t.Columna === c.clave));
         h.appendChild(el('span', 'n', String(cs.length)));
         col.appendChild(h);
@@ -300,6 +305,7 @@ function pintarDocsDeTarjeta(t, p) {
     const puede = puedeLigarEn(p);
     for (const l of ligas) {
         const fila = el('div', 'tdoc');
+        fila.appendChild(iconoArchivo(l.Ruta || l.Title, l.Tipo, 'sm'));   // v0.8.0
         const a = el('a', '', l.Title); if (l.Url) { a.href = l.Url; a.target = '_blank'; a.rel = 'noopener'; }
         fila.appendChild(a);
         fila.appendChild(chip(l.Tipo === 'buzon' ? 'en el buzón' : l.Tipo === 'enlace' ? 'enlace' : 'archivado', l.Tipo === 'buzon' ? 'info' : l.Tipo === 'enlace' ? null : 'ok'));
@@ -330,7 +336,7 @@ function pintarNotas(t, p) {
         it.appendChild(avatar(n.Quien));
         const cuerpo = el('div');
         const cab = el('div', 'w'); cab.appendChild(el('span', '', nombreDe(n.Quien, estado.roles))); cab.appendChild(el('span', 'mn-mono', ' · ' + fechaHora(n.Cuando)));
-        cuerpo.appendChild(cab); cuerpo.appendChild(el('p', '', n.Title));
+        const texto = el('p'); texto.appendChild(textoConMenciones(n.Title)); cuerpo.appendChild(cab); cuerpo.appendChild(texto);   // v0.8.0: @menciones como chips
         it.appendChild(cuerpo); c.appendChild(it);
     }
     if (!notas.length) c.appendChild(el('span', 'vacio', 'Sin notas todavía.'));
@@ -350,6 +356,7 @@ async function anotar(ev) {
     ev.preventDefault();
     const t = tarjetaAbierta; if (!t) return;
     if (!PUEDE.tarea(estado.rol)) { avisar('Tu rol es de lectura: no puedes anotar.', 'error'); return; }
+    if (navigator.onLine === false) { avisar('Sin conexión: la nota se guarda cuando regrese la red (vuelve a intentarlo).', 'ojo'); return; }   // T2 (v0.8.0): Ctrl+Enter no pasa por pointer-events
     if ($('tAnotar').disabled) return;   // C4: Ctrl+Enter no respeta `disabled` como el clic; sin esto, dos renglones
     const texto = $('tNota').value.trim();
     if (!texto) { $('tNota').focus(); return; }
@@ -592,8 +599,9 @@ export function engancharTablero() {
     $('tCompartir').addEventListener('click', compartirTarjeta);
     $('formNota').addEventListener('submit', anotar);
     // C4: Ctrl/Cmd+Enter envia la nota (el unico envio era el boton) y el contador sigue al teclado.
+    // v0.8.0: el selector de @menciones del chat tambien aqui; Ctrl+Enter lo enruta el mismo enganche.
     $('tNota').addEventListener('input', contarNota);
-    $('tNota').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('formNota').requestSubmit(); } });
+    engancharSelectorMenciones('tNota', 'tNotaSelector', () => $('formNota').requestSubmit());
     $('tBorrar').addEventListener('click', borrarTarea);
     $('formTarea').addEventListener('submit', guardarEdicion);
     $('btnNuevaTarea').addEventListener('click', abrirNuevaTarea);

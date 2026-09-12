@@ -91,6 +91,9 @@ export const CONFIG = {
     sinMovimientoDias: 10,
     // Ventana de «vence pronto» en Inicio y en Mis tareas.
     vencePronto: 7,
+    // «Te mencionaron» en Inicio: comentarios del chat que nombran a la persona en estos ultimos dias (v0.8.0). No hay
+    // «leido»: la lista se vacia sola con el tiempo.
+    mencionesDias: 14,
     // Cada cuanto se releen las listas mientras la app esta a la vista (ms). 0 = solo con Actualizar.
     refrescoMs: 120000,
     // Cuanto dura el toast de un aviso ok/info (ms); el error se queda hasta cerrarlo.

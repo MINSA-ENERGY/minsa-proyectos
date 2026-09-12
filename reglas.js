@@ -304,3 +304,105 @@ export function urlParaLiga(webUrl, { sitioUrl, guid } = {}, max = TEXTO_MAX) {
     }
     return null;
 }
+
+// ---------------------------------------------------------------- archivos: tipo por extension (v0.8.0)
+
+/** Extension en minusculas de un nombre o ruta ('informe.PDF' -> 'pdf'); '' si no hay. */
+export function extensionDe(nombre) {
+    const s = String(nombre || '').split(/[\\/]/).pop();
+    const i = s.lastIndexOf('.');
+    return i > 0 ? s.slice(i + 1).toLowerCase() : '';
+}
+
+/**
+ * Tipo visual de un documento para su icono: la CLAVE es lo que pinta comun.js (iconoArchivo) y la
+ * ETIQUETA lo que dice el title. Cubre lo que circula en la casa (Office, PDF, imagenes, correos,
+ * planos); lo demas es «archivo». `tipoLiga` = buzon | enlace manda sobre la extension.
+ */
+const TIPOS_ARCHIVO = [
+    ['pdf', 'PDF', ['pdf']],
+    ['word', 'Word', ['doc', 'docx', 'docm', 'dot', 'dotx', 'rtf', 'odt']],
+    ['excel', 'Excel', ['xls', 'xlsx', 'xlsm', 'xlsb', 'csv', 'ods']],
+    ['ppt', 'PowerPoint', ['ppt', 'pptx', 'pptm', 'potx', 'odp']],
+    ['imagen', 'Imagen', ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'bmp', 'tif', 'tiff', 'svg']],
+    ['correo', 'Correo', ['msg', 'eml']],
+    ['plano', 'Plano', ['dwg', 'dxf', 'kmz', 'kml']],
+    ['zip', 'Comprimido', ['zip', 'rar', '7z']],
+    ['texto', 'Texto', ['txt', 'md', 'json', 'xml']]
+];
+export function tipoArchivo(nombre, tipoLiga = null) {
+    if (tipoLiga === 'buzon') return { clave: 'lote', etiqueta: 'Lote en el buzón' };
+    if (tipoLiga === 'enlace') return { clave: 'enlace', etiqueta: 'Enlace' };
+    const ext = extensionDe(nombre);
+    const t = TIPOS_ARCHIVO.find(([, , exts]) => exts.includes(ext));
+    return t ? { clave: t[0], etiqueta: t[1] } : { clave: 'archivo', etiqueta: ext ? `Archivo .${ext}` : 'Archivo' };
+}
+
+// ---------------------------------------------------------------- menciones @nombre (v0.8.0, chat por proyecto)
+
+/** Los alias por los que se puede mencionar a alguien: primer nombre y parte local del correo, sin acentos. */
+export function aliasDe(correo, roles) {
+    const c = String(correo || '').trim().toLowerCase();
+    if (!c) return [];
+    const nombre = sinAcentos(nombreDe(c, roles)).trim();
+    const out = new Set();
+    // «Ma. de los Angeles»: el punto final del alias se cae (el parser lo lee como fin de frase).
+    const limpio = a => String(a || '').replace(/[.\-_]+$/, '');
+    if (nombre) { out.add(limpio(nombre.split(/\s+/)[0])); out.add(limpio(nombre.replace(/\s+/g, '.'))); }
+    const local = c.split('@')[0]; if (local) out.add(limpio(local));
+    return [...out].filter(a => /^[a-z0-9._-]+$/.test(a));
+}
+
+/** El alias con que se ESCRIBE una mencion: el primer nombre; si dos personas lo comparten, la parte local del correo. */
+export function aliasParaMencion(correo, roles) {
+    const mios = aliasDe(correo, roles); if (!mios.length) return '';
+    const primero = mios[0];
+    const otros = (roles || []).filter(r => String(r.Title || '').toLowerCase() !== String(correo || '').toLowerCase() && r.Activo !== false);
+    const choca = otros.some(r => aliasDe(r.Title, roles)[0] === primero);
+    return choca ? String(correo).toLowerCase().split('@')[0] : primero;
+}
+
+// El alias admite letras con acento (teclado en español: «@José»); se compara sin ellos.
+const ALIAS_CHARS = 'a-z0-9._\\-\\u00C0-\\u017F';
+const RE_MENCION = new RegExp(`(^|[^${ALIAS_CHARS}@])@([${ALIAS_CHARS}]+)`, 'gi');
+/**
+ * Parte un texto en trozos { texto } y { mencion: correo, texto: '@alias' } resolviendo cada @alias
+ * contra PROY_Roles (sin acentos ni mayusculas; la puntuacion pegada al final no cuenta). Un @ que no
+ * es de nadie queda como texto — y tambien un alias AMBIGUO (dos «Carlos» activos): es mejor no avisar
+ * a nadie que avisar al Carlos equivocado; el selector escribe siempre el alias inequivoco.
+ */
+export function trozosConMenciones(texto, roles) {
+    const s = String(texto || ''); const out = []; let i = 0;
+    const activos = (roles || []).filter(r => r.Activo !== false);
+    RE_MENCION.lastIndex = 0; let m;
+    while ((m = RE_MENCION.exec(s))) {
+        let alias = m[2]; let fin = m.index + m[0].length;
+        while (alias.length && /[.\-_]$/.test(alias)) { alias = alias.slice(0, -1); fin--; }   // «@ana.» al final de la frase
+        const candidatos = activos.filter(r => aliasDe(r.Title, roles).includes(sinAcentos(alias)));
+        const quien = candidatos.length === 1 ? candidatos[0] : null;
+        const ini = m.index + m[1].length;
+        if (!quien) continue;
+        if (ini > i) out.push({ texto: s.slice(i, ini) });
+        out.push({ mencion: String(quien.Title).toLowerCase(), texto: s.slice(ini, fin) });
+        i = fin;
+    }
+    if (i < s.length) out.push({ texto: s.slice(i) });
+    return out;
+}
+/** Correos mencionados en un texto (unicos, en orden). */
+export function mencionesEn(texto, roles) {
+    return [...new Set(trozosConMenciones(texto, roles).filter(t => t.mencion).map(t => t.mencion))];
+}
+/**
+ * El @alias a medio escribir donde esta el cursor («hola @fra» -> 'fra'), o null si el cursor no esta en
+ * una mencion. `desde`/`hasta` acotan la palabra ENTERA (lo que hay despues del cursor tambien): elegir
+ * en el selector reemplaza «@fra|ncisco» completo, no solo lo que quedaba a la izquierda del cursor.
+ */
+const RE_EN_CURSO = new RegExp(`(^|[^${ALIAS_CHARS}@])@([${ALIAS_CHARS}]*)$`, 'i');
+const RE_RESTO = new RegExp(`^[${ALIAS_CHARS}]*`, 'i');
+export function mencionEnCurso(texto, cursor) {
+    const s = String(texto || ''); const antes = s.slice(0, cursor);
+    const m = RE_EN_CURSO.exec(antes); if (!m) return null;
+    const resto = RE_RESTO.exec(s.slice(cursor))[0];
+    return { alias: m[2], desde: antes.length - m[2].length - 1, hasta: cursor + resto.length };
+}

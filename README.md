@@ -6,6 +6,62 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.8.0** (2026-09-12) — **chat por proyecto, @menciones, iconos de archivo y lo que un tablero enseña sin abrir la
+tarjeta.** Carlos pidió re-auditar la app «inspirándose en otros tableros», un chat por proyecto que todos lean
+(«favor de checar @francisco») y el icono en lugar de «.docx» / «.pdf». Sin cambio de esquema (`provisionar.html` no
+hace falta): todo cabe en `PROY_Actividad` y `PROY_Ligas` como están.
+
+- **Chat** (`chat.js`, pestaña `#p/<clave>/chat`). UNA conversación por frente: los comentarios del proyecto son
+  renglones `Accion=comentar` **sin `TareaId`**, y las notas de las tarjetas (F5) salen en el mismo hilo con un chip
+  que nombra y abre su tarjeta — nada se escribe dos veces. Lo último abajo, separadores «hoy · ayer · martes 9 sep»,
+  mensajes seguidos de la misma persona agrupados, los míos con el nombre en azul. Redactor con contador (mismo tope
+  de 250 del renglón de bitácora), Ctrl/Cmd+Enter envía; rol lectura ve el hilo con una línea gris; proyecto cerrado,
+  «queda como registro». La actividad dice **«comentó»** para el chat y «anotó» para la nota de tarjeta; el chip de
+  «Toda la actividad» pasa a «solo comentarios».
+- **@menciones** (`reglas.js`: `aliasDe · aliasParaMencion · trozosConMenciones · mencionesEn · mencionEnCurso`, 10
+  pruebas). Se resuelven contra `PROY_Roles` por **primer nombre** (`@francisco`), `nombre.apellido` o la parte local
+  del correo, sin acentos ni mayúsculas (tecleado con acento, `@José`, también resuelve); la puntuación pegada al
+  final (`.`, `-`, `_`) no cuenta; un `@nadie` queda como texto; **un alias AMBIGUO queda como texto** —el roster
+  real trae dos «Carlos», y `@carlos` a secas no le avisa a ninguno: mejor eso que al Carlos equivocado— y el
+  **selector** que aparece al teclear `@` (chat y nota de la tarjeta; ↑/↓, Enter/Tab elige, Esc cierra; botón «@»
+  para el celular; el cursor a media palabra reemplaza la palabra entera) escribe siempre el alias inequívoco
+  (`@carlos.ortega`). Una persona con `Activo=false` deja de resolver también en comentarios viejos. Se pintan
+  como chip (la propia en ámbar) en el hilo, en las notas y en toda lista de actividad; en Inicio **«Te
+  mencionaron»** junta los comentarios ajenos que te nombran de los últimos `CONFIG.mencionesDias` (14) — el
+  renglón abre la tarjeta o el chat del proyecto. No hay «leído»: la lista se vacía sola con el tiempo. El refresco
+  automático repinta el hilo sin mover a quien está leyendo arriba (solo aterriza al fondo si ya estaba ahí).
+- **Icono por tipo de archivo** (`comun.js: iconoArchivo`, `reglas.js: tipoArchivo`) en Documentos, en la tarjeta y
+  en los resultados de «Ligar»: hoja con la esquina doblada en el color de la convención (PDF rojo, Word azul, Excel
+  verde, PowerPoint naranja; imagen, correo, plano, comprimido, texto); el lote del buzón es una carpeta y el enlace
+  una cadena. El tipo escrito va en `title`/`aria-label`; la extensión sigue en el nombre y la ruta.
+- **Lo que otros tableros enseñan sin abrir la tarjeta** (Trello/Asana): insignias **«💬 N notas · 📎 N documentos»**
+  en la cara de la tarjeta; **contador en las pestañas** «Documentos · 4 · Chat · 12»; **punto de color** en la
+  cabecera de cada columna con la misma leyenda que la barra segmentada de la lista de proyectos; y **avatar con color
+  por persona** — 8 tonos (`--av-1…8`, ≥ 4.9:1 con texto blanco en claro, aclarados con texto negro en oscuro) por
+  **posición en `PROY_Roles`**, no por hash: con 10 cuentas, el hash le daba el mismo color a 2 de 3 personas en la
+  primera captura. Límite declarado: de la 9.ª cuenta se repiten tonos y un alta alfabéticamente anterior corre los
+  colores — es color de apoyo, no identidad.
+- **Lo que el `revisor-entregable` cazó con la E2E en verde, corregido antes del commit** (9 de fondo, 12 de forma):
+  `@carlos` resolvía en silencio al primer Carlos · el botón «@» abría el selector y el `blur` lo cerraba 120 ms
+  después (solo con clic real; la E2E lo probaba con `click()` sintético) · el chip de la tarjeta en el chat seguía
+  en 24 px porque la regla base pisaba a la del `@media` · `@José` con acento no resolvía y cerraba el selector ·
+  «Ma. de los Ángeles» daba un alias con punto que el parser no leía · el tono 2 de avatar medía 3.74:1 · el
+  refresco de 120 s mandaba el hilo al fondo mientras alguien leía arriba · el `<textarea>` no declaraba
+  `aria-expanded/-controls/-activedescendant` y el hilo con `aria-live` re-anunciaba todo · elegir con el cursor a
+  media palabra dejaba «@francisco ncisco» · «tarjeta #6» como rótulo de una borrada · el icono PDF se leía «PD» ·
+  Ctrl+Enter sin red mandaba de todos modos · CSS muerto de `.doc .ico`. Se declaran sin aplicar: los mensajes
+  seguidos con chip de tarjeta no se agrupan (el chip es el contexto), y `@ana.Vamos` sin espacio tras el punto no
+  resuelve.
+- **Lo que NO se hizo, a propósito:** el comentario sigue en 250 caracteres (es `Title`; darle una columna `note`
+  obliga a re-provisionar y a un `fallback` cuando falte — se propone aparte si el tope estorba); sin «leído» por
+  persona (sería otra lista); sin push ni correo por mención (fuera del piloto, decisión 6).
+
+Medido: `npm test` verde (74 reglas), E2E **204 / 186 / 20** (+27 / +27 / +1: chat, selector en las dos cajas, foco
+que vuelve, cursor a media palabra, tope, chip → tarjeta, insignias, tonos, iconos, «Te mencionaron» con la ventana
+de días, actividad «comentó/anotó», lectura solo lee), **34 vistas × 3 anchos × 2 temas = 204 capturas con 0
+desborde**; bajo 900 px ningún objetivo nuevo mide menos de 36 px (el chip de la tarjeta en el chat queda en 24 solo
+a 1366, ratón). Vistas nuevas del driver: `chat`, `chat-selector`. SW `minsa-proyectos-v10`.
+
 **v0.7.1** (2026-09-12) — **consistencia de controles**, tras una auditoría medida con `capturas.mjs --medir-archivo`
 (64 vistas a 390 y 1366 px, cada control agrupado por clase → alto, padding, fuente, radio, borde). Catorce hallazgos,
 todos aplicados; sin cambios de lógica (E2E 177/177):

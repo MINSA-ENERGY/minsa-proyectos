@@ -188,7 +188,7 @@
   #btnNuevaTarea { position: fixed; right: var(--sp-3); bottom: calc(var(--sp-7) + 20px + env(safe-area-inset-bottom)); z-index: var(--z-pop); border-radius: var(--r-pill); box-shadow: var(--shadow-pop); padding: 0 var(--sp-4); min-height: var(--control-h); }
   #btnNuevaTarea:disabled { display: none; }
   /* B5: el FAB flota sobre la columna y tapaba el pie de la ultima tarjeta (205 x 60 px). */
-  .tablero-caja, .docs, .tabla { padding-bottom: calc(var(--control-h) + var(--sp-3)); }
+  .tablero-caja, .docs, .tabla, .chat { padding-bottom: calc(var(--control-h) + var(--sp-3)); }
   /* A7: con un dialogo abierto el FAB asomaba sobre el backdrop y parecia pulsable. Va DENTRO del
      @media: arriba de 720 px «Nueva tarea» es un boton mas de la barra y no hay nada que esconder. */
   body:has(dialog[open]) #btnNuevaTarea { visibility: hidden; }
@@ -448,7 +448,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
    «tarjeta:» empujaba la pagina 103 px a la derecha en cuanto el proyecto tenia ligas — lo cazo el
    barrido de capturas, no la E2E. `minmax(0, 1fr)` es lo que deja encoger de verdad. */
 .doc { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; padding: var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-card); min-width: 0; }   /* auditoria #11: primer nivel = r-md; anidado (.urgente, .eq-ficha, .lg-resultado) = r-sm */
-.doc .ico { width: 32px; height: 38px; border-radius: var(--r-sm); background: var(--surface-sunken); border: 1px solid var(--border-hairline); font-family: var(--font-data); font-size: .58rem; display: flex; align-items: center; justify-content: center; color: var(--text-muted); text-transform: uppercase; }
 .doc .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; }
 .doc .t a { color: inherit; text-decoration: none; }
 .doc .t a:hover { text-decoration: underline; }
@@ -510,7 +509,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* C6: con rol lectura, una linea gris en vez de cuatro botones apagados + banda roja */
 .solo-lectura { margin: 0 0 var(--sp-3); }
 .lg-acciones { display: flex; justify-content: flex-end; margin: var(--sp-3) 0; }
-.lg-resultado { display: grid; grid-template-columns: 1fr auto; gap: var(--sp-2); align-items: center; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); font-size: .85rem; }
+.lg-resultado { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-2); align-items: center; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); font-size: .85rem; }
 .lg-resultado .p { font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); word-break: break-all; }
 
 /* C2 + D1: atajos de fecha y la fecha leida en el formato de la casa (el campo nativo la pinta en
@@ -598,3 +597,96 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   :root { --control-h-sm: 40px; }
   .kv .proy a { display: inline-block; padding: 8px 0; }   /* D2: la liga «Proyecto» media 17 px a 820 */
 }
+
+/* ==== v0.8.0 (2026-09-12): chat por proyecto, @menciones, iconos de archivo, insignias, color por persona ==== */
+/* ---- avatar con color por persona (comun.js tonoDe: 8 tonos, el mismo correo siempre el mismo). Tonos OSCUROS
+   con texto blanco: 4.9:1 o mas en claro (el teal original daba 3.74, revisor 12-sep); en oscuro se aclaran un paso y el texto va negro. */
+:root {
+  --av-1: #0f45c4; --av-2: #0f766e; --av-3: #b45309; --av-4: #7c3aed; --av-5: #be185d; --av-6: #1f6b28; --av-7: #0a76b4; --av-8: #6d5a1e;
+  --av-tx: #ffffff;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { --av-1: #7f9bff; --av-2: #5eead4; --av-3: #fbbf5c; --av-4: #c4b5fd; --av-5: #f9a8d4; --av-6: #86efac; --av-7: #8fd6ff; --av-8: #e3d29a; --av-tx: #0f0f0f; }
+}
+:root[data-theme="dark"] { --av-1: #7f9bff; --av-2: #5eead4; --av-3: #fbbf5c; --av-4: #c4b5fd; --av-5: #f9a8d4; --av-6: #86efac; --av-7: #8fd6ff; --av-8: #e3d29a; --av-tx: #0f0f0f; }
+.av[data-tono="1"] { background: var(--av-1); color: var(--av-tx); } .av[data-tono="2"] { background: var(--av-2); color: var(--av-tx); }
+.av[data-tono="3"] { background: var(--av-3); color: var(--av-tx); } .av[data-tono="4"] { background: var(--av-4); color: var(--av-tx); }
+.av[data-tono="5"] { background: var(--av-5); color: var(--av-tx); } .av[data-tono="6"] { background: var(--av-6); color: var(--av-tx); }
+.av[data-tono="7"] { background: var(--av-7); color: var(--av-tx); } .av[data-tono="8"] { background: var(--av-8); color: var(--av-tx); }
+
+/* ---- icono de archivo (comun.js iconoArchivo): hoja con la esquina doblada rellena del color del tipo, la marca
+   encima. Sustituye al cuadro con «pdf»/«docx» escrito. Colores de Office por convencion (Word azul, Excel verde,
+   PowerPoint naranja, PDF rojo) tomados de la paleta para que sigan al tema. */
+.fico { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 38px; flex: none; color: var(--idle-solid); }
+.fico svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.fico svg .cuerpo { fill: color-mix(in srgb, currentColor 18%, transparent); }
+.fico.is-sm { width: 22px; height: 22px; } .fico.is-sm svg { width: 20px; height: 20px; stroke-width: 2; }
+.fico.is-pdf { color: var(--bad-solid); } .fico.is-word { color: var(--brand); } .fico.is-excel { color: var(--ok-solid); } .fico.is-ppt { color: var(--serie); }
+.fico.is-imagen { color: var(--serie2); } .fico.is-correo { color: var(--info-solid); } .fico.is-plano { color: var(--sky-700); } .fico.is-zip { color: var(--amber-700); }
+.fico.is-lote { color: var(--info-solid); } .fico.is-enlace { color: var(--text-muted); }
+.fico.is-lote svg .cuerpo { fill: color-mix(in srgb, currentColor 22%, transparent); }
+.fico svg .letras { fill: currentColor; stroke: none; font-family: var(--font-display); font-weight: 600; font-size: 5.6px; text-anchor: middle; letter-spacing: .02em; }
+
+/* ---- insignias en la cara de la tarjeta (Trello): notas y documentos, sin abrirla. */
+.insig { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-data); font-size: .7rem; color: var(--text-muted); }
+.insig svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* ---- punto de color en la cabecera de cada columna = la barra segmentada de la lista de proyectos (misma leyenda). */
+.col h3 .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--border-default); flex: none; }
+.col[data-col="en-curso"] h3 .punto { background: var(--brand-primary); }
+.col[data-col="en-revision"] h3 .punto { background: var(--status-info-solid); }
+.col[data-col="hecho"] h3 .punto { background: var(--status-ok-solid); }
+/* ---- contador en la pestana (Documentos · N, Chat · N) */
+.tab .n { margin-left: 6px; font-family: var(--font-data); font-size: .7rem; font-weight: 500; padding: 1px 6px; border-radius: var(--r-pill); background: var(--surface-sunken); color: var(--text-muted); }
+.tab.is-on .n { background: var(--surface-selected); color: var(--brand-primary); }
+
+/* ---- chat por proyecto: hilo con lo ultimo abajo y el redactor debajo, como cualquier chat. */
+.chat { display: grid; gap: var(--sp-2); min-width: 0; }
+.chat .hilo { display: grid; gap: var(--sp-1); align-content: start; max-height: min(62vh, 640px); overflow-y: auto; padding: var(--sp-3); background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-md); scrollbar-width: thin; }
+.chat .hilo .vacio { color: var(--text-faint); font-size: .85rem; margin: 0; }
+.chat .dia { justify-self: center; margin: var(--sp-2) 0 var(--sp-1); padding: 2px 10px; border-radius: var(--r-pill); background: var(--surface-sunken); font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }   /* muted, no faint: 2.45:1 a 10 px (revisor) */
+.msg { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: var(--sp-2); align-items: start; padding: var(--sp-1) 0; }
+.msg.is-seguido { padding-top: 0; }
+.msg .av-hueco { width: 26px; height: 1px; }
+.msg .cuerpo { display: grid; gap: 2px; min-width: 0; }
+.msg .cab { display: flex; gap: var(--sp-2); align-items: baseline; }
+.msg .cab .q { font-weight: 600; color: var(--text-strong); font-size: .85rem; }
+.msg.is-mio .cab .q { color: var(--brand-primary); }
+.msg .cab .h { font-size: .72rem; color: var(--text-muted); }
+.msg .t { margin: 0; font-size: .9rem; line-height: 1.45; color: var(--text-body); white-space: pre-wrap; overflow-wrap: anywhere; }
+/* La nota de una tarjeta dentro del hilo: un chip-boton que la nombra y la abre. */
+.msg .ref { display: inline-flex; align-items: center; gap: var(--sp-1); max-width: 100%; justify-self: start; min-height: 24px; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-sunken); color: var(--text-muted); font: inherit; font-size: .72rem; font-weight: 600; cursor: pointer; }
+.msg .ref span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.msg .ref svg { width: 12px; height: 12px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.msg .ref:hover:not(:disabled) { color: var(--brand-primary); border-color: var(--brand-primary); }
+.msg .ref:disabled { cursor: default; opacity: .6; }
+/* La mencion: chip; la propia resalta (es la razon de «Te mencionaron»). */
+.mencion { display: inline; padding: 0 4px; border-radius: 4px; background: var(--surface-selected); color: var(--brand-primary); font-weight: 600; }
+.mencion.is-yo { background: var(--status-warn-bg); color: var(--status-warn-fg); }
+.chat-forma { display: grid; grid-template-columns: minmax(0, 1fr) auto auto auto; gap: var(--sp-2); align-items: end; }
+.chat-forma textarea { font: inherit; font-size: .9rem; padding: var(--sp-2); border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); resize: vertical; min-width: 0; width: 100%; box-sizing: border-box; }
+.chat-forma .cont { font-size: .72rem; color: var(--text-muted); align-self: end; padding-bottom: var(--sp-2); }
+.chat-forma .cont:empty { display: none; }
+.chat-forma .cont.is-danger { color: var(--status-danger-fg); font-weight: 600; }
+.chat .solo-lectura { margin: 0; }
+/* El selector de @menciones cuelga del textarea (chat y nota de la tarjeta). */
+.chat-caja { position: relative; min-width: 0; display: grid; }
+.selector { position: absolute; left: 0; right: 0; bottom: calc(100% + 4px); z-index: var(--z-pop); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); padding: var(--sp-1); display: grid; gap: 1px; max-height: 240px; overflow-y: auto; }
+.selector button { display: flex; align-items: center; gap: var(--sp-2); width: 100%; min-height: 36px; padding: 0 var(--sp-2); border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-body); font: inherit; font-size: .85rem; text-align: left; cursor: pointer; }
+.selector button .n { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; color: var(--text-strong); }
+.selector button .a { font-size: .72rem; color: var(--text-muted); }
+.selector button.is-on, .selector button:hover { background: var(--surface-selected); }
+.selector button.is-on .n { color: var(--brand-primary); }
+.sin-red #chatEnviar, .sin-red #chatArroba { opacity: .5; pointer-events: none; }
+@media (max-width: 720px) {
+  .chat .hilo { max-height: min(56vh, 520px); padding: var(--sp-2); }
+  /* Bajo el texto, UNA fila: «@» a la izquierda y «Enviar» llenando el resto (como «Anotar», C4); el contador arriba a la derecha. */
+  .chat-forma { grid-template-columns: auto minmax(0, 1fr); }
+  .chat-forma .chat-caja { grid-column: 1 / -1; }
+  .chat-forma .cont { grid-column: 1 / -1; justify-self: end; padding-bottom: 0; }
+  .chat-forma #chatArroba { grid-column: 1; }
+  .chat-forma #chatEnviar { grid-column: 2; width: 100%; }
+}
+@media print { .chat-forma, .selector { display: none !important; } .chat .hilo { max-height: none; overflow: visible; } }
+/* B6 para el chip de la tarjeta en el chat: media 24 px a 390/820. Va AL FINAL porque la regla base `.msg .ref`
+   (misma especificidad) esta arriba y la pisaria (el revisor cazo la primera version dentro del @media de B6). */
+@media (max-width: 900px) { .msg .ref { min-height: 36px; } }

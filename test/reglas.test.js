@@ -1,6 +1,6 @@
 // node test/reglas.test.js — reglas puras de MINSA Proyectos (decisiones del plan 2026-09-11).
 import assert from 'node:assert/strict';
-import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos } from '../reglas.js';
+import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -111,5 +111,26 @@ ok('urlParaLiga: una URL larga que no es Doc.aspx y sin GUID da null', urlParaLi
 ok('iniciales de correo', iniciales('ana.perez@example.invalid') === 'AP' && iniciales('juan.lopez17@example.invalid') === "JL");
 ok('nombreDe usa PROY_Roles si trae Nombre', nombreDe('gerente@example.invalid', roles) === 'Gerente');
 ok('nombreDe deriva del correo si no', nombreDe('ana.perez@example.invalid', roles) === 'Ana Perez' && nombreDe('', roles) === '—');
+
+// --- archivos y menciones (v0.8.0)
+ok('extensionDe: minusculas, ultima extension, ruta con diagonales', extensionDe('informe.PDF') === 'pdf' && extensionDe('04_SGI/x.tar.gz') === 'gz' && extensionDe('a\\b\\c.DOCX') === 'docx' && extensionDe('sin-extension') === '' && extensionDe('.oculto') === '');
+ok('tipoArchivo por extension', tipoArchivo('a.pdf').clave === 'pdf' && tipoArchivo('a.docx').clave === 'word' && tipoArchivo('a.xlsm').clave === 'excel' && tipoArchivo('a.pptx').clave === 'ppt' && tipoArchivo('a.JPG').clave === 'imagen' && tipoArchivo('a.msg').clave === 'correo' && tipoArchivo('a.dwg').clave === 'plano' && tipoArchivo('a.zip').clave === 'zip');
+ok('tipoArchivo: desconocido = archivo con la extension en la etiqueta; el tipo de liga manda', tipoArchivo('a.xyz').etiqueta === 'Archivo .xyz' && tipoArchivo('a', null).etiqueta === 'Archivo' && tipoArchivo('a.pdf', 'buzon').clave === 'lote' && tipoArchivo('a.pdf', 'enlace').clave === 'enlace');
+const gente = [
+    { Title: 'francisco.perez@example.invalid', Nombre: 'Francisco Pérez', Rol: 'colaborador', Activo: true },
+    { Title: 'ana.lopez@example.invalid', Nombre: 'Ana López', Rol: 'colaborador', Activo: true },
+    { Title: 'ana.ruiz@example.invalid', Nombre: 'Ana Ruiz', Rol: 'lectura', Activo: true },
+    { Title: 'baja@example.invalid', Nombre: 'Persona Baja', Rol: 'colaborador', Activo: false }
+];
+ok('aliasDe: primer nombre sin acentos, nombre.apellido y parte local', JSON.stringify(aliasDe('francisco.perez@example.invalid', gente)) === '["francisco","francisco.perez"]' && aliasDe('sin.rol@example.invalid', gente).includes('sin.rol'));
+ok('aliasParaMencion: primer nombre; si choca, la parte local', aliasParaMencion('francisco.perez@example.invalid', gente) === 'francisco' && aliasParaMencion('ana.lopez@example.invalid', gente) === 'ana.lopez');
+ok('mencionesEn resuelve @nombre sin acentos ni mayusculas y el punto final no cuenta', JSON.stringify(mencionesEn('favor de checar @Francisco.', gente)) === '["francisco.perez@example.invalid"]');
+ok('mencionesEn: dos Anas — «@ana» es AMBIGUO y queda como texto; la parte local es inequivoca', mencionesEn('@ana y @ana.ruiz', gente).length === 1 && mencionesEn('@ana.ruiz', gente)[0] === 'ana.ruiz@example.invalid' && mencionesEn('@ana.lopez', gente)[0] === 'ana.lopez@example.invalid');
+ok('mencionesEn: acento tecleado («@Fráncisco») resuelve igual; guion o guion bajo pegados al final no cuentan', mencionesEn('@Fráncisco', gente)[0] === 'francisco.perez@example.invalid' && mencionesEn('@francisco- y @francisco_', gente).length === 1);
+const conPunto = [{ Title: 'ma.angeles@example.invalid', Nombre: 'Ma. de los Ángeles Ruiz', Rol: 'colaborador', Activo: true }];
+ok('aliasDe sin punto final («Ma.» -> «ma»), y lo que el selector escribe se resuelve', aliasDe('ma.angeles@example.invalid', conPunto)[0] === 'ma' && mencionesEn('@' + aliasParaMencion('ma.angeles@example.invalid', conPunto) + ' hola', conPunto).length === 1);
+ok('mencionesEn: un correo no es mencion, un @nadie tampoco, una inactiva tampoco', mencionesEn('escribe a x@francisco.com o @nadie o @baja', gente).length === 0);
+ok('trozosConMenciones parte el texto y conserva lo escrito', JSON.stringify(trozosConMenciones('ok @Francisco?', gente)) === '[{"texto":"ok "},{"mencion":"francisco.perez@example.invalid","texto":"@Francisco"},{"texto":"?"}]');
+ok('mencionEnCurso: alias a medio escribir donde esta el cursor, y la palabra entera hasta su fin', JSON.stringify(mencionEnCurso('hola @fra', 9)) === '{"alias":"fra","desde":5,"hasta":9}' && mencionEnCurso('hola @fra x', 11) === null && mencionEnCurso('@', 1).alias === '' && mencionEnCurso('a@b', 3) === null && mencionEnCurso('hola @francisco resto', 9).hasta === 15 && mencionEnCurso('hola @josé', 10).alias === 'josé');
 
 console.log(`reglas: ok (${n} comprobaciones)`);

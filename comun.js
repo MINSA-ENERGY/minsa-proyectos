@@ -3,9 +3,9 @@
 // la bitacora PROY_Actividad.
 
 import { CONFIG } from './config.js';
-import { iniciales, nombreDe, diasPara, estadoVence } from './reglas.js';
+import { iniciales, nombreDe, diasPara, estadoVence, tipoArchivo, trozosConMenciones } from './reglas.js';
 
-export const VERSION = '0.7.0';
+export const VERSION = '0.8.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -55,10 +55,28 @@ export function boton(texto, clase, alClic, atributos = {}) {
     if (alClic) b.addEventListener('click', alClic);
     return b;
 }
+/**
+ * v0.8.0: cada persona tiene SU color de avatar (Trello/Asana): el mismo correo da siempre el mismo
+ * indice sobre una paleta de 8 tonos oscuros (estilo.css --av-N), asi que «quien» se reconoce de un
+ * vistazo sin leer las iniciales. Sin correo = gris (tercero / sin asignar).
+ */
+const AVATAR_TONOS = 8;
+export function tonoDe(correo) {
+    const s = String(correo || '').trim().toLowerCase(); if (!s) return 0;
+    // Por POSICION en PROY_Roles (ordenada por correo, la misma lista para todos): con 8 tonos y 10
+    // cuentas, un hash daba el mismo color a 2 de 3 personas en la primera captura (medido 2026-09-12).
+    // Limite declarado: de la 9.a cuenta en adelante los tonos se repiten, y dar de alta un correo
+    // alfabeticamente anterior corre el color de los que le siguen — es un color de apoyo, no una identidad.
+    const lista = estado.roles.map(r => String(r.Title || '').trim().toLowerCase()).filter(Boolean).sort();
+    const i = lista.indexOf(s);
+    if (i >= 0) return (i % AVATAR_TONOS) + 1;
+    let h = 0; for (let k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) >>> 0;   // fuera del roster: hash
+    return (h % AVATAR_TONOS) + 1;
+}
 export function avatar(correo) {
     const a = el('span', 'av', iniciales(correo));
     a.title = nombreDe(correo, estado.roles);
-    if (!correo) a.classList.add('is-tercero');
+    if (!correo) a.classList.add('is-tercero'); else a.dataset.tono = String(tonoDe(correo));
     return a;
 }
 export function chip(texto, estado2) { return el('span', 'mn-chip' + (estado2 ? ' is-' + estado2 : ''), texto); }
@@ -292,8 +310,10 @@ export async function registrarActividad(accion, frase, proyectoId, tareaId) {
 /** Frase de un renglon de actividad para las listas de «actividad reciente»: «Lorena movió …»; una nota va entre comillas. */
 export function fraseActividad(a) {
     const quien = nombreDe(a.Quien, estado.roles).split(' ')[0];
-    return a.Accion === 'comentar' ? `${quien} anotó: «${a.Title}»` : `${quien} ${a.Title}`;
+    return a.Accion === 'comentar' ? `${quien} ${verboComentario(a)}: «${a.Title}»` : `${quien} ${a.Title}`;
 }
+/** v0.8.0: la nota de una tarjeta se «anota»; el comentario del chat del proyecto (sin tarjeta) se «comenta». */
+export function verboComentario(a) { return a.TareaId ? 'anotó' : 'comentó'; }
 /** Las notas de una tarjeta (Accion=comentar), de la mas vieja a la mas nueva. */
 export function notasDe(tareaId) {
     return estado.actividad.filter(a => a.Accion === 'comentar' && Number(a.TareaId) === Number(tareaId))
@@ -316,4 +336,99 @@ export function iconoEquipo(eq, tam = '') {
     for (const d of eq.icono || []) { const path = document.createElementNS(SVG_NS, 'path'); path.setAttribute('d', d); svg.appendChild(path); }
     w.appendChild(svg);
     return w;
+}
+
+/** Un <svg> de trazos (viewBox 24) armado por DOM, para insignias y botones (v0.8.0). */
+export function iconoSvg(trazos, clase = '') {
+    const svg = document.createElementNS(SVG_NS, 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
+    if (clase) svg.setAttribute('class', clase);
+    for (const d of trazos) { const path = document.createElementNS(SVG_NS, 'path'); path.setAttribute('d', d); svg.appendChild(path); }
+    return svg;
+}
+export const TRAZOS = {
+    burbuja: ['M21 12a8 8 0 0 1-11.6 7.1L4 21l1.6-4.5A8 8 0 1 1 21 12z'],
+    clip: ['M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8'],
+    arroba: ['M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M16 8v5.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-4 7.5'],
+    enviar: ['M22 2L11 13', 'M22 2l-7 20-4-9-9-4z'],
+    tarjeta: ['M4 5h16v14H4z', 'M8 10h8M8 14h5']
+};
+/** Insignia «icono + numero» para la cara de la tarjeta (Trello): notas, documentos, menciones. */
+export function insignia(trazos, n, titulo, clase = '') {
+    const s = el('span', 'insig' + (clase ? ' ' + clase : '')); s.title = titulo; s.setAttribute('aria-label', titulo);
+    s.appendChild(iconoSvg(trazos)); s.appendChild(el('span', '', String(n)));
+    return s;
+}
+
+// ---------------------------------------------------------------- icono de archivo (v0.8.0)
+
+/**
+ * El icono de un documento en lugar de su extension escrita («.docx», «.pdf»): hoja con la esquina
+ * doblada y, adentro, la marca del tipo — el color hace el trabajo (PDF rojo, Word azul, Excel verde,
+ * PowerPoint naranja, imagen, correo, plano, comprimido); el lote del buzon es una carpeta y el enlace
+ * una cadena. Todo por DOM (CSP sin innerHTML). `title` y `aria-label` llevan el tipo escrito; la
+ * extension sigue viva en el nombre del archivo y en la ruta.
+ */
+const HOJA = 'M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z';
+const DOBLEZ = 'M14 2v5h5';
+const MARCAS = {
+    pdf: [],   // la marca es el texto «PDF» (abajo); las letras dibujadas se leian «PD»
+    word: ['M8 11l1.5 6 1.5-4.5 1.5 4.5 1.5-6'],
+    excel: ['M9 11l6 6M15 11l-6 6'],
+    ppt: ['M9 17v-6h2.5a1.75 1.75 0 0 1 0 3.5H9'],
+    imagen: ['M8 17l3-3 2 2 3-4 2 3', 'M9.5 11.5h.01'],
+    correo: ['M7 11h10v6H7z', 'M7 11l5 3.5 5-3.5'],
+    plano: ['M7 17l3-9 4 6 3-3', 'M7 17h10'],
+    zip: ['M12 10v1M12 13v1M12 16v1'],
+    texto: ['M8 11h8M8 14h8M8 17h5'],
+    archivo: ['M8 13h8M8 16h5']
+};
+const CARPETA = ['M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'];
+const CADENA = ['M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1', 'M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1'];
+export function iconoArchivo(nombre, tipoLiga = null, tam = '') {
+    const t = tipoArchivo(nombre, tipoLiga);
+    const w = el('span', 'fico is-' + t.clave + (tam ? ' is-' + tam : ''));
+    w.title = t.etiqueta; w.setAttribute('role', 'img'); w.setAttribute('aria-label', t.etiqueta); w.dataset.tipo = t.clave;
+    const svg = document.createElementNS(SVG_NS, 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
+    const trazos = t.clave === 'lote' ? CARPETA : t.clave === 'enlace' ? CADENA : [HOJA, DOBLEZ, ...(MARCAS[t.clave] || MARCAS.archivo)];
+    for (const [i, d] of trazos.entries()) {
+        const path = document.createElementNS(SVG_NS, 'path'); path.setAttribute('d', d);
+        if (i === 0 && t.clave !== 'enlace') path.setAttribute('class', 'cuerpo');
+        svg.appendChild(path);
+    }
+    if (t.clave === 'pdf') { const tx = document.createElementNS(SVG_NS, 'text'); tx.setAttribute('x', '12'); tx.setAttribute('y', '17.5'); tx.setAttribute('class', 'letras'); tx.textContent = 'PDF'; svg.appendChild(tx); }
+    w.appendChild(svg);
+    return w;
+}
+
+// ---------------------------------------------------------------- comentarios y menciones (v0.8.0)
+
+/**
+ * Un texto con sus @menciones como chips: quien fue mencionado se ve (y su nombre completo va en el
+ * title). La mencion de la persona que mira lleva `is-yo`. Sin innerHTML: nodos de texto + <span>.
+ */
+export function textoConMenciones(texto, yo = estado.cuenta && estado.cuenta.username) {
+    const f = document.createDocumentFragment();
+    for (const tr of trozosConMenciones(texto, estado.roles)) {
+        if (!tr.mencion) { f.appendChild(document.createTextNode(tr.texto)); continue; }
+        const m = el('span', 'mencion' + (yo && tr.mencion === String(yo).toLowerCase() ? ' is-yo' : ''), tr.texto);
+        m.title = nombreDe(tr.mencion, estado.roles); m.dataset.mencion = tr.mencion;
+        f.appendChild(m);
+    }
+    return f;
+}
+/**
+ * El hilo de un proyecto (chat, v0.8.0): TODOS los renglones Accion=comentar del proyecto —los del
+ * proyecto entero (sin TareaId) y las notas de sus tarjetas—, del mas viejo al mas nuevo. Es una sola
+ * conversacion por frente; la nota de una tarjeta sale con su chip para abrirla.
+ */
+export function comentariosDe(proyectoId) {
+    return estado.actividad.filter(a => a.Accion === 'comentar' && Number(a.ProyectoId) === Number(proyectoId))
+        .sort((a, b) => String(a.Cuando || '').localeCompare(String(b.Cuando || '')) || a.id - b.id);
+}
+/** Comentarios (de cualquier proyecto) que mencionan a `correo`, del mas nuevo al mas viejo, no escritos por esa persona. */
+export function mencionesA(correo, dias = CONFIG.mencionesDias) {
+    const yo = String(correo || '').toLowerCase();
+    const desde = new Date(Date.now() - dias * 86400000).toISOString();
+    return estado.actividad.filter(a => a.Accion === 'comentar' && String(a.Quien || '').toLowerCase() !== yo
+        && String(a.Cuando || '') >= desde && trozosConMenciones(a.Title, estado.roles).some(t => t.mencion === yo));
 }

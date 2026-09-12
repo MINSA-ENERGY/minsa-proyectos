@@ -702,7 +702,8 @@ try {
         const en = filas('ligas').find(l => l.fields.Tipo === 'enlace');
         R.ok('enlace guardado con Url, tarjeta y quién; sin Unidad, Ruta ni DriveItemId', en.fields.Url === 'https://outlook.office.com/mail/id/abc' && Number(en.fields.TareaId) === t.id && en.fields.LigadoPor === YO && !en.fields.Unidad && !en.fields.Ruta && !en.fields.DriveItemId, JSON.stringify(en.fields));
         await esperar(() => $('docsLista').textContent.includes('Oficio ASEA en el correo'), 'docs repintado');
-        R.ok('Docs pinta el enlace con su chip y la bitácora dice «pegó el enlace»', !!document.querySelector(`#docsLista [data-liga="${en.id}"] .ico`) && document.querySelector(`#docsLista [data-liga="${en.id}"] .ico`).textContent === 'link' && actividad('ligar').some(a => a.fields.Title.startsWith('pegó el enlace')));
+        // v0.8.0: el icono es un <svg> por tipo (.fico[data-tipo]), ya no la extension escrita.
+        R.ok('Docs pinta el enlace con su icono de cadena y la bitácora dice «pegó el enlace»', !!document.querySelector(`#docsLista [data-liga="${en.id}"] .fico[data-tipo="enlace"] svg`) && actividad('ligar').some(a => a.fields.Title.startsWith('pegó el enlace')));
         clic('btnEnlace'); await esperar(() => $('dlgEnlace').open, 'enlace'); poner('enTitulo', 'Repetido'); poner('enUrl', 'https://outlook.office.com/mail/id/abc'); clic('enGuardar'); await dormir(60);
         R.ok('enlace repetido en el proyecto se avisa y no se duplica', !!avisoCon('ya está en este proyecto') && filas('ligas').length === 2); clic('enCancelar');
         // U10 (v0.4.0): Docs agrupa «Del proyecto» / por tarjeta, chip de estado junto al nombre, chips por tipo.
@@ -711,7 +712,7 @@ try {
         R.ok('U10: dos grupos, «Del proyecto» primero y luego la tarjeta', grupos[0] === 'Del proyecto' && grupos[1].startsWith('Tarjeta · Lista de insumos') && !!document.querySelector('#docsLista [data-liga] .t .estado .mn-chip'), grupos.join(' | '));
         R.ok('U10: chips por tipo (hay archivado y enlace)', document.querySelectorAll('#docsFiltro button').length === 3);
         document.querySelector('#docsFiltro [data-docs="enlace"]').click(); await dormir(30);
-        R.ok('U10: el chip «enlace» deja solo el enlace', document.querySelectorAll('#docsLista .doc').length === 1 && document.querySelector('#docsLista .doc .ico').textContent === 'link');
+        R.ok('U10: el chip «enlace» deja solo el enlace', document.querySelectorAll('#docsLista .doc').length === 1 && document.querySelector('#docsLista .doc .fico').dataset.tipo === 'enlace');
         document.querySelector('#docsFiltro [data-docs="todos"]').click(); await dormir(30);
         R.ok('U10: «Todos» los devuelve', document.querySelectorAll('#docsLista .doc').length === 2);
         // F12 (v0.4.0): toda la actividad del proyecto, por persona.
@@ -851,6 +852,93 @@ try {
             R.ok('colaborador: cerrar proyecto se niega aunque se fuerce', filas('proyectos')[0].fields.Estado === 'activo' && !!avisoCon('Solo gerencia'));
             R.ok('colaborador: sin Reabrir', $('btnReabrirProyecto').classList.contains('oculto'));
         }
+        // ---- v0.8.0 (2026-09-12): chat por proyecto con @menciones, iconos de archivo, insignias, color por persona.
+        {
+            await abrirLau(); await esperar(() => visible('p-proyecto'), 'proyecto');
+            const yoAlias = 'persona';   // nombreDe(YO) = «Persona de Prueba» -> alias «persona»
+            // Un comentario ajeno que me menciona, sembrado directo: es lo que Inicio tiene que enseñar en «Te mencionaron».
+            filas('actividad').push({ id: DB.siguienteId++, fields: { Title: `@${yoAlias} ¿ya viste el oficio?`, Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date(Date.now() - 2 * 86400000).toISOString(), ProyectoId: proyectoId } });   // hace 2 días: dentro de mencionesDias
+            await recargarYEsperar();
+            await abrirLau(); await esperar(() => visible('p-proyecto'), 'proyecto');
+            const notasAntes = filas('actividad').filter(a => a.fields.Accion === 'comentar' && Number(a.fields.ProyectoId) === proyectoId).length;
+            R.ok('v0.8.0: la pestaña Chat existe y cuenta los comentarios del proyecto (notas de tarjeta incluidas)', !!document.querySelector('.tab[data-tab="chat"]') && !$('nChatTab').hidden && $('nChatTab').textContent === String(notasAntes), `${$('nChatTab').textContent}/${notasAntes}`);
+            R.ok('v0.8.0: la pestaña Documentos cuenta las ligas', $('nDocsTab').textContent === String(filas('ligas').filter(l => Number(l.fields.ProyectoId) === proyectoId).length));
+            tab('chat'); await esperar(() => visible('tab-chat'), 'chat');
+            const masNuevo = filas('actividad').filter(a => a.fields.Accion === 'comentar' && Number(a.fields.ProyectoId) === proyectoId).sort((a, b) => String(a.fields.Cuando).localeCompare(String(b.fields.Cuando))).pop();
+            R.ok('v0.8.0: el hash dice /chat y el hilo trae los comentarios en orden (el más nuevo abajo)', location.hash === `#p/${CLAVE}/chat` && document.querySelectorAll('#chatHilo .msg').length === notasAntes && [...document.querySelectorAll('#chatHilo .msg')].pop().dataset.comentario === String(masNuevo.id) && $('chatHilo').textContent.includes('ya viste el oficio'), location.hash);
+            R.ok('v0.8.0: la nota de una tarjeta sale en el hilo con su chip que la nombra', !!document.querySelector('#chatHilo .msg .ref[data-tarjeta]') && document.querySelector('#chatHilo .msg .ref[data-tarjeta] span').textContent.length > 0);
+            R.ok('v0.8.0: la mención a mí se pinta como chip «is-yo» con el nombre en el title', !!document.querySelector('#chatHilo .mencion.is-yo') && document.querySelector('#chatHilo .mencion.is-yo').title === 'Persona de Prueba');
+            R.ok('v0.8.0: hay separadores de día y el redactor está a la vista para quien escribe', document.querySelectorAll('#chatHilo .dia').length >= 1 && !$('formChat').classList.contains('oculto') && $('chatSoloLectura').classList.contains('oculto'));
+            // Selector de menciones: teclear «@col» ofrece a Colega Demo; Enter lo mete como «@colega ».
+            poner('chatTexto', 'favor de checar @col'); $('chatTexto').setSelectionRange(20, 20); $('chatTexto').dispatchEvent(new Event('input', { bubbles: true })); await dormir(30);
+            R.ok('v0.8.0: al teclear @col aparece el selector con Colega Demo (y sin uno mismo)', !$('chatSelector').classList.contains('oculto') && !!document.querySelector('#chatSelector [data-mencionar="colega@example.invalid"]') && !document.querySelector(`#chatSelector [data-mencionar="${YO}"]`));
+            $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await dormir(30);
+            R.ok('v0.8.0: Enter elige y escribe «@colega » en lugar de lo tecleado; el selector se cierra', $('chatTexto').value === 'favor de checar @colega ' && $('chatSelector').classList.contains('oculto'), JSON.stringify($('chatTexto').value));
+            const antesEnter = actividad('comentar').length;
+            $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await dormir(40);
+            R.ok('v0.8.0: Enter solo (sin selector) no envía', actividad('comentar').length === antesEnter && $('chatTexto').value.length > 0);
+            clic('chatEnviar'); await esperar(() => document.querySelectorAll('#chatHilo .msg').length === notasAntes + 1, 'comentario enviado');
+            const com = filas('actividad').filter(a => a.fields.Accion === 'comentar').pop();
+            R.ok('v0.8.0: el comentario es un renglón comentar del proyecto SIN tarjeta, con quién y cuándo', com.fields.Title === 'favor de checar @colega' && Number(com.fields.ProyectoId) === proyectoId && com.fields.TareaId === undefined && com.fields.Quien === YO && !!com.fields.Cuando, JSON.stringify(com.fields));
+            R.ok('v0.8.0: se pinta abajo, como mío, con la mención a Colega como chip y el redactor vacío', [...document.querySelectorAll('#chatHilo .msg')].pop().classList.contains('is-mio') && !!document.querySelector('#chatHilo .msg:last-child .mencion[data-mencion="colega@example.invalid"]') && $('chatTexto').value === '' && $('nChatTab').textContent === String(notasAntes + 1));
+            // Ctrl+Enter envía; el botón «@» mete la arroba y abre el selector.
+            poner('chatTexto', 'segundo mensaje'); $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true }));
+            await esperar(() => document.querySelectorAll('#chatHilo .msg').length === notasAntes + 2, 'Ctrl+Enter');
+            R.ok('v0.8.0: Ctrl+Enter envía y dos míos seguidos se agrupan (el segundo sin avatar ni cabecera)', [...document.querySelectorAll('#chatHilo .msg')].pop().classList.contains('is-seguido') && !document.querySelector('#chatHilo .msg:last-child .cab'));
+            clic('chatArroba'); await dormir(30);
+            R.ok('v0.8.0: el botón «@» escribe la arroba y abre el selector con toda la gente', $('chatTexto').value === '@' && !$('chatSelector').classList.contains('oculto') && document.querySelectorAll('#chatSelector button').length >= 2);
+            $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await dormir(20);
+            R.ok('v0.8.0: Esc cierra el selector sin borrar el texto', $('chatSelector').classList.contains('oculto') && $('chatTexto').value === '@');
+            clic('chatArroba'); await dormir(30);
+            // El blur del textarea (el clic real en «@» mueve el foco al boton y lo devuelve) NO cierra el selector si el foco volvio al textarea.
+            $('chatArroba').focus(); $('chatTexto').focus(); await dormir(200);
+            R.ok('v0.8.0: perder y recuperar el foco (clic real en «@») deja el selector abierto; aria-expanded lo dice', !$('chatSelector').classList.contains('oculto') && $('chatTexto').getAttribute('aria-expanded') === 'true' && $('chatTexto').getAttribute('aria-activedescendant') === 'chatSelector-op-0');
+            // Con el cursor a MEDIA palabra, elegir reemplaza la palabra entera.
+            poner('chatTexto', 'ver @col con Ana'); $('chatTexto').setSelectionRange(6, 6); $('chatTexto').dispatchEvent(new Event('input', { bubbles: true })); await dormir(30);
+            $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await dormir(30);
+            R.ok('v0.8.0: elegir con el cursor a media palabra reemplaza «@col» entero', $('chatTexto').value === 'ver @colega  con Ana', JSON.stringify($('chatTexto').value));
+            poner('chatTexto', '');
+            // Tope: 251 caracteres se rechaza en la app (SharePoint no lo cabe).
+            $('chatTexto').maxLength = 999; poner('chatTexto', 'x'.repeat(251)); clic('chatEnviar'); await esperar(() => avisoCon('no cabe'), 'tope');
+            R.ok('v0.8.0: 251 caracteres no se envían y el contador va en rojo', document.querySelectorAll('#chatHilo .msg').length === notasAntes + 2 && $('chatCont').classList.contains('is-danger')); $('chatTexto').maxLength = 250; poner('chatTexto', '');
+            // La nota de la tarjeta también resuelve menciones y tiene selector (una tarjeta VIVA del tablero:
+            // gerencia ya borró la que tenía notas, y su nota queda en el hilo con el chip apagado).
+            tab('tablero'); await dormir(50);
+            document.querySelector('#tab-tablero .tarjeta').click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+            const tituloViva = $('tTitulo').textContent;
+            poner('tNota', 'lo reviso con @jef'); $('tNota').setSelectionRange(18, 18); $('tNota').dispatchEvent(new Event('input', { bubbles: true })); await dormir(30);
+            R.ok('v0.8.0: el selector de menciones también vive en la nota de la tarjeta', !$('tNotaSelector').classList.contains('oculto') && !!document.querySelector('#tNotaSelector [data-mencionar="jefa@example.invalid"]'));
+            document.querySelector('#tNotaSelector [data-mencionar="jefa@example.invalid"]').click(); await dormir(20);
+            const nNotasTarjeta = actividad('comentar').length;
+            clic('tAnotar'); await esperar(() => actividad('comentar').length === nNotasTarjeta + 1, 'nota con mención');
+            R.ok('v0.8.0: la nota con mención se guarda como texto y se pinta con el chip', actividad('comentar').pop().fields.Title === 'lo reviso con @jefa' && !!document.querySelector('#tNotasLista .mencion[data-mencion="jefa@example.invalid"]'));
+            const tid = Number(actividad('comentar').pop().fields.TareaId);
+            clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+            tab('chat'); await dormir(50);
+            const chipRef = [...document.querySelectorAll('#chatHilo .msg .ref[data-tarjeta]')].find(b => !b.disabled && b.dataset.tarjeta === String(tid));
+            R.ok('v0.8.0: la nota recién escrita sale en el hilo con el chip de su tarjeta', !!chipRef && chipRef.querySelector('span').textContent === tituloViva);
+            chipRef.click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde el chat');
+            R.ok('v0.8.0: el chip de la nota abre su tarjeta', $('dlgTarea').open && $('tTitulo').textContent === tituloViva);
+            clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+            // Insignias en la cara de la tarjeta y punto de color en la columna.
+            tab('tablero'); await dormir(50);
+            const cara = document.querySelector(`.tarjeta[data-t="${tid}"]`);
+            R.ok('v0.8.0: la tarjeta enseña cuántas notas trae (insignia con icono) y la columna lleva su punto de color', !!cara && !!cara.querySelector('.insig.is-notas svg') && Number(cara.querySelector('.insig.is-notas span').textContent) >= 1 && !!document.querySelector('.col[data-col="en-curso"] h3 .punto'));
+            R.ok('v0.8.0: el avatar lleva un tono por persona (data-tono 1..8) y dos correos distintos difieren', (() => { const a = document.querySelector(`.av[title="Persona de Prueba"]`), b = document.querySelector('.av[title="Colega Demo"]'); return !!a && !!b && /^[1-8]$/.test(a.dataset.tono) && /^[1-8]$/.test(b.dataset.tono) && a.dataset.tono !== b.dataset.tono; })());
+            // Iconos de archivo: la liga archivada (.pdf) y el enlace.
+            tab('docs'); await dormir(50);
+            R.ok('v0.8.0: Documentos pinta el .pdf con su icono (data-tipo=pdf, letras «PDF») y el .docx como Word', !!document.querySelector('#docsLista .fico[data-tipo="pdf"] svg text') && document.querySelector('#docsLista .fico[data-tipo="pdf"] svg text').textContent === 'PDF' && !!document.querySelector('#docsLista .fico[data-tipo="word"]'));
+            // Inicio: «Te mencionaron» trae el comentario ajeno y abre el chat del proyecto.
+            pestana('inicio'); await esperar(() => visible('p-inicio'), 'inicio');
+            // Una mención vieja (fuera de mencionesDias) no aparece: la lista se vacía sola con el tiempo.
+            filas('actividad').push({ id: DB.siguienteId++, fields: { Title: '@persona esto es de hace un mes', Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date(Date.now() - 40 * 86400000).toISOString(), ProyectoId: proyectoId } });
+            await recargarYEsperar(); pestana('inicio'); await dormir(30);
+            R.ok('v0.8.0: Inicio enseña «Te mencionaron» con el comentario ajeno reciente (no los míos, no el de hace un mes)', !$('cardMenciones').classList.contains('oculto') && $('inicioMenciones').textContent.includes('ya viste el oficio') && !$('inicioMenciones').textContent.includes('favor de checar') && !$('inicioMenciones').textContent.includes('hace un mes'));
+            R.ok('v0.8.0: la actividad dice «comentó» para el chat y «anotó» para la nota de tarjeta', $('inicioActividad').textContent.includes('comentó: «segundo mensaje') && $('inicioActividad').textContent.includes('anotó: «lo reviso'));
+            document.querySelector('#inicioMenciones button.it').click(); await esperar(() => visible('p-proyecto') && location.hash === `#p/${CLAVE}/chat`, 'chat desde la mención');
+            R.ok('v0.8.0: el renglón de la mención abre el chat del proyecto', visible('tab-chat') && location.hash === `#p/${CLAVE}/chat`);
+            pestana('inicio'); await dormir(30);
+        }
         // Sesion caducada -> vuelve al login.
         const pcaFalso = window.msal; let redirigio = false;
         // E2 (2026-09-12): esta prueba ROMPE el MSAL falso. Sin restaurarlo, cualquier herramienta que
@@ -886,6 +974,9 @@ try {
         clic('tCerrar');
         tab('docs'); await dormir(50);
         R.ok('lectura: Ligar, Subir y Pegar un enlace deshabilitados', $('btnLigar').disabled && $('btnSubir').disabled && $('btnEnlace').disabled);
+        // v0.8.0: el chat se lee; el redactor no existe para este rol y una linea gris lo dice.
+        tab('chat'); await dormir(50);
+        R.ok('v0.8.0 (lectura): el chat se ve, sin redactor y con la línea «Solo lectura»', visible('tab-chat') && $('formChat').classList.contains('oculto') && !$('chatSoloLectura').classList.contains('oculto') && $('chatSoloLectura').textContent.startsWith('Solo lectura') && $('chatHilo').textContent.includes('Nadie ha escrito'));
         pestana('mis'); await esperar(() => visible('p-mis'), 'mis');
         R.ok('lectura: Mis tareas trae la sembrada, vencida arriba en «Urgentes» con los días grandes', document.querySelectorAll('#misLista .tarjeta').length === 1 && !!document.querySelector('#misLista .urgentes .urgente.is-danger .tarjeta') && $('misLista').textContent.includes('venció') && $('misLista').querySelector('.urgente .k b').textContent === String(-diasPara('2026-09-01T18:00:00Z')));
         pestana('inicio'); await dormir(50);

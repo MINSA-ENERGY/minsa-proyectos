@@ -66,6 +66,8 @@
       <div class="dos-columnas">
         <section class="mn-card"><h2>Proyectos activos</h2><div class="lista" id="inicioProyectos"></div></section>
         <div class="apilado">
+          <!-- v0.8.0: lo que el chat le dijo a esta persona (@mencion), solo si hay -->
+          <section class="mn-card oculto" id="cardMenciones"><h2>Te mencionaron</h2><div class="mini" id="inicioMenciones"></div></section>
           <section class="mn-card"><h2>Próximos vencimientos</h2><div class="mini" id="inicioVence"></div></section>
           <section class="mn-card" id="cardSinMov"><h2>Sin movimiento</h2><div class="mini" id="inicioSinMov"></div></section>
           <section class="mn-card"><h2>Actividad reciente <button class="mn-btn is-ghost is-sm ver-toda" id="btnActividadInicio" type="button">ver toda</button></h2><div class="mini" id="inicioActividad"></div></section>
@@ -105,7 +107,9 @@
           <div class="tabs" role="tablist">
             <button class="tab" data-tab="tablero" role="tab" type="button">Tablero</button>
             <button class="tab" data-tab="lista" role="tab" type="button">Lista</button>
-            <button class="tab" data-tab="docs" role="tab" type="button"><span class="t-largo">Documentos</span><span class="t-corto">Docs</span></button>
+            <button class="tab" data-tab="docs" role="tab" type="button"><span class="t-largo">Documentos</span><span class="t-corto">Docs</span><span class="n" id="nDocsTab" hidden></span></button>
+            <!-- v0.8.0: chat por proyecto (una conversacion por frente, con @menciones) -->
+            <button class="tab" data-tab="chat" role="tab" type="button">Chat<span class="n" id="nChatTab" hidden></span></button>
             <button class="tab solo-movil" data-tab="resumen" role="tab" type="button">Resumen</button>
             <button id="btnFiltros" class="mn-btn is-sm solo-movil" type="button" aria-expanded="false">Filtrar</button>
             <button id="btnNuevaTarea" class="mn-btn is-primary is-sm" type="button">Nueva tarea</button>
@@ -117,6 +121,17 @@
             <div class="docs-acciones"><button id="btnLigar" class="mn-btn is-sm" type="button">Ligar archivo de la biblioteca</button><button id="btnSubir" class="mn-btn is-sm" type="button">Subir al buzón</button><button id="btnEnlace" class="mn-btn is-sm" type="button">Pegar un enlace</button><span class="mn-help" id="docsBiblioteca"></span></div>
             <div class="filtros" id="docsFiltro"></div>
             <div class="lista" id="docsLista"></div>
+          </div>
+          <div id="tab-chat" class="chat oculto">
+            <div class="hilo" id="chatHilo"></div>
+            <p id="chatSoloLectura" class="mn-help solo-lectura oculto"></p>
+            <form id="formChat" class="chat-forma" novalidate>
+              <label for="chatTexto" class="oculto">Escribe al equipo</label>
+              <div class="chat-caja"><textarea id="chatTexto" rows="2" maxlength="250" placeholder="Escribe al equipo… @nombre para avisarle a alguien (250 caracteres)"></textarea><div class="selector oculto" id="chatSelector" role="listbox" aria-label="Mencionar a"></div></div>
+              <span class="cont mn-mono" id="chatCont" aria-live="polite"></span>
+              <button class="mn-btn is-sm is-icono" id="chatArroba" type="button" title="Mencionar a alguien" aria-label="Mencionar a alguien">@</button>
+              <button class="mn-btn is-primary is-sm" id="chatEnviar" type="submit" title="Ctrl+Enter también envía">Enviar</button>
+            </form>
           </div>
         </div>
         <div class="apilado lateral">
@@ -155,7 +170,7 @@
     <div class="notas" id="tNotasLista"></div>
     <form id="formNota" class="nota-forma" novalidate>
       <label for="tNota" class="oculto">Nueva nota</label>
-      <textarea id="tNota" rows="2" maxlength="250" placeholder="Anota qué pasó, qué falta o por qué está donde está (250 caracteres)"></textarea>
+      <div class="chat-caja"><textarea id="tNota" rows="2" maxlength="250" placeholder="Anota qué pasó, qué falta o por qué está donde está; @nombre avisa a alguien (250 caracteres)"></textarea><div class="selector oculto" id="tNotaSelector" role="listbox" aria-label="Mencionar a"></div></div>
       <span class="cont mn-mono" id="tNotaCont" aria-live="polite"></span>
       <button class="mn-btn is-sm" id="tAnotar" type="submit" title="Ctrl+Enter también envía">Anotar</button>
     </form>

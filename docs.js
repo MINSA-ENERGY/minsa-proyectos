@@ -16,7 +16,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX } from './reglas.js';
 import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO } from './lote.js';
-import { $, L, VERSION, estado, el, boton, chip, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaHora, aplicar, pedirRelectura } from './comun.js';
+import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaHora, aplicar, pedirRelectura } from './comun.js';
 import { esConflicto } from './graph.js';
 
 let alCambiar = () => {};
@@ -98,8 +98,8 @@ export async function pintarDocs(p) {
 
 function doc(l, p, puede) {
     const d = el('div', 'doc'); d.dataset.liga = String(l.id);
-    const ext = String(l.Ruta || l.Title || '').split('.').pop().slice(0, 4);
-    d.appendChild(el('span', 'ico', l.Tipo === 'buzon' ? 'lote' : l.Tipo === 'enlace' ? 'link' : ext));
+    // v0.8.0: el icono del tipo (PDF, Word, Excel…) en lugar de la extension escrita; el lote es una carpeta y el enlace una cadena.
+    d.appendChild(iconoArchivo(l.Ruta || l.Title, l.Tipo));
     const c = el('div');
     const t = el('div', 't');
     const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : l.Tipo === 'enlace' ? chip('enlace') : chip('archivado', 'ok')); t.appendChild(est);
@@ -211,6 +211,7 @@ async function buscarDocumento() {
         if (!r.length) { cont.appendChild(el('p', 'vacio', 'Nada con ese nombre fuera del buzón.')); return; }
         for (const x of r.slice(0, 30)) {
             const fila = el('div', 'lg-resultado');
+            fila.appendChild(iconoArchivo(x.nombre, null, 'sm'));   // v0.8.0
             const izq = el('div'); izq.appendChild(el('div', '', x.nombre)); izq.appendChild(el('div', 'p', `${x.rutaConocida === false ? '(carpeta: se resuelve al ligar)' : x.ruta} · ${fechaHora(x.modificado)}`));
             fila.appendChild(izq);
             fila.appendChild(boton('Ligar', 'mn-btn is-sm', () => ligarDocumento(x)));

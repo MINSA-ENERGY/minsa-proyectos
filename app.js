@@ -15,9 +15,10 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar } from './comun.js';
+import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, textoConMenciones } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
+import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta } from './chat.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
 const pca = new msal.PublicClientApplication({
@@ -221,7 +222,7 @@ function irA(p) {
 // Router por hash (v0.2.0, F8): LEE location.hash y deja la pantalla como dice; es idempotente, asi
 // que las escrituras propias (fijarHash desde irA / abrirTarjeta) no repintan dos veces. Con Atras
 // del navegador se cierra la tarjeta o se vuelve a la pantalla anterior, que es lo que la gente espera.
-const RE_HASH = /^#(?:(inicio|proyectos|mis)|p\/([a-z0-9-]+)(?:\/(lista|docs|tablero|resumen))?)(?:\/t\/(\d+))?$/;
+const RE_HASH = /^#(?:(inicio|proyectos|mis)|p\/([a-z0-9-]+)(?:\/(lista|docs|chat|tablero|resumen))?)(?:\/t\/(\d+))?$/;
 function esHashDeLaApp(h) { return RE_HASH.test(String(h || '')); }
 function aplicarHash() {
     if (!estado.siteId) return;
@@ -260,6 +261,8 @@ function repintar() {
 }
 alCambiarTareas(repintar);
 alCambiarDocs(repintar);
+alCambiarChat(repintar);
+fijarAbrirTarjeta(abrirTarjeta);
 
 const activos = () => estado.proyectos.filter(p => p.Estado === 'activo');
 const misAbiertas = () => { const yo = estado.cuenta.username.toLowerCase(); return estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === yo && t.Columna !== 'hecho'); };
@@ -381,7 +384,7 @@ function itemMini(quien, texto, sub, derecha, claseDerecha, abrir) {
     return it;
 }
 /** La frase de actividad SIN el nombre (la cabecera de itemMini ya lo lleva); el resto igual que fraseActividad. */
-function queHizo(a) { return a.Accion === 'comentar' ? `anotó: «${a.Title}»` : String(a.Title || ''); }
+function queHizo(a) { return a.Accion === 'comentar' ? `${verboComentario(a)}: «${a.Title}»` : String(a.Title || ''); }
 /** C9: un renglon de actividad con TareaId viva se abre en su proyecto (#p/<clave>/t/<id>); sin tarjeta, texto. */
 function abridorDe(a) {
     const t = a.TareaId ? porId(estado.tareas, a.TareaId) : null; if (!t) return null;
@@ -398,7 +401,7 @@ function itemActividad(a, conProyecto) {
 function fraseMarcada(texto) {
     const f = el('div', 'f'); const m = /^(.*?)(«[^»]*»)(.*)$/s.exec(texto);
     if (!m) { f.textContent = texto; return f; }
-    f.appendChild(document.createTextNode(m[1])); const b = el('b', '', m[2]); b.title = m[2]; f.appendChild(b);
+    f.appendChild(document.createTextNode(m[1])); const b = el('b'); b.appendChild(textoConMenciones(m[2])); b.title = m[2]; f.appendChild(b);   // v0.8.0: las @menciones como chip tambien aqui
     const resto = m[3].trim();
     if (resto) f.appendChild(el('span', 'sino', resto.replace(/^de (.+) a (.+)$/, '$1 → $2')));
     return f;
@@ -446,6 +449,16 @@ function pintarInicio() {
     const v = $('inicioVence'); v.textContent = '';
     // C9: tambien estos renglones abren su tarjeta (el revisor vio la inconsistencia con la actividad).
     const abrirT = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; };
+    // v0.8.0: «Te mencionaron» — los comentarios del chat (o notas) que nombran a esta persona, lo mas nuevo arriba;
+    // el renglon abre la tarjeta si la nota es de una, o el chat del proyecto. La tarjeta solo existe si hay alguna.
+    const mn = $('inicioMenciones'); mn.textContent = '';
+    const menciones = mencionesA(estado.cuenta.username);
+    for (const a of menciones.slice(0, 6)) {
+        const p = porId(estado.proyectos, a.ProyectoId);
+        const abrir = abridorDe(a) || (p ? () => irAHash(`#p/${p.Clave}/chat`) : null);
+        mn.appendChild(itemMini(a.Quien, `${verboComentario(a)}: «${a.Title}»`, p ? p.Title : '', fechaHora(a.Cuando), null, abrir));
+    }
+    $('cardMenciones').classList.toggle('oculto', menciones.length === 0);
     for (const { tarea: t, dias } of proximos(abiertas, 6)) { const p = porId(estado.proyectos, t.ProyectoId); v.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', fechaCorta(t.Vence), dias < 0 ? 'danger' : dias <= CONFIG.vencePronto ? 'warn' : null, abrirT(t))); }
     if (!v.childNodes.length) v.appendChild(el('p', 'vacio', 'Nada por vencer.'));
     const sm = $('inicioSinMov'); sm.textContent = '';
@@ -473,7 +486,7 @@ function abrirActividad(proyectoId) {
 }
 // C9: la bitacora del sistema («creó el proyecto», «reabrió», «borró») pesa igual que las notas y los
 // movimientos, que es lo que la gente busca. Dos chips los separan; «Todos» sigue siendo el default.
-const TIPOS_ACTIVIDAD = [['notas', 'solo notas', a => a.Accion === 'comentar'], ['movimientos', 'solo movimientos', a => a.Accion === 'mover-tarea']];
+const TIPOS_ACTIVIDAD = [['notas', 'solo comentarios', a => a.Accion === 'comentar'], ['movimientos', 'solo movimientos', a => a.Accion === 'mover-tarea']];
 function pintarActividad() {
     const todas = estado.actividad.filter(a => !acCtx.proyectoId || Number(a.ProyectoId) === acCtx.proyectoId);
     const quienes = [...new Set(todas.map(a => String(a.Quien || '').toLowerCase()).filter(Boolean))].sort();
@@ -582,16 +595,22 @@ function pintarProyecto() {
     $('pDesc').title = p.Descripcion || '';
     $('pDesc').classList.remove('abierta');
     for (const b of document.querySelectorAll('.tab')) { const on = b.dataset.tab === estado.tab; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }
-    for (const t of ['tablero', 'lista', 'docs']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
+    for (const t of ['tablero', 'lista', 'docs', 'chat']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
+    // v0.8.0: las pestanas dicen cuanto hay adentro (Trello): documentos ligados y comentarios del chat.
+    const nDocs = estado.ligas.filter(l => Number(l.ProyectoId) === p.id).length, nChat = comentariosDe(p.id).length;
+    $('nDocsTab').textContent = String(nDocs); $('nDocsTab').hidden = !nDocs;
+    $('nChatTab').textContent = String(nChat); $('nChatTab').hidden = !nChat;
     // B2: «Resumen» es una pestana mas, solo en celular (en escritorio la lateral siempre se ve).
     $('p-proyecto').classList.toggle('ver-resumen', estado.tab === 'resumen');
-    $('filtroTareas').classList.toggle('oculto', estado.tab === 'docs' || estado.tab === 'resumen');
+    const sinFiltros = ['docs', 'chat', 'resumen'].includes(estado.tab);
+    $('filtroTareas').classList.toggle('oculto', sinFiltros);
     $('filtroTareas').classList.toggle('plegado', !estado.filtrosAbiertos);
-    if (estado.tab !== 'docs' && estado.tab !== 'resumen') pintarFiltroTareas(p);
+    if (!sinFiltros) pintarFiltroTareas(p);
     pintarBotonFiltros();
     if (estado.tab === 'tablero') pintarTablero(p);
     else if (estado.tab === 'lista') pintarLista(p);
     else if (estado.tab === 'docs') pintarDocs(p);
+    else if (estado.tab === 'chat') pintarChat(p);
     // lateral
     $('pBarra').style.width = a.pct + '%';
     const kv = $('pAvance'); kv.textContent = '';
@@ -771,6 +790,7 @@ $('formProyecto').addEventListener('submit', guardarProyecto);
 $('npCancelar').addEventListener('click', () => cerrarDialogo('dlgProyecto'));
 engancharTablero();
 engancharDocs();
+engancharChat();
 $('btnActividadInicio').addEventListener('click', () => abrirActividad(null));
 $('btnActividadProyecto').addEventListener('click', () => abrirActividad(estado.proyectoAbierto && estado.proyectoAbierto.id));
 $('acCerrar').addEventListener('click', () => cerrarDialogo('dlgActividad'));
