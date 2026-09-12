@@ -193,6 +193,14 @@ a las 20:00. **Prueba real:** Francisco (`colaborador`) entró desde el celular 
 exporte de las 20:34 la trae en `PROY_Actividad` con su cuenta. Sin probar todavía: las bibliotecas
 fuera del piloto, y el resto del roster en el celular.
 
+## Publicadas v0.3.0 y v0.4.0 (2026-09-12)
+
+Carlos corrió el paso de esquema de v0.3.0 (abajo, tal cual: consentir `Sites.FullControl.All` → `-Rol manage
+-SoloAdministracion` → `provisionar.html` «Crear lo que falta» → «Todo coincide con esquema.json» → `-Rol write`
+→ revocar el consentimiento) y el `git push` de `02b2afb`; Pages sirve `VERSION 0.4.0` y SW `minsa-proyectos-v4`
+(verificado con `curl` desde el harness). **Pendiente de medir:** el punto 4 de abajo (If-Match en la primera
+escritura real). Las dos secciones siguientes quedan como registro del procedimiento.
+
 ## Al publicar v0.4.0
 
 Sin cambio de esquema. `git push` (lo hace Carlos); el service worker va en `minsa-proyectos-v4`. Si v0.3.0
