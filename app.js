@@ -15,10 +15,10 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, textoConMenciones } from './comun.js';
+import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
-import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta } from './chat.js';
+import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
 const pca = new msal.PublicClientApplication({
@@ -252,6 +252,7 @@ function fijarProyectoAbierto(p) {
     estado.proyectoAbierto = p;
 }
 function repintar() {
+    if (estado.pestana !== 'proyecto' || estado.tab !== 'chat') salirDelChat();   // v0.9.0: la proxima vez que se vea el chat cuenta como «entrar»
     pintarInsignias();
     pintarRailEquipos();
     if (estado.pestana === 'inicio') pintarInicio();
@@ -596,10 +597,15 @@ function pintarProyecto() {
     $('pDesc').classList.remove('abierta');
     for (const b of document.querySelectorAll('.tab')) { const on = b.dataset.tab === estado.tab; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }
     for (const t of ['tablero', 'lista', 'docs', 'chat']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
+    if (estado.tab !== 'chat') salirDelChat();   // v0.9.0: cambiar de pestana dentro del proyecto tambien es salir
     // v0.8.0: las pestanas dicen cuanto hay adentro (Trello): documentos ligados y comentarios del chat.
     const nDocs = estado.ligas.filter(l => Number(l.ProyectoId) === p.id).length, nChat = comentariosDe(p.id).length;
     $('nDocsTab').textContent = String(nDocs); $('nDocsTab').hidden = !nDocs;
     $('nChatTab').textContent = String(nChat); $('nChatTab').hidden = !nChat;
+    // v0.9.0: el contador se pinta en ambar si hay comentarios ajenos que esta persona no ha tenido en pantalla.
+    const nNuevos = estado.tab === 'chat' ? 0 : comentariosNuevos(p.id).length;
+    $('nChatTab').classList.toggle('is-nuevo', nNuevos > 0);
+    $('nChatTab').title = nNuevos ? `${nNuevos} nuevo${nNuevos === 1 ? '' : 's'} desde tu última visita` : '';
     // B2: «Resumen» es una pestana mas, solo en celular (en escritorio la lateral siempre se ve).
     $('p-proyecto').classList.toggle('ver-resumen', estado.tab === 'resumen');
     const sinFiltros = ['docs', 'chat', 'resumen'].includes(estado.tab);

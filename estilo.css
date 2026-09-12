@@ -690,3 +690,29 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* B6 para el chip de la tarjeta en el chat: media 24 px a 390/820. Va AL FINAL porque la regla base `.msg .ref`
    (misma especificidad) esta arriba y la pisaria (el revisor cazo la primera version dentro del @media de B6). */
 @media (max-width: 900px) { .msg .ref { min-height: 36px; } }
+
+/* ==== v0.9.0 (2026-09-12): borrar comentario, «nuevos desde tu ultima visita», enlaces clicables, cabecera de dialogo marcada ==== */
+/* ---- cabecera de dialogo: Carlos pidio que se distinga de lo editable. Fondo hundido, filete mas firme abajo y una
+   linea de marca arriba; el pie ya era hundido, asi que el cuerpo (lo editable) queda como la unica superficie clara. */
+.mn-dialog-head { background: var(--surface-sunken); border-bottom: 1px solid var(--border-default); border-radius: var(--r-md) var(--r-md) 0 0; box-shadow: inset 0 3px 0 var(--brand-primary); padding-top: calc(var(--sp-4) + 2px); }
+.mn-dialog-foot { border-top-color: var(--border-default); }
+/* Las secciones DENTRO del dialogo de tarjeta (Mover a… · Notas · Documentos · Editar): un filete arriba y aire, para que
+   cada bloque se lea como bloque y no como una lista continua de rotulos. El primero no lleva filete. */
+.mn-dialog-body > .mn-label { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border-hairline); }
+.mn-dialog-body > .mn-label:first-child, .mn-dialog-body > .kv + .mn-label, .mn-dialog-body > .dlg-avisos + .mn-label { margin-top: 0; padding-top: 0; border-top: 0; }
+.mn-dialog-body > .editar { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border-hairline); }
+/* ---- borrar comentario/nota: boton de icono al final del renglon; en escritorio aparece al pasar el raton o con el
+   foco, en tactil (sin hover) siempre, para que exista sin ensuciar el hilo. */
+.msg.has-borrar { grid-template-columns: 26px minmax(0, 1fr) auto; }
+.nota.has-borrar { grid-template-columns: auto 1fr auto; }
+.borrar-msg { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-faint); cursor: pointer; align-self: start; opacity: 0; transition: opacity .12s, color .12s, background .12s; }
+.borrar-msg svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.msg:hover .borrar-msg, .nota:hover .borrar-msg, .borrar-msg:focus-visible { opacity: 1; }
+.borrar-msg:hover, .borrar-msg:focus-visible { color: var(--status-danger-fg); background: var(--status-danger-bg); }
+@media (hover: none) { .borrar-msg { opacity: 1; width: 36px; height: 36px; } }
+/* ---- «N nuevos desde tu ultima visita»: raya ambar en el hilo, y el contador de la pestana Chat en ambar. */
+.chat .nuevos { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0 var(--sp-1); font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; font-weight: 600; color: var(--status-warn-fg); }
+.chat .nuevos::before, .chat .nuevos::after { content: ''; flex: 1; height: 1px; background: var(--status-warn-fg); opacity: .5; }
+.tab .n.is-nuevo { background: var(--status-warn-bg); color: var(--status-warn-fg); font-weight: 600; }
+/* ---- una direccion pegada en el chat o en una nota se abre con un clic. */
+.msg .t .enlace, .nota p .enlace, .mini .enlace { color: var(--text-link); text-decoration: underline; text-underline-offset: 2px; overflow-wrap: anywhere; }

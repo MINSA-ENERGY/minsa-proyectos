@@ -6,6 +6,37 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.9.0** (2026-09-12) — **borrar lo escrito en el chat, secciones que se distinguen, enlaces clicables y «nuevos desde tu
+última visita».** Carlos pidió poder borrar texto mandado al chat y que la cabecera de un pop-up se distinga de lo editable;
+el resto salió de recorrer la app buscando qué le falta a un chat que ya se usa. Sin cambio de esquema.
+
+- **Borrar comentario / nota** (`comun.js: puedeBorrarComentario · borrarComentario`). Lo borra **quien lo escribió, o
+  gerencia cualquiera**, solo con el proyecto activo (cerrado = registro). Botón de basura al final del mensaje —en
+  escritorio aparece al pasar el ratón o con el foco; en táctil siempre, a 36 px— en el hilo del chat y en las notas de
+  la tarjeta (es el mismo renglón). Pide confirmación nombrando el texto (y quién lo escribió, si es ajeno); el DELETE
+  saca el renglón de `PROY_Actividad` y repinta hilo, contador de pestaña e insignias. **No deja renglón de bitácora**:
+  `Accion` es columna de opciones y una nueva obliga a re-provisionar; el renglón va a la papelera del sitio, de donde
+  un administrador lo recupera. Rol lectura no ve el botón.
+- **Cabecera de diálogo marcada** (`.mn-dialog-head` en `estilo.css`, sin tocar la piel vendorizada): fondo hundido,
+  filete firme abajo y una línea de marca de 3 px arriba; con el pie ya hundido, el cuerpo (lo editable) queda como la
+  única superficie clara. Dentro de la tarjeta, **Mover a… · Notas · Documentos · Editar** llevan un filete arriba y
+  aire, para leerse como bloques y no como una lista continua de rótulos.
+- **Enlaces clicables** (`comun.js: textoConEnlaces`, dentro de `textoConMenciones`): una `https://…` pegada en el chat,
+  en una nota o en la actividad se abre en pestaña nueva sin `opener`; la puntuación pegada al final queda fuera.
+- **«N nuevos desde tu última visita»** (`comun.js: chatVistoHasta · marcarChatVisto · comentariosNuevos`): por proyecto,
+  este dispositivo guarda en `localStorage` hasta dónde se leyó; lo ajeno posterior pone el contador de la pestaña Chat
+  en ámbar y una raya ámbar en el hilo justo antes del primero nuevo. La raya se fija **al entrar** al chat (el refresco
+  de 120 s y «Actualizar» no la mueven) y desaparece al salir y volver. Sin marca (primera vez, navegador que no
+  guarda) nada es nuevo. No es «leído» compartido: es por dispositivo, a propósito.
+- **Declarado sin aplicar:** Enter solo sigue sin enviar (Ctrl/Cmd+Enter envía; en celular Enter es salto de línea) —
+  cambiarlo toca también la nota de la tarjeta y se decide aparte; editar un comentario ya mandado (borrar y reescribir
+  cubre el caso sin un segundo formulario).
+
+Medido: `npm test` verde (74 reglas), E2E **217 / 197 / 20** (+13 / +11 / 0: botón por rol, confirmación y cancelar,
+DELETE y contador, ajeno solo gerencia, enlace, marca de visto, ámbar en pestaña, raya al entrar, raya que sobrevive a
+«Actualizar», raya que se va al volver). Capturas tarjeta · chat · nueva-tarea a 390 y 1366 × 2 temas, 0 desborde. SW
+`minsa-proyectos-v11`.
+
 **v0.8.0** (2026-09-12) — **chat por proyecto, @menciones, iconos de archivo y lo que un tablero enseña sin abrir la
 tarjeta.** Carlos pidió re-auditar la app «inspirándose en otros tableros», un chat por proyecto que todos lean
 («favor de checar @francisco») y el icono en lugar de «.docx» / «.pdf». Sin cambio de esquema (`provisionar.html` no

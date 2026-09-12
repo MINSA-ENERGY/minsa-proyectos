@@ -901,6 +901,47 @@ try {
             // Tope: 251 caracteres se rechaza en la app (SharePoint no lo cabe).
             $('chatTexto').maxLength = 999; poner('chatTexto', 'x'.repeat(251)); clic('chatEnviar'); await esperar(() => avisoCon('no cabe'), 'tope');
             R.ok('v0.8.0: 251 caracteres no se envían y el contador va en rojo', document.querySelectorAll('#chatHilo .msg').length === notasAntes + 2 && $('chatCont').classList.contains('is-danger')); $('chatTexto').maxLength = 250; poner('chatTexto', '');
+            // ---- v0.9.0 (2026-09-12): borrar comentario, enlace clicable, «nuevos desde tu última visita».
+            {
+                poner('chatTexto', 'mensaje equivocado, va para fuera'); clic('chatEnviar'); await esperar(() => document.querySelectorAll('#chatHilo .msg').length === notasAntes + 3, 'tercer mensaje');
+                const mios = [...document.querySelectorAll('#chatHilo .msg.is-mio')], ajeno = [...document.querySelectorAll('#chatHilo .msg:not(.is-mio)')].find(m => m.textContent.includes('ya viste el oficio'));
+                R.ok('v0.9.0: cada mensaje mío trae el botón de borrar, con nombre accesible', mios.length >= 3 && mios.every(m => m.querySelector('.borrar-msg[aria-label]')));
+                R.ok(`v0.9.0: el mensaje ajeno ${gerencia ? 'SÍ' : 'NO'} trae borrar (${ROL})`, !!ajeno && !!ajeno.querySelector('.borrar-msg') === gerencia);
+                const ultimo = mios[mios.length - 1], idUltimo = Number(ultimo.dataset.comentario), nAntes = document.querySelectorAll('#chatHilo .msg').length;
+                ultimo.querySelector('.borrar-msg').click(); await esperar(() => $('dlg').open, 'confirmación de borrar');
+                R.ok('v0.9.0: borrar pide confirmación y la nombra', $('dlgTitulo').textContent === 'Borrar el comentario' && $('dlgOk').textContent === 'Borrar' && $('dlgTexto').textContent.includes('mensaje equivocado'));
+                clic('dlgCancelar'); await esperar(() => !$('dlg').open, 'cancelado');
+                R.ok('v0.9.0: cancelar no borra', filas('actividad').some(a => a.id === idUltimo) && document.querySelectorAll('#chatHilo .msg').length === nAntes);
+                ultimo.querySelector('.borrar-msg').click(); await confirmar(); await esperar(() => !filas('actividad').some(a => a.id === idUltimo), 'borrado en la lista');
+                await esperar(() => document.querySelectorAll('#chatHilo .msg').length === nAntes - 1, 'hilo repintado');
+                R.ok('v0.9.0: confirmar borra el renglón (DELETE), lo saca del hilo y baja el contador de la pestaña', !document.querySelector(`#chatHilo .msg[data-comentario="${idUltimo}"]`) && $('nChatTab').textContent === String(nAntes - 1) && !!avisoCon('Comentario borrado'));
+                if (gerencia) {
+                    const idAjeno = Number(ajeno.dataset.comentario);
+                    ajeno.querySelector('.borrar-msg').click(); await esperar(() => $('dlg').open, 'confirmación');
+                    R.ok('v0.9.0 (gerencia): borrar lo ajeno dice quién lo escribió', $('dlgTexto').textContent.includes('lo escribió Colega Demo'));
+                    clic('dlgCancelar'); await esperar(() => !$('dlg').open, 'cancelado');
+                    R.ok('v0.9.0 (gerencia): el ajeno sigue tras cancelar', filas('actividad').some(a => a.id === idAjeno));
+                }
+                // Enlace clicable: una URL pegada se pinta como <a> nuevo-tab sin opener; la puntuación final queda fuera.
+                poner('chatTexto', 'ver https://minsaenergy.sharepoint.com/sites/x/oficio.pdf. gracias'); clic('chatEnviar');
+                await esperar(() => document.querySelector('#chatHilo .msg:last-child .enlace'), 'enlace pintado');
+                const a = document.querySelector('#chatHilo .msg:last-child .enlace');
+                R.ok('v0.9.0: la URL del comentario es un enlace en pestaña nueva sin opener, sin el punto final', a.href === 'https://minsaenergy.sharepoint.com/sites/x/oficio.pdf' && a.target === '_blank' && /noopener/.test(a.rel) && a.textContent === 'https://minsaenergy.sharepoint.com/sites/x/oficio.pdf' && document.querySelector('#chatHilo .msg:last-child .t').textContent.endsWith('. gracias'));
+                // «Nuevos desde tu última visita»: la marca de visto quedó en lo último; un comentario ajeno posterior es nuevo al volver.
+                const vistoAntes = localStorage.getItem(`proy.chatVisto.${proyectoId}`);
+                R.ok('v0.9.0: al ver el chat se guarda hasta dónde se leyó (localStorage)', !!vistoAntes && vistoAntes === filas('actividad').filter(x => x.fields.Accion === 'comentar' && Number(x.fields.ProyectoId) === proyectoId).map(x => x.fields.Cuando).sort().pop());
+                tab('tablero'); await dormir(30);
+                filas('actividad').push({ id: DB.siguienteId++, fields: { Title: 'llegó el oficio', Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date(Date.now() + 1000).toISOString(), ProyectoId: proyectoId } });
+                await recargarYEsperar(); await esperar(() => visible('p-proyecto'), 'proyecto');
+                R.ok('v0.9.0: la pestaña Chat marca en ámbar que hay 1 nuevo ajeno', $('nChatTab').classList.contains('is-nuevo') && $('nChatTab').title.startsWith('1 nuevo'));
+                tab('chat'); await esperar(() => visible('tab-chat'), 'chat');
+                const raya = document.querySelector('#chatHilo .nuevos');
+                R.ok('v0.9.0: el hilo pone la raya «1 nuevo desde tu última visita» justo antes del ajeno, y la pestaña deja de estar en ámbar', !!raya && raya.textContent.startsWith('1 nuevo') && raya.nextElementSibling && raya.nextElementSibling.textContent.includes('llegó el oficio') && !$('nChatTab').classList.contains('is-nuevo'));
+                clic('btnActualizar'); await esperar(() => !$('btnActualizar').disabled, 'releído'); await dormir(30);
+                R.ok('v0.9.0: releer sin salir del chat conserva la raya (la marca solo se fija al entrar)', !!document.querySelector('#chatHilo .nuevos'));
+                tab('tablero'); await dormir(20); tab('chat'); await dormir(30);
+                R.ok('v0.9.0: al salir y volver ya nada es nuevo', !document.querySelector('#chatHilo .nuevos'));
+            }
             // La nota de la tarjeta también resuelve menciones y tiene selector (una tarjeta VIVA del tablero:
             // gerencia ya borró la que tenía notas, y su nota queda en el hilo con el chip apagado).
             tab('tablero'); await dormir(50);

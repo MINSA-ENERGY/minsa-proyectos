@@ -6,7 +6,7 @@
 
 import { CONFIG } from './config.js';
 import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, sinAcentos } from './reglas.js';
-import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg } from './comun.js';
+import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
 import { engancharSelectorMenciones } from './chat.js';
@@ -337,7 +337,14 @@ function pintarNotas(t, p) {
         const cuerpo = el('div');
         const cab = el('div', 'w'); cab.appendChild(el('span', '', nombreDe(n.Quien, estado.roles))); cab.appendChild(el('span', 'mn-mono', ' · ' + fechaHora(n.Cuando)));
         const texto = el('p'); texto.appendChild(textoConMenciones(n.Title)); cuerpo.appendChild(cab); cuerpo.appendChild(texto);   // v0.8.0: @menciones como chips
-        it.appendChild(cuerpo); c.appendChild(it);
+        it.appendChild(cuerpo);
+        // v0.9.0: borrar la nota (propia, o cualquiera si gerencia) — el mismo renglon que ve el chat.
+        if (puedeBorrarComentario(n, p)) {
+            const b = boton('', 'borrar-msg', async () => { if (await borrarComentario(n, p)) { pintarNotas(t, p); alCambiar(); } }, { borrar: String(n.id) });
+            b.title = 'Borrar esta nota'; b.setAttribute('aria-label', b.title); b.appendChild(iconoSvg(TRAZOS.basura));
+            it.classList.add('has-borrar'); it.appendChild(b);
+        }
+        c.appendChild(it);
     }
     if (!notas.length) c.appendChild(el('span', 'vacio', 'Sin notas todavía.'));
     const puede = PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';

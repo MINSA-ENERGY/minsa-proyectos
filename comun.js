@@ -3,9 +3,9 @@
 // la bitacora PROY_Actividad.
 
 import { CONFIG } from './config.js';
-import { iniciales, nombreDe, diasPara, estadoVence, tipoArchivo, trozosConMenciones } from './reglas.js';
+import { PUEDE, iniciales, nombreDe, diasPara, estadoVence, tipoArchivo, trozosConMenciones } from './reglas.js';
 
-export const VERSION = '0.8.0';
+export const VERSION = '0.9.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -350,7 +350,8 @@ export const TRAZOS = {
     clip: ['M21 11.5l-8.5 8.5a5 5 0 0 1-7-7l9-9a3.5 3.5 0 0 1 5 5l-9 9a2 2 0 0 1-3-3l8-8'],
     arroba: ['M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M16 8v5.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-4 7.5'],
     enviar: ['M22 2L11 13', 'M22 2l-7 20-4-9-9-4z'],
-    tarjeta: ['M4 5h16v14H4z', 'M8 10h8M8 14h5']
+    tarjeta: ['M4 5h16v14H4z', 'M8 10h8M8 14h5'],
+    basura: ['M4 7h16', 'M10 11v6M14 11v6', 'M6 7l1 13h10l1-13', 'M9 7V4h6v3']   // v0.9.0: borrar comentario/nota
 };
 /** Insignia «icono + numero» para la cara de la tarjeta (Trello): notas, documentos, menciones. */
 export function insignia(trazos, n, titulo, clase = '') {
@@ -409,12 +410,74 @@ export function iconoArchivo(nombre, tipoLiga = null, tam = '') {
 export function textoConMenciones(texto, yo = estado.cuenta && estado.cuenta.username) {
     const f = document.createDocumentFragment();
     for (const tr of trozosConMenciones(texto, estado.roles)) {
-        if (!tr.mencion) { f.appendChild(document.createTextNode(tr.texto)); continue; }
+        if (!tr.mencion) { f.appendChild(textoConEnlaces(tr.texto)); continue; }
         const m = el('span', 'mencion' + (yo && tr.mencion === String(yo).toLowerCase() ? ' is-yo' : ''), tr.texto);
         m.title = nombreDe(tr.mencion, estado.roles); m.dataset.mencion = tr.mencion;
         f.appendChild(m);
     }
     return f;
+}
+/**
+ * v0.9.0: una direccion https:// pegada en el chat o en una nota se abre con un clic (antes era texto
+ * plano y habia que copiarla). Solo http(s), en pestana nueva, sin `opener`; la puntuacion pegada al
+ * final («…pdf.», «…aspx)») se queda fuera del enlace. El texto visible es la URL tal cual.
+ */
+const URL_RE = /https?:\/\/[^\s<>"'`]+/g;
+export function textoConEnlaces(texto) {
+    const f = document.createDocumentFragment(); const s = String(texto || '');
+    let i = 0;
+    for (const m of s.matchAll(URL_RE)) {
+        let url = m[0]; const cola = /[.,;:!?)\]]+$/.exec(url); if (cola) url = url.slice(0, -cola[0].length);
+        if (m.index > i) f.appendChild(document.createTextNode(s.slice(i, m.index)));
+        const a = el('a', 'enlace', url); a.href = url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = 'Abrir en otra pestaña';
+        f.appendChild(a); i = m.index + url.length;
+    }
+    if (i < s.length) f.appendChild(document.createTextNode(s.slice(i)));
+    return f;
+}
+
+/**
+ * v0.9.0: borrar un comentario (del chat o la nota de una tarjeta). Lo borra quien lo escribio o
+ * gerencia, y solo si el proyecto sigue activo (cerrado = registro). No hay renglon de bitacora del
+ * borrado: `Accion` es una columna de opciones y una nueva obliga a re-provisionar; el renglon va a
+ * la papelera del sitio de SharePoint, de donde un administrador lo recupera.
+ */
+export function puedeBorrarComentario(c, p) {
+    if (!c || !estado.cuenta) return false;
+    const proyecto = p || porId(estado.proyectos, c.ProyectoId);
+    if (!proyecto || proyecto.Estado !== 'activo') return false;
+    if (estado.rol === 'gerencia') return true;
+    return PUEDE.tarea(estado.rol) && String(c.Quien || '').toLowerCase() === String(estado.cuenta.username).toLowerCase();
+}
+export async function borrarComentario(c, p) {
+    if (!puedeBorrarComentario(c, p)) { avisar('Solo quien lo escribió o gerencia borran un comentario.', 'error'); return false; }
+    const ajeno = String(c.Quien || '').toLowerCase() !== String(estado.cuenta.username).toLowerCase();
+    const { ok } = await confirmar({
+        titulo: c.TareaId ? 'Borrar la nota' : 'Borrar el comentario', ok: 'Borrar',
+        texto: `«${String(c.Title || '').slice(0, 120)}»${ajeno ? ` — lo escribió ${nombreDe(c.Quien, estado.roles)}.` : ''} Desaparece del hilo para todos; queda en la papelera del sitio.`
+    });
+    if (!ok) return false;
+    try {
+        await estado.cliente.borrarRenglon(estado.siteId, L.actividad, c.id, m => avisar(m, 'ojo'));
+        estado.actividad = estado.actividad.filter(a => a.id !== c.id);
+        avisar(c.TareaId ? 'Nota borrada.' : 'Comentario borrado.', 'ok');
+        return true;
+    } catch (e) { avisar('No se pudo borrar: ' + (e && e.message ? e.message : e), 'error'); return false; }
+}
+
+/**
+ * v0.9.0: «nuevos desde tu última visita». Por proyecto se guarda en este dispositivo (localStorage)
+ * el `Cuando` del comentario mas nuevo que la persona ya tuvo en pantalla; lo escrito por otros
+ * despues de esa marca es «nuevo» (punto en la pestana Chat, raya en el hilo). Sin la marca (primera
+ * vez, o el navegador no guarda) nada es nuevo: mejor callar que gritar todo.
+ */
+const LLAVE_VISTO = pid => `proy.chatVisto.${pid}`;
+export function chatVistoHasta(pid) { try { return localStorage.getItem(LLAVE_VISTO(pid)) || ''; } catch (_) { return ''; } }
+export function marcarChatVisto(pid, iso) { if (!iso) return; try { if (iso > chatVistoHasta(pid)) localStorage.setItem(LLAVE_VISTO(pid), iso); } catch (_) {} }
+export function comentariosNuevos(pid, desde = chatVistoHasta(pid)) {
+    if (!desde) return [];
+    const yo = String(estado.cuenta && estado.cuenta.username || '').toLowerCase();
+    return comentariosDe(pid).filter(c => String(c.Cuando || '') > desde && String(c.Quien || '').toLowerCase() !== yo);
 }
 /**
  * El hilo de un proyecto (chat, v0.8.0): TODOS los renglones Accion=comentar del proyecto —los del

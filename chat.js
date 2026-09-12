@@ -9,7 +9,7 @@
 // junta «Te mencionaron». El selector aparece al teclear @ (tambien en la nota de la tarjeta).
 
 import { PUEDE, mencionEnCurso, aliasDe, aliasParaMencion, nombreDe, sinAcentos } from './reglas.js';
-import { $, L, estado, el, boton, avatar, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS } from './comun.js';
+import { $, L, estado, el, boton, avatar, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos } from './comun.js';
 
 let alCambiar = () => {};
 export function alCambiarChat(fn) { alCambiar = fn; }
@@ -42,12 +42,17 @@ export function pintarChat(p) {
     // estaba; solo si estaba al fondo (o es la primera pintada) se aterriza en lo ultimo (revisor, 12-sep).
     const estabaAlFondo = !hilo.dataset.pintado || hilo.scrollTop + hilo.clientHeight >= hilo.scrollHeight - 40;
     const scrollAntes = hilo.scrollTop;
+    // v0.9.0: la raya «nuevos» se fija al ENTRAR al chat de este proyecto (no en cada repintado: el refresco de
+    // 120 s la movería sola). La marca de visto sube al final de cada pintada.
+    if (hilo.dataset.proyecto !== String(p.id)) { hilo.dataset.proyecto = String(p.id); hilo.dataset.vistoAlEntrar = chatVistoHasta(p.id); delete hilo.dataset.pintado; }
+    const nuevos = new Set(comentariosNuevos(p.id, hilo.dataset.vistoAlEntrar).map(c => c.id));
     hilo.textContent = '';
     if (!cs.length) hilo.appendChild(el('p', 'vacio', puedeComentarEn(p) ? 'Nadie ha escrito todavía. Aquí va lo que el equipo necesita leer del frente; con @nombre avisas a alguien.' : 'Nadie ha escrito todavía.'));
-    let dia = null; let anterior = null;
+    let dia = null; let anterior = null; let rayaPuesta = false;
     for (const c of cs) {
         const d = c.Cuando ? diaDe(c.Cuando) : '';
         if (d !== dia) { dia = d; hilo.appendChild(el('div', 'dia', c.Cuando ? rotuloDia(c.Cuando) : '—')); anterior = null; }
+        if (!rayaPuesta && nuevos.has(c.id)) { rayaPuesta = true; hilo.appendChild(el('div', 'nuevos', `${nuevos.size} nuevo${nuevos.size === 1 ? '' : 's'} desde tu última visita`)); anterior = null; }
         const quien = String(c.Quien || '').toLowerCase();
         // Mensajes seguidos de la misma persona (en el mismo dia, y sin tarjeta de por medio) se agrupan: sin avatar ni nombre.
         const seguido = anterior && String(anterior.Quien || '').toLowerCase() === quien && !c.TareaId && !anterior.TareaId;
@@ -65,9 +70,19 @@ export function pintarChat(p) {
         const texto = el('p', 't'); texto.appendChild(textoConMenciones(c.Title, yo));
         if (seguido) texto.title = fechaHora(c.Cuando);
         cuerpo.appendChild(texto);
-        m.appendChild(cuerpo); hilo.appendChild(m);
+        m.appendChild(cuerpo);
+        // v0.9.0: borrar — lo propio, o cualquiera si gerencia; el boton vive en el mensaje y se ve al pasar el raton (siempre en tactil).
+        if (puedeBorrarComentario(c, p)) {
+            const b = boton('', 'borrar-msg', async () => { if (await borrarComentario(c, p)) { pintarChat(p); alCambiar(); } }, { borrar: String(c.id) });
+            b.title = c.TareaId ? 'Borrar esta nota' : 'Borrar este comentario'; b.setAttribute('aria-label', b.title);
+            b.appendChild(iconoSvg(TRAZOS.basura));
+            m.classList.add('has-borrar'); m.appendChild(b);
+        }
+        hilo.appendChild(m);
         anterior = c;
     }
+    // v0.9.0: lo que ya estuvo en pantalla deja de ser nuevo (la raya se queda hasta salir del chat).
+    if (cs.length) marcarChatVisto(p.id, cs[cs.length - 1].Cuando);
     const puede = puedeComentarEn(p);
     $('formChat').classList.toggle('oculto', !puede);
     $('chatSoloLectura').classList.toggle('oculto', puede);
@@ -77,6 +92,8 @@ export function pintarChat(p) {
     hilo.dataset.pintado = '1';
     hilo.scrollTop = estabaAlFondo ? hilo.scrollHeight : scrollAntes;
 }
+/** v0.9.0: app.js lo llama cuando el chat deja de estar en pantalla; la proxima pintada cuenta como «entrar». */
+export function salirDelChat() { const h = $('chatHilo'); if (h) { delete h.dataset.proyecto; delete h.dataset.vistoAlEntrar; delete h.dataset.pintado; } }
 /** Tras enviar, siempre al fondo (es mi mensaje). */
 function alFondo() { const h = $('chatHilo'); h.scrollTop = h.scrollHeight; }
 
