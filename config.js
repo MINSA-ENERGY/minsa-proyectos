@@ -50,14 +50,27 @@ export const CONFIG = {
     // PILOTO (2026-09-11): Sites.Selected write solo sobre Administracion y Ambiental-CALYTEK.
     // Las demas bibliotecas quedan declaradas pero contestan 403 hasta que se autoricen
     // (docs/otorgar-permiso-sitio.ps1); la app lo dice en pantalla nombrando el sitio.
+    // v0.7.0 (2026-09-12): el equipo se reconoce por ICONO + COLOR, nunca por su nombre escrito (Carlos,
+    // 12-sep). `icono` son los trazos del SVG del rail del Tablero de escritorio (minsa-tablero-app/index.html:
+    // hoja CALYTEK, matraz PITEPEC, gota RABASA); los tres que el tablero no tiene son propuesta aceptada en
+    // el artifact c52cb229: etiqueta de precio (Ventas Quimicos), paquete (Ventas Ambiental), edificio
+    // (Administracion). `color` es una variable de la paleta (estilo.css) para que siga al tema; `rama`
+    // agrupa el rail (organizacion.md: Ambiental · Quimicos · Administracion).
     equipos: [
-        { clave: 'CALYTEK', nombre: 'CALYTEK', unidad: 'CALYTEK', color: '#3fae4b' },
-        { clave: 'PITEPEC', nombre: 'PITEPEC', unidad: 'PITEPEC', color: '#2ea6ec' },
-        { clave: 'RABASA', nombre: 'RABASA', unidad: 'RABASA', color: '#f5ad2e' },
-        { clave: 'Ventas Quimicos', nombre: 'Ventas Químicos', unidad: null, color: '#8fb2f6' },
-        { clave: 'Ventas Ambiental', nombre: 'Ventas Ambiental', unidad: null, color: '#a3e0aa' },
-        { clave: 'Administracion', nombre: 'Administración', unidad: 'LEGAL', color: '#94a2b8' }
+        { clave: 'CALYTEK', nombre: 'CALYTEK', unidad: 'CALYTEK', rama: 'Ambiental', color: 'var(--eq-calytek)',
+          icono: ['M20 4c-8 0-14 5-14 12 0 1.5.3 2.8.8 4', 'M4 21c4-8 8-11 15-14', 'M6 16c5 1 9-1 12-5'] },
+        { clave: 'Ventas Ambiental', nombre: 'Ventas Ambiental', unidad: null, rama: 'Ambiental', color: 'var(--eq-ventas-ambiental)',
+          icono: ['M21 8l-9-5-9 5v8l9 5 9-5z', 'M3 8l9 5 9-5', 'M12 13v8'] },
+        { clave: 'PITEPEC', nombre: 'PITEPEC', unidad: 'PITEPEC', rama: 'Químicos', color: 'var(--eq-pitepec)',
+          icono: ['M9 3h6', 'M10 3v6.5L4.5 19a1.5 1.5 0 0 0 1.3 2.2h12.4a1.5 1.5 0 0 0 1.3-2.2L14 9.5V3', 'M7.5 15h9'] },
+        { clave: 'RABASA', nombre: 'RABASA', unidad: 'RABASA', rama: 'Químicos', color: 'var(--eq-rabasa)',
+          icono: ['M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z'] },
+        { clave: 'Ventas Quimicos', nombre: 'Ventas Químicos', unidad: null, rama: 'Químicos', color: 'var(--eq-ventas-quimicos)',
+          icono: ['M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z', 'M7.5 7.5h.01'] },
+        { clave: 'Administracion', nombre: 'Administración', unidad: 'LEGAL', rama: 'Administración', color: 'var(--eq-administracion)',
+          icono: ['M4 3h16v18H4z', 'M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2', 'M10 21v-3h4v3'] }
     ],
+    ramas: ['Ambiental', 'Químicos', 'Administración'],
     bibliotecas: {
         // `destinoLotes`: a donde PROPONE el _lote.json que vaya lo subido si el proyecto no declara
         // su Carpeta. Zonas que existen hoy en cada biblioteca (archivar-*/taxonomia); la skill valida.

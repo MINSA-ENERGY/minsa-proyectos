@@ -6,7 +6,7 @@
 
 import { CONFIG } from './config.js';
 import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, sinAcentos } from './reglas.js';
-import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe } from './comun.js';
+import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
 
@@ -229,7 +229,7 @@ export function abrirTarjeta(id) {
         const a = el('a', '', p.Title); a.href = `#p/${p.Clave}`; a.dataset.proyecto = p.Clave;
         a.addEventListener('click', ev => { ev.preventDefault(); cerrarDialogo('dlgTarea'); irAHash(`#p/${p.Clave}`); });
         caja.appendChild(a);
-        const c = chip(eq.nombre); c.style.background = eq.color + '33'; caja.appendChild(c);
+        caja.appendChild(iconoEquipo(eq, 'sm'));   // v0.7.0: el equipo por icono (nombre en el title)
         par('Proyecto', caja);
     } else par('Proyecto', '—');
     par('Asignado', t.Asignado ? nombreDe(t.Asignado, estado.roles) : 'sin asignar');

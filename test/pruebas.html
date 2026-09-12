@@ -330,7 +330,7 @@ try {
     }
     const abrirLau = async () => { pestana('proyectos'); await esperar(() => document.querySelector('#listaProyectos .renglon'), 'renglón'); document.querySelector('#listaProyectos .renglon').click(); await esperar(() => visible('p-proyecto'), 'proyecto abierto'); };
     await abrirLau();
-    R.ok('el proyecto aparece en la lista y abre', visible('p-proyecto') && $('pEquipo').textContent === 'CALYTEK');
+    R.ok('el proyecto aparece en la lista y abre; el equipo va por icono (title), no por nombre (v0.7.0)', visible('p-proyecto') && $('pEquipo').querySelector('.eqi').title === 'CALYTEK' && $('pEquipo').textContent === '');
     R.ok('Cerrar/Editar proyecto según rol', $('btnCerrarProyecto').disabled === !gerencia && $('btnEditarProyecto').disabled === !gerencia);
     R.ok('Nueva tarea según rol', $('btnNuevaTarea').disabled === !escribe);
 
@@ -431,7 +431,7 @@ try {
         irHash('#p/no-existe'); await esperar(() => visible('p-inicio') && avisoCon('No hay un proyecto'), 'clave desconocida');
         R.ok('clave desconocida: aviso y a Inicio, hash corregido', location.hash === '#inicio', location.hash);
         R.ok('Inicio: la nota sale como «anotó: …» en la actividad', $('inicioActividad').textContent.includes('anotó: «Esperando'));
-        { const nAct = document.querySelectorAll('#inicioActividad .it').length; R.ok('Inicio: actividad reciente con verbos, tope de 5 renglones y «ver toda» si hay más (2026-09-12)', $('inicioActividad').textContent.includes('movió') && nAct <= 5 && (nAct < 5 ? $('btnActividadInicio').hidden : true), `${nAct} renglones`); }
+        { const nAct = document.querySelectorAll('#inicioActividad .it').length, tope = matchMedia('(max-width: 720px)').matches ? 3 : 5; R.ok('Inicio: actividad reciente con verbos, tope de 5 renglones (3 en celular, B3) y «ver toda» si hay más (2026-09-12)', $('inicioActividad').textContent.includes('movió') && nAct <= tope && (nAct < tope ? $('btnActividadInicio').hidden : true), `${nAct} renglones`); }
         R.ok('el aviso es un toast con role=status y ×', $('avisos').getAttribute('role') === 'status' && !!$('avisos').querySelector('.mensaje .cerrar'));
         $('avisos').querySelector('.mensaje .cerrar').click();
         R.ok('la × cierra el aviso', !$('avisos').querySelector('.mensaje'));
@@ -451,6 +451,11 @@ try {
         R.ok('rail: el equipo elegido queda marcado y filtra Proyectos', document.querySelector('#railEquipos button.is-on').dataset.equipo === 'PITEPEC' && !!document.querySelector('#listaProyectos .vacio'));
         document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
         R.ok('rail: el segundo clic quita el filtro', !document.querySelector('#railEquipos button.is-on') && !!document.querySelector('#listaProyectos .renglon'));
+        // v0.7.0: el select de celular es el mismo filtro en las dos direcciones (select -> rail -> select).
+        $('filtroEquipoMovil').value = 'PITEPEC'; $('filtroEquipoMovil').dispatchEvent(new Event('change')); await dormir(30);
+        R.ok('v0.7.0: el select móvil pone el filtro y el rail lo refleja', document.querySelector('#railEquipos button.is-on')?.dataset.equipo === 'PITEPEC' && !!document.querySelector('#listaProyectos .vacio'));
+        document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
+        R.ok('v0.7.0: quitarlo desde el rail vacía el select', $('filtroEquipoMovil').value === '' && !document.querySelector('#railEquipos button.is-on'));
         // F9: se siembra una segunda tarjeta (normal, sin dueño, en curso) y se relee.
         filas('tareas').push({ id: DB.siguienteId++, fields: { Title: 'Tarea normal sin dueño', ProyectoId: proyectoId, Columna: 'en-curso', Prioridad: 'normal', Desde: '2026-09-10T18:00:00Z' } });
         const normal = filas('tareas').find(x => x.fields.Title.startsWith('Tarea normal'));
@@ -503,7 +508,7 @@ try {
           p0.Vence = new Date(Date.now() + 3 * 864e5).toISOString(); await abrirLau();
           R.ok('C8: la cabecera trae «vence en 3 d · faltan N» en ámbar', /^vence en 3 d · faltan \d+$/.test($('pReloj').textContent) && $('pReloj').querySelector('.mn-chip').classList.contains('is-warn'), $('pReloj').textContent);
           pestana('proyectos'); await dormir(30);
-          R.ok('C8: el mismo chip en el renglón de Proyectos', !!document.querySelector(`#listaProyectos [data-reloj="${proyectoId}"]`) && document.querySelector(`#listaProyectos [data-reloj="${proyectoId}"]`).textContent.startsWith('vence en 3 d · faltan'));
+          { const r = document.querySelector(`#listaProyectos .renglon[data-open="${proyectoId}"]`); R.ok('C8 / v0.7.0: el renglón de Proyectos lleva el reloj como número grande y clase ámbar (ya sin el chip repetido)', !!r && r.classList.contains('is-warn') && r.querySelector('.dias b').textContent === '3' && !r.querySelector('[data-reloj]'), r ? r.className : 'sin renglón'); }
           p0.Vence = venceAntes; }
         // C10: la lista de proyectos se ordena por fin del frente (sin fecha al final) y luego por nombre.
         { const idsC10 = []; for (const [nombre, vence] of [['Zeta sin fecha', undefined], ['Alfa mismo día', '2026-10-31T18:00:00Z'], ['Antes que todos', '2026-09-20T18:00:00Z']]) { const id = DB.siguienteId++; idsC10.push(id); filas('proyectos').push({ id, fields: { Title: nombre, Clave: 'c10-' + id, Equipo: 'CALYTEK', Estado: 'activo', Vence: vence } }); }
@@ -870,7 +875,7 @@ try {
         // C6 (v0.6.0): una sola señal — la linea gris; ni banda roja ni «Mover a…» a la vista.
         R.ok('C6 (lectura): una línea «Solo lectura», sin banda roja y sin «Mover a…»', !$('tSoloLectura').classList.contains('oculto') && $('tSoloLectura').textContent.startsWith('Solo lectura') && $('tDeny').classList.contains('oculto') && $('tMover').classList.contains('oculto') && $('tMoverEtiqueta').classList.contains('oculto'));
         R.ok('lectura: botones de mover deshabilitados y sin editar', [...document.querySelectorAll('#tMover button')].every(b => b.disabled) && $('tEditar').classList.contains('oculto') && $('tBorrar').disabled);
-        R.ok('D2 (lectura): «Proyecto» es un enlace a #p/<clave> con el chip del equipo', !!document.querySelector('#tKv a[data-proyecto="lau-demo"]') && !!document.querySelector('#tKv .proy .mn-chip'));
+        R.ok('D2 (lectura): «Proyecto» es un enlace a #p/<clave> con el icono del equipo (v0.7.0: icono, no chip)', !!document.querySelector('#tKv a[data-proyecto="lau-demo"]') && document.querySelector('#tKv .proy .eqi').title === 'CALYTEK');
         R.ok('lectura: sin «→ siguiente», sin Subir/Bajar, sin pegar enlace', !document.querySelector('[data-sig]') && !$('tOrden').querySelector('button') && !document.querySelector('#tDocs [data-enlace]'));
         // v0.5.0: lo de la tanda 4 también con el rol que solo mira (antes sus 15 pruebas no tocaban nada nuevo).
         R.ok('C5 (lectura): Mover a… antes que Notas y Documentos, y sin pie de borrar en el diálogo',

@@ -6,6 +6,33 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.7.0** (2026-09-12) — **rediseño de Proyectos con la paleta del Tablero.** Carlos no estaba convencido de cómo
+quedaba la app (12-sep); de un artifact con 3 formas de filtrar y 4 de pintar cada proyecto eligió **rail por rama** y
+**reloj primero**:
+
+- **Paleta.** `minsa-ui.css` se vendoriza ahora con `--sin-paleta` (como el tablero) y `estilo.css` trae la paleta de
+  `minsa-tablero-app/app/src/estilos.css` copiada literal —claro y oscuro— más el shim de los 34 tokens semánticos
+  que los `.mn-*` consumen. Ningún componente cambió. `npm test` verifica con `--sin-paleta`.
+- **Equipos por icono, no por nombre.** `config.js` da a cada equipo `rama`, `icono` (trazos SVG) y `color` como
+  variable de la paleta; `comun.js: iconoEquipo()` arma el SVG por DOM (sin innerHTML, por la CSP) con el nombre en
+  `title`/`aria-label`. Hoja, matraz y gota son byte-idénticos al rail del tablero (y sus colores); los otros tres
+  —edificio (Administración; el tablero da a Finanzas un calendario), etiqueta de precio y paquete (Ventas)— son nuevos. Se usa en el rail, la lista, la cabecera del proyecto y la tarjeta.
+- **Filtro = rail por rama.** Los equipos del rail van agrupados AMBIENTAL · QUÍMICOS · ADMINISTRACIÓN con su cuenta
+  de activos; las píldoras de Proyectos desaparecen. En celular (≤ 720 px), donde el rail es barra de pestañas, el
+  mismo filtro es un `<select>` («Todos los equipos») arriba del buscador, sincronizado con el rail en las dos
+  direcciones (la E2E lo ejercita). El elegido se marca por el fondo del botón, no rellenando el icono: el trazo
+  blanco sobre los pasteles del oscuro daba 1.6–2.6:1.
+- **Renglón «reloj primero».** Días grandes al fin del frente (rojo vencido · ámbar ≤ 7 d · celeste después · gris
+  sin fecha · ✓ cerrado), icono, título y una línea con lo de adentro —`hechas/total · en curso · en revisión ·
+  sigue: <tarjeta que vence antes> · N d`— y a la derecha (200 px fijos, para que las barras midan lo mismo entre renglones) quiénes, la barra segmentada por columna y los chips que
+  C7 ya tenía («sin dueño · N»). El chip C8 «vence en N d · faltan M» sale del renglón (repetía el número
+  grande) y se queda en la cabecera del proyecto. Los renglones van en UNA tarjeta con filete, no una
+  por proyecto; `.renglon`/`.t` se conservan por la E2E y el driver. En celular baja el costado bajo el texto.
+
+Medido: `npm test` verde, E2E **177 / 159 / 19** (2 pruebas nuevas: el select móvil en las dos direcciones; C8 reescrita al número grande), capturas Inicio · Proyectos · Proyectos-CALYTEK · Proyecto · Tarjeta
+a 390 y 1366 × 2 temas con 0 desborde. La prueba de Inicio (tope de actividad) ahora sabe que en celular son 3, no 5:
+fallaba solo bajo el arnés de capturas a 390. Sin cambio de esquema; el service worker sube a `v8`.
+
 **v0.6.0** (2026-09-12) — **tanda 5: los 14 hallazgos que quedaban del recorrido del 12-sep, más C8 completo.** Con
 esto los **36 están cerrados**. Por cubetas:
 
@@ -378,7 +405,7 @@ Sin cambio de esquema. `git push` (lo hace Carlos); el service worker va en `min
 aceptación en real: Docs de la LAU → «Ligar archivo» → buscar `Estudio_mercado` → Ligar; debe aparecer con
 ruta `98_Archivo/…` y abrir desde la liga. Con la consola abierta (F12): si sale «PROY_Ligas rechazó la Url
 larga (N)» la causa era el largo y N dice cuánto medía el `webUrl` real. Si vuelve a dar 400 pese al reintento,
-el aviso trae «largos: …» — pegar ese texto es el siguiente dato del diagnóstico.
+el aviso trae «largos: …» — pegar ese texto es el siguiente dato del diagnóstico. **Aceptada el 2026-09-12 (Carlos): la liga funcionó en real.** Sin probar: el celular real y las bibliotecas fuera del piloto.
 
 ## Al publicar v0.4.0
 

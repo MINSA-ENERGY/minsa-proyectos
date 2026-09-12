@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { iniciales, nombreDe, diasPara, estadoVence } from './reglas.js';
 
-export const VERSION = '0.6.0';
+export const VERSION = '0.7.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -301,4 +301,19 @@ export function notasDe(tareaId) {
 }
 
 /** Equipo (config) de un proyecto. */
-export function equipoDe(p) { return CONFIG.equipos.find(e => e.clave === (p && p.Equipo)) || { clave: p && p.Equipo, nombre: p && p.Equipo, unidad: null, color: '#94a2b8' }; }
+export function equipoDe(p) { return CONFIG.equipos.find(e => e.clave === (p && p.Equipo)) || { clave: p && p.Equipo, nombre: p && p.Equipo, unidad: null, rama: null, color: 'var(--status-idle-solid)', icono: ['M12 8v4M12 16h.01', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z'] }; }
+/**
+ * v0.7.0: el equipo se ve por su ICONO + COLOR, no por su nombre (Carlos, 2026-09-12). Un <span class="eqi">
+ * con el SVG armado por DOM (createElementNS: la CSP prohibe innerHTML y aqui no se usa en ningun lado), el
+ * color del equipo en `--c` y el nombre en `title` y `aria-label`, que es donde vive para el lector de pantalla.
+ * `tam`: 'sm' (24 px, listas densas) · '' (30 px) · 'lg' (40 px, cabecera del proyecto).
+ */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+export function iconoEquipo(eq, tam = '') {
+    const w = el('span', 'eqi' + (tam ? ' is-' + tam : ''));
+    w.style.setProperty('--c', eq.color); w.title = eq.nombre; w.setAttribute('role', 'img'); w.setAttribute('aria-label', eq.nombre); w.dataset.equipo = eq.clave;
+    const svg = document.createElementNS(SVG_NS, 'svg'); svg.setAttribute('viewBox', '0 0 24 24'); svg.setAttribute('aria-hidden', 'true');
+    for (const d of eq.icono || []) { const path = document.createElementNS(SVG_NS, 'path'); path.setAttribute('d', d); svg.appendChild(path); }
+    w.appendChild(svg);
+    return w;
+}

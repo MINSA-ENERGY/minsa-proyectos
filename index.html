@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" id="metaTema" content="#f7f9fc">
+<meta name="theme-color" id="metaTema" content="#f7f7f7">
 <!-- CSP estricta, misma que calytek-planta-app: sin scripts ni estilos en linea. Las fuentes van
      vendorizadas en ./vendor/fuentes (OFL), por eso font-src sigue en 'self'. -->
 <meta http-equiv="Content-Security-Policy" content="
@@ -75,8 +75,9 @@
 
     <!-- Proyectos -->
     <section id="p-proyectos" class="pantalla oculto">
-      <header class="cabecera"><h1>Proyectos</h1><button id="btnNuevoProyecto" class="mn-btn is-primary is-sm" type="button">Nuevo proyecto</button><p class="sub">Un proyecto es un frente con fin. El equipo es la unidad que lo lleva: filtra, no restringe.</p></header>
-      <div class="filtros" id="filtroEquipos"></div>
+      <header class="cabecera"><h1>Proyectos</h1><button id="btnNuevoProyecto" class="mn-btn is-primary is-sm" type="button">Nuevo proyecto</button><p class="sub">Un proyecto es un frente con fin, ordenado por lo que vence antes. El equipo es la unidad que lo lleva: filtra, no restringe.</p></header>
+      <!-- v0.7.0: el filtro por equipo vive en el rail (por rama, con icono); en celular el rail es barra de pestanas y el filtro es este select. -->
+      <label class="filtro-movil solo-movil" for="filtroEquipoMovil"><span class="mn-label">Equipo</span><select id="filtroEquipoMovil"></select></label>
       <!-- C3: buscador fuera del proyecto (nombre, clave, descripcion) -->
       <input id="textoProyectos" class="buscador" type="search" placeholder="Buscar un proyecto" aria-label="Buscar un proyecto" autocomplete="off">
       <div class="lista" id="listaProyectos"></div>
@@ -87,7 +88,7 @@
     <section id="p-proyecto" class="pantalla oculto">
       <header class="cabecera proyecto-cab">
         <button id="btnVolver" class="mn-btn is-ghost is-sm" type="button">← Proyectos</button>
-        <div class="titulo"><span class="mn-chip" id="pEquipo"></span> <h1 id="pTitulo"></h1></div>
+        <div class="titulo"><span id="pEquipo"></span> <h1 id="pTitulo"></h1></div>
         <span class="mn-mono pct" id="pPct"></span>
         <span class="reloj" id="pReloj"></span>
         <!-- B1: en celular las tres acciones del proyecto viven en un menu «···»; en escritorio el

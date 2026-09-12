@@ -15,7 +15,7 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar } from './comun.js';
+import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
 
@@ -275,19 +275,29 @@ function pintarInsignias() {
     nombrar('nMis', `${vencidas} vencida${vencidas === 1 ? '' : 's'}`);
     nombrar('nProyectos', `${n} activo${n === 1 ? '' : 's'}`);
 }
-/** Rail de equipos (U2): el filtro puesto se ve (is-on) y cada equipo trae cuantos proyectos activos lleva. */
+/** Rail de equipos (U2, v0.7.0): agrupados por RAMA como el rail del Tablero de escritorio (opcion A del
+ *  artifact c52cb229, Carlos 2026-09-12), cada uno con su icono en su color y cuantos proyectos activos lleva.
+ *  El filtro puesto se ve (is-on) y el segundo clic lo quita. Un equipo fuera de CONFIG.ramas cae en «Otros». */
 function pintarRailEquipos() {
     const c = $('railEquipos'); c.textContent = '';
-    c.appendChild(el('div', 'mn-label', 'Equipos'));
-    for (const e of CONFIG.equipos) {
-        const on = estado.filtroEquipo === e.clave;
-        const b = boton('', on ? 'is-on' : '', () => { estado.filtroEquipo = on ? null : e.clave; if (estado.pestana === 'proyectos') repintar(); else irA('proyectos'); }, { equipo: e.clave });
-        b.setAttribute('aria-pressed', on ? 'true' : 'false');
-        const i = el('i'); i.style.background = e.color; b.appendChild(i); b.appendChild(el('span', '', e.nombre));
-        const n = activos().filter(p => p.Equipo === e.clave).length;
-        if (n) b.appendChild(el('span', 'n', String(n)));
-        c.appendChild(b);
+    const ramas = [...CONFIG.ramas, ...CONFIG.equipos.map(e => e.rama || 'Otros').filter(r => !CONFIG.ramas.includes(r))];
+    for (const r of ramas) {
+        const eqs = CONFIG.equipos.filter(e => (e.rama || 'Otros') === r); if (!eqs.length) continue;
+        c.appendChild(el('div', 'mn-label rama', r));
+        for (const e of eqs) {
+            const on = estado.filtroEquipo === e.clave;
+            const b = boton('', on ? 'is-on' : '', () => { estado.filtroEquipo = on ? null : e.clave; if (estado.pestana === 'proyectos') repintar(); else irA('proyectos'); }, { equipo: e.clave });
+            b.setAttribute('aria-pressed', on ? 'true' : 'false');
+            b.appendChild(iconoEquipo(e, 'sm')); b.appendChild(el('span', '', e.nombre));
+            const n = activos().filter(p => p.Equipo === e.clave).length;
+            if (n) b.appendChild(el('span', 'n', String(n)));
+            c.appendChild(b);
+        }
     }
+    // En celular el rail es barra de pestanas y los equipos no caben: el mismo filtro es un <select> en Proyectos.
+    const sel = $('filtroEquipoMovil');
+    opciones(sel, CONFIG.equipos, e => e.clave, e => { const n = activos().filter(p => p.Equipo === e.clave).length; return n ? `${e.nombre} · ${n}` : e.nombre; }, 'Todos los equipos');
+    sel.value = estado.filtroEquipo || '';
 }
 
 // ---------------------------------------------------------------- Inicio
@@ -304,24 +314,52 @@ function chipReloj(p, ts) {
     const c = chip(`${reloj} · faltan ${faltan}`, d < 0 ? 'danger' : 'warn'); c.dataset.reloj = String(p.id);
     return c;
 }
+/**
+ * v0.7.0 — «reloj primero» (opcion C del artifact c52cb229, Carlos 2026-09-12): el dato grande es cuantos dias
+ * faltan para el fin del frente (rojo vencido · ambar <= vencePronto · gris lejos o sin fecha), luego el icono del
+ * equipo, el titulo y una linea con lo que hay adentro (hechas/total · en curso · en revision · que tarjeta sigue)
+ * y a la derecha quienes estan y la barra por columna. La lista ya viene ordenada por fecha (C10), asi que se
+ * lee como agenda. El nombre del equipo NO se escribe: va en el title del icono. `.renglon` y `.t` se conservan
+ * porque la E2E y el driver de capturas los usan.
+ */
 function renglonProyecto(p) {
     const ts = tareasDe(p, estado.tareas); const a = avance(ts); const eq = equipoDe(p);
-    const r = el('button', 'renglon'); r.type = 'button'; r.dataset.open = String(p.id);
-    const t = el('span', 't'); const punto = el('span', 'punto'); punto.style.background = eq.color; t.appendChild(punto); t.appendChild(el('span', '', p.Title)); r.appendChild(t);
-    r.appendChild(el('span', 'mn-mono pct', `${a.hechas}/${a.total} · ${a.pct}%`));
-    const m = el('span', 'm');
-    m.appendChild(chip(eq.nombre));
-    const reloj = chipReloj(p, ts);
-    if (p.Estado === 'cerrado') m.appendChild(chip(`cerrado ${fechaCorta(p.CerradoEl)}`, 'ok'));
-    else if (reloj) m.appendChild(reloj);
-    else if (p.Vence) m.appendChild(chip(`fin ${fechaCorta(p.Vence)}`));
-    // C7: las tarjetas sin dueño no salen en Mis tareas de nadie; aqui se ven por proyecto.
+    const d = p.Estado === 'activo' ? diasPara(p.Vence) : null;
+    const k = p.Estado !== 'activo' ? 'cerrado' : d === null ? 'idle' : d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : 'info';
+    const r = el('button', 'renglon is-' + k); r.type = 'button'; r.dataset.open = String(p.id);
+    // reloj
+    const dias = el('span', 'dias');
+    if (p.Estado !== 'activo') { dias.appendChild(el('b', '', '✓')); dias.appendChild(el('small', '', 'cerrado')); }
+    else if (d === null) { dias.appendChild(el('b', '', '—')); dias.appendChild(el('small', '', 'sin fecha')); }
+    else { dias.appendChild(el('b', '', d < 0 ? `−${-d}` : String(d))); dias.appendChild(el('small', '', d < 0 ? 'vencido' : d === 0 ? 'hoy' : d === 1 ? 'día' : 'días')); }
+    dias.title = p.Vence ? `Fin del frente: ${fechaCorta(p.Vence)}` : 'Sin fin del frente';
+    r.appendChild(dias);
+    r.appendChild(iconoEquipo(eq));
+    // cuerpo
+    const cuerpo = el('span', 'cuerpo');
+    cuerpo.appendChild(el('span', 't', p.Title));
+    const partes = [`${a.hechas}/${a.total} hechas`];
+    if (a.porColumna['en-curso']) partes.push(`${a.porColumna['en-curso']} en curso`);
+    if (a.porColumna['en-revision']) partes.push(`${a.porColumna['en-revision']} en revisión`);
+    const [sig] = proximos(ts, 1);
+    if (sig && p.Estado === 'activo') partes.push(`sigue: ${sig.tarea.Title}${sig.dias < 0 ? ` · ${-sig.dias} d tarde` : ` · ${sig.dias} d`}`);
+    if (p.Estado === 'cerrado') partes.push(`cerrado ${fechaCorta(p.CerradoEl)}`);
+    const m = el('span', 'm', partes.join(' · ')); m.title = partes.join(' · '); cuerpo.appendChild(m);
+    r.appendChild(cuerpo);
+    // lado: el chip «sin dueño» (C7), quienes, y la barra por columna. El chip C8 «vence en N d · faltan M» NO va
+    // aqui: repetia el numero grande (revisor 12-sep); sigue en la cabecera del proyecto, y «faltan» lo dice hechas/total.
+    const lado = el('span', 'lado');
+    const chips = el('span', 'chips');
     const huerfanas = sinDueno(ts).length;
-    if (huerfanas && p.Estado === 'activo') { const h = chip(`sin dueño · ${huerfanas}`, 'warn'); h.dataset.sinDueno = String(p.id); m.appendChild(h); }
+    if (huerfanas && p.Estado === 'activo') { const h = chip(`sin dueño · ${huerfanas}`, 'warn'); h.dataset.sinDueno = String(p.id); chips.appendChild(h); }
     const quienes = [...new Set(ts.map(x => String(x.Asignado || '').toLowerCase()).filter(Boolean))];
-    const avs = el('span', 'avs'); for (const q of quienes.slice(0, 6)) avs.appendChild(avatar(q)); m.appendChild(avs);
-    r.appendChild(m);
-    const barra = el('span', 'barra'); const i = el('i'); i.style.width = a.pct + '%'; barra.appendChild(i); r.appendChild(barra);
+    const avs = el('span', 'avs'); for (const q of quienes.slice(0, 6)) avs.appendChild(avatar(q)); chips.appendChild(avs);
+    lado.appendChild(chips);
+    const barra = el('span', 'segbar'); barra.title = `${a.hechas} hechas · ${a.porColumna['en-revision']} en revisión · ${a.porColumna['en-curso']} en curso · ${a.porColumna['por-hacer']} por hacer`;
+    for (const [col, cls] of [['hecho', 'h'], ['en-revision', 'r'], ['en-curso', 'c'], ['por-hacer', 'p']]) { const i = el('i', cls); i.style.flex = String(a.porColumna[col] || 0); barra.appendChild(i); }
+    if (!a.total) { const i = el('i', 'p'); i.style.flex = '1'; barra.appendChild(i); }
+    lado.appendChild(barra);
+    r.appendChild(lado);
     r.addEventListener('click', () => abrirProyecto(p.id));
     return r;
 }
@@ -494,15 +532,14 @@ function abrirEquipo() {
 function pintarProyectos() {
     $('btnNuevoProyecto').disabled = !PUEDE.proyecto(estado.rol);
     $('btnNuevoProyecto').title = PUEDE.proyecto(estado.rol) ? '' : 'Solo gerencia crea proyectos';
-    const f = $('filtroEquipos'); f.textContent = '';
-    f.appendChild(boton('Todos', estado.filtroEquipo ? '' : 'is-on', () => { estado.filtroEquipo = null; pintarProyectos(); }));
-    for (const e of CONFIG.equipos) f.appendChild(boton(e.nombre, estado.filtroEquipo === e.clave ? 'is-on' : '', () => { estado.filtroEquipo = estado.filtroEquipo === e.clave ? null : e.clave; pintarProyectos(); }));
+    // v0.7.0: el filtro por equipo se pone desde el rail (por rama) o, en celular, desde el select; aqui solo se aplica.
+    $('filtroEquipoMovil').value = estado.filtroEquipo || '';
     // C3 (v0.6.0): el mismo buscador sin acentos del tablero, sobre nombre, clave y descripcion.
     const filtro = ps => filtrarProyectos(ps.filter(p => !estado.filtroEquipo || p.Equipo === estado.filtroEquipo), estado.textoProyectos);
     const l = $('listaProyectos'); l.textContent = '';
     const act = ordenarProyectos(filtro(activos()));   // C10: vence antes primero, sin fecha al final, empate por nombre
     for (const p of act) l.appendChild(renglonProyecto(p));
-    if (!act.length) l.appendChild(el('p', 'vacio', estado.textoProyectos ? 'Ningún proyecto con ese texto.' : estado.filtroEquipo ? `Sin proyectos activos de ${estado.filtroEquipo}.` : 'Sin proyectos activos.'));
+    if (!act.length) l.appendChild(el('p', 'vacio', estado.textoProyectos ? 'Ningún proyecto con ese texto.' : estado.filtroEquipo ? `Sin proyectos activos de ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}.` : 'Sin proyectos activos.'));
     const c = $('listaCerrados'); c.textContent = '';
     const cer = filtro(estado.proyectos.filter(p => p.Estado === 'cerrado')).sort((a, b) => String(b.CerradoEl || '').localeCompare(String(a.CerradoEl || '')));
     for (const p of cer) c.appendChild(renglonProyecto(p));
@@ -521,7 +558,7 @@ function pintarProyecto() {
     // panel en BLANCO y sin pestaña marcada, porque el boton para salir es .solo-movil.
     if (estado.tab === 'resumen' && !enCelular.matches) estado.tab = 'tablero';
     const eq = equipoDe(p); const ts = tareasDe(p, estado.tareas); const a = avance(ts);
-    $('pEquipo').textContent = eq.nombre; $('pEquipo').style.background = eq.color + '33';
+    $('pEquipo').textContent = ''; $('pEquipo').appendChild(iconoEquipo(eq, 'lg'));   // v0.7.0: icono, no nombre
     $('pTitulo').textContent = p.Title; $('pDesc').textContent = p.Descripcion || '';
     $('pPct').textContent = `${a.hechas}/${a.total} hechas · ${a.pct}%${p.Estado === 'cerrado' ? ' · CERRADO' : ''}`;
     $('btnEditarProyecto').disabled = !PUEDE.proyecto(estado.rol) || p.Estado !== 'activo';
@@ -682,7 +719,7 @@ function aplicarTema(t) {
     else delete document.documentElement.dataset.theme;
     for (const b of document.querySelectorAll('.tema button')) b.setAttribute('aria-pressed', b.dataset.tema === t ? 'true' : 'false');
     const oscuro = t === 'oscuro' || (t !== 'claro' && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    const mt = $('metaTema'); if (mt) mt.content = oscuro ? '#0b1220' : '#f7f9fc';   // el arnés E2E no monta el <head>
+    const mt = $('metaTema'); if (mt) mt.content = oscuro ? '#131313' : '#f7f7f7';   // --page del Tablero (v0.7.0)   // el arnés E2E no monta el <head>
 }
 try { aplicarTema(localStorage.getItem('tema') || ''); } catch (_) { aplicarTema(''); }
 for (const b of document.querySelectorAll('.tema button')) b.addEventListener('click', () => {
@@ -722,6 +759,7 @@ $('accMenu').querySelector('.acciones').addEventListener('click', () => { if (en
 document.addEventListener('click', e => { const m = $('menuRail'); if (m.open && !m.contains(e.target)) m.open = false; });
 $('menuRail').querySelector('.menu-caja').addEventListener('click', () => { $('menuRail').open = false; });
 // C3: buscador en Proyectos y en Mis tareas (misma normalizacion que el del tablero).
+$('filtroEquipoMovil').addEventListener('change', () => { estado.filtroEquipo = $('filtroEquipoMovil').value || null; repintar(); });
 $('textoProyectos').addEventListener('input', () => { estado.textoProyectos = $('textoProyectos').value; if (estado.pestana === 'proyectos') pintarProyectos(); });
 $('textoMis').addEventListener('input', () => { estado.textoMis = $('textoMis').value; if (estado.pestana === 'mis') pintarMisTareas(); });
 $('btnVolver').addEventListener('click', () => irA('proyectos'));
