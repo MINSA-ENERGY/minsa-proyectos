@@ -198,8 +198,10 @@ fuera del piloto, y el resto del roster en el celular.
 Carlos corrió el paso de esquema de v0.3.0 (abajo, tal cual: consentir `Sites.FullControl.All` → `-Rol manage
 -SoloAdministracion` → `provisionar.html` «Crear lo que falta» → «Todo coincide con esquema.json» → `-Rol write`
 → revocar el consentimiento) y el `git push` de `02b2afb`; Pages sirve `VERSION 0.4.0` y SW `minsa-proyectos-v4`
-(verificado con `curl` desde el harness). **Pendiente de medir:** el punto 4 de abajo (If-Match en la primera
-escritura real). Las dos secciones siguientes quedan como registro del procedimiento.
+(verificado con `curl` desde el harness). **If-Match MEDIDO contra el tenant el 2026-09-12 (Carlos, Edge, v0.4.0):**
+mover una tarjeta con la consola abierta no imprime «Graph rechazó If-Match» (SharePoint acepta la cabecera), y con la
+misma tarjeta en dos pestañas —mover en la 2.ª y luego en la 1.ª sin recargar— la 1.ª recibe el toast «alguien cambió
+el renglón … (412)» y relee: la protección T1 funciona en real. Las dos secciones siguientes quedan como registro.
 
 ## Al publicar v0.4.0
 
@@ -223,7 +225,7 @@ mismo que en v0.2.0, medido: **cambiar el esquema exige rol `manage`**, con `wri
    actualiza sola en la siguiente apertura.
 4. **Primera escritura real** (mover una tarjeta): abrir la consola del navegador y confirmar que NO
    dice «Graph rechazó If-Match». Si lo dice, la app sigue funcionando pero sin la protección del 412:
-   anotarlo aquí.
+   anotarlo aquí. **Hecho el 2026-09-12: limpio, y el 412 real da el toast** (arriba).
 
 ## Lo que la app NO protege
 
