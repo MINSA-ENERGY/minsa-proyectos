@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, iniciales, nombreDe, diasPara, estadoVence, tipoArchivo, trozosConMenciones, columnasDe } from './reglas.js';
 
-export const VERSION = '0.12.1';
+export const VERSION = '0.13.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -35,7 +35,9 @@ export const estado = {
     // Sitios de bibliotecas de unidad ya resueltos: clave -> { id, motivo }
     sitiosUnidad: {},
     // Rutas del buzon ya consultadas en esta carga: ruta -> true|false (existe)
-    buzonExiste: {}
+    buzonExiste: {},
+    // v0.13.0: ids de proyecto cuya actividad esta COMPLETA en memoria (fuera de la ventana de CONFIG.actividadDias)
+    actividadCompleta: new Set()
 };
 
 // ---------------------------------------------------------------- DOM
@@ -315,6 +317,56 @@ export async function registrarActividad(accion, frase, proyectoId, tareaId) {
  * actividad — se siguen escribiendo en PROY_Actividad (bitacora y metrica del piloto), solo no se pintan.
  */
 export const actividadVisible = () => estado.actividad.filter(a => a.Accion !== 'mover-tarea');
+
+// ---------------------------------------------------------------- actividad acotada (v0.13.0, auditoria de rendimiento)
+//
+// PROY_Actividad es la unica lista que crece sin tope (un renglon por accion, nunca se poda) y antes se bajaba
+// ENTERA cada 120 s por cada persona conectada. Ahora la carga trae solo los ultimos CONFIG.actividadDias, y el
+// proyecto que se abre se COMPLETA una vez por carga con todo su historial (ProyectoId esta indexada): el chat y
+// las notas de una tarjeta vieja no pierden nada, y lo global (Inicio, Mensajes, Reportes) ya miraba ventanas
+// mas cortas que esa. Lo que llega se FUSIONA por id, nunca se duplica, y queda ordenado del mas nuevo al mas viejo.
+
+/** Mete `nuevos` en estado.actividad sin duplicar (por id) y deja la lista ordenada por Cuando desc. */
+export function fusionarActividad(nuevos) {
+    const vistos = new Set(estado.actividad.map(a => a.id));
+    let sumo = 0;
+    for (const a of nuevos || []) if (!vistos.has(a.id)) { vistos.add(a.id); estado.actividad.push(a); sumo++; }
+    if (sumo) estado.actividad.sort((a, b) => String(b.Cuando || '').localeCompare(String(a.Cuando || '')) || b.id - a.id);
+    return sumo;
+}
+/**
+ * Trae TODA la actividad de un proyecto si aun no esta completa en esta carga. Devuelve true si trajo algo
+ * nuevo (quien llama repinta). Best-effort: un fallo de red deja la ventana que ya habia, no tira la pantalla.
+ */
+export async function asegurarActividadDe(proyectoId) {
+    const id = Number(proyectoId);
+    if (!id || !estado.cliente || !estado.siteId || estado.actividadCompleta.has(id)) return false;
+    if (!(CONFIG.actividadDias > 0)) { estado.actividadCompleta.add(id); return false; }   // se leyo entera
+    try {
+        const filas = await estado.cliente.renglones(estado.siteId, L.actividad, `fields/ProyectoId eq ${id}`);
+        estado.actividadCompleta.add(id);
+        return fusionarActividad(filas) > 0;
+    } catch (e) { console.warn('no se pudo completar la actividad del proyecto', id, e && e.message ? e.message : e); return false; }
+}
+
+// Indices por tarjeta, calculados UNA vez por pintada (v0.13.0): la cara de cada tarjeta preguntaba «cuantas notas
+// tiene» recorriendo toda la actividad y «cuantas ligas» recorriendo todas las ligas — O(tarjetas x renglones) en
+// cada repintado, cada 120 s. La llave es la identidad y el largo de la lista: toda escritura la cambia.
+let idxNotas = { lista: null, n: -1, mapa: new Map() }, idxLigas = { lista: null, n: -1, mapa: new Map() };
+function indice(idx, lista, llaveDe, cuenta) {
+    if (idx.lista !== lista || idx.n !== lista.length) {
+        idx.lista = lista; idx.n = lista.length; idx.mapa = new Map();
+        for (const x of lista) { if (!cuenta(x)) continue; const k = Number(llaveDe(x)); if (!k) continue; idx.mapa.set(k, (idx.mapa.get(k) || 0) + 1); }
+    }
+    return idx.mapa;
+}
+/** Map tareaId -> cuantas notas (Accion=comentar con TareaId). */
+export const notasPorTarea = () => indice(idxNotas, estado.actividad, a => a.TareaId, a => a.Accion === 'comentar');
+/** Map tareaId -> cuantas ligas. */
+export const ligasPorTarea = () => indice(idxLigas, estado.ligas, l => l.TareaId, () => true);
+/** ¿La tarjeta tiene alguna liga de tipo buzon? (indice aparte, misma llave). */
+let idxBuzon = { lista: null, n: -1, mapa: new Map() };
+export const buzonPorTarea = () => indice(idxBuzon, estado.ligas, l => l.TareaId, l => l.Tipo === 'buzon');
 
 /** Las cubetas del proyecto de una tarjeta (v0.11.0); sin proyecto en memoria, el default. */
 export function columnasDeTarea(t) { return columnasDe(porId(estado.proyectos, t && t.ProyectoId)); }

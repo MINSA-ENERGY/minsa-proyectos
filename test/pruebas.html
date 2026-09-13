@@ -1115,6 +1115,49 @@ try {
             document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
             pestana('inicio'); await dormir(30);
         }
+        // ---- v0.13.0 (2026-09-12): menu «⋮» tambien en escritorio con submenu Editar; Eliminar proyecto (solo gerencia, rojo);
+        //      tema sin apagado (un clic elige); contadores del rail cuadrados; rotulo del rail a 12 px.
+        {
+            const marca = document.querySelector('#rail .marca');
+            R.ok('v0.13.0: el rótulo «PROYECTOS» mide 12 px y cabe dentro del rail sin recortarse', getComputedStyle(marca.querySelector('span')).fontSize === '12px' && marca.scrollWidth <= marca.clientWidth, `${marca.scrollWidth}/${marca.clientWidth}`);
+            R.ok('v0.13.0: el contador del rail es un cuadrado redondeado (5 px), no una píldora', getComputedStyle($('nProyectos')).borderRadius === '5px' && getComputedStyle($('nProyectos')).height === '20px', getComputedStyle($('nProyectos')).borderRadius);
+            const temaBtn = t => document.querySelector(`#rail .tema button[data-tema="${t}"]`);
+            const temaAntes = localStorage.getItem('tema');
+            R.ok('v0.13.0: sin elección guardada, el tema del sistema aparece marcado (siempre hay uno)', document.querySelectorAll('#rail .tema button[aria-pressed="true"]').length === 1);
+            temaBtn('oscuro').click(); temaBtn('oscuro').click(); await dormir(10);
+            R.ok('v0.13.0: dos clics en Oscuro dejan Oscuro elegido (ya no se apaga al segundo)', document.documentElement.dataset.theme === 'dark' && temaBtn('oscuro').getAttribute('aria-pressed') === 'true' && localStorage.getItem('tema') === 'oscuro');
+            temaBtn('claro').click(); await dormir(10);
+            R.ok('v0.13.0: Claro pone claro y queda marcado él solo', document.documentElement.dataset.theme === 'light' && temaBtn('claro').getAttribute('aria-pressed') === 'true' && temaBtn('oscuro').getAttribute('aria-pressed') === 'false');
+            temaBtn('claro').click(); await dormir(10);
+            R.ok('v0.13.0: repetir Claro lo deja en claro', document.documentElement.dataset.theme === 'light' && localStorage.getItem('tema') === 'claro');
+            if (temaAntes) localStorage.setItem('tema', temaAntes); else localStorage.removeItem('tema');
+            await abrirLau(); await esperar(() => visible('p-proyecto'), 'proyecto');
+            R.ok('v0.13.0: el menú «⋮» existe en escritorio y Cerrar/Eliminar viven dentro del submenú Editar', getComputedStyle($('accMenu').querySelector('summary')).display !== 'none' && $('accMenu').contains($('btnImprimir')) && $('accMenu').contains($('btnCubetas')) && $('accEditar').contains($('btnEditarProyecto')) && $('accEditar').contains($('btnCerrarProyecto')) && $('accEditar').contains($('btnEliminarProyecto')));
+            $('accMenu').open = true; $('accEditar').querySelector('summary').click(); await dormir(20);
+            R.ok('v0.13.0: abrir el submenú Editar no cierra el menú', $('accMenu').open && $('accEditar').open);
+            R.ok(`v0.13.0: Eliminar proyecto ${gerencia ? 'visible' : 'oculto'} para ${ROL}, y en rojo`, $('btnEliminarProyecto').classList.contains('oculto') === !gerencia && $('btnEliminarProyecto').classList.contains('is-danger'));
+            clic('btnImprimir'); await dormir(20);
+            R.ok('v0.13.0: elegir una acción cierra el menú y pliega el submenú', !$('accMenu').open && !$('accEditar').open);
+            if (gerencia) {
+                pestana('proyectos'); clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo');
+                poner('npTitulo', 'Borrable'); poner('npClave', 'borrable'); poner('npEquipo', 'PITEPEC'); clic('npGuardar');
+                await esperar(() => filas('proyectos').some(x => x.fields.Clave === 'borrable'), 'proyecto de prueba creado');
+                const pb = filas('proyectos').find(x => x.fields.Clave === 'borrable');
+                irHash('#p/borrable'); await esperar(() => visible('p-proyecto') && $('pTitulo').textContent === 'Borrable', 'abierto');
+                clic('btnNuevaTarea'); await esperar(() => $('dlgNuevaTarea').open, 'diálogo de tarea');
+                poner('ntTitulo', 'Tarjeta que se va con el proyecto'); clic('ntGuardar');
+                await esperar(() => filas('tareas').some(t => Number(t.fields.ProyectoId) === pb.id), 'tarjeta creada');
+                clic('btnEliminarProyecto'); await esperar(() => $('dlg').open, 'confirmación');
+                R.ok('v0.13.0: eliminar pide confirmación, la nombra y cuenta las tarjetas', $('dlgTitulo').textContent === 'Eliminar el proyecto' && $('dlgOk').textContent === 'Eliminar' && $('dlgTexto').textContent.includes('1 tarjeta'), $('dlgTexto').textContent);
+                clic('dlgOk'); await esperar(() => !filas('proyectos').some(x => x.id === pb.id), 'proyecto borrado');
+                R.ok('v0.13.0: el proyecto borrado se fue con sus tarjetas, quedó «borrar-proyecto» y la app vuelve a Proyectos', !filas('tareas').some(t => Number(t.fields.ProyectoId) === pb.id) && actividad('borrar-proyecto').length === 1 && visible('p-proyectos') && !$('listaProyectos').textContent.includes('Borrable'));
+            } else {
+                $('btnEliminarProyecto').classList.remove('oculto'); clic('btnEliminarProyecto'); await dormir(80);
+                R.ok(`${ROL}: eliminar proyecto se niega aunque se fuerce`, filas('proyectos').length >= 1 && !!avisoCon('Solo gerencia elimina'));
+                $('btnEliminarProyecto').classList.add('oculto');
+            }
+            pestana('inicio'); await dormir(30);
+        }
         // Sesion caducada -> vuelve al login.
         const pcaFalso = window.msal; let redirigio = false;
         // E2 (2026-09-12): esta prueba ROMPE el MSAL falso. Sin restaurarlo, cualquier herramienta que

@@ -6,6 +6,37 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.13.0** (2026-09-12, noche 5) — **Menú «⋮» del proyecto también en escritorio, Eliminar proyecto, tema sin apagado, rótulo y
+contadores del rail.** Cuatro pedidos de Carlos. **CON cambio de esquema** (una opción nueva en `PROY_Actividad.Accion`, ver «Al
+publicar v0.13.0»).
+
+- **Rótulo «PROYECTOS»** baja a 12 px / tracking .12em (hairline de 24 px) para caber dentro del rail de 232 px sin recortarse
+  (a 15 px se salía). Misma fuente y misma línea verde.
+- **Menú «⋮» al final del título** en todos los anchos (antes solo en celular; en escritorio eran cuatro botones sueltos):
+  Imprimir · Cubetas · **Editar**, y Editar es un submenú (`<details class="acc-sub">`) con **Editar datos** (el formulario de
+  siempre) · **Cerrar proyecto** / Reabrir · **Eliminar proyecto** en rojo (`.is-danger`, `--status-danger-loud`), que **solo
+  ve gerencia** (`PUEDE.borrar`) y en cualquier estado del proyecto. Elegir un botón cierra el menú; abrir el submenú no; al
+  cerrarse el menú el submenú se pliega. Los `id` de los botones no cambiaron (la E2E y el driver de capturas los usan).
+- **Eliminar proyecto** (`eliminarProyecto`, app.js): confirma nombrando el proyecto y contando tarjetas y ligas; borra en
+  orden **tarjetas → ligas → proyecto** (si falla a medias queda un proyecto vaciado, nunca tarjetas huérfanas), no toca los
+  archivos de la biblioteca, deja la actividad como registro y anota **`borrar-proyecto`** (opción nueva de `Accion` →
+  provisionar; sin provisionar, el renglón de bitácora se pierde en silencio y el borrado sí ocurre). Vuelve a Proyectos.
+- **Tema:** un clic **elige** ese tema y ya. Antes el segundo clic sobre el elegido lo apagaba y volvía al del sistema, y en
+  una máquina oscura eso se veía como «pico Claro dos veces y se pone oscuro sin selección». El botón marcado es ahora el
+  tema **efectivo** (sin elección guardada, el del sistema), así siempre hay exactamente uno marcado; si el sistema cambia
+  y no hay elección, se sigue. Volver a «sistema» no tiene botón (se borra la llave `tema` del localStorage).
+- **Contadores del rail** (`.mn-rail-hot`: Proyectos 4 · Mensajes · Mis tareas): cuadrado redondeado de 20 px (radio 5 px)
+  con borde fino del mismo tono, en vez de la píldora; los colores siguen de `minsa-ui.css` (que no se toca).
+- Vista `menu-proyecto` en `capturas.mjs` (menú y submenú abiertos); 13 pruebas nuevas en la E2E (gerencia 278 · colaborador
+  242 · lectura 26, 0 fallas). SW en `v16`.
+
+Decisiones reversibles en una línea: «Editar datos» como rótulo del formulario (era «Editar», ahora ese nombre es el del
+submenú); Eliminar en rojo de texto y no botón sólido; Eliminar visible también en un proyecto cerrado.
+
+**En el mismo árbol, sin commitear, viene la auditoría de rendimiento/seguridad de otra sesión** (v0.13.1: token por función
+en `graph.js`, `actividadDias` en `config.js`, `desdeHaceDias`/`hrefSeguro` en `reglas.js`, `fusionarActividad`/`asegurarActividadDe`
+en `comun.js`); este commit lleva `comun.js` entero porque también trae el bump de `VERSION`. Nada de eso se importa aún.
+
 **v0.12.1** (2026-09-12, noche 4) — **Rótulo «PROYECTOS» del rail.** Bai Jamjuree 700 versalitas (15 px, tracking .16em) separado del lockup
 por un hairline verde en degradado de 30 px; lo eligió Carlos entre 106 variantes del artifact «Rótulo Proyectos» (opción E30 sobre el
 hairline D2). La fuente entra vendorizada (`vendor/fuentes/BaiJamjuree-700.woff2`, OFL, solo el 700 latin) y al caché del SW (`v15`);
@@ -666,6 +697,21 @@ Carlos corrió el paso de esquema de v0.3.0 (abajo, tal cual: consentir `Sites.F
 mover una tarjeta con la consola abierta no imprime «Graph rechazó If-Match» (SharePoint acepta la cabecera), y con la
 misma tarjeta en dos pestañas —mover en la 2.ª y luego en la 1.ª sin recargar— la 1.ª recibe el toast «alguien cambió
 el renglón … (412)» y relee: la protección T1 funciona en real. Las dos secciones siguientes quedan como registro.
+
+## Al publicar v0.13.0: primero el esquema, luego el push
+
+**Hay cambio de esquema** (una opción nueva en una columna de opciones) y conviene ANTES del push: sin él, «Eliminar
+proyecto» borra igual, pero el renglón «eliminó el proyecto …» de `PROY_Actividad` se rechaza (400) y se pierde en silencio.
+
+1. **Subir Administración a rol `manage`** como en v0.11.0.
+2. `npm run serve:provisionar` → Revisar. Debe reportar una sola cosa: `PROY_Actividad.Accion` **FALTA la opción
+   `borrar-proyecto`** (PATCH de opciones, idempotente). → Aplicar.
+3. **Regresar Administración a `write`** y revocar el consentimiento amplio.
+4. `git push` (lo hace Carlos); el service worker va en `minsa-proyectos-v16`.
+5. Prueba de aceptación en real (gerencia): el rótulo «PROYECTOS» cabe en el rail; en LAU el «⋮» del título abre
+   Imprimir · Cubetas · Editar ▸ Editar datos · Cerrar proyecto · Eliminar proyecto (rojo); crear un proyecto de prueba con
+   una tarjeta y eliminarlo → desaparece de Proyectos, la tarjeta también, y en Actividad de Inicio aparece «eliminó el
+   proyecto …»; pulsar Oscuro dos veces deja Oscuro marcado y pulsar Claro pone claro; los contadores del rail son cuadrados.
 
 ## Al publicar v0.12.0: primero el esquema, luego el push
 

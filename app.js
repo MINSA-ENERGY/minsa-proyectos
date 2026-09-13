@@ -594,6 +594,7 @@ function pintarProyecto() {
     $('btnCerrarProyecto').title = p.Estado !== 'activo' ? '' : faltan ? `Faltan ${faltan} tarjeta(s) por terminar` : 'Todas las tarjetas están hechas';
     // F6: un cerrado se reabre (solo gerencia); el boton solo existe en ese estado.
     $('btnReabrirProyecto').classList.toggle('oculto', !(PUEDE.proyecto(estado.rol) && p.Estado === 'cerrado'));
+    $('btnEliminarProyecto').classList.toggle('oculto', !PUEDE.borrar(estado.rol));   // v0.13.0: solo gerencia, en cualquier estado
     $('btnNuevaTarea').disabled = !PUEDE.tarea(estado.rol) || p.Estado !== 'activo';
     // B2: la linea que resume el frente arriba, donde se lee sin bajar a la lateral.
     const dias = diasPara(p.Vence);
@@ -753,18 +754,43 @@ async function reabrirProyecto() {
     }
 }
 
+/** v0.13.0 (Carlos, 12-sep): eliminar un proyecto — solo gerencia, en cualquier estado. Borra sus tarjetas, sus ligas
+ *  y al final el proyecto (en ese orden: si algo falla a medias queda un proyecto vaciado, nunca tarjetas huerfanas).
+ *  Los archivos de la biblioteca no se tocan; la actividad se queda como registro y se anota «borrar-proyecto». */
+async function eliminarProyecto() {
+    const p = estado.proyectoAbierto; if (!p) return;
+    if (!PUEDE.borrar(estado.rol)) { avisar('Solo gerencia elimina proyectos.', 'error'); return; }
+    const tareas = tareasDe(p, estado.tareas); const ligas = estado.ligas.filter(l => Number(l.ProyectoId) === p.id);
+    const { ok } = await confirmar({ titulo: 'Eliminar el proyecto', ok: 'Eliminar', texto: `«${p.Title}» se borra con sus ${tareas.length} tarjeta(s) y ${ligas.length} liga(s) a documentos. Los archivos de la biblioteca no se tocan y la actividad queda como registro. No se puede deshacer desde la app: los renglones van a la papelera del sitio.` });
+    if (!ok) return;
+    const titulo = p.Title;
+    try {
+        for (const t of tareas) { await estado.cliente.borrarRenglon(estado.siteId, L.tareas, t.id, m => avisar(m, 'ojo')); estado.tareas = estado.tareas.filter(x => x.id !== t.id); }
+        for (const l of ligas) { await estado.cliente.borrarRenglon(estado.siteId, L.ligas, l.id, m => avisar(m, 'ojo')); estado.ligas = estado.ligas.filter(x => x.id !== l.id); }
+        await estado.cliente.borrarRenglon(estado.siteId, L.proyectos, p.id, m => avisar(m, 'ojo'));
+        estado.proyectos = estado.proyectos.filter(x => x.id !== p.id);
+        estado.proyectoAbierto = null; $('accMenu').open = false;
+        irA('proyectos'); avisar(`Proyecto «${titulo}» eliminado.`, 'ok'); repintar();
+        await registrarActividad('borrar-proyecto', `eliminó el proyecto «${titulo.slice(0, 80)}»${tareas.length ? ` con ${tareas.length} tarjeta(s)` : ''}`, p.id, null); repintar();
+    } catch (e) { avisar('No se pudo eliminar: ' + (e && e.message ? e.message : e), 'error'); repintar(); }
+}
+
 // ---------------------------------------------------------------- tema
 
 function aplicarTema(t) {
     if (t === 'claro' || t === 'oscuro') document.documentElement.dataset.theme = t === 'oscuro' ? 'dark' : 'light';
     else delete document.documentElement.dataset.theme;
-    for (const b of document.querySelectorAll('.tema button')) b.setAttribute('aria-pressed', b.dataset.tema === t ? 'true' : 'false');
     const oscuro = t === 'oscuro' || (t !== 'claro' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    // v0.13.0 (Carlos, 12-sep): el boton marcado es el tema EFECTIVO —sin eleccion guardada, el del sistema—, asi siempre hay uno.
+    for (const b of document.querySelectorAll('.tema button')) b.setAttribute('aria-pressed', b.dataset.tema === (oscuro ? 'oscuro' : 'claro') ? 'true' : 'false');
     const mt = $('metaTema'); if (mt) mt.content = oscuro ? '#131313' : '#f7f7f7';   // --page del Tablero (v0.7.0)   // el arnés E2E no monta el <head>
 }
 try { aplicarTema(localStorage.getItem('tema') || ''); } catch (_) { aplicarTema(''); }
+// v0.13.0: un clic ELIGE ese tema y ya (antes el segundo clic lo apagaba y volvia al del sistema, que en una maquina oscura
+// parecia «claro → oscuro sin seleccion»). Volver a «sistema» no tiene boton: se borra la llave `tema` del localStorage.
+try { window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (!localStorage.getItem('tema')) aplicarTema(''); }); } catch (_) {}
 for (const b of document.querySelectorAll('.tema button')) b.addEventListener('click', () => {
-    const t = b.getAttribute('aria-pressed') === 'true' ? '' : b.dataset.tema;
+    const t = b.dataset.tema;
     try { if (t) localStorage.setItem('tema', t); else localStorage.removeItem('tema'); } catch (_) {}
     aplicarTema(t);
 });
@@ -793,8 +819,11 @@ function acomodarAccMenu() { $('accMenu').open = !enCelular.matches; }
 // B3: Inicio tambien depende del ancho (3 renglones de actividad en celular, 5 en escritorio).
 enCelular.addEventListener('change', () => { acomodarAccMenu(); if (estado.siteId) repintar(); });
 acomodarAccMenu();
-document.addEventListener('click', e => { const m = $('accMenu'); if (m.open && enCelular.matches && !m.contains(e.target)) m.open = false; });
-$('accMenu').querySelector('.acciones').addEventListener('click', () => { if (enCelular.matches) $('accMenu').open = false; });
+// v0.13.0: el menu «⋮» existe en todos los anchos. Se cierra al tocar fuera y al elegir un BOTON (abrir el submenu «Editar»
+// no lo cierra); al cerrarse, el submenu vuelve plegado para que la proxima vez abra limpio.
+document.addEventListener('click', e => { const m = $('accMenu'); if (m.open && !m.contains(e.target)) m.open = false; });
+$('accMenu').querySelector('.acciones').addEventListener('click', e => { if (e.target.closest('button')) $('accMenu').open = false; });
+$('accMenu').addEventListener('toggle', () => { if (!$('accMenu').open) $('accEditar').open = false; });
 // D6: el pie del rail apilaba seis controles en 60 px; Equipo, Ver en SharePoint y Salir viven en un
 // menu «···» hacia arriba (Actualizar y el tema se quedan a la vista). Se cierra al elegir y al tocar fuera.
 document.addEventListener('click', e => { const m = $('menuRail'); if (m.open && !m.contains(e.target)) m.open = false; });
@@ -807,6 +836,7 @@ $('btnNuevoProyecto').addEventListener('click', () => abrirFormaProyecto(null));
 $('btnEditarProyecto').addEventListener('click', () => abrirFormaProyecto(estado.proyectoAbierto));
 $('btnCerrarProyecto').addEventListener('click', cerrarProyecto);
 $('btnReabrirProyecto').addEventListener('click', reabrirProyecto);
+$('btnEliminarProyecto').addEventListener('click', eliminarProyecto);   // v0.13.0
 $('formProyecto').addEventListener('submit', guardarProyecto);
 $('npCancelar').addEventListener('click', () => cerrarDialogo('dlgProyecto'));
 engancharTablero();

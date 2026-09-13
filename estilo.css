@@ -127,8 +127,9 @@
 .rail .marca { display: flex; align-items: center; gap: var(--sp-2); padding: 0 var(--sp-3) var(--sp-3); font-family: var(--font-display); font-weight: 600; color: var(--text-strong); }
 .rail .marca .logo { width: 92px; height: auto; }
 /* v0.12.1: «PROYECTOS» en Bai Jamjuree 700 versalitas, separado del lockup por un hairline verde en degradado (30 px) — elegido por Carlos entre 106 variantes (artifact «Rotulo Proyectos», 12-sep). El ::before es la linea; el color sale de --brand-accent, asi que en claro es el verde 700 y en oscuro el 500 legible. */
-.rail .marca span { font-family: "Bai Jamjuree", var(--font-display); font-weight: 700; font-size: 15px; letter-spacing: .16em; text-transform: uppercase; line-height: 1; margin-top: -3px; display: inline-flex; align-items: center; }
-.rail .marca span::before { content: ""; width: 1px; height: 30px; margin: 0 12px 0 4px; background: linear-gradient(180deg, transparent, var(--brand-accent) 30%, var(--brand-accent) 70%, transparent); }
+/* v0.13.0 (Carlos, 12-sep): mas chico —12 px, tracking .12em— para que quepa dentro del rail (232 px) sin recortarse; el hairline baja a 24 px. */
+.rail .marca span { font-family: "Bai Jamjuree", var(--font-display); font-weight: 700; font-size: 12px; letter-spacing: .12em; text-transform: uppercase; line-height: 1; margin-top: -2px; display: inline-flex; align-items: center; white-space: nowrap; min-width: 0; }
+.rail .marca span::before { content: ""; flex: none; width: 1px; height: 24px; margin: 0 10px 0 2px; background: linear-gradient(180deg, transparent, var(--brand-accent) 30%, var(--brand-accent) 70%, transparent); }
 .rail nav { display: contents; }
 .rail nav button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .rail .equipos { margin-top: var(--sp-3); display: grid; gap: 1px; }
@@ -273,9 +274,20 @@
 /* Auditoria #9: un grupo de botones hermanos separa --sp-2 en toda la app (cabecera, pie de dialogo,
    acciones de Documentos, acciones de la tarjeta); --sp-1 queda para chips y para el pie del rail. */
 .proyecto-cab .acciones { display: flex; gap: var(--sp-2); margin-left: auto; }
-/* B1: el menu «···» solo existe en celular; arriba de 720 px el <details> desaparece del acomodo. */
-.acc-menu { display: contents; }
-.acc-menu > summary { display: none; }
+/* B1 → v0.13.0 (Carlos, 12-sep): el menu «⋮» existe en todos los anchos (antes solo en celular). Dentro, cada accion es un
+   renglon a todo el ancho; «Editar» es un <details> anidado con Editar datos · Cerrar/Reabrir · Eliminar (rojo). */
+.acc-menu { display: block; margin-left: auto; position: relative; }
+.acc-menu > summary { display: inline-flex; list-style: none; cursor: pointer; color: var(--text-muted); }   /* el tamano y el borde los pone .mn-btn.is-sm.is-icono */
+.acc-menu > summary::-webkit-details-marker { display: none; }
+.acc-menu .acciones { position: absolute; right: 0; top: calc(100% + 4px); z-index: var(--z-pop); display: grid; gap: 2px; min-width: 200px; margin: 0; padding: var(--sp-2); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
+.acc-menu .acciones .mn-btn { justify-content: flex-start; width: 100%; }
+.acc-sub > summary { list-style: none; display: flex; align-items: center; justify-content: space-between !important; cursor: pointer; }
+.acc-sub > summary::-webkit-details-marker { display: none; }
+.acc-sub > summary svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .15s; }
+.acc-sub[open] > summary svg { transform: rotate(90deg); }
+.acc-sub .acc-sub-caja { display: grid; gap: 2px; margin-top: 2px; padding-left: var(--sp-3); border-left: 2px solid var(--border-hairline); }
+.acc-menu .acciones .mn-btn.is-danger { color: var(--status-danger-loud); border-color: transparent; }
+.acc-menu .acciones .mn-btn.is-danger:hover { background: var(--status-danger-bg); }
 /* La linea-resumen es para CELULAR: en escritorio la lateral ya dice «En curso 3 · En revisión 2 ·
    Fin del frente», y pintar las dos es el mismo defecto que A6 («Al día» dos veces). */
 .resumen-linea { display: none; flex-basis: 100%; margin: 0; font-size: .82rem; color: var(--text-muted); }
@@ -542,11 +554,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .proyecto-cab { gap: var(--sp-1) var(--sp-2); }
   .proyecto-cab h1 { font-size: 1.15rem; }
   .proyecto-cab .titulo h1 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  /* B1: las tres acciones, en menu */
-  .acc-menu { display: block; margin-left: auto; position: relative; }
-  .acc-menu > summary { display: inline-flex; list-style: none; cursor: pointer; color: var(--text-muted); }   /* el tamano y el borde los pone .mn-btn.is-sm.is-icono */
-  .acc-menu > summary::-webkit-details-marker { display: none; }
-  .acc-menu .acciones { position: absolute; right: 0; top: calc(100% + 4px); z-index: var(--z-pop); display: grid; gap: var(--sp-2); min-width: 200px; margin: 0; padding: var(--sp-2); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
+  /* B1: el menu «⋮» ya es global desde v0.13.0; aqui no queda nada propio del celular. */
   /* B1: la descripcion, a una linea con «más» (clic en el propio parrafo) */
   #pDesc { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }
   #pDesc.abierta { -webkit-line-clamp: 99; }
@@ -740,6 +748,8 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .titulo-ico svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 /* ---- rail: la insignia de Mensajes es informativa (azul), no alarma (rojo, la de vencidas). */
 .mn-rail .mn-rail-hot.is-info { background: var(--status-info-bg); color: var(--status-info-fg); }
+/* v0.13.0 (Carlos, 12-sep): el contador del rail deja la pildora por un cuadrado redondeado de 20 px con borde fino del mismo tono; solo cambia la forma, los colores siguen de minsa-ui. */
+.mn-rail .mn-rail-hot { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 5px; box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent); font-size: .7rem; line-height: 1; }
 /* ---- gantt: etiqueta fija a la izquierda + pista en %; la cabecera trae meses y el dia del lunes de cada semana. */
 .gantt-caja { overflow-x: auto; min-width: 0; }
 /* La tarjeta que contiene el gantt no puede tomar el ancho minimo de su contenido (a 390 desbordaba 176 px, medido). */
