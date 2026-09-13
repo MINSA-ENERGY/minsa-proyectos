@@ -7,6 +7,7 @@ $edge = "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 if (-not (Test-Path $edge)) { Write-Host "No esta Edge en $edge"; exit 1 }
 $srv = Start-Process -FilePath node -ArgumentList "servidor-local.js", "test/pruebas.html" -WorkingDirectory $app -PassThru -WindowStyle Hidden
 Start-Sleep -Seconds 2
+if ($srv.HasExited) { Write-Host 'PUERTO 8080 OCUPADO: el servidor murio al arrancar (otra sesion corriendo una E2E o capturas.mjs?). Lo que se midiera ahora seria de OTRA app.'; exit 2 }
 $fallas = 0
 try {
     foreach ($rol in $Roles) {

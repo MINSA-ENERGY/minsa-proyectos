@@ -656,6 +656,23 @@ E2E contra Graph falso, 3 roles, desde PowerShell (Edge headless):
 powershell -NoProfile -ExecutionPolicy Bypass -File .\test\e2e.ps1
 ```
 
+Desde el 2026-09-13 `e2e.ps1` sale con **exit 2 si el puerto 8080 estaba ocupado**: el servidor muere al arrancar
+y lo que Edge mediría sería la app de OTRA sesión (medido ese día desde planta con `capturas.mjs` de esta app
+corriendo al lado: «278 ok» de proyectos reportados como de planta). Con dos sesiones sobre la máquina, el 8080
+es un recurso compartido igual que el working tree. Y `capturas.mjs --medir` cuenta ahora los `medir: ERROR` y
+ensucia el exit (obs. 591: 64/64 rotas con «64 vistas» en pantalla).
+
+**Reglas que la E2E verde no puede ver (obs. 588, 589, 590 — las tres cazadas aquí el 2026-09-12):** (1) cada
+límite del tenant que muerde en real (choice sin `allowTextEntry`, texto de una línea > 255, `If-Match`/412)
+entra **el mismo día** al Graph falso de **las dos apps** (planta lo tiene desde el 13-sep), y la corrida exige
+`DB.textoLargo` vacío; (2) una lista con **0 renglones** en el exporte a N días es una lista **sin prueba real**
+(`PROY_Ligas: 0` desde el primer día y nadie lo leyó así): la aceptación tras publicar escribe una vez en cada
+lista, no solo en la que el piloto usa; (3) cuando un rediseño choca con una aserción, se reescribe la aserción
+a lo que promete la interfaz nueva — un elemento que sigue en pantalla «porque la E2E lo espera» es la prueba
+dictando la interfaz (v0.7.0, el chip duplicado del reloj); (4) el barrido de capturas abre el fixture por
+IDENTIDAD (`abrirProy` busca la LAU, nunca «el primero»: la ordenación pone enfrente el caso fácil) y cada
+renglón de `_mediciones.txt` lleva el `hash=` de lo que midió. El `revisor-entregable` coteja las cuatro.
+
 Y las **capturas con medidas** a anchos reales (celular 390 · tableta 820 · escritorio 1366), que ven lo que la
 E2E no —desbordes, alturas, objetivos táctiles—; viven fuera del repo público:
 
