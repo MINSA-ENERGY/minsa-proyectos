@@ -100,8 +100,8 @@
         <span class="reloj" id="pReloj"></span>
         <!-- B1: en celular las tres acciones del proyecto viven en un menu «···»; en escritorio el
              <details> es display:contents y se ven los tres botones de siempre. -->
-        <details class="acc-menu" id="accMenu"><summary class="mn-btn is-sm is-icono" aria-label="Acciones del proyecto" title="Imprimir · Editar · Cerrar proyecto">⋮</summary>
-        <div class="acciones"><button id="btnImprimir" class="mn-btn is-ghost is-sm" type="button" title="Imprimir o guardar como PDF lo que está en pantalla">Imprimir</button><button id="btnEditarProyecto" class="mn-btn is-sm" type="button">Editar</button><button id="btnCerrarProyecto" class="mn-btn is-sm" type="button">Cerrar proyecto</button><button id="btnReabrirProyecto" class="mn-btn is-sm oculto" type="button">Reabrir</button></div>
+        <details class="acc-menu" id="accMenu"><summary class="mn-btn is-sm is-icono" aria-label="Acciones del proyecto" title="Imprimir · Cubetas · Editar · Cerrar proyecto">⋮</summary>
+        <div class="acciones"><button id="btnImprimir" class="mn-btn is-ghost is-sm" type="button" title="Imprimir o guardar como PDF lo que está en pantalla">Imprimir</button><button id="btnCubetas" class="mn-btn is-sm" type="button" title="Renombrar, agregar o quitar las cubetas del tablero (solo gerencia)">Cubetas</button><button id="btnEditarProyecto" class="mn-btn is-sm" type="button">Editar</button><button id="btnCerrarProyecto" class="mn-btn is-sm" type="button">Cerrar proyecto</button><button id="btnReabrirProyecto" class="mn-btn is-sm oculto" type="button">Reabrir</button></div>
         </details>
         <!-- B2: la linea que resume el frente sin bajar a la lateral (que en celular queda a ~1,900 px). -->
         <p class="resumen-linea" id="pResumen"></p>
@@ -241,10 +241,7 @@
           <div class="mn-field"><label for="ftAsignado">Asignado</label><select id="ftAsignado"></select></div>
           <div class="mn-field"><label for="ftPrioridad">Prioridad</label><select id="ftPrioridad"><option value="alta">alta</option><option value="normal" selected>normal</option><option value="baja">baja</option></select></div>
         </div>
-        <div class="mn-row">
-          <div class="mn-field"><label for="ftVence">Vence</label><input id="ftVence" type="date"><div class="atajos-fecha" id="ftAtajos"></div></div>
-          <div class="mn-field"><label for="ftOrigen">Origen en la KB</label><input id="ftOrigen" placeholder="ambiental/…md#renglon-7"></div>
-        </div>
+        <div class="mn-field"><label for="ftVence">Vence</label><input id="ftVence" type="date"><div class="atajos-fecha" id="ftAtajos"></div></div>
         <div class="mn-field"><label for="ftDesc">Descripción</label><textarea id="ftDesc" rows="3"></textarea></div>
         <div class="mn-field oculto" id="ftProyectoCampo"><label for="ftProyecto">Proyecto (moverla a otro frente)</label><select id="ftProyecto"></select></div>
         <div class="mn-dialog-foot"><button class="mn-btn is-danger is-sm" id="tBorrar" type="button">Borrar tarjeta</button><button class="mn-btn is-primary is-sm" id="btnGuardarTarea" type="submit">Guardar cambios</button></div>
@@ -266,12 +263,25 @@
       </div>
       <div class="mn-row">
         <div class="mn-field"><label for="ntVence">Vence</label><input id="ntVence" type="date"><div class="atajos-fecha" id="ntAtajos"></div></div>
-        <div class="mn-field"><label for="ntColumna">Columna</label><select id="ntColumna"></select></div>
+        <div class="mn-field"><label for="ntColumna">Cubeta</label><select id="ntColumna"></select></div>
       </div>
-      <div class="mn-field"><label for="ntOrigen">Origen en la KB (opcional)</label><input id="ntOrigen" placeholder="ambiental/calytek/….md#renglon-7"></div>
       <div class="mn-field"><label for="ntDesc">Descripción (opcional)</label><textarea id="ntDesc" rows="3"></textarea></div>
     </div>
     <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="ntCancelar" type="button">Cancelar</button><button class="mn-btn is-sm" id="ntGuardarYOtra" type="button" title="Guarda y deja el diálogo abierto con asignado, prioridad, columna y vence">Crear y otra</button><button class="mn-btn is-primary is-sm" id="ntGuardar" type="submit">Crear tarea</button></div>
+  </form>
+</dialog>
+
+<!-- Cubetas del proyecto (v0.11.0): renombrar, agregar, quitar, ordenar; solo gerencia -->
+<dialog id="dlgCubetas" class="mn-dialog">
+  <form id="formCubetas" method="dialog" class="forma" novalidate>
+    <div class="mn-dialog-head"><h2>Cubetas del tablero</h2></div>
+    <div class="mn-dialog-body">
+      <div class="dlg-avisos"></div>
+      <div class="cubetas" id="cbLista"></div>
+      <button class="mn-btn is-ghost is-sm" id="cbAgregar" type="button">+ Agregar cubeta</button>
+      <p class="mn-help">Una tarjeta nueva nace en la primera. «Hecho» cierra las tarjetas: se puede renombrar, no quitar. Una cubeta con tarjetas no se quita hasta moverlas.</p>
+    </div>
+    <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="cbCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="cbGuardar" type="submit">Guardar cubetas</button></div>
   </form>
 </dialog>
 
@@ -354,6 +364,7 @@
   <div class="mn-dialog-body">
     <div class="filtros" id="acFiltro"></div>
     <div class="filtros ac-tipo" id="acTipo"></div>
+    <p class="mn-help">Los movimientos entre cubetas no se listan: quedan en la bitácora de SharePoint.</p>
     <div class="mini" id="acLista"></div>
   </div>
   <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="acMas" type="button">ver 50 más</button></div>

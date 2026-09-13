@@ -3,9 +3,9 @@
 // la bitacora PROY_Actividad.
 
 import { CONFIG } from './config.js';
-import { PUEDE, iniciales, nombreDe, diasPara, estadoVence, tipoArchivo, trozosConMenciones } from './reglas.js';
+import { PUEDE, iniciales, nombreDe, diasPara, estadoVence, tipoArchivo, trozosConMenciones, columnasDe } from './reglas.js';
 
-export const VERSION = '0.10.0';
+export const VERSION = '0.11.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -23,7 +23,7 @@ export const estado = {
     // el CSS los muestra siempre y esta bandera no se nota.
     filtrosAbiertos: false,
     ordenLista: { col: 'vence', dir: 1 },
-    colMovil: 'por-hacer',
+    colMovil: null,   // v0.11.0: null = la primera cubeta del proyecto abierto (antes 'por-hacer' fijo)
     filtroMis: null,
     // v0.4.0: «ver las N anteriores» de Hecho (U6), filtro de Documentos (U10), firma de la ultima carga (T3)
     hechoTodas: false,
@@ -309,6 +309,15 @@ export async function registrarActividad(accion, frase, proyectoId, tareaId) {
         estado.actividad.unshift(n);
     } catch (e) { console.warn('no se pudo registrar la actividad:', e && e.message ? e.message : e); }
 }
+
+/**
+ * v0.11.0 (Carlos, 12-sep): los movimientos («de Por hacer a En curso») NO se ensenan en ninguna lista de
+ * actividad — se siguen escribiendo en PROY_Actividad (bitacora y metrica del piloto), solo no se pintan.
+ */
+export const actividadVisible = () => estado.actividad.filter(a => a.Accion !== 'mover-tarea');
+
+/** Las cubetas del proyecto de una tarjeta (v0.11.0); sin proyecto en memoria, el default. */
+export function columnasDeTarea(t) { return columnasDe(porId(estado.proyectos, t && t.ProyectoId)); }
 
 /** Frase de un renglon de actividad para las listas de «actividad reciente»: «Lorena movió …»; una nota va entre comillas. */
 export function fraseActividad(a) {

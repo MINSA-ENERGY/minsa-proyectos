@@ -33,14 +33,8 @@ export const CONFIG = {
         actividad: 'PROY_Actividad'
     },
 
-    // Las cuatro columnas del tablero, en orden. Fijas a proposito (default del implementador):
-    // un tablero con columnas por proyecto es otro producto.
-    columnas: [
-        { clave: 'por-hacer', nombre: 'Por hacer' },
-        { clave: 'en-curso', nombre: 'En curso' },
-        { clave: 'en-revision', nombre: 'En revisión' },
-        { clave: 'hecho', nombre: 'Hecho' }
-    ],
+    // Las cubetas (columnas) del tablero YA NO viven aqui: desde v0.11.0 (Carlos, 12-sep) cada proyecto
+    // trae las suyas en PROY_Proyectos.Columnas y el default es COLUMNAS_DEFAULT de reglas.js.
 
     // Equipos = unidades del holding (etiqueta y filtro, nunca permiso). `unidad` es la clave de
     // la biblioteca donde Docs busca y sube; sin `unidad`, Docs solo muestra ligas ya guardadas.

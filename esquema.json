@@ -18,18 +18,19 @@
         { "nombre": "Carpeta", "titulo": "Carpeta destino en la biblioteca", "tipo": "text", "nota": "ruta relativa a la raiz de la biblioteca de la unidad donde la skill de archivar deberia acomodar lo que se sube desde Docs (p. ej. 03_Predios/Arrocera/Federal (ASEA) - LAU). Es una PROPUESTA en el _lote.json: la skill valida y Carlos da el OK. Vacia = el default de config.js" },
         { "nombre": "CerradoPor", "titulo": "Cerrado por", "tipo": "text" },
         { "nombre": "CerradoEl", "titulo": "Cerrado el", "tipo": "dateTime" },
-        { "nombre": "Notas", "titulo": "Notas", "tipo": "note" }
+        { "nombre": "Notas", "titulo": "Notas", "tipo": "note" },
+        { "nombre": "Columnas", "titulo": "Cubetas del tablero (JSON)", "tipo": "note", "nota": "v0.11.0 (2026-09-12): las cubetas de ESTE proyecto, [{\"clave\":\"por-hacer\",\"nombre\":\"Por hacer\"}, ...]; vacia = las 4 de siempre (COLUMNAS_DEFAULT de reglas.js). La ultima es siempre `hecho` (renombrable, no se quita). Las edita gerencia desde «Cubetas» en el proyecto. En una lista ya provisionada se AGREGA con provisionar.html" }
       ]
     },
     {
       "nombre": "PROY_Tareas",
       "titulo": "Tareas (tarjetas del tablero)",
       "clave": "tareas",
-      "regla": "decision 1: la app es DUEÑA del estado (asignado, columna, vence). Cuatro columnas fijas. Al entrar a 'hecho' se sella HechoPor/HechoEl; al salir se limpia. Cualquier colaborador crea, asigna y mueve; solo gerencia borra.",
+      "regla": "decision 1: la app es DUEÑA del estado (asignado, columna, vence). Las cubetas las declara cada proyecto (PROY_Proyectos.Columnas, v0.11.0); antes eran cuatro fijas. Al entrar a 'hecho' se sella HechoPor/HechoEl; al salir se limpia. Cualquier colaborador crea, asigna y mueve; solo gerencia borra.",
       "columnas": [
         { "nombre": "Title", "titulo": "Tarea (verbo + objeto)", "tipo": "text", "obligatorio": true },
         { "nombre": "ProyectoId", "titulo": "ID del proyecto", "tipo": "number", "obligatorio": true, "indexada": true },
-        { "nombre": "Columna", "titulo": "Columna", "tipo": "choice", "opciones": ["por-hacer", "en-curso", "en-revision", "hecho"], "obligatorio": true, "indexada": true },
+        { "nombre": "Columna", "titulo": "Columna", "tipo": "choice", "opciones": ["por-hacer", "en-curso", "en-revision", "hecho"], "libre": true, "obligatorio": true, "indexada": true, "nota": "`libre` = allowTextEntry: desde v0.11.0 acepta la clave de cualquier cubeta del proyecto (slug), no solo las 4 opciones. En una lista ya provisionada provisionar.html lo aplica por PATCH" },
         { "nombre": "Asignado", "titulo": "Asignado (correo)", "tipo": "text", "indexada": true, "nota": "siempre alguien de la casa (decision del plan 14:05): aunque la pelota este en un tercero, la tarjeta la tiene quien lo persigue" },
         { "nombre": "Vence", "titulo": "Vence", "tipo": "dateTime", "indexada": true },
         { "nombre": "Prioridad", "titulo": "Prioridad", "tipo": "choice", "opciones": ["alta", "normal", "baja"] },

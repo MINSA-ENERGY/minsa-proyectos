@@ -320,7 +320,7 @@ export function columnaGraph(c) {
         case 'number': return { ...base, number: { decimalPlaces: 'automatic' } };
         case 'dateTime': return { ...base, dateTime: { format: 'dateTime' } };
         case 'boolean': return { ...base, boolean: {} };
-        case 'choice': return { ...base, choice: { allowTextEntry: false, choices: c.opciones || [], displayAs: 'dropDownMenu' } };
+        case 'choice': return { ...base, choice: { allowTextEntry: !!c.libre, choices: c.opciones || [], displayAs: 'dropDownMenu' } };   // `libre`: acepta valores fuera de la lista (v0.11.0: cubetas por proyecto)
         default: throw new Error(`tipo de columna desconocido: ${c.tipo}`);
     }
 }

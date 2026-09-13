@@ -1,10 +1,58 @@
 # MINSA Proyectos
 
 PWA de proyectos multiusuario de MINSA ENERGY: cada **proyecto** es un frente con fin (una licencia,
-un arranque de planta, un servicio), con su **tablero** de cuatro columnas, tareas asignadas a gente
+un arranque de planta, un servicio), con su **tablero** de cubetas (cuatro por default, editables por proyecto desde v0.11.0), tareas asignadas a gente
 de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas ven lo mismo y
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
+
+**v0.11.0** (2026-09-12) — **Cubetas por proyecto (renombrar · agregar · quitar · ordenar), sin el atajo «→ siguiente», sin
+«Origen en la KB» a la vista y sin movimientos en Actividad.** Las cuatro peticiones de Carlos del 12-sep por la noche.
+**CON cambio de esquema** (ver «Al publicar v0.11.0»).
+
+- **Cubetas** (`btnCubetas` en las acciones del proyecto, solo gerencia, proyecto activo → `dlgCubetas`): cada proyecto trae
+  las suyas en `PROY_Proyectos.Columnas` (JSON `[{clave, nombre}]`; vacía = las 4 de siempre, `COLUMNAS_DEFAULT` de
+  `reglas.js`). Reglas que el editor hace visibles: **«Hecho» se renombra pero no se quita ni se mueve** (siempre al final:
+  es la que sella `HechoPor/HechoEl`, cuenta el avance y saca la tarjeta de Mis tareas); **una cubeta con tarjetas no se
+  quita** (el botón dice cuántas: se mueven primero, y al guardar se cuenta **en vivo** en `PROY_Tareas`, no en la copia de
+  hace hasta 120 s — si alguien acaba de mover una tarjeta ahí, se relee y se avisa); mínimo 1 abierta + Hecho, máximo 8;
+  nombre ≤ 30; una nueva no puede llamarse «Hecho» (chocaría con la clave fija, se dice con palabras). La **clave** de una
+  cubeta nueva sale de su nombre (`slug`) y **no cambia al renombrarla**, así que las tarjetas no se pierden; una nueva nace
+  antes de Hecho. Si la lista vuelve a ser exactamente el default, `Columnas` se limpia (`null`). Se registra como
+  `editar-proyecto`. `PROY_Tareas.Columna` pasa a **choice con `allowTextEntry`** (`libre: true` en `esquema.json`) para
+  aceptar cualquier clave; el Graph falso de la E2E lo honra.
+- **Todo lo que dependía de las 4 fijas se derivó de las cubetas del proyecto:** tablero (hasta 8 columnas, `data-n`),
+  pestañas de columna en celular, «Mover a…», selector de la tarea nueva (nace en la **primera**), orden de la Lista por
+  cubeta, línea de resumen y «Avance» de la lateral (una línea por cubeta de en medio), barra segmentada y anillo del
+  proyecto (`segmentosDe`), roadmap del proyecto (un carril por cubeta), calendario (color). **El color va por POSICIÓN**
+  (`claseDeColumna`: gris la primera · marca la segunda · celeste las demás · verde Hecho), nunca por el nombre. Lo que suma
+  **entre proyectos** —Reportes (anillo global y leyenda), Roadmap (KPI), Inicio— usa **tres categorías**: por hacer (primera)
+  · en proceso (las de en medio) · hechas (`avanceGlobal`, `segmentosGlobales`). **«Sin movimiento» pasa de «en-curso» a
+  «en proceso»** (cualquier cubeta que no sea la primera ni Hecho): una tarjeta parada 10 días en revisión también se señala.
+- **Huérfanas:** una tarjeta cuya cubeta alguien quitó (o que llegó de otro proyecto con una clave que aquí no existe)
+  **no desaparece**: se pinta en una columna marcada (`.col.is-huerfana`, punto ámbar) con su clave de nombre, «Mover a…»
+  la deja salir pero no entrar, y al moverla la columna se va. Mover una tarjeta a otro proyecto que no tenga su cubeta la
+  deja en la **primera** de ese proyecto.
+- **Fuera el atajo «→ siguiente»** (U7, v0.3.0) de la cara de la tarjeta, con su Deshacer: mover es abrir la tarjeta y
+  «Mover a…». `columnaSiguiente` y `moverSiguiente` se borraron; `.tarjeta-caja` se queda (Mis tareas y la E2E la usan).
+- **«Origen en la KB» ya no se enseña ni se pide** (cara de la tarjeta, Lista, diálogo, formularios de nueva/editar). La
+  columna **sigue en `PROY_Tareas`** y lo que un script deje ahí se conserva: es el puntero al marcador de `minsa-energy/`
+  que usa `/procesar-tablero` (`proyectos_app.py`), no la gente. La cabecera de la Lista dice «Cubeta».
+- **Actividad sin movimientos** (Inicio, lateral del proyecto, «Toda la actividad»): `actividadVisible()` filtra
+  `mover-tarea`; el chip «solo movimientos» (C9) se fue y una línea de ayuda lo dice. **Se siguen escribiendo en
+  `PROY_Actividad`** (bitácora y métrica del piloto; «Actividad por persona» de Reportes los sigue contando).
+- **Lo que NO cambió, a propósito:** `config.js` ya no trae `columnas`; el `Columna` de la siembra (`sembrar.html`) y del
+  exportador siguen con las 4 claves de siempre, que son el default.
+- **Declarado sin aplicar:** las cubetas son **por proyecto**, no globales (un default nuevo para todos se cambia en
+  `COLUMNAS_DEFAULT`, y un proyecto ya editado conserva las suyas) · quitar una cubeta desde SharePoint a mano deja
+  huérfanas, que la app enseña · en «Mis tareas» y Calendario el chip/color de una cubeta ajena (fuera del proyecto abierto)
+  se resuelve leyendo el proyecto de cada tarjeta (`columnasDeTarea`) · no hay arrastre para ordenar cubetas (↑/↓).
+
+Medido: `npm test` verde (110 reglas, +20), E2E **260 / 227 / 26** (+16 / +3 / 0: editor de cubetas con renombrar, agregar,
+subir, guardar en `Columnas`, tablero de 5, mover a la nueva, quitar bloqueada con tarjetas, volver al default limpia la
+celda, huérfana marcada y rescatada; colaborador con el botón apagado; sin `→ siguiente`, sin Origen, sin movimientos en las
+tres listas), capturas de `cubetas · proyecto · tarjeta · lista · inicio · actividad · reportes` a 390/1366 × claro/oscuro
+con **0 desborde**. SW `minsa-proyectos-v13`. La falla conocida de v0.9.0 a 390 px («comentó/anotó») sigue igual.
 
 **v0.10.0** (2026-09-12) — **Roadmap, Calendario, Mensajes, Archivos y Reportes, y el título con su icono.** Carlos mandó
 la foto de un tablero de referencia («Product Roadmap», WhatsApp 12-sep 18:07) y pidió un roadmap, esas cuatro secciones en la
@@ -459,10 +507,10 @@ Mis tareas. Fuera, a propósito: mensajes, calendario, línea de tiempo, analít
 ```
 index.html      un solo DOM para celular y escritorio (rail → pestañas abajo)
 app.js          sesión, carga (firma T3), Inicio (KPI botones), Proyectos, Proyecto, nuevo/editar/cerrar/reabrir, sin red, toda la actividad, Equipo, imprimir
-tablero.js      tablero (pestañas de columna, Hecho colapsada), lista (orden), filtros, Mis tareas, tarjeta (mover/«→ siguiente»/subir-bajar/editar/borrar, creada por), 412
+tablero.js      tablero (cubetas del proyecto + huérfanas, pestañas de columna, Hecho colapsada), lista (orden), filtros, Mis tareas, tarjeta (mover/subir-bajar/editar/borrar, creada por), 412, editor de cubetas
 docs.js         Documentos: buscar, ligar, subir al buzón, pegar enlace, grupos y chips por tipo, «en el buzón» derivado en vivo
 comun.js        estado, DOM sin innerHTML, avisos (toast con acción), confirmación, fechas (diaInput), PROY_Actividad
-reglas.js       reglas puras (roles, PUEDE, avance, próximos, sin movimiento, clave, filtrar, ordenar lista, reordenar, url)
+reglas.js       reglas puras (roles, PUEDE, cubetas por proyecto, avance, próximos, sin movimiento, clave, filtrar, ordenar lista, reordenar, url)
 lote.js         el _lote.json (contrato 1)
 graph.js        cliente Graph (copia de calytek-planta + buscarEnDrive/existeRuta)
 config.js       client id, sitio, listas, equipos, bibliotecas — público por diseño
@@ -588,6 +636,24 @@ Carlos corrió el paso de esquema de v0.3.0 (abajo, tal cual: consentir `Sites.F
 mover una tarjeta con la consola abierta no imprime «Graph rechazó If-Match» (SharePoint acepta la cabecera), y con la
 misma tarjeta en dos pestañas —mover en la 2.ª y luego en la 1.ª sin recargar— la 1.ª recibe el toast «alguien cambió
 el renglón … (412)» y relee: la protección T1 funciona en real. Las dos secciones siguientes quedan como registro.
+
+## Al publicar v0.11.0: primero el esquema, luego el push
+
+**Hay cambio de esquema** y va ANTES del push, o la app en Pages no podrá guardar cubetas ni mover a una nueva:
+
+1. **Subir Administración a rol `manage`** como en la tarea 4 de `docs/setup-carlos.md` (medido en v0.2.0 y v0.3.0:
+   crear una columna o hacer PATCH a una choice exige `manage`; con `write` da 403).
+2. `npm run serve:provisionar` → Revisar. Debe reportar dos cosas y nada más: `PROY_Proyectos` **FALTA la columna
+   `Columnas`** (note) y `PROY_Tareas.Columna` **FALTA allowTextEntry=true**. → Aplicar. Es idempotente: una segunda
+   Revisar dice «Todo coincide».
+3. **Regresar Administración a `write`** (y revocar el consentimiento amplio, como en v0.3.0).
+4. `git push` (lo hace Carlos); el service worker va en `minsa-proyectos-v13`.
+5. Prueba de aceptación en real (gerencia): abrir la LAU → «Cubetas» → renombrar «En revisión» a otra cosa y agregar una
+   → Guardar → el tablero pinta 5 columnas → mover una tarjeta a la nueva (si Graph contesta 400 «no es una opción», el
+   paso 1 no aplicó el `allowTextEntry`). Luego moverla de vuelta, quitar la cubeta y comprobar que `Columnas` quedó vacía
+   en la lista (Microsoft Lists → PROY_Proyectos).
+
+Sin probar: el celular real y un proyecto con 7-8 cubetas en pantalla de 1366 (la rejilla las reparte a 150 px y scrollea).
 
 ## Al publicar v0.4.1
 

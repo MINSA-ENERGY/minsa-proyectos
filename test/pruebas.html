@@ -72,7 +72,7 @@
     function validarChoices(l, campos) {
         const esq = DB.esquema.listas.find(x => x.nombre === l.nombre);
         for (const c of esq.columnas) {
-            if (c.tipo === 'choice' && campos[c.nombre] !== undefined && campos[c.nombre] !== null && !c.opciones.includes(campos[c.nombre]))
+            if (c.tipo === 'choice' && !c.libre && campos[c.nombre] !== undefined && campos[c.nombre] !== null && !c.opciones.includes(campos[c.nombre]))
                 return `El valor "${campos[c.nombre]}" no es una opción de la columna ${c.nombre} (choice sin allowTextEntry)`;
             // SharePoint: texto de una linea = 255; pasarse es un 400 «Invalid request» sin mas detalle (2026-09-12, LAU).
             if (c.tipo === 'text' && typeof campos[c.nombre] === 'string' && campos[c.nombre].length > 255) { DB.textoLargo.push(`${l.nombre}.${c.nombre}=${campos[c.nombre].length}`); return 'Invalid request'; }
@@ -343,10 +343,12 @@ try {
         // quedaba muerto para siempre tras el primer intento sin título.
         clic('ntGuardarYOtra'); await dormir(60);
         R.ok('C1: un intento sin título no deja muertos los botones de guardar', !$('ntGuardar').disabled && !$('ntGuardarYOtra').disabled);
-        poner('ntTitulo', 'Lista de insumos directos e indirectos'); poner('ntAsignado', 'colega@example.invalid'); poner('ntPrioridad', 'alta'); poner('ntVence', '2026-09-19'); poner('ntOrigen', 'ambiental/calytek/lau-entregables-gestor.md#renglon-7');
+        poner('ntTitulo', 'Lista de insumos directos e indirectos'); poner('ntAsignado', 'colega@example.invalid'); poner('ntPrioridad', 'alta'); poner('ntVence', '2026-09-19');
+        R.ok('v0.11.0: el diálogo de tarea nueva ya no pide «Origen en la KB»', !$('ntOrigen') && !$('ftOrigen'));
         clic('ntGuardar'); await esperar(() => filas('tareas').some(t => t.fields.Title.startsWith('Lista de insumos')), 'tarea creada');
         const t = filas('tareas').find(x => x.fields.Title.startsWith('Lista de insumos'));
-        R.ok('tarea creada en por-hacer, asignada, con origen y Desde', t.fields.Columna === 'por-hacer' && t.fields.Asignado === 'colega@example.invalid' && t.fields.Origen.includes('#renglon-7') && !!t.fields.Desde && Number(t.fields.ProyectoId) === proyectoId, JSON.stringify(t.fields));
+        R.ok('tarea creada en por-hacer, asignada, sin Origen y con Desde', t.fields.Columna === 'por-hacer' && t.fields.Asignado === 'colega@example.invalid' && t.fields.Origen === undefined && !!t.fields.Desde && Number(t.fields.ProyectoId) === proyectoId, JSON.stringify(t.fields));
+        t.fields.Origen = 'ambiental/calytek/lau-entregables-gestor.md#renglon-7';   // v0.11.0: lo que un script deje en Origen se conserva pero no se ensena
         R.ok('PROY_Actividad: crear-tarea', actividad('crear-tarea').length === 1);
         // U9 (v0.4.0): selector nativo; una fecha inexistente no se puede teclear (el input la deja vacía) y aIsoDia sigue validando lo que llegue.
         clic('btnNuevaTarea'); await esperar(() => $('dlgNuevaTarea').open, 'diálogo');
@@ -431,7 +433,7 @@ try {
         irHash('#p/no-existe'); await esperar(() => visible('p-inicio') && avisoCon('No hay un proyecto'), 'clave desconocida');
         R.ok('clave desconocida: aviso y a Inicio, hash corregido', location.hash === '#inicio', location.hash);
         R.ok('Inicio: la nota sale como «anotó: …» en la actividad', $('inicioActividad').textContent.includes('anotó: «Esperando'));
-        { const nAct = document.querySelectorAll('#inicioActividad .it').length, tope = matchMedia('(max-width: 720px)').matches ? 3 : 5; R.ok('Inicio: actividad reciente con verbos, tope de 5 renglones (3 en celular, B3) y «ver toda» si hay más (2026-09-12)', $('inicioActividad').textContent.includes('movió') && nAct <= tope && (nAct < tope ? $('btnActividadInicio').hidden : true), `${nAct} renglones`); }
+        { const nAct = document.querySelectorAll('#inicioActividad .it').length, tope = matchMedia('(max-width: 720px)').matches ? 3 : 5; R.ok('Inicio: actividad reciente con verbos, SIN movimientos (v0.11.0), tope de 5 renglones (3 en celular, B3) y «ver toda» si hay más (2026-09-12)', !$('inicioActividad').textContent.includes('movió') && $('inicioActividad').textContent.includes('anotó') && nAct <= tope && (nAct < tope ? $('btnActividadInicio').hidden : true), `${nAct} renglones`); }
         R.ok('el aviso es un toast con role=status y ×', $('avisos').getAttribute('role') === 'status' && !!$('avisos').querySelector('.mensaje .cerrar'));
         $('avisos').querySelector('.mensaje .cerrar').click();
         R.ok('la × cierra el aviso', !$('avisos').querySelector('.mensaje'));
@@ -592,13 +594,56 @@ try {
         $('tOrden').querySelector('[data-orden="subir"]').click(); await esperar(() => $('tOrden').textContent.includes('1 de 2'), 'subida');
         R.ok('Subir la devuelve (dos PATCH)', t.fields.Orden === 1 && normal.fields.Orden === 2 && document.querySelector('.col[data-col="en-curso"] .tarjeta').dataset.t === String(t.id));
         clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
-        // U7: «→ siguiente» desde la tarjeta, con Deshacer.
-        document.querySelector(`[data-sig="${t.id}"]`).click();
-        await esperar(() => $('avisos').querySelector('.mensaje [data-accion]'), 'toast con Deshacer');
-        R.ok('«→ siguiente» mueve sin abrir la tarjeta y ofrece Deshacer', t.fields.Columna === 'en-revision' && !$('dlgTarea').open && $('avisos').textContent.includes('Deshacer'));
-        $('avisos').querySelector('.mensaje [data-accion]').click();
-        await esperar(() => actividad('mover-tarea').some(a => a.fields.Title.startsWith('devolvió')), 'deshecho');
-        R.ok('Deshacer la regresa y lo registra como «devolvió»', t.fields.Columna === 'en-curso' && !!document.querySelector(`.col[data-col="en-curso"] .tarjeta[data-t="${t.id}"]`));
+        // v0.11.0: el atajo «→ siguiente» (U7) ya no existe en la cara de la tarjeta (Carlos, 12-sep).
+        R.ok('v0.11.0: la cara de la tarjeta no trae el atajo «→ siguiente»', !document.querySelector('[data-sig]') && !document.querySelector('.tarjeta-caja .sig'));
+        // v0.11.0: cubetas por proyecto — renombrar, agregar, quitar (solo gerencia); las tarjetas siguen a su clave.
+        if (gerencia) {
+            const proy = filas('proyectos').find(p => p.id === proyectoId);
+            R.ok('cubetas: el botón existe y está habilitado para gerencia en un proyecto activo', !!$('btnCubetas') && !$('btnCubetas').disabled);
+            clic('btnCubetas'); await esperar(() => $('dlgCubetas').open, 'diálogo de cubetas');
+            R.ok('cubetas: el editor lista las 4 de siempre; Hecho no se quita ni se mueve; «En curso» (con tarjetas) no se quita', document.querySelectorAll('#cbLista .cubeta').length === 4 && $('cbLista').querySelector('[data-quita="hecho"]').disabled && $('cbLista').querySelector('[data-sube="hecho"]').disabled && $('cbLista').querySelector('[data-quita="en-curso"]').disabled && $('cbLista').querySelector('[data-quita="en-curso"]').title.includes('tarjeta'), $('cbLista').textContent);
+            // Renombrar «En revisión» → «Por validar», agregar «Bloqueado», subirla encima de En revisión.
+            const inpRev = $('cbLista').querySelector('[data-cubeta="en-revision"] input'); inpRev.value = 'Por validar'; inpRev.dispatchEvent(new Event('input'));
+            clic('cbAgregar'); await dormir(20);
+            const nueva = [...$('cbLista').querySelectorAll('.cubeta')][3]; nueva.querySelector('input').value = 'Bloqueado'; nueva.querySelector('input').dispatchEvent(new Event('input'));
+            R.ok('cubetas: la nueva nace antes de Hecho y con el foco', document.querySelectorAll('#cbLista .cubeta').length === 5 && [...$('cbLista').querySelectorAll('.cubeta')][4].dataset.cubeta === 'hecho' && document.activeElement === nueva.querySelector('input'));
+            nueva.querySelector('[data-sube]').click(); await dormir(20);
+            clic('cbGuardar'); await esperar(() => !$('dlgCubetas').open, 'cubetas guardadas');
+            const cols = JSON.parse(proy.fields.Columnas || '[]');
+            R.ok('cubetas: se guardan en PROY_Proyectos.Columnas con clave nueva del nombre, orden y renombre', cols.map(c => c.clave).join(',') === 'por-hacer,en-curso,bloqueado,en-revision,hecho' && cols[3].nombre === 'Por validar' && cols[2].nombre === 'Bloqueado', proy.fields.Columnas);
+            R.ok('cubetas: la bitácora lo registra como editar-proyecto', actividad('editar-proyecto').some(a => a.fields.Title.includes('cubetas')));
+            await esperar(() => document.querySelectorAll('#tableroCols .col').length === 5, 'tablero con 5');
+            R.ok('cubetas: el tablero pinta 5 columnas en ese orden, la pestaña móvil también, y el punto de color va por posición', [...document.querySelectorAll('#tableroCols .col')].map(c => c.dataset.col).join(',') === 'por-hacer,en-curso,bloqueado,en-revision,hecho' && document.querySelectorAll('#colTabs button').length === 5 && document.querySelector('.col[data-col="en-revision"] h3 span').textContent === 'Por validar' && document.querySelector('.col[data-col="bloqueado"]').dataset.cls === 'r' && $('tableroCols').dataset.n === '5');
+            R.ok('cubetas: la línea de resumen y el avance de la lateral nombran las cubetas de en medio', /por validar/.test($('pResumen').textContent) && /bloqueado/.test($('pResumen').textContent) && $('pAvance').textContent.includes('Por validar'));
+            // Mover la tarjeta a la cubeta nueva: el Graph falso la acepta (Columna es choice con allowTextEntry).
+            document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+            R.ok('cubetas: «Mover a…» ofrece las 5 del proyecto', document.querySelectorAll('#tMover button').length === 5 && !!document.querySelector('#tMover [data-move="bloqueado"]'));
+            document.querySelector('#tMover [data-move="bloqueado"]').click(); await esperar(() => t.fields.Columna === 'bloqueado' && !$('dlgTarea').open, 'movida a bloqueado');
+            R.ok('cubetas: la tarjeta se mueve a la cubeta nueva y se pinta ahí', !!document.querySelector(`.col[data-col="bloqueado"] .tarjeta[data-t="${t.id}"]`) && !t.fields.HechoPor);
+            // Quitarla con tarjetas adentro: el botón está apagado; al vaciarla, se quita y se vuelve a las 4.
+            clic('btnCubetas'); await esperar(() => $('dlgCubetas').open, 'cubetas');
+            R.ok('cubetas: con una tarjeta adentro, «Bloqueado» no se puede quitar', $('cbLista').querySelector('[data-quita="bloqueado"]').disabled);
+            clic('cbCancelar'); await esperar(() => !$('dlgCubetas').open, 'cerrado');
+            document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+            document.querySelector('#tMover [data-move="en-curso"]').click(); await esperar(() => t.fields.Columna === 'en-curso' && !$('dlgTarea').open, 'de vuelta');
+            clic('btnCubetas'); await esperar(() => $('dlgCubetas').open, 'cubetas');
+            $('cbLista').querySelector('[data-quita="bloqueado"]').click(); await dormir(20);
+            const inpRev2 = $('cbLista').querySelector('[data-cubeta="en-revision"] input'); inpRev2.value = 'En revisión'; inpRev2.dispatchEvent(new Event('input'));
+            clic('cbGuardar'); await esperar(() => !$('dlgCubetas').open, 'guardadas');
+            R.ok('cubetas: al volver exactamente a las 4 de siempre, Columnas queda vacía (el default no se guarda)', proy.fields.Columnas === null || proy.fields.Columnas === undefined, String(proy.fields.Columnas));
+            await esperar(() => document.querySelectorAll('#tableroCols .col').length === 4, 'tablero con 4');
+            // Huérfana: alguien dejó una tarjeta en una cubeta que ya no existe → columna marcada, la tarjeta no desaparece.
+            const huer = filas('tareas').find(x => x.id === t.id); huer.fields.Columna = 'fantasma';
+            await recargarYEsperar(); await esperar(() => document.querySelector('.col.is-huerfana'), 'columna huérfana');
+            R.ok('cubetas: una tarjeta en una cubeta inexistente se ve en una columna huérfana marcada, y «Mover a…» la deja salir pero no entrar', document.querySelector('.col.is-huerfana').dataset.col === 'fantasma' && !!document.querySelector(`.col[data-col="fantasma"] .tarjeta[data-t="${t.id}"]`) && document.querySelectorAll('#tableroCols .col').length === 5);
+            document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+            R.ok('cubetas: en la tarjeta huérfana, «fantasma · actual» está apagada y las 4 reales encendidas', document.querySelector('#tMover [data-move="fantasma"]').disabled && document.querySelector('#tMover [data-move="fantasma"]').textContent.includes('actual') && !document.querySelector('#tMover [data-move="en-curso"]').disabled);
+            document.querySelector('#tMover [data-move="en-curso"]').click(); await esperar(() => t.fields.Columna === 'en-curso' && !$('dlgTarea').open, 'rescatada');
+            await esperar(() => !document.querySelector('.col.is-huerfana'), 'huérfana fuera');
+            R.ok('cubetas: al moverla, la columna huérfana desaparece', document.querySelectorAll('#tableroCols .col').length === 4);
+        } else {
+            R.ok('cubetas: colaborador ve el botón apagado (solo gerencia cambia la estructura)', !!$('btnCubetas') && $('btnCubetas').disabled);
+        }
         // T1: alguien más cambió la tarjeta (eTag distinto) → 412 → se relee y se reabre con lo nuevo, sin pisar nada.
         await recargarYEsperar(); await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tablero');
         const itT = filas('tareas').find(x => x.id === t.id); itT.etag = (itT.etag || 1) + 1; itT.fields.Descripcion = 'Descripción cambiada por alguien más';
@@ -623,7 +668,10 @@ try {
         pestana('inicio'); await esperar(() => visible('p-inicio'), 'inicio');
         // Lista.
         tab('lista'); await esperar(() => document.querySelector('#tab-lista tr.clic'), 'lista');
-        R.ok('la pestaña Lista trae la tarea con su origen', [...document.querySelectorAll('#tab-lista td.src')].some(x => x.textContent.includes('#renglon-7')));
+        R.ok('v0.11.0: la pestaña Lista ya no trae la columna «Origen en la KB» (el dato sigue en la lista) y la cabecera dice «Cubeta»', !document.querySelector('#tab-lista td.src') && ![...document.querySelectorAll('#tab-lista th')].some(x => x.textContent.includes('Origen')) && [...document.querySelectorAll('#tab-lista th')].some(x => x.textContent === 'Cubeta') && t.fields.Origen.includes('#renglon-7'));
+        document.querySelector(`#tab-lista tr[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde la lista');
+        R.ok('v0.11.0: la tarjeta no enseña «Origen»', !$('tKv').textContent.includes('Origen') && !$('tKv').textContent.includes('#renglon-7'));
+        clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
         // Mis tareas filtra por correo.
         pestana('mis'); await esperar(() => visible('p-mis'), 'mis tareas');
         R.ok('Mis tareas trae solo lo mío', [...document.querySelectorAll('#misLista .tarjeta')].length === (gerencia ? 1 : 2) && !!document.querySelector(`#misLista .tarjeta[data-t="${t.id}"]`), String(document.querySelectorAll('#misLista .tarjeta').length));
@@ -718,17 +766,19 @@ try {
         // F12 (v0.4.0): toda la actividad del proyecto, por persona.
         R.ok('F12: el proyecto ofrece «ver toda» (más de 6 renglones)', !$('btnActividadProyecto').hidden);
         clic('btnActividadProyecto'); await esperar(() => $('dlgActividad').open, 'actividad');
-        const deLau = filas('actividad').filter(a => Number(a.fields.ProyectoId) === proyectoId).length;
+        const deLau = filas('actividad').filter(a => Number(a.fields.ProyectoId) === proyectoId && a.fields.Accion !== 'mover-tarea').length;   // v0.11.0: los movimientos no se listan
         R.ok('F12: lista TODA la del proyecto con chips por persona y sin «ver más» (< 50)', $('acTitulo').textContent.includes('LAU') && document.querySelectorAll('#acLista .it').length === deLau && document.querySelectorAll('#acFiltro button').length === 2 && $('acMas').hidden, `${document.querySelectorAll('#acLista .it').length}/${deLau}`);
         document.querySelector(`#acFiltro [data-quien="${YO}"]`).click(); await dormir(30);
         R.ok('F12: el chip por persona filtra', document.querySelectorAll('#acLista .it').length === deLau && document.querySelector('#acFiltro button.is-on').dataset.quien === YO);
-        // C9 (v0.6.0): «solo notas» / «solo movimientos», y el renglon con tarjeta es un boton que la abre.
+        // C9 (v0.6.0): «solo notas», y el renglon con tarjeta es un boton que la abre. v0.11.0: los movimientos
+        // (que la bitacora SI tiene: 4+ mover-tarea) no se listan y el chip «solo movimientos» se fue.
         const notasLau = filas('actividad').filter(a => Number(a.fields.ProyectoId) === proyectoId && a.fields.Accion === 'comentar').length;
         const movLau = filas('actividad').filter(a => Number(a.fields.ProyectoId) === proyectoId && a.fields.Accion === 'mover-tarea').length;
+        R.ok('v0.11.0: la bitácora trae movimientos pero la lista no los enseña ni ofrece «solo movimientos»', movLau >= 4 && ![...document.querySelectorAll('#acLista .it')].some(x => x.textContent.includes('movió')) && !document.querySelector('#acTipo [data-tipo="movimientos"]') && document.querySelectorAll('#acTipo button').length === 1, String(movLau));
         document.querySelector('#acTipo [data-tipo="notas"]').click(); await dormir(30);
         R.ok('C9: «solo notas» deja las notas del proyecto', document.querySelectorAll('#acLista .it').length === notasLau && notasLau >= 1, `${document.querySelectorAll('#acLista .it').length}/${notasLau}`);
-        document.querySelector('#acTipo [data-tipo="movimientos"]').click(); await dormir(30);
-        R.ok('C9: «solo movimientos» deja los movimientos (y apaga «solo notas»)', document.querySelectorAll('#acLista .it').length === movLau && movLau >= 4 && document.querySelector('#acTipo [data-tipo="notas"]').getAttribute('aria-pressed') === 'false', String(document.querySelectorAll('#acLista .it').length));
+        document.querySelector('#acTipo [data-tipo="notas"]').click(); await dormir(30);
+        R.ok('C9: volver a pulsar «solo notas» lo apaga', document.querySelector('#acTipo [data-tipo="notas"]').getAttribute('aria-pressed') === 'false' && document.querySelectorAll('#acLista .it').length === deLau);
         R.ok('C9: el renglón con tarjeta viva es un botón; el de «creó el proyecto» no', document.querySelector('#acLista .it').tagName === 'BUTTON');
         document.querySelector('#acLista button.it').click(); await esperar(() => $('dlgTarea').open && !$('dlgActividad').open, 'tarjeta desde la actividad');
         R.ok('C9: clic en el renglón cierra la actividad y abre la tarjeta por su liga', $('dlgTarea').open && location.hash === `#p/${CLAVE}/t/${t.id}`, location.hash);

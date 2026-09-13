@@ -1,6 +1,6 @@
 // node test/reglas.test.js — reglas puras de MINSA Proyectos (decisiones del plan 2026-09-11).
 import assert from 'node:assert/strict';
-import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas } from '../reglas.js';
+import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -66,10 +66,36 @@ ok('a hecho sella HechoPor/HechoEl y Desde', m.HechoPor === 'x@example.invalid' 
 const m2 = camposDeMovimiento('en-curso', 'x@example.invalid', HOY);
 ok('fuera de hecho limpia el sello', m2.HechoPor === null && m2.HechoEl === null && m2.Columna === 'en-curso');
 assert.throws(() => camposDeMovimiento('terminado', 'x'), /columna desconocida/); n++;
-ok('las cuatro columnas fijas', COLUMNAS.join(',') === 'por-hacer,en-curso,en-revision,hecho');
+ok('las cuatro columnas del default', COLUMNAS.join(',') === 'por-hacer,en-curso,en-revision,hecho');
 
-// --- v0.3.0: siguiente columna, filtro, orden de la lista, subir/bajar, enlaces
-ok('columnaSiguiente recorre las 4 y termina en null', columnaSiguiente('por-hacer') === 'en-curso' && columnaSiguiente('en-revision') === 'hecho' && columnaSiguiente('hecho') === null && columnaSiguiente('x') === null);
+// --- v0.11.0: cubetas por proyecto
+ok('columnasDe: sin Columnas, el default (copia)', JSON.stringify(columnasDe({})) === JSON.stringify(COLUMNAS_DEFAULT) && columnasDe(null) !== COLUMNAS_DEFAULT);
+ok('columnasDe: JSON roto o basura = default, sin lanzar', columnasDe({ Columnas: '{no' }).length === 4 && columnasDe({ Columnas: '[]' }).length === 4 && columnasDe({ Columnas: 7 }).length === 4);
+const propias = columnasDe({ Columnas: JSON.stringify([{ clave: 'ideas', nombre: 'Ideas' }, { clave: 'hecho', nombre: 'Cerrado' }, { clave: 'haciendo', nombre: 'Haciendo' }]) });
+ok('columnasDe: lee las propias y manda hecho al final aunque venga en medio', propias.map(c => c.clave).join(',') === 'ideas,haciendo,hecho' && propias[2].nombre === 'Cerrado');
+ok('columnasDe: sin hecho en la lista, se agrega al final', columnasDe({ Columnas: '[{"clave":"a","nombre":"A"}]' }).map(c => c.clave).join(',') === 'a,hecho');
+const nz = normalizarColumnas([{ clave: '', nombre: '  Por  revisar ' }, { clave: 'por-hacer', nombre: 'Por hacer' }, { clave: 'hecho', nombre: 'Hecho' }, { clave: '', nombre: 'Por revisar!' }]);
+ok('normalizarColumnas: clave nueva del nombre (slug), nombre limpio, y la repetida se numera', nz.ok && nz.columnas.map(c => c.clave).join(',') === 'por-revisar,por-hacer,por-revisar-2,hecho' && nz.columnas[0].nombre === 'Por revisar', JSON.stringify(nz));
+ok('normalizarColumnas estricto: una NUEVA llamada «Hecho» se rechaza con palabras, no con la clave', !normalizarColumnas([{ nombre: 'A' }, { clave: 'hecho', nombre: 'Cerrado' }, { nombre: 'Hecho' }]).ok && !/clave/.test(normalizarColumnas([{ nombre: 'A' }, { clave: 'hecho', nombre: 'Cerrado' }, { nombre: 'Hecho' }]).motivo));
+ok('normalizarColumnas estricto: nombre vacio es error', !normalizarColumnas([{ nombre: '' }, { clave: 'hecho', nombre: 'Hecho' }]).ok);
+ok('normalizarColumnas estricto: dos con el mismo nombre es error', !normalizarColumnas([{ nombre: 'A' }, { nombre: 'a' }, { clave: 'hecho', nombre: 'Hecho' }]).ok);
+ok('normalizarColumnas: solo hecho es error (falta una abierta); 9 es error (max 8)', !normalizarColumnas([{ clave: 'hecho', nombre: 'Hecho' }]).ok && !normalizarColumnas(Array.from({ length: 9 }, (_, i) => ({ nombre: 'C' + i }))).ok && normalizarColumnas(Array.from({ length: 7 }, (_, i) => ({ nombre: 'C' + i }))).ok);
+ok('normalizarColumnas: el nombre se recorta a 30', normalizarColumnas([{ nombre: 'x'.repeat(50) }]).columnas[0].nombre.length === 30);
+ok('nombreColumnaEn: nombre por clave, y la clave misma si no existe (huerfana)', nombreColumnaEn('en-curso', COLUMNAS_DEFAULT) === 'En curso' && nombreColumnaEn('zzz', COLUMNAS_DEFAULT) === 'zzz');
+ok('claseDeColumna por posicion: p c r r h; una clave ajena cuenta como p', ['por-hacer', 'en-curso', 'en-revision', 'hecho'].map(c => claseDeColumna(c, COLUMNAS_DEFAULT)).join('') === 'pcrh' && claseDeColumna('x', COLUMNAS_DEFAULT) === 'p' && claseDeColumna('c3', [{ clave: 'a' }, { clave: 'b' }, { clave: 'c3' }, { clave: 'hecho' }]) === 'r');
+ok('categoriaDe / enProceso: primera = por-hacer, en medio = en-proceso, hecho = hecho', categoriaDe({ Columna: 'por-hacer' }, COLUMNAS_DEFAULT) === 'por-hacer' && categoriaDe({ Columna: 'en-revision' }, COLUMNAS_DEFAULT) === 'en-proceso' && categoriaDe({ Columna: 'hecho' }, COLUMNAS_DEFAULT) === 'hecho' && enProceso({ Columna: 'en-curso' }, COLUMNAS_DEFAULT) && !enProceso({ Columna: 'por-hacer' }, COLUMNAS_DEFAULT));
+const aP = avance(del10, propias);
+ok('avance con cubetas propias: porColumna por sus claves y porCategoria suma todo (las ajenas como por-hacer)', Object.keys(aP.porColumna).join(',') === 'ideas,haciendo,hecho' && aP.porCategoria['por-hacer'] === 4 && aP.porCategoria.hecho === 1 && aP.porCategoria['en-proceso'] === 0 && aP.hechas === 1, JSON.stringify(aP.porCategoria));
+const aG = avanceGlobal(tareas, t => t.ProyectoId === 11 ? propias : COLUMNAS_DEFAULT);
+ok('avanceGlobal: categorias con las cubetas de cada proyecto', aG.total === tareas.length && aG.porCategoria.hecho === 1 && aG.porCategoria['en-proceso'] === 2 && aG.porCategoria['por-hacer'] === tareas.length - 3, JSON.stringify(aG.porCategoria));
+ok('segmentosDe: de hecho a la primera, con clase; tituloSegmentos en minusculas', segmentosDe(a).map(s => s[2]).join('') === 'hrcp' && tituloSegmentos(segmentosDe(a)) === '1 hecho · 1 en revisión · 1 en curso · 2 por hacer', tituloSegmentos(segmentosDe(a)));
+ok('segmentosGlobales: tres categorias', segmentosGlobales(aG).map(s => s[2]).join('') === 'hcp');
+ok('partesEnProceso: solo las de en medio con tarjetas', partesEnProceso(a).join(' · ') === '1 en curso · 1 en revisión' && partesEnProceso(aP).length === 0);
+ok('sinMovimiento con cubetas propias: en «haciendo» 12 dias se senala; en la primera no', sinMovimiento([{ id: 1, Columna: 'haciendo', Desde: '2026-08-30T00:00:00Z' }, { id: 2, Columna: 'ideas', Desde: '2026-08-30T00:00:00Z' }], 10, HOY, () => propias).map(t => t.id).join(',') === '1');
+ok('camposDeMovimiento con cubetas propias: acepta las suyas y rechaza las del default', camposDeMovimiento('haciendo', 'x', HOY, propias).Columna === 'haciendo' && (() => { try { camposDeMovimiento('en-curso', 'x', HOY, propias); return false; } catch (e) { return /desconocida/.test(e.message); } })());
+ok('ordenarLista por columna con cubetas propias = su posicion', ordenarLista([{ id: 1, Columna: 'hecho' }, { id: 2, Columna: 'haciendo' }, { id: 3, Columna: 'ideas' }], 'columna', 1, x => x, propias).map(t => t.id).join(',') === '3,2,1');
+
+// --- v0.3.0: filtro, orden de la lista, subir/bajar, enlaces
 const t10 = [...del10, { id: 7, ProyectoId: 10, Title: 'Revisión del plano', Columna: 'por-hacer', Asignado: 'Ana@example.invalid', Descripcion: 'con Colega' }];
 ok('filtrarTareas vacio deja pasar todo', filtrarTareas(t10, {}, HOY).length === 6);
 ok('filtrarTareas por persona ignora mayusculas', filtrarTareas(t10, { quien: 'ana@example.invalid' }, HOY).map(t => t.id).join(',') === '7');

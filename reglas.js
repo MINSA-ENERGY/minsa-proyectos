@@ -5,7 +5,94 @@
 // una decision, y eso se anota en el README.
 
 export const ROLES = ['gerencia', 'colaborador', 'lectura'];
-export const COLUMNAS = ['por-hacer', 'en-curso', 'en-revision', 'hecho'];
+
+// ---------------------------------------------------------------- cubetas (columnas) por proyecto — v0.11.0
+//
+// Hasta v0.10.0 eran cuatro fijas. Desde v0.11.0 cada proyecto trae las suyas en PROY_Proyectos.Columnas
+// (JSON: [{clave, nombre}, ...]); vacio = estas. La ULTIMA es siempre `hecho` (se puede renombrar, no
+// quitar ni mover): es la que sella HechoPor/HechoEl, la que cuenta el avance y la que saca la tarjeta de
+// Mis tareas. La PRIMERA es donde nace una tarjeta nueva. Las de en medio son «en proceso».
+export const COLUMNAS_DEFAULT = [
+    { clave: 'por-hacer', nombre: 'Por hacer' },
+    { clave: 'en-curso', nombre: 'En curso' },
+    { clave: 'en-revision', nombre: 'En revisión' },
+    { clave: 'hecho', nombre: 'Hecho' }
+];
+/** Las claves del default (lo que la app entendia hasta v0.10.0; lo usan las pruebas y el sembrado). */
+export const COLUMNAS = COLUMNAS_DEFAULT.map(c => c.clave);
+export const HECHO = 'hecho';
+export const MAX_COLUMNAS = 8, MAX_NOMBRE_COLUMNA = 30;
+
+/**
+ * Las cubetas de un proyecto: lo que trae en `Columnas` si es valido; si no, el default. Nunca lanza:
+ * un JSON roto en la lista no puede dejar el tablero en blanco. Devuelve copias (nadie muta el default).
+ */
+export function columnasDe(proyecto) {
+    let crudo = proyecto && proyecto.Columnas;
+    if (typeof crudo === 'string') { try { crudo = JSON.parse(crudo); } catch (_) { crudo = null; } }
+    const v = normalizarColumnas(crudo, { estricto: false });
+    return (v.ok ? v.columnas : COLUMNAS_DEFAULT).map(c => ({ ...c }));
+}
+
+/**
+ * Valida y normaliza una lista de cubetas (la del editor o la de la lista): nombres sin espacios sobrantes,
+ * claves unicas (una nueva se deriva del nombre con slug(); si choca, se numera), `hecho` presente y al
+ * final, minimo 2 y maximo MAX_COLUMNAS. Con `estricto` (el editor) un nombre vacio o repetido es error;
+ * sin el (lo leido de la lista) se limpia lo que se pueda y se rechaza solo lo irrecuperable.
+ */
+export function normalizarColumnas(lista, { estricto = true } = {}) {
+    if (!Array.isArray(lista) || !lista.length) return { ok: false, motivo: 'sin cubetas' };
+    const salida = []; const claves = new Set();
+    for (const c of lista) {
+        if (!c || typeof c !== 'object') { if (estricto) return { ok: false, motivo: 'cubeta inválida' }; continue; }
+        const nombre = String(c.nombre || '').trim().replace(/\s+/g, ' ').slice(0, MAX_NOMBRE_COLUMNA);
+        if (!nombre) { if (estricto) return { ok: false, motivo: 'toda cubeta necesita un nombre' }; continue; }
+        if (estricto && salida.some(x => x.nombre.toLowerCase() === nombre.toLowerCase())) return { ok: false, motivo: `dos cubetas se llaman «${nombre}»` };
+        let clave = String(c.clave || '').trim().toLowerCase();
+        if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(clave)) clave = slug(nombre).slice(0, 40) || 'cubeta';
+        // Una nueva que se llame «Hecho» chocaria con la clave fija (aunque Hecho este renombrada): se dice con palabras, no con la clave.
+        if (estricto && !c.clave && clave === HECHO) return { ok: false, motivo: 'ya hay una cubeta que cierra las tarjetas (la última); renómbrala en vez de agregar otra' };
+        if (claves.has(clave)) { if (estricto && c.clave) return { ok: false, motivo: `clave repetida: ${clave}` }; let n = 2; while (claves.has(`${clave}-${n}`)) n++; clave = `${clave}-${n}`; }
+        claves.add(clave); salida.push({ clave, nombre });
+    }
+    const iH = salida.findIndex(c => c.clave === HECHO);
+    if (iH < 0) salida.push({ clave: HECHO, nombre: 'Hecho' });
+    else if (iH !== salida.length - 1) salida.push(...salida.splice(iH, 1));   // hecho siempre al final
+    if (salida.length < 2) return { ok: false, motivo: 'hacen falta al menos una cubeta abierta y «Hecho»' };
+    if (salida.length > MAX_COLUMNAS) return { ok: false, motivo: `máximo ${MAX_COLUMNAS} cubetas` };
+    return { ok: true, columnas: salida };
+}
+
+/** Nombre visible de una clave en unas columnas (la clave misma si ya no existe: una tarjeta huerfana). */
+export function nombreColumnaEn(clave, columnas) { const c = (columnas || []).find(x => x.clave === clave); return c ? c.nombre : String(clave || ''); }
+
+/**
+ * Clase de color de una cubeta por su POSICION, no por su nombre (los graficos y los puntos de color):
+ * 'p' la primera (por hacer, gris) · 'h' hecho (verde) · 'c' la segunda (en curso, marca) · 'r' las demas
+ * de en medio (celeste). Una clave que no esta en las columnas cuenta como primera.
+ */
+export function claseDeColumna(clave, columnas) {
+    if (clave === HECHO) return 'h';
+    const i = (columnas || []).findIndex(c => c.clave === clave);
+    return i <= 0 ? 'p' : i === 1 ? 'c' : 'r';
+}
+/** Categoria de una tarjeta para sumar ENTRE proyectos con cubetas distintas: 'por-hacer' (primera) · 'en-proceso' (en medio) · 'hecho'. */
+export function categoriaDe(tarea, columnas) {
+    if (!tarea || tarea.Columna === HECHO) return HECHO;
+    const i = (columnas || []).findIndex(c => c.clave === tarea.Columna);
+    return i <= 0 ? 'por-hacer' : 'en-proceso';
+}
+/** Una tarjeta esta «en proceso» (ni en la primera cubeta ni hecha): base de «sin movimiento». */
+export function enProceso(tarea, columnas) { return categoriaDe(tarea, columnas) === 'en-proceso'; }
+
+/** Segmentos de la barra/anillo de UN proyecto, de Hecho a la primera (el orden visual de siempre): [cubeta, n, clase]. */
+export function segmentosDe(a) { return [...a.columnas].reverse().map(c => [c, a.porColumna[c.clave] || 0, claseDeColumna(c.clave, a.columnas)]); }
+/** Segmentos de un avance GLOBAL (avanceGlobal): tres categorias con los mismos colores. */
+export function segmentosGlobales(a) { return [[{ nombre: 'Hechas' }, a.porCategoria.hecho, 'h'], [{ nombre: 'En proceso' }, a.porCategoria['en-proceso'], 'c'], [{ nombre: 'Por hacer' }, a.porCategoria['por-hacer'], 'p']]; }
+/** «3 hechas · 1 en revisión · 2 en curso · 4 por hacer» (el title de la barra). */
+export function tituloSegmentos(segs) { return segs.map(([c, n]) => `${n} ${c.nombre.toLowerCase()}`).join(' · '); }
+/** Las cubetas de EN MEDIO con tarjetas, como «3 en curso · 1 en revisión» (renglon de proyecto). */
+export function partesEnProceso(a) { return a.columnas.slice(1, -1).filter(c => a.porColumna[c.clave]).map(c => `${a.porColumna[c.clave]} ${c.nombre.toLowerCase()}`); }
 
 /** Rol de un correo segun PROY_Roles. Sin renglon (o inactivo) = lectura. */
 export function rolDe(correo, roles) {
@@ -75,14 +162,29 @@ export function tareasDe(proyecto, tareas) {
     return (tareas || []).filter(t => Number(t.ProyectoId) === id);
 }
 
-/** {hechas, total, pct, porColumna} de un conjunto de tareas. */
-export function avance(tareas) {
+/**
+ * {hechas, total, pct, porColumna, porCategoria, columnas} de las tareas de UN proyecto: `columnas` son
+ * sus cubetas (default si no se pasan). Una tarjeta cuya cubeta ya no existe cuenta en porCategoria como
+ * «por-hacer» y no en porColumna (el tablero la ensena aparte).
+ */
+export function avance(tareas, columnas = COLUMNAS_DEFAULT) {
     const ts = tareas || [];
-    const porColumna = {};
-    for (const c of COLUMNAS) porColumna[c] = 0;
-    for (const t of ts) if (porColumna[t.Columna] !== undefined) porColumna[t.Columna]++;
-    const hechas = porColumna.hecho;
-    return { hechas, total: ts.length, pct: ts.length ? Math.round(hechas * 100 / ts.length) : 0, porColumna };
+    const porColumna = {}; const porCategoria = { 'por-hacer': 0, 'en-proceso': 0, hecho: 0 };
+    for (const c of columnas) porColumna[c.clave] = 0;
+    for (const t of ts) { if (porColumna[t.Columna] !== undefined) porColumna[t.Columna]++; porCategoria[categoriaDe(t, columnas)]++; }
+    const hechas = porCategoria.hecho;
+    return { hechas, total: ts.length, pct: ts.length ? Math.round(hechas * 100 / ts.length) : 0, porColumna, porCategoria, columnas };
+}
+/**
+ * Avance de tareas de VARIOS proyectos (Inicio, Roadmap, Reportes), donde cada uno trae sus cubetas:
+ * solo suma por categoria. `columnasDeTarea(t)` da las cubetas del proyecto de esa tarjeta.
+ */
+export function avanceGlobal(tareas, columnasDeTarea) {
+    const ts = tareas || [];
+    const porCategoria = { 'por-hacer': 0, 'en-proceso': 0, hecho: 0 };
+    for (const t of ts) porCategoria[categoriaDe(t, columnasDeTarea(t))]++;
+    const hechas = porCategoria.hecho;
+    return { hechas, total: ts.length, pct: ts.length ? Math.round(hechas * 100 / ts.length) : 0, porCategoria };
 }
 
 /**
@@ -108,13 +210,14 @@ export function estadoVence(tarea, pronto = 7, hoy = new Date()) {
 }
 
 /**
- * Tarjetas en «en-curso» que llevan `dias` o mas sin moverse (columna Desde). Es el aviso
- * contra el muerto de `tareas-delegadas`: una tarjeta que nadie mueve se ve en Inicio.
- * Sin `Desde` no se puede saber y no se senala (hacia el «no», que aqui es lo seguro).
+ * Tarjetas EN PROCESO (ni en la primera cubeta ni hechas; hasta v0.10.0, solo «en-curso») que llevan
+ * `dias` o mas sin moverse (columna Desde). Es el aviso contra el muerto de `tareas-delegadas`: una
+ * tarjeta que nadie mueve se ve en Inicio. Sin `Desde` no se puede saber y no se senala (hacia el «no»,
+ * que aqui es lo seguro). `columnasDeTarea(t)` da las cubetas del proyecto de esa tarjeta.
  */
-export function sinMovimiento(tareas, dias, hoy = new Date()) {
+export function sinMovimiento(tareas, dias, hoy = new Date(), columnasDeTarea = () => COLUMNAS_DEFAULT) {
     return (tareas || []).filter(t => {
-        if (t.Columna !== 'en-curso' || !t.Desde) return false;
+        if (!enProceso(t, columnasDeTarea(t)) || !t.Desde) return false;
         const d = diasPara(t.Desde, hoy);
         return d !== null && -d >= dias;
     });
@@ -128,12 +231,6 @@ export function ordenar(tareas) {
         || ((peso[a.Prioridad] ?? 1) - (peso[b.Prioridad] ?? 1))
         || String(a.Vence || '9').localeCompare(String(b.Vence || '9'))
         || (Number(a.id) - Number(b.id)));
-}
-
-/** La columna que sigue a `columna` (U7, «→ siguiente»), o null en la ultima. */
-export function columnaSiguiente(columna) {
-    const i = COLUMNAS.indexOf(columna);
-    return i >= 0 && i < COLUMNAS.length - 1 ? COLUMNAS[i + 1] : null;
 }
 
 /** Minusculas y sin acentos: lo que compara todo buscador de la app (C3, v0.6.0: tambien Proyectos y Mis tareas). */
@@ -183,17 +280,18 @@ export function filtrarProyectos(proyectos, texto) {
 }
 
 /**
- * Orden de la Lista por columna (F10): `col` = tarea | asignado | columna | vence | origen;
- * `dir` = 1 asc, -1 desc. La columna del tablero ordena por su posicion, no alfabeticamente;
- * sin fecha va al final en las dos direcciones. `nombre(correo)` pinta el asignado como se ve.
+ * Orden de la Lista por columna (F10): `col` = tarea | asignado | columna | vence; `dir` = 1 asc,
+ * -1 desc. La columna del tablero ordena por su posicion en las cubetas del proyecto (`columnas`),
+ * no alfabeticamente; sin fecha va al final en las dos direcciones. `nombre(correo)` pinta el
+ * asignado como se ve. (v0.11.0: «origen» salio de la Lista.)
  */
-export function ordenarLista(tareas, col = 'vence', dir = 1, nombre = x => x) {
+export function ordenarLista(tareas, col = 'vence', dir = 1, nombre = x => x, columnas = COLUMNAS_DEFAULT) {
+    const claves = columnas.map(c => c.clave);
     const llave = {
         tarea: t => String(t.Title || '').toLowerCase(),
         asignado: t => t.Asignado ? String(nombre(t.Asignado)).toLowerCase() : null,
-        columna: t => COLUMNAS.indexOf(t.Columna),
-        vence: t => t.Vence ? String(t.Vence) : null,
-        origen: t => String(t.Origen || '').toLowerCase()
+        columna: t => claves.indexOf(t.Columna),
+        vence: t => t.Vence ? String(t.Vence) : null
     }[col] || (t => t.id);
     return [...(tareas || [])].sort((a, b) => {
         const x = llave(a), y = llave(b);
@@ -231,14 +329,15 @@ export function validarUrl(texto) {
 }
 
 /**
- * Que campos cambian al mover una tarea a `columna`. Al entrar a hecho se sella HechoPor/HechoEl;
- * al salir se limpia (null borra la celda en Graph). `Desde` se reescribe siempre.
+ * Que campos cambian al mover una tarea a `columna` (una de las cubetas del proyecto, `columnas`).
+ * Al entrar a hecho se sella HechoPor/HechoEl; al salir se limpia (null borra la celda en Graph).
+ * `Desde` se reescribe siempre.
  */
-export function camposDeMovimiento(columna, quien, ahora = new Date()) {
-    if (!COLUMNAS.includes(columna)) throw new Error(`columna desconocida: ${columna}`);
+export function camposDeMovimiento(columna, quien, ahora = new Date(), columnas = COLUMNAS_DEFAULT) {
+    if (!columnas.some(c => c.clave === columna)) throw new Error(`columna desconocida: ${columna}`);
     const iso = ahora.toISOString();
     const c = { Columna: columna, Desde: iso };
-    if (columna === 'hecho') { c.HechoPor = quien; c.HechoEl = iso; }
+    if (columna === HECHO) { c.HechoPor = quien; c.HechoEl = iso; }
     else { c.HechoPor = null; c.HechoEl = null; }
     return c;
 }

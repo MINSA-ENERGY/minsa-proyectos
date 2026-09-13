@@ -14,8 +14,8 @@
 
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
-import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones } from './comun.js';
+import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, tituloSegmentos, partesEnProceso } from './reglas.js';
+import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
@@ -182,7 +182,7 @@ async function recargar() {
 // Refresco automatico mientras la app esta a la vista; nunca borra un dialogo de EDICION abierto.
 // E4 (v0.6.0): Equipo y Toda la actividad son de lectura y alguien los deja abiertos minutos; con
 // ellos abiertos se sigue releyendo, y al cerrarlos se relee si ya pasaron 60 s (la regla de visibilitychange).
-const DLG_EDICION = ['dlgTarea', 'dlgNuevaTarea', 'dlgProyecto', 'dlgLigar', 'dlgSubir', 'dlgEnlace', 'dlg'];
+const DLG_EDICION = ['dlgTarea', 'dlgNuevaTarea', 'dlgProyecto', 'dlgCubetas', 'dlgLigar', 'dlgSubir', 'dlgEnlace', 'dlg'];
 const editando = () => DLG_EDICION.some(id => $(id).open);
 const rancio = () => estado.siteId && Date.now() - estado.cargadoEl > 60000;
 if (CONFIG.refrescoMs > 0 && new URLSearchParams(location.search).get('refresco') !== '0') {
@@ -248,7 +248,7 @@ window.addEventListener('hashchange', aplicarHash);   // una URL pegada o editad
 function fijarProyectoAbierto(p) {
     if (!estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id) {
         estado.filtroTareas = { quien: null, alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = '';
-        estado.colMovil = 'por-hacer'; estado.ordenLista = { col: 'vence', dir: 1 };
+        estado.colMovil = null; estado.ordenLista = { col: 'vence', dir: 1 };   // v0.11.0: null = la primera cubeta del proyecto
         estado.hechoTodas = false; estado.filtroDocs = null;
     }
     estado.proyectoAbierto = p;
@@ -337,7 +337,7 @@ function chipReloj(p, ts) {
  * porque la E2E y el driver de capturas los usan.
  */
 function renglonProyecto(p) {
-    const ts = tareasDe(p, estado.tareas); const a = avance(ts); const eq = equipoDe(p);
+    const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p)); const eq = equipoDe(p);
     const d = p.Estado === 'activo' ? diasPara(p.Vence) : null;
     const k = p.Estado !== 'activo' ? 'cerrado' : d === null ? 'idle' : d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : 'info';
     const r = el('button', 'renglon is-' + k); r.type = 'button'; r.dataset.open = String(p.id);
@@ -352,9 +352,7 @@ function renglonProyecto(p) {
     // cuerpo
     const cuerpo = el('span', 'cuerpo');
     cuerpo.appendChild(el('span', 't', p.Title));
-    const partes = [`${a.hechas}/${a.total} hechas`];
-    if (a.porColumna['en-curso']) partes.push(`${a.porColumna['en-curso']} en curso`);
-    if (a.porColumna['en-revision']) partes.push(`${a.porColumna['en-revision']} en revisión`);
+    const partes = [`${a.hechas}/${a.total} hechas`, ...partesEnProceso(a)];   // v0.11.0: una parte por cubeta de en medio con tarjetas
     const [sig] = proximos(ts, 1);
     if (sig && p.Estado === 'activo') partes.push(`sigue: ${sig.tarea.Title}${sig.dias < 0 ? ` · ${-sig.dias} d tarde` : ` · ${sig.dias} d`}`);
     if (p.Estado === 'cerrado') partes.push(`cerrado ${fechaCorta(p.CerradoEl)}`);
@@ -369,8 +367,8 @@ function renglonProyecto(p) {
     const quienes = [...new Set(ts.map(x => String(x.Asignado || '').toLowerCase()).filter(Boolean))];
     const avs = el('span', 'avs'); for (const q of quienes.slice(0, 6)) avs.appendChild(avatar(q)); chips.appendChild(avs);
     lado.appendChild(chips);
-    const barra = el('span', 'segbar'); barra.title = `${a.hechas} hechas · ${a.porColumna['en-revision']} en revisión · ${a.porColumna['en-curso']} en curso · ${a.porColumna['por-hacer']} por hacer`;
-    for (const [col, cls] of [['hecho', 'h'], ['en-revision', 'r'], ['en-curso', 'c'], ['por-hacer', 'p']]) { const i = el('i', cls); i.style.flex = String(a.porColumna[col] || 0); barra.appendChild(i); }
+    const barra = el('span', 'segbar'); barra.title = tituloSegmentos(segmentosDe(a));
+    for (const [c, n, cls] of segmentosDe(a)) { const i = el('i', cls); i.style.flex = String(n); i.title = `${c.nombre}: ${n}`; barra.appendChild(i); }
     if (!a.total) { const i = el('i', 'p'); i.style.flex = '1'; barra.appendChild(i); }
     lado.appendChild(barra);
     r.appendChild(lado);
@@ -473,15 +471,16 @@ function pintarInicio() {
     for (const { tarea: t, dias } of proximos(abiertas, 6)) { const p = porId(estado.proyectos, t.ProyectoId); v.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', fechaCorta(t.Vence), dias < 0 ? 'danger' : dias <= CONFIG.vencePronto ? 'warn' : null, abrirT(t))); }
     if (!v.childNodes.length) v.appendChild(el('p', 'vacio', 'Nada por vencer.'));
     const sm = $('inicioSinMov'); sm.textContent = '';
-    const quietas = sinMovimiento(abiertas, CONFIG.sinMovimientoDias);
+    const quietas = sinMovimiento(abiertas, CONFIG.sinMovimientoDias, new Date(), columnasDeTarea);
     for (const t of quietas.slice(0, 6)) { const p = porId(estado.proyectos, t.ProyectoId); sm.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', `${-diasPara(t.Desde)} d`, 'warn', abrirT(t))); }
     $('cardSinMov').classList.toggle('oculto', quietas.length === 0);
     const act = $('inicioActividad'); act.textContent = '';
     // B3: en celular Inicio media 2,400 px; la actividad baja a 3 renglones (5 en escritorio).
     const tope = enCelular.matches ? 3 : 5;
-    for (const a of estado.actividad.slice(0, tope)) act.appendChild(itemActividad(a, true));   // C9
-    if (!estado.actividad.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
-    $('btnActividadInicio').hidden = estado.actividad.length <= tope;
+    const visible = actividadVisible();   // v0.11.0: sin movimientos entre cubetas
+    for (const a of visible.slice(0, tope)) act.appendChild(itemActividad(a, true));   // C9
+    if (!visible.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
+    $('btnActividadInicio').hidden = visible.length <= tope;
 }
 
 // ---------------------------------------------------------------- toda la actividad (F12) y el equipo (F13)
@@ -495,11 +494,12 @@ function abrirActividad(proyectoId) {
     pintarActividad();
     abrirDialogo('dlgActividad');
 }
-// C9: la bitacora del sistema («creó el proyecto», «reabrió», «borró») pesa igual que las notas y los
-// movimientos, que es lo que la gente busca. Dos chips los separan; «Todos» sigue siendo el default.
-const TIPOS_ACTIVIDAD = [['notas', 'solo comentarios', a => a.Accion === 'comentar'], ['movimientos', 'solo movimientos', a => a.Accion === 'mover-tarea']];
+// C9: la bitacora del sistema («creó el proyecto», «reabrió», «borró») pesa igual que las notas, que es
+// lo que la gente busca: un chip las separa; «Todos» sigue siendo el default. v0.11.0: los movimientos
+// entre cubetas ya no se listan (Carlos, 12-sep), asi que el chip «solo movimientos» se fue con ellos.
+const TIPOS_ACTIVIDAD = [['notas', 'solo comentarios', a => a.Accion === 'comentar']];
 function pintarActividad() {
-    const todas = estado.actividad.filter(a => !acCtx.proyectoId || Number(a.ProyectoId) === acCtx.proyectoId);
+    const todas = actividadVisible().filter(a => !acCtx.proyectoId || Number(a.ProyectoId) === acCtx.proyectoId);
     const quienes = [...new Set(todas.map(a => String(a.Quien || '').toLowerCase()).filter(Boolean))].sort();
     const f = $('acFiltro'); f.textContent = '';
     const chipQ = (texto, q) => { const b = boton(texto, acCtx.quien === q ? 'is-on' : '', () => { acCtx.quien = q; acCtx.n = 50; pintarActividad(); }, { quien: q || 'todos' }); b.setAttribute('aria-pressed', acCtx.quien === q ? 'true' : 'false'); f.appendChild(b); };
@@ -581,11 +581,12 @@ function pintarProyecto() {
     // hash #p/<clave>/resumen abierto en la laptop —o girar el telefono a horizontal— dejaba el
     // panel en BLANCO y sin pestaña marcada, porque el boton para salir es .solo-movil.
     if (estado.tab === 'resumen' && !enCelular.matches) estado.tab = 'tablero';
-    const eq = equipoDe(p); const ts = tareasDe(p, estado.tareas); const a = avance(ts);
+    const eq = equipoDe(p); const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p));
     $('pEquipo').textContent = ''; $('pEquipo').appendChild(iconoEquipo(eq, 'lg'));   // v0.7.0: icono, no nombre
     $('pTitulo').textContent = p.Title; $('pDesc').textContent = p.Descripcion || '';
     $('pPct').textContent = `${a.hechas}/${a.total} hechas · ${a.pct}%${p.Estado === 'cerrado' ? ' · CERRADO' : ''}`;
     $('btnEditarProyecto').disabled = !PUEDE.proyecto(estado.rol) || p.Estado !== 'activo';
+    $('btnCubetas').disabled = !PUEDE.proyecto(estado.rol) || p.Estado !== 'activo';   // v0.11.0
     $('btnCerrarProyecto').disabled = !PUEDE.proyecto(estado.rol) || p.Estado !== 'activo';
     const faltan = ts.filter(t => t.Columna !== 'hecho').length;
     $('btnCerrarProyecto').textContent = p.Estado !== 'activo' ? 'Cerrado' : faltan ? `Cerrar proyecto · faltan ${faltan}` : 'Cerrar proyecto';
@@ -598,7 +599,8 @@ function pintarProyecto() {
     // existe (≤ 7 d o vencido), la linea-resumen de celular NO repite el reloj.
     const caja = $('pReloj'); caja.textContent = '';
     const reloj = chipReloj(p, ts); if (reloj) caja.appendChild(reloj);
-    const resumen = [`${a.porColumna['en-curso']} en curso`, `${a.porColumna['en-revision']} en revisión`];
+    // v0.11.0: una parte por cubeta de en medio (con o sin tarjetas: la linea dice que cubetas hay).
+    const resumen = a.columnas.slice(1, -1).map(c => `${a.porColumna[c.clave]} ${c.nombre.toLowerCase()}`);
     if (dias !== null && p.Estado === 'activo' && !reloj) resumen.push(`vence en ${dias} d`);
     $('pResumen').textContent = resumen.join(' · ');
     $('pResumen').classList.remove('is-danger');
@@ -630,10 +632,10 @@ function pintarProyecto() {
     else if (estado.tab === 'chat') pintarChat(p);
     // lateral
     $('pBarra').style.width = a.pct + '%';
-    $('pAnillo').textContent = ''; $('pAnillo').appendChild(anillo(a.porColumna, a.total, 96));   // v0.10.0: el anillo de la foto
+    $('pAnillo').textContent = ''; $('pAnillo').appendChild(anillo(segmentosDe(a), a.total, 96));   // v0.10.0: el anillo de la foto; v0.11.0: por cubeta del proyecto
     const kv = $('pAvance'); kv.textContent = '';
     const par = (k, v) => { kv.appendChild(el('b', '', k)); kv.appendChild(el('span', '', v)); };
-    par('Hechas', `${a.hechas} de ${a.total}`); par('En curso', String(a.porColumna['en-curso'])); par('En revisión', String(a.porColumna['en-revision']));
+    par('Hechas', `${a.hechas} de ${a.total}`); for (const c of a.columnas.slice(1, -1)) par(c.nombre, String(a.porColumna[c.clave]));
     par('Fin del frente', fechaCorta(p.Vence)); par('Responsable', p.Responsable ? nombreDe(p.Responsable, estado.roles) : '—'); par('Clave', p.Clave);
     if (p.Carpeta) par('Carpeta', p.Carpeta);
     if (p.Estado === 'cerrado') par('Cerrado', `${nombreDe(p.CerradoPor, estado.roles)} · ${fechaCorta(p.CerradoEl)}`);
@@ -645,7 +647,7 @@ function pintarProyecto() {
     for (const { tarea: t, dias } of proximos(ts, 5)) v.appendChild(itemMini(t.Asignado, t.Title, '', fechaCorta(t.Vence), dias < 0 ? 'danger' : dias <= CONFIG.vencePronto ? 'warn' : null, () => irAHash(`#p/${p.Clave}/t/${t.id}`)));   // C9
     if (!v.childNodes.length) v.appendChild(el('p', 'vacio', 'Nada por vencer.'));
     const act = $('pActividad'); act.textContent = '';
-    const deP = estado.actividad.filter(x => Number(x.ProyectoId) === p.id);
+    const deP = actividadVisible().filter(x => Number(x.ProyectoId) === p.id);   // v0.11.0: sin movimientos
     for (const x of deP.slice(0, 6)) act.appendChild(itemActividad(x, false));   // C9
     if (!act.childNodes.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
     $('btnActividadProyecto').hidden = deP.length <= 6;

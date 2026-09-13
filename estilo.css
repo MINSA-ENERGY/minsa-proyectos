@@ -217,7 +217,7 @@
 .doc .t .mn-chip { margin-right: var(--sp-1); vertical-align: middle; }
 /* U11: imprimir = lo que hay en pantalla, sin cromo. Ctrl+P o el boton «Imprimir». */
 @media print {
-  .mn-rail, .barra-movil, .sync, #avisos, #sinRed, .tabs, .filtros, .col-tabs, .proyecto-cab .acciones, .lateral, .sig, .col .mas, .ver-toda, .pie, .tema, #btnVolver, .docs-acciones { display: none !important; }
+  .mn-rail, .barra-movil, .sync, #avisos, #sinRed, .tabs, .filtros, .col-tabs, .proyecto-cab .acciones, .lateral, .col .mas, .ver-toda, .pie, .tema, #btnVolver, .docs-acciones { display: none !important; }
   body { background: #fff; color: #000; }
   .contenido { padding: 0; }
   .mn-shell { display: block; }
@@ -241,7 +241,7 @@
 .mensaje .accion { border: 1px solid currentColor; background: transparent; color: inherit; font: inherit; font-size: .82rem; font-weight: 600; border-radius: var(--r-sm); padding: 0 var(--sp-2); min-height: 28px; cursor: pointer; white-space: nowrap; }
 /* T2: sin red se ve, no se guarda. La banda va arriba del contenido; el cuerpo lleva .sin-red y apaga lo que escribe. */
 .sin-red-banda { background: var(--status-warn-bg); color: var(--status-warn-fg); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); font-size: .85rem; font-weight: 600; margin-bottom: var(--sp-3); }
-.sin-red .mn-btn.is-primary, .sin-red #tMover button, .sin-red #tOrden button, .sin-red .sig, .sin-red #tAnotar, .sin-red [data-quitar], .sin-red [data-buscar], .sin-red [data-ligar], .sin-red [data-subir], .sin-red [data-enlace], .sin-red [data-tarjeta-de], .sin-red #btnCerrarProyecto, .sin-red #btnReabrirProyecto, .sin-red #btnEditarProyecto, .sin-red #btnLigar, .sin-red #btnSubir, .sin-red #btnEnlace { opacity: .5; pointer-events: none; }
+.sin-red .mn-btn.is-primary, .sin-red #tMover button, .sin-red #tOrden button, .sin-red #btnCubetas, .sin-red #tAnotar, .sin-red [data-quitar], .sin-red [data-buscar], .sin-red [data-ligar], .sin-red [data-subir], .sin-red [data-enlace], .sin-red [data-tarjeta-de], .sin-red #btnCerrarProyecto, .sin-red #btnReabrirProyecto, .sin-red #btnEditarProyecto, .sin-red #btnLigar, .sin-red #btnSubir, .sin-red #btnEnlace { opacity: .5; pointer-events: none; }
 @media (max-width: 720px) { #avisos { bottom: calc(var(--sp-7) + 16px + env(safe-area-inset-bottom)); } }
 .dlg-avisos:empty { display: none; }
 .dlg-avisos { margin-bottom: var(--sp-3); }
@@ -408,12 +408,9 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tabla td.col-p .p-alta { display: block; width: 3px; height: 1.2em; border-radius: 2px; background: var(--brand-primary); }
 .tarjeta .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; line-height: 1.3; }
 .tarjeta .f { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; font-size: .75rem; color: var(--text-muted); }
-.tarjeta .src { font-family: var(--font-data); font-size: .68rem; color: var(--text-faint); word-break: break-all; }
 .tarjeta .stale { color: var(--status-warn-fg); font-weight: 600; }
-/* U7: la tarjeta (un <button>) y su accion rapida «→ siguiente» son hermanos: un boton no puede anidar otro. */
+/* La caja de la tarjeta se conserva (Mis tareas y la E2E la usan); desde v0.11.0 ya no lleva el atajo «→ siguiente». */
 .tarjeta-caja { display: grid; gap: 2px; min-width: 0; }
-/* Auditoria #8: «→ siguiente» y «ver las N anteriores» son .mn-btn.is-ghost.is-sm (antes 24 y 27 px, .74/.78rem). */
-.tarjeta-caja .sig { justify-self: end; align-self: start; }   /* align-self: en .urgente la rejilla lo estiraba a 41 px */
 
 /* ---- Mis tareas: lo urgente arriba (U4) */
 .urgentes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(260px, 100%), 1fr)); gap: var(--sp-2); }
@@ -430,7 +427,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tabla table { border-collapse: collapse; width: 100%; font-size: .85rem; }
 .tabla th { text-align: left; font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; font-weight: 600; text-transform: uppercase; color: var(--text-muted); padding: var(--sp-2); border-bottom: 1px solid var(--border-hairline); }
 .tabla td { padding: var(--sp-2); border-bottom: 1px solid var(--border-hairline); vertical-align: top; }
-.tabla td.src { font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); }
 .tabla tr.clic { cursor: pointer; }
 .tabla tr.clic:hover td { background: var(--surface-hover); }
 /* F10: ordenar por columna */
@@ -461,7 +457,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* ---- dialogo de tarjeta */
 .kv { display: grid; grid-template-columns: 110px 1fr; gap: var(--sp-1) var(--sp-3); font-size: .85rem; margin-bottom: var(--sp-3); }
 .kv b { color: var(--text-muted); font-weight: 500; }
-.kv .src { font-family: var(--font-data); font-size: .75rem; word-break: break-all; }
 .mover { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-2); margin: var(--sp-1) 0 var(--sp-3); }
 .mover .mn-btn.is-here { background: var(--surface-selected); border-color: var(--brand-primary); color: var(--brand-primary); }
 .orden { display: flex; gap: var(--sp-2); align-items: center; margin: 0 0 var(--sp-3); font-size: .8rem; color: var(--text-muted); }
@@ -567,7 +562,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .doc .estado, .doc .tarjeta-de { justify-content: flex-start; }
   .doc .tarjeta-de select { flex: 1; min-width: 0; }
   /* B7: «Origen en la KB» lo trae 1 de 17 tarjetas y se comia una columna de la Lista */
-  .tabla .col-origen { display: none; }
   /* ---- v0.6.0 ---- */
   /* B3: Inicio media 2,400 px a 390 px; los 4 KPI en 2 x 2 ocupaban 370. Una fila de «mini»
      (numero + etiqueta a 2 lineas); el 5.o («sin dueño», solo si hay) cae a la fila de abajo. */
@@ -632,9 +626,27 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .insig svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 /* ---- punto de color en la cabecera de cada columna = la barra segmentada de la lista de proyectos (misma leyenda). */
 .col h3 .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--border-default); flex: none; }
-.col[data-col="en-curso"] h3 .punto { background: var(--brand-primary); }
-.col[data-col="en-revision"] h3 .punto { background: var(--status-info-solid); }
-.col[data-col="hecho"] h3 .punto { background: var(--status-ok-solid); }
+/* v0.11.0: el color va por POSICION de la cubeta (data-cls: p primera · c segunda · r demas · h hecho), no por su nombre. */
+.col[data-cls="c"] h3 .punto { background: var(--brand-primary); }
+.col[data-cls="r"] h3 .punto { background: var(--status-info-solid); }
+.col[data-cls="h"] h3 .punto { background: var(--status-ok-solid); }
+/* Cubeta huerfana (una tarjeta quedo en una cubeta que ya no existe): se ve, marcada, hasta que alguien la mueva. */
+.col.is-huerfana { outline: 1px dashed var(--status-warn-fg); outline-offset: -1px; }
+.col.is-huerfana h3 .punto { background: var(--status-warn-fg); }
+/* Mas de 4 cubetas (hasta 8): la rejilla las reparte a lo ancho y scrollea si no caben. */
+.tablero[data-n="5"] { grid-template-columns: repeat(5, minmax(160px, 1fr)); }
+.tablero[data-n="6"] { grid-template-columns: repeat(6, minmax(150px, 1fr)); }
+.tablero[data-n="7"] { grid-template-columns: repeat(7, minmax(150px, 1fr)); }
+.tablero[data-n="8"] { grid-template-columns: repeat(8, minmax(150px, 1fr)); }
+/* ---- editor de cubetas (v0.11.0) */
+.cubetas { display: grid; gap: var(--sp-2); margin-bottom: var(--sp-2); }
+.cubeta { display: grid; grid-template-columns: 8px 1fr auto auto auto auto; gap: var(--sp-2); align-items: center; }
+.cubeta .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--border-default); }
+.cubeta .punto.is-c { background: var(--brand-primary); } .cubeta .punto.is-r { background: var(--status-info-solid); } .cubeta .punto.is-h { background: var(--status-ok-solid); }
+.cubeta input { min-width: 0; }
+.cubeta .n { font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); white-space: nowrap; }
+/* En celular la cuenta baja a un segundo renglon; el nombre y los tres botones se quedan en el primero. */
+@media (max-width: 720px) { .cubeta { grid-template-columns: 8px 1fr auto auto auto; row-gap: 2px; } .cubeta .n { grid-column: 2 / -1; grid-row: 2; } }
 /* ---- contador en la pestana (Documentos · N, Chat · N) */
 .tab .n { margin-left: 6px; font-family: var(--font-data); font-size: .7rem; font-weight: 500; padding: 1px 6px; border-radius: var(--r-pill); background: var(--surface-sunken); color: var(--text-muted); }
 .tab.is-on .n { background: var(--surface-selected); color: var(--brand-primary); }
@@ -743,7 +755,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .g-grupo { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--text-muted); }
 .g-grupo .n { font-family: var(--font-data); font-weight: 500; color: var(--text-faint); }
 .g-grupo .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--border-default); }
-.g-grupo .punto.is-en-curso { background: var(--brand-primary); } .g-grupo .punto.is-en-revision { background: var(--status-info-solid); } .g-grupo .punto.is-hecho { background: var(--status-ok-solid); }
+.g-grupo .punto.is-c { background: var(--brand-primary); } .g-grupo .punto.is-r { background: var(--status-info-solid); } .g-grupo .punto.is-h { background: var(--status-ok-solid); }   /* v0.11.0: por posicion de la cubeta */
 .g-tarea, .g-proy { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; width: 100%; min-height: 36px; padding: 2px 4px; border: 0; border-radius: var(--r-sm); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .g-tarea:hover, .g-proy:hover { background: var(--surface-hover); }
 .g-tarea .t, .g-proy .t { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }

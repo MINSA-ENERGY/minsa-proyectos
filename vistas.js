@@ -6,14 +6,15 @@
 // graficos son SVG por DOM o cajas con ancho en %.
 
 import { CONFIG } from './config.js';
-import { tareasDe, avance, estadoVence, diasPara, nombreDe, sinDueno, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre } from './reglas.js';
-import { $, estado, el, boton, avatar, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, mencionesA } from './comun.js';
+import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, sinDueno, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, enProceso, segmentosDe, segmentosGlobales, tituloSegmentos } from './reglas.js';
+import { $, estado, el, boton, avatar, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, mencionesA, columnasDeTarea } from './comun.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const DIAS_CORTOS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
-const COLS = [['hecho', 'h', 'Hechas'], ['en-revision', 'r', 'En revisión'], ['en-curso', 'c', 'En curso'], ['por-hacer', 'p', 'Por hacer']];
+// v0.11.0: ya no hay una lista fija de columnas; los graficos de UN proyecto van por sus cubetas
+// (segmentosDe) y los globales por tres categorias (segmentosGlobales), con los mismos colores por clase.
 const hoyDia = () => diaDe(new Date());
 const activos = () => estado.proyectos.filter(p => p.Estado === 'activo');
 const nombreMes = mes => `${MESES[+mes.slice(5, 7) - 1]} ${mes.slice(0, 4)}`;
@@ -73,7 +74,8 @@ function etiquetaTarea(t) {
     b.addEventListener('click', () => irTarjeta(t, 'roadmap'));
     return b;
 }
-const claseVence = t => t.Columna === 'hecho' ? 'ok' : estadoVence(t, CONFIG.vencePronto) === 'danger' ? 'danger' : t.Columna === 'en-revision' ? 'info' : t.Columna === 'en-curso' ? 'brand' : 'idle';
+const CLASE_BARRA = { h: 'ok', r: 'info', c: 'brand', p: 'idle' };
+const claseVence = t => t.Columna === 'hecho' ? 'ok' : estadoVence(t, CONFIG.vencePronto) === 'danger' ? 'danger' : CLASE_BARRA[claseDeColumna(t.Columna, columnasDeTarea(t))];
 
 /**
  * Roadmap del proyecto (pestana «Roadmap», #p/<clave>/roadmap): un carril por columna con sus
@@ -85,11 +87,13 @@ export function pintarRoadmapProyecto(p) {
     const ts = tareasDe(p, estado.tareas);
     const lapsos = ts.map(lapsoTarea); const lp = lapsoProyecto(p, estado.tareas);
     const rango = rangoRoadmap([...lapsos, lp], new Date());
-    const filas = [];
-    for (const [col, , nombre] of [...COLS].reverse()) {
+    const filas = []; const cols = columnasDe(p);
+    // v0.11.0: un carril por cubeta del proyecto (mas las huerfanas), en el orden del tablero.
+    const carriles = [...cols]; for (const t of ts) if (!carriles.some(c => c.clave === t.Columna)) carriles.push({ clave: t.Columna, nombre: t.Columna });
+    for (const { clave: col, nombre } of carriles) {
         const de = ts.filter(t => t.Columna === col);
         if (!de.length) continue;
-        const cab = el('span', 'g-grupo'); cab.appendChild(el('i', 'punto is-' + col)); cab.appendChild(el('b', '', nombre)); cab.appendChild(el('span', 'n', String(de.length)));
+        const cab = el('span', 'g-grupo'); cab.appendChild(el('i', 'punto is-' + claseDeColumna(col, cols))); cab.appendChild(el('b', '', nombre)); cab.appendChild(el('span', 'n', String(de.length)));
         filas.push({ grupo: true, etiqueta: cab });
         for (const t of de.sort((a, b) => String(lapsoTarea(a).fin || '9').localeCompare(String(lapsoTarea(b).fin || '9')) || a.id - b.id)) {
             const l = lapsoTarea(t); const d = t.Vence ? diasPara(t.Vence) : null;
@@ -121,7 +125,7 @@ export function pintarRoadmap() {
     const k = $('roadmapKpis'); k.textContent = '';
     const kpi = (v, l, cls) => { const d = el('div', 'mn-kpi' + (cls ? ' is-' + cls : '')); d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v))); k.appendChild(d); };
     const venc = abiertas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger').length;
-    kpi(todas.length, 'tarjetas en total', 'info'); kpi(abiertas.filter(t => t.Columna === 'en-curso').length, 'en curso', null); kpi(todas.length - abiertas.length, 'hechas', 'ok'); kpi(venc, 'vencidas', venc ? 'danger' : null);
+    kpi(todas.length, 'tarjetas en total', 'info'); kpi(abiertas.filter(t => enProceso(t, columnasDeTarea(t))).length, 'en proceso', null); kpi(todas.length - abiertas.length, 'hechas', 'ok'); kpi(venc, 'vencidas', venc ? 'danger' : null);   // v0.11.0: «en proceso» = fuera de la primera cubeta
     $('roadmapSub').textContent = estado.filtroEquipo ? `${ps.length} frente(s) de ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}; quita el filtro en el rail para ver todos.` : `${ps.length} frente(s) activo(s), del que vence antes al que vence después. La barra va de la creación del proyecto a su fin de frente; el relleno es el avance.`;
     const caja = $('roadmapCaja'); caja.textContent = '';
     if (!ps.length) { caja.appendChild(el('p', 'vacio', 'Sin proyectos activos.')); }
@@ -130,7 +134,7 @@ export function pintarRoadmap() {
         const lapsos = ps.map(p => { const l = lapsoProyecto(p, estado.tareas); return l.fin ? l : { inicio: l.inicio || hoyDia(), fin: hoyDia() }; });
         const rango = rangoRoadmap(lapsos, new Date(), 84);
         const filas = ps.map((p, i) => {
-            const ts = tareasDe(p, estado.tareas); const a = avance(ts); const d = diasPara(p.Vence);
+            const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p)); const d = diasPara(p.Vence);
             const eti = el('button', 'g-proy'); eti.type = 'button'; eti.dataset.roadmapP = String(p.id); eti.title = p.Title;
             eti.appendChild(iconoEquipo(equipoDe(p), 'sm')); const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', p.Title)); c.appendChild(el('span', 'm', `${a.hechas}/${a.total} hechas · ${a.pct}%`)); eti.appendChild(c);
             eti.addEventListener('click', () => irAHash(`#p/${p.Clave}`));
@@ -323,32 +327,37 @@ export function engancharArchivos() {
 
 // ---------------------------------------------------------------- reportes
 
-/** Anillo de avance (SVG por DOM) con el % al centro: lo usa Reportes y la lateral del proyecto. */
-export function anillo(porColumna, total, tam = 120) {
+/**
+ * Anillo de avance (SVG por DOM) con el % al centro: lo usa Reportes (segmentosGlobales) y la lateral del
+ * proyecto (segmentosDe). `segs` = [[{nombre}, n, clase], ...] de Hecho a la primera; el % es el de 'h'.
+ */
+export function anillo(segs, total, tam = 120) {
+    const hechas = segs.filter(s => s[2] === 'h').reduce((n, s) => n + s[1], 0);
     const svg = svgEl('svg', { viewBox: '0 0 42 42', class: 'anillo', width: tam, height: tam, role: 'img' });
-    svg.setAttribute('aria-label', `${total ? Math.round((porColumna.hecho || 0) * 100 / total) : 0}% hechas`);
+    svg.setAttribute('aria-label', `${total ? Math.round(hechas * 100 / total) : 0}% hechas`);
     svg.appendChild(svgEl('circle', { cx: 21, cy: 21, r: 15.9, class: 'fondo' }));
     let acumulado = 0;
-    for (const [col, cls] of COLS) {
-        const n = porColumna[col] || 0; if (!n || !total) continue;
+    for (const [col, n, cls] of segs) {
+        if (!n || !total) continue;
         const pct = n * 100 / total;
         const c = svgEl('circle', { cx: 21, cy: 21, r: 15.9, class: 'seg is-' + cls, 'stroke-dasharray': `${Math.max(pct - 1.5, 0)} ${100 - Math.max(pct - 1.5, 0)}`, 'stroke-dashoffset': String(25 - acumulado) });
-        const tt = svgEl('title'); tt.textContent = `${COLS.find(x => x[0] === col)[2]}: ${n}`; c.appendChild(tt);
+        const tt = svgEl('title'); tt.textContent = `${col.nombre}: ${n}`; c.appendChild(tt);
         svg.appendChild(c); acumulado += pct;
     }
-    const tx = svgEl('text', { x: 21, y: 21, class: 'pct', 'text-anchor': 'middle', 'dominant-baseline': 'central' }); tx.textContent = `${total ? Math.round((porColumna.hecho || 0) * 100 / total) : 0}%`; svg.appendChild(tx);
+    const tx = svgEl('text', { x: 21, y: 21, class: 'pct', 'text-anchor': 'middle', 'dominant-baseline': 'central' }); tx.textContent = `${total ? Math.round(hechas * 100 / total) : 0}%`; svg.appendChild(tx);
     return svg;
 }
-function leyenda(porColumna) {
+function leyenda(segs) {
     const l = el('div', 'leyenda');
-    for (const [col, cls, nombre] of COLS) { const s = el('span', 'is-' + cls); s.appendChild(el('i')); s.appendChild(el('span', '', `${nombre} `)); s.appendChild(el('b', '', String(porColumna[col] || 0))); l.appendChild(s); }
+    for (const [col, n, cls] of segs) { const s = el('span', 'is-' + cls); s.appendChild(el('i')); s.appendChild(el('span', '', `${col.nombre} `)); s.appendChild(el('b', '', String(n))); l.appendChild(s); }
     return l;
 }
-/** Barra horizontal con segmentos por columna (la misma leyenda que la lista de proyectos) y su % a la derecha. */
+/** Barra horizontal con segmentos por cubeta del proyecto (la misma leyenda que la lista de proyectos) y su % a la derecha. */
 function barraSeg(a) {
     const w = el('div', 'rep-barra');
-    const b = el('div', 'segbar alta'); b.title = `${a.hechas} hechas · ${a.porColumna['en-revision']} en revisión · ${a.porColumna['en-curso']} en curso · ${a.porColumna['por-hacer']} por hacer`;
-    for (const [col, cls] of COLS) { const i = el('i', cls); i.style.flex = String(a.porColumna[col] || 0); if (a.porColumna[col]) i.appendChild(el('span', '', String(a.porColumna[col]))); b.appendChild(i); }
+    const segs = segmentosDe(a);
+    const b = el('div', 'segbar alta'); b.title = tituloSegmentos(segs);
+    for (const [col, n, cls] of segs) { const i = el('i', cls); i.style.flex = String(n); i.title = `${col.nombre}: ${n}`; if (n) i.appendChild(el('span', '', String(n))); b.appendChild(i); }
     if (!a.total) { const i = el('i', 'p'); i.style.flex = '1'; b.appendChild(i); }
     w.appendChild(b); w.appendChild(el('b', 'mn-mono', `${a.pct}%`));
     return w;
@@ -375,17 +384,17 @@ function columnas(cont, series, textoDe) {
 export function pintarReportes() {
     const ps = activos().filter(p => !estado.filtroEquipo || p.Equipo === estado.filtroEquipo);
     const todas = estado.tareas.filter(t => ps.some(p => p.id === Number(t.ProyectoId)));
-    const a = avance(todas); const abiertas = todas.filter(t => t.Columna !== 'hecho');
+    const a = avanceGlobal(todas, columnasDeTarea); const abiertas = todas.filter(t => t.Columna !== 'hecho');   // v0.11.0: entre proyectos, por categoria
     const venc = abiertas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger');
     $('reportesSub').textContent = `${ps.length} frente(s) activo(s)${estado.filtroEquipo ? ` de ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}` : ''} · ${todas.length} tarjetas · calculado de las listas al ${fechaCorta(new Date().toISOString())}.`;
     const k = $('reportesKpis'); k.textContent = '';
     const kpi = (v, l, cls, id) => { const d = el('div', 'mn-kpi' + (cls ? ' is-' + cls : '')); d.dataset.rep = id; d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v))); k.appendChild(d); };
     kpi(ps.length, 'proyectos activos', 'info', 'proyectos'); kpi(abiertas.length, 'tarjetas abiertas', null, 'abiertas'); kpi(a.hechas, 'hechas', 'ok', 'hechas'); kpi(venc.length, 'vencidas', venc.length ? 'danger' : null, 'vencidas'); kpi(sinDueno(abiertas).length, 'sin dueño', sinDueno(abiertas).length ? 'warn' : null, 'sin-dueno');
     // avance global + por proyecto
-    const g = $('repGlobal'); g.textContent = ''; g.appendChild(anillo(a.porColumna, a.total, 132)); g.appendChild(leyenda(a.porColumna));
+    const g = $('repGlobal'); g.textContent = ''; g.appendChild(anillo(segmentosGlobales(a), a.total, 132)); g.appendChild(leyenda(segmentosGlobales(a)));
     const pp = $('repProyectos'); pp.textContent = '';
     for (const p of ordenarProyectos(ps)) {
-        const ap = avance(tareasDe(p, estado.tareas)); const d = diasPara(p.Vence);
+        const ap = avance(tareasDe(p, estado.tareas), columnasDe(p)); const d = diasPara(p.Vence);
         const fila = el('button', 'rep-fila'); fila.type = 'button'; fila.dataset.repP = String(p.id); fila.addEventListener('click', () => irAHash(`#p/${p.Clave}`));
         const eti = el('span', 'eti'); eti.appendChild(iconoEquipo(equipoDe(p), 'sm')); eti.appendChild(el('span', 't', p.Title)); eti.appendChild(el('span', 'm', p.Vence ? (d < 0 ? `venció hace ${-d} d` : `vence ${fechaCorta(p.Vence)}`) : 'sin fin de frente')); fila.appendChild(eti);
         fila.appendChild(barraSeg(ap)); pp.appendChild(fila);
