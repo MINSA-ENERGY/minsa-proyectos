@@ -6,6 +6,11 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.12.1** (2026-09-12, noche 4) — **Rótulo «PROYECTOS» del rail.** Bai Jamjuree 700 versalitas (15 px, tracking .16em) separado del lockup
+por un hairline verde en degradado de 30 px; lo eligió Carlos entre 106 variantes del artifact «Rótulo Proyectos» (opción E30 sobre el
+hairline D2). La fuente entra vendorizada (`vendor/fuentes/BaiJamjuree-700.woff2`, OFL, solo el 700 latin) y al caché del SW (`v15`);
+no se suma a los tokens `--font-*`: es un uso único. Sin cambio de esquema.
+
 **v0.12.0** (2026-09-12, noche 3) — **Colores a elegir para cubetas y tarjetas; cabecera del proyecto limpia; diálogos sin
 franja y sin barras.** Cinco pedidos de Carlos a partir de tres capturas de la app en operación. **CON cambio de esquema**
 (ver «Al publicar v0.12.0»).
