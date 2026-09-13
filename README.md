@@ -653,7 +653,7 @@ el renglón … (412)» y relee: la protección T1 funciona en real. Las dos sec
    paso 1 no aplicó el `allowTextEntry`). Luego moverla de vuelta, quitar la cubeta y comprobar que `Columnas` quedó vacía
    en la lista (Microsoft Lists → PROY_Proyectos).
 
-Sin probar: el celular real y un proyecto con 7-8 cubetas en pantalla de 1366 (la rejilla las reparte a 150 px y scrollea).
+**Aceptada el 2026-09-12 (Carlos, «listo, sí funcionó»): esquema aplicado, push hecho y la prueba del paso 5 pasó en real.** Sin probar: el celular real y un proyecto con 7-8 cubetas en pantalla de 1366 (la rejilla las reparte a 150 px y scrollea).
 
 ## Al publicar v0.4.1
 
