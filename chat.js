@@ -9,7 +9,7 @@
 // junta «Te mencionaron». El selector aparece al teclear @ (tambien en la nota de la tarjeta).
 
 import { PUEDE, mencionEnCurso, aliasDe, aliasParaMencion, nombreDe, sinAcentos } from './reglas.js';
-import { $, L, estado, el, boton, avatar, tonoDe, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos } from './comun.js';
+import { $, L, estado, el, boton, avatar, tonoDe, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos, vistosDeComentario, miVistoDe, puedeMarcarVisto, alternarVisto } from './comun.js';
 
 let alCambiar = () => {};
 export function alCambiarChat(fn) { alCambiar = fn; }
@@ -71,6 +71,18 @@ export function pintarChat(p) {
         const texto = el('p', 't'); texto.appendChild(textoConMenciones(c.Title, yo));
         if (seguido) texto.title = fechaHora(c.Cuando);
         cuerpo.appendChild(texto);
+        // v0.15.0: ✓ visto — quienes ya lo vieron y, en lo ajeno, el boton para marcarlo (contesta «¿ya viste?» sin escribir).
+        const vs = vistosDeComentario(c);
+        if (vs.length || puedeMarcarVisto(c, p)) {
+            const fila = el('div', 'vistos');
+            if (puedeMarcarVisto(c, p)) {
+                const mio = miVistoDe(c);
+                const b = boton(mio ? '✓ visto' : '✓', 'visto-btn' + (mio ? ' is-on' : ''), async () => { if (await alternarVisto(c, p)) { pintarChat(p); alCambiar(); } }, { visto: String(c.id) });
+                b.title = mio ? 'Quitar tu visto' : 'Marcar como visto'; b.setAttribute('aria-pressed', mio ? 'true' : 'false'); fila.appendChild(b);
+            }
+            if (vs.length) { const q = el('span', 'q', '✓ ' + vs.map(a => nombreDe(a.Quien, estado.roles).split(' ')[0]).join(', ')); q.title = vs.map(a => `${nombreDe(a.Quien, estado.roles)} · ${fechaHora(a.Cuando)}`).join(' · '); fila.appendChild(q); }
+            cuerpo.appendChild(fila);
+        }
         m.appendChild(cuerpo);
         // v0.9.0: borrar — lo propio, o cualquiera si gerencia; el boton vive en el mensaje y se ve al pasar el raton (siempre en tactil).
         if (puedeBorrarComentario(c, p)) {

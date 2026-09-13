@@ -68,6 +68,8 @@
     <section id="p-inicio" class="pantalla oculto">
       <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8v10H3z"/><path d="M9 21v-6h6v6"/></svg></span><h1>Inicio</h1><p class="sub" id="inicioSub"></p></header>
       <div class="mn-kpis" id="inicioKpis"></div>
+      <!-- v0.15.0: lo que OTROS hicieron sobre lo tuyo desde tu ultima visita (marca compartida entre dispositivos), solo si hay; a lo ancho, arriba de todo -->
+      <section class="mn-card oculto" id="cardNuevo"><h2>Nuevo para ti <span class="mn-rail-hot n" id="nNuevoInicio" hidden></span></h2><div class="mini" id="inicioNuevo"></div></section>
       <div class="dos-columnas">
         <div class="apilado">
           <section class="mn-card"><h2>Proyectos activos</h2><div class="lista" id="inicioProyectos"></div></section>
@@ -207,7 +209,7 @@
 
     <!-- Mis tareas -->
     <section id="p-mis" class="pantalla oculto">
-      <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg></span><h1 id="misTitulo">Mis tareas</h1><p class="sub">Tus tarjetas abiertas, en todos los proyectos. Las vencidas arriba.</p></header>
+      <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg></span><h1 id="misTitulo">Mis tareas</h1><p class="sub" id="misSub">Tus tarjetas abiertas, en todos los proyectos. Las vencidas arriba.</p></header>
       <div class="filtros" id="filtroMis"></div>
       <input id="textoMis" class="buscador" type="search" placeholder="Buscar en mis tareas" aria-label="Buscar en mis tareas" autocomplete="off">
       <div class="apilado" id="misLista"></div>

@@ -1,6 +1,6 @@
 // node test/reglas.test.js — reglas puras de MINSA Proyectos (decisiones del plan 2026-09-11).
 import assert from 'node:assert/strict';
-import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias } from '../reglas.js';
+import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, vistosDe, leerVisto, fundirVisto } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -195,5 +195,31 @@ ok('filtrarLigas: por proyecto, tipo y texto sin acentos sobre nombre/ruta/url',
 // --- v0.13.1: auditoria de rendimiento y seguridad
 ok('hrefSeguro: solo http(s) llega al href; javascript:, data:, rutas y basura dan null', hrefSeguro('https://x.sharepoint.com/a b') === 'https://x.sharepoint.com/a%20b' && hrefSeguro('http://x/') === 'http://x/' && hrefSeguro('javascript:alert(1)') === null && hrefSeguro('data:text/html,x') === null && hrefSeguro('/local') === null && hrefSeguro('') === null && hrefSeguro(null) === null && hrefSeguro(' HTTPS://X/') === 'https://x/');
 ok('desdeHaceDias: ISO de hace N dias; 0, negativo o basura = null (sin piso)', desdeHaceDias(90, HOY) === new Date(HOY.getTime() - 90 * 86400000).toISOString() && desdeHaceDias(0) === null && desdeHaceDias(-1) === null && desdeHaceDias('x') === null);
+
+// --- v0.15.0: el mismo canal (nuevo para ti · delegadas · vistos · marca compartida)
+const rolesV = [{ Title: 'yo@x', Nombre: 'Yo Mismo', Rol: 'colaborador', Activo: true }, { Title: 'ana@x', Nombre: 'Ana Prueba', Rol: 'gerencia', Activo: true }];
+const tareasV = [{ id: 1, Asignado: 'YO@x', Columna: 'por-hacer' }, { id: 2, Asignado: 'ana@x', Columna: 'por-hacer', _creadoPor: 'yo@x' }, { id: 3, Asignado: 'ana@x', Columna: 'hecho', _creadoPor: 'yo@x' }, { id: 4, Asignado: 'ana@x', Columna: 'en-curso' }, { id: 5, Asignado: 'yo@x', Columna: 'hecho' }];
+const actV = [
+    { id: 10, Accion: 'crear-tarea', Quien: 'ana@x', TareaId: 1, Cuando: '2026-09-12T10:00:00Z', Title: 'creó «A»' },
+    { id: 11, Accion: 'editar-tarea', Quien: 'ana@x', TareaId: 1, Cuando: '2026-09-12T11:00:00Z', Title: 'cambió la fecha de «A»' },
+    { id: 12, Accion: 'comentar', Quien: 'ana@x', TareaId: 1, Cuando: '2026-09-12T12:00:00Z', Title: 'nota en la mía' },
+    { id: 13, Accion: 'comentar', Quien: 'ana@x', Cuando: '2026-09-12T13:00:00Z', Title: '@yo ya viste', ProyectoId: 1 },
+    { id: 14, Accion: 'comentar', Quien: 'yo@x', TareaId: 1, Cuando: '2026-09-12T14:00:00Z', Title: 'mi propia nota' },
+    { id: 15, Accion: 'crear-tarea', Quien: 'ana@x', TareaId: 4, Cuando: '2026-09-12T15:00:00Z', Title: 'creó «ajena»' },
+    { id: 16, Accion: 'editar-tarea', Quien: 'ana@x', TareaId: 1, Cuando: '2026-09-01T11:00:00Z', Title: 'asignó «A» a Yo' },
+    { id: 17, Accion: 'editar-tarea', Quien: 'yo@x', TareaId: 4, Cuando: '2026-09-12T16:00:00Z', Title: 'asignó «ajena» a Ana' },
+    { id: 18, Accion: 'visto', Quien: 'ana@x', Cuando: '2026-09-12T17:00:00Z', Title: '13', ProyectoId: 1 },
+    { id: 19, Accion: 'visto', Quien: 'yo@x', Cuando: '2026-09-12T16:30:00Z', Title: '13', ProyectoId: 1 },
+    { id: 20, Accion: 'visto', Quien: 'ana@x', Cuando: '2026-09-12T18:00:00Z', Title: '12', ProyectoId: 1 }
+];
+const nv = nuevoParaMi(actV, tareasV, rolesV, 'yo@x', '2026-09-12T09:00:00Z');
+ok('nuevoParaMi: asignada/cambio/nota/mencion ajenas sobre lo mio, mas nuevo arriba; ni lo propio ni lo ajeno ni lo anterior a la marca', nv.map(x => `${x.tipo}:${x.a.id}`).join(' ') === 'mencion:13 nota:12 cambio:11 asignada:10');
+ok('nuevoParaMi: sin marca toma los ultimos 3 dias', nuevoParaMi(actV, tareasV, rolesV, 'yo@x', '', new Date('2026-09-13T00:00:00Z')).length === 4 && nuevoParaMi(actV, tareasV, rolesV, 'yo@x', '', new Date('2026-09-20T00:00:00Z')).length === 0);
+ok('nuevoParaMi: «asignó …» ajeno cuenta como asignada', nuevoParaMi(actV, tareasV, rolesV, 'yo@x', '2026-08-01T00:00:00Z').find(x => x.a.id === 16).tipo === 'asignada');
+ok('delegadas: abiertas de otro que yo cree (createdBy) o asigne (bitacora); no las hechas ni las mias', delegadas(tareasV, actV, 'yo@x').map(t => t.id).join(',') === '2,4');
+ok('vistosDe: una vez por persona, en orden de marca', vistosDe(actV, 13).map(a => a.Quien).join(',') === 'yo@x,ana@x' && vistosDe(actV, 99).length === 0);
+ok('leerVisto: tolera vacio, basura y tipos raros', leerVisto('').inicio === '' && leerVisto('{no').inicio === '' && leerVisto('{"inicio":5,"chat":"x"}').inicio === '' && leerVisto('{"inicio":"2026-09-01","chat":{"1":"2026-09-02"}}').chat['1'] === '2026-09-02');
+const fv = fundirVisto('{"inicio":"2026-09-01","chat":{"1":"2026-09-05","2":"2026-09-01"}}', { inicio: '2026-09-03', chat: { 1: '2026-09-04', 3: '2026-09-09' } });
+ok('fundirVisto: gana la fecha mayor por llave, une los chats', fv.inicio === '2026-09-03' && fv.chat['1'] === '2026-09-05' && fv.chat['2'] === '2026-09-01' && fv.chat['3'] === '2026-09-09');
 
 console.log(`reglas: ok (${n} comprobaciones)`);

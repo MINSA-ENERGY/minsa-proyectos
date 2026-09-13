@@ -669,3 +669,67 @@ export function filtrarLigas(ligas, f = {}) {
     return (ligas || []).filter(l => (!f.proyectoId || Number(l.ProyectoId) === Number(f.proyectoId)) && (!f.tipo || l.Tipo === f.tipo)
         && (!q || sinAcentos(`${l.Title} ${l.Ruta || ''} ${l.Url || ''}`).includes(q)));
 }
+
+// ---------------------------------------------------------------- v0.15.0: el mismo canal (auditoria como usuario, 2026-09-13)
+
+/**
+ * «Nuevo para ti» (Inicio): lo que OTROS hicieron sobre lo tuyo desde `desde` (ISO) —te asignaron o cambiaron una
+ * tarjeta tuya, anotaron en ella, o te mencionaron en el chat—, lo mas nuevo arriba. Sin `desde`, los ultimos
+ * `diasSinMarca` dias. Cada renglon trae `tipo` (asignada · cambio · nota · mencion) y el renglon `a` de actividad.
+ */
+export function nuevoParaMi(actividad, tareas, roles, correo, desde, hoy = new Date(), diasSinMarca = 3) {
+    const yo = String(correo || '').toLowerCase();
+    const piso = desde || new Date(hoy.getTime() - diasSinMarca * 86400000).toISOString();
+    const mias = new Map((tareas || []).filter(t => String(t.Asignado || '').toLowerCase() === yo).map(t => [Number(t.id), t]));
+    const out = [];
+    for (const a of actividad || []) {
+        if (String(a.Quien || '').toLowerCase() === yo || !(String(a.Cuando || '') > piso)) continue;
+        const t = a.TareaId ? mias.get(Number(a.TareaId)) : null;
+        if (a.Accion === 'comentar') {
+            if (trozosConMenciones(a.Title, roles).some(x => x.mencion === yo)) out.push({ tipo: 'mencion', a, tarea: t || null });
+            else if (t) out.push({ tipo: 'nota', a, tarea: t });
+        } else if (t && (a.Accion === 'crear-tarea' || a.Accion === 'editar-tarea')) {
+            out.push({ tipo: a.Accion === 'crear-tarea' || /^asign/i.test(String(a.Title || '')) ? 'asignada' : 'cambio', a, tarea: t });
+        }
+    }
+    return out.sort((x, y) => String(y.a.Cuando || '').localeCompare(String(x.a.Cuando || '')) || y.a.id - x.a.id);
+}
+
+/**
+ * «Las que delegué» (Mis tareas): tarjetas ABIERTAS asignadas a otro que esta persona creo (createdBy de SharePoint o
+ * el renglon crear-tarea de la bitacora) o asigno (editar-tarea «asignó …»). Quien reparte no las pierde de vista.
+ */
+export function delegadas(tareas, actividad, correo) {
+    const yo = String(correo || '').toLowerCase();
+    const tocadas = new Set((actividad || []).filter(a => a.TareaId && String(a.Quien || '').toLowerCase() === yo
+        && (a.Accion === 'crear-tarea' || (a.Accion === 'editar-tarea' && /^asign/i.test(String(a.Title || ''))))).map(a => Number(a.TareaId)));
+    return (tareas || []).filter(t => t.Columna !== 'hecho' && String(t.Asignado || '').toLowerCase() !== yo
+        && (String(t._creadoPor || '').toLowerCase() === yo || tocadas.has(Number(t.id))))
+        .sort((a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')) || a.id - b.id);
+}
+
+/**
+ * Vistos (✓) de un comentario: los renglones Accion=visto cuyo Title es el id del comentario, uno por persona
+ * (se conserva el PRIMERO que aparece; estado.actividad viene Cuando desc, asi que es el mas nuevo). Del mas viejo al mas nuevo.
+ */
+export function vistosDe(actividad, comentarioId) {
+    const k = String(comentarioId); const m = new Map();
+    for (const a of actividad || []) if (a.Accion === 'visto' && String(a.Title || '') === k) { const q = String(a.Quien || '').toLowerCase(); if (!m.has(q)) m.set(q, a); }
+    return [...m.values()].sort((x, y) => String(x.Cuando || '').localeCompare(String(y.Cuando || '')));
+}
+
+/**
+ * La marca de lectura compartida (PROY_Roles.Visto, JSON por persona): `{ inicio: iso, chat: { <pid>: iso } }`.
+ * Lee tolerante (celda vacia o rota = nada visto) y funde con lo que este dispositivo recuerde: gana la fecha mayor.
+ */
+export function leerVisto(celda) {
+    let v = {}; try { v = JSON.parse(String(celda || '') || '{}'); } catch (_) { v = {}; }
+    if (!v || typeof v !== 'object') v = {};
+    return { inicio: typeof v.inicio === 'string' ? v.inicio : '', chat: v.chat && typeof v.chat === 'object' ? { ...v.chat } : {} };
+}
+export function fundirVisto(a, b) {
+    const x = leerVisto(a && typeof a === 'object' ? JSON.stringify(a) : a), y = leerVisto(b && typeof b === 'object' ? JSON.stringify(b) : b);
+    const chat = { ...x.chat };
+    for (const [k, iso] of Object.entries(y.chat)) if (String(iso) > String(chat[k] || '')) chat[k] = iso;
+    return { inicio: x.inicio > y.inicio ? x.inicio : y.inicio, chat };
+}

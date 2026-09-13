@@ -1089,6 +1089,54 @@ try {
             R.ok('v0.10.0: un comentario ajeno posterior a la visita enciende la insignia del rail y marca el renglón como nuevo', !$('nMensajes').hidden && $('nMensajes').textContent === '1' && document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`).classList.contains('is-nuevo') && $('mensajesSub').textContent.includes('1 mensaje(s) nuevo(s)'));
             document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`).click(); await esperar(() => visible('tab-chat') && location.hash === `#p/${CLAVE}/chat`, 'chat desde la bandeja');
             R.ok('v0.10.0: el renglón abre el chat del frente y la insignia se apaga al leerlo', visible('tab-chat') && $('nMensajes').hidden);
+            // ---- v0.15.0 (2026-09-13, auditoría como usuario): el mismo canal — marca compartida, ✓ visto, Nuevo para ti, Las que delegué.
+            {
+                const mod = await import('../comun.js');
+                const miRol = () => filas('roles').find(r => r.fields.Title === YO);
+                const ultimoAjeno = filas('actividad').filter(x => x.fields.Accion === 'comentar' && Number(x.fields.ProyectoId) === proyectoId).map(x => x.fields.Cuando).sort().pop();
+                await esperar(() => { try { return JSON.parse(miRol().fields.Visto || '{}').chat[String(proyectoId)] === ultimoAjeno; } catch (_) { return false; } }, 'Visto compartido en PROY_Roles');
+                R.ok('v0.15.0: leer el chat escribe la marca en MI renglón de PROY_Roles (Visto.chat[pid]), agrupada tras 1.5 s', JSON.parse(miRol().fields.Visto).chat[String(proyectoId)] === ultimoAjeno && filas('roles').filter(r => r.fields.Visto).length === 1);
+                // «Otro dispositivo»: sin localStorage la marca sigue viniendo del tenant, así que lo ajeno posterior sí es nuevo.
+                localStorage.removeItem(`proy.chatVisto.${proyectoId}`);
+                filas('actividad').push({ id: DB.siguienteId++, fields: { Title: 'desde otro dispositivo', Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date(Date.now() + 2000).toISOString(), ProyectoId: proyectoId } });
+                irHash('#inicio'); await esperar(() => visible('p-inicio'), 'inicio'); await recargarYEsperar(); await dormir(30);
+                R.ok('v0.15.0: sin localStorage (otro dispositivo) la marca compartida cuenta el comentario ajeno como nuevo', mod.comentariosNuevos(proyectoId).length === 1 && !$('nMensajes').hidden && $('nMensajes').textContent === '1');
+                // ✓ visto: en lo ajeno hay botón, en lo propio no; marcar escribe Accion=visto con Title=id del comentario; volver a pulsar lo borra.
+                irHash(`#p/${CLAVE}/chat`); await esperar(() => visible('tab-chat') && document.querySelectorAll('#chatHilo .msg').length > 0, 'chat'); await dormir(40);
+                const cAjeno = filas('actividad').filter(x => x.fields.Accion === 'comentar' && x.fields.Quien === 'colega@example.invalid' && Number(x.fields.ProyectoId) === proyectoId && !x.fields.TareaId).pop();
+                const cPropio = filas('actividad').filter(x => x.fields.Accion === 'comentar' && x.fields.Quien === YO && Number(x.fields.ProyectoId) === proyectoId && !x.fields.TareaId).pop();
+                const bVisto = document.querySelector(`#chatHilo .msg[data-comentario="${cAjeno.id}"] .visto-btn`);
+                R.ok('v0.15.0: el mensaje ajeno trae el botón ✓ y el propio no', !!bVisto && !document.querySelector(`#chatHilo .msg[data-comentario="${cPropio.id}"] .visto-btn`));
+                bVisto.click(); await esperar(() => filas('actividad').some(x => x.fields.Accion === 'visto' && x.fields.Title === String(cAjeno.id) && x.fields.Quien === YO), 'renglón visto');
+                await dormir(40);
+                const vRow = filas('actividad').find(x => x.fields.Accion === 'visto' && x.fields.Title === String(cAjeno.id));
+                R.ok('v0.15.0: marcar ✓ escribe Accion=visto (Title = id del comentario, ProyectoId, sin TareaId), enciende el botón y lista mi nombre', Number(vRow.fields.ProyectoId) === proyectoId && !vRow.fields.TareaId && document.querySelector(`#chatHilo .msg[data-comentario="${cAjeno.id}"] .visto-btn`).classList.contains('is-on') && document.querySelector(`#chatHilo .msg[data-comentario="${cAjeno.id}"] .vistos .q`).textContent.includes('Persona'));
+                pestana('inicio'); await esperar(() => visible('p-inicio'), 'inicio'); await dormir(30);
+                R.ok('v0.15.0: los ✓ no son actividad: no salen en «Actividad reciente» ni cuentan en el chat', ![...document.querySelectorAll('#inicioActividad .it')].some(x => /visto/.test(x.textContent)) && mod.comentariosDe(proyectoId).every(c => c.Accion === 'comentar'));
+                irHash(`#p/${CLAVE}/chat`); await esperar(() => visible('tab-chat') && !!document.querySelector(`#chatHilo .msg[data-comentario="${cAjeno.id}"] .visto-btn.is-on`), 'chat con visto'); await dormir(30);
+                document.querySelector(`#chatHilo .msg[data-comentario="${cAjeno.id}"] .visto-btn`).click();
+                await esperar(() => !filas('actividad').some(x => x.fields.Accion === 'visto' && x.fields.Title === String(cAjeno.id)), 'visto borrado'); await dormir(30);
+                R.ok('v0.15.0: volver a pulsar quita el visto (se borra el renglón) y apaga el botón', !document.querySelector(`#chatHilo .msg[data-comentario="${cAjeno.id}"] .visto-btn.is-on`));
+                // Nuevo para ti: otro me asigna una tarjeta → sale en Inicio con «te asignó»; al volver, la marca ya subió y desaparece.
+                const tMia = filas('tareas').find(t => t.fields.Asignado === YO && t.fields.Columna !== 'hecho' && Number(t.fields.ProyectoId) === proyectoId);
+                filas('actividad').push({ id: DB.siguienteId++, fields: { Title: `asignó «${tMia.fields.Title}» a Persona de Prueba`, Accion: 'editar-tarea', Quien: 'jefa@example.invalid', Cuando: new Date(Date.now() + 3000).toISOString(), ProyectoId: proyectoId, TareaId: tMia.id } });
+                irHash('#inicio'); await esperar(() => visible('p-inicio'), 'inicio'); await recargarYEsperar(); await dormir(30);
+                R.ok('v0.15.0: «Nuevo para ti» en Inicio trae la tarjeta que otro me asignó, con quién y «te asignó», y la cuenta', !$('cardNuevo').classList.contains('oculto') && $('inicioNuevo').textContent.includes('te asignó') && $('inicioNuevo').textContent.includes('Jefa') && $('nNuevoInicio').textContent === String(document.querySelectorAll('#inicioNuevo .it').length));
+                document.querySelector('#inicioNuevo button.it').click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde Nuevo para ti');
+                R.ok('v0.15.0: el renglón abre la tarjeta', $('dlgTarea').open && $('tTitulo').textContent === tMia.fields.Title);
+                clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+                await esperar(() => { try { return !!JSON.parse(miRol().fields.Visto || '{}').inicio; } catch (_) { return false; } }, 'Visto.inicio compartido');
+                irHash('#inicio'); await esperar(() => visible('p-inicio'), 'inicio'); await dormir(40);
+                R.ok('v0.15.0: la marca de Inicio sube (compartida en PROY_Roles) y al volver ya no hay nada nuevo', !!JSON.parse(miRol().fields.Visto).inicio && $('cardNuevo').classList.contains('oculto'));
+                // Las que delegué: una tarjeta de OTRO que yo asigné sale en Mis tareas con ese filtro; sin el filtro no.
+                const tAjena = { id: DB.siguienteId++, fields: { Title: 'Tarjeta delegada a Colega', ProyectoId: proyectoId, Columna: 'por-hacer', Asignado: 'colega@example.invalid', Prioridad: 'normal' } }; filas('tareas').push(tAjena);
+                filas('actividad').push({ id: DB.siguienteId++, fields: { Title: `asignó «${tAjena.fields.Title}» a Colega Demo`, Accion: 'editar-tarea', Quien: YO, Cuando: new Date().toISOString(), ProyectoId: Number(tAjena.fields.ProyectoId), TareaId: tAjena.id } });
+                await recargarYEsperar(); pestana('mis'); await esperar(() => visible('p-mis'), 'mis'); await dormir(30);
+                const sinFiltro = [...document.querySelectorAll('#misLista .tarjeta')].some(x => x.dataset.t === String(tAjena.id));
+                document.querySelector('#filtroMis [data-mis="delegadas"]').click(); await dormir(40);
+                R.ok('v0.15.0: «Las que delegué» en Mis tareas lista la tarjeta ajena que yo asigné (y sin el filtro no sale)', !sinFiltro && [...document.querySelectorAll('#misLista .tarjeta')].some(x => x.dataset.t === String(tAjena.id)) && $('misLista').textContent.includes('Colega'));
+                document.querySelector('#filtroMis [data-mis="todas"]').click(); await dormir(20);
+            }
             // Archivos
             irHash('#archivos'); await esperar(() => visible('p-archivos'), 'archivos');
             const nLigas = filas('ligas').length;
@@ -1201,6 +1249,7 @@ try {
         filas('actividad').push({ id: DB.siguienteId++, fields: { Title: 'comentario ajeno', Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date().toISOString(), ProyectoId: filas('proyectos')[0].id } });
         await recargarYEsperar(); tab('chat'); await esperar(() => document.querySelectorAll('#chatHilo .msg').length === 2, 'hilo con 2');
         R.ok('v0.9.0 (lectura): ni el propio ni el ajeno traen borrar', !document.querySelector('#chatHilo .borrar-msg'));
+        R.ok('v0.15.0 (lectura): tampoco el botón ✓ visto', !document.querySelector('#chatHilo .visto-btn'));
         { const mod = await import('../comun.js'); const c = mod.comentariosDe(filas('proyectos')[0].id)[0]; const nAntes = filas('actividad').length; await mod.borrarComentario(c, mod.estado.proyectoAbierto);
           R.ok('v0.9.0 (lectura): borrarComentario se niega aunque se fuerce', filas('actividad').length === nAntes && !!avisoCon('Solo quien lo escribió')); }
         pestana('mis'); await esperar(() => visible('p-mis'), 'mis');

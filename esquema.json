@@ -1,6 +1,6 @@
 {
   "_que_es": "Esquema de las listas de SharePoint de la app de proyectos multiusuario MINSA Proyectos. Es la UNICA fuente: la lee herramientas-dev/provisionar.html para crearlas y app/graph.js para leerlas/escribirlas. Los nombres de columna son los INTERNOS (sin espacios ni acentos); el titulo visible va en 'titulo'. Las relaciones van por ID de renglon (numero), no por columna de busqueda: mas simple de leer por Graph y no obliga a crear las listas en orden. Viven en /sites/Administracion (decision del plan 2026-09-11: la app es dueña del estado; la KB liga).",
-  "version": 1,
+  "version": 2,
   "listas": [
     {
       "nombre": "PROY_Proyectos",
@@ -70,7 +70,8 @@
         { "nombre": "Title", "titulo": "Correo", "tipo": "text", "obligatorio": true },
         { "nombre": "Nombre", "titulo": "Nombre", "tipo": "text" },
         { "nombre": "Rol", "titulo": "Rol", "tipo": "choice", "opciones": ["gerencia", "colaborador", "lectura"], "obligatorio": true },
-        { "nombre": "Activo", "titulo": "Activo", "tipo": "boolean" }
+        { "nombre": "Activo", "titulo": "Activo", "tipo": "boolean" },
+        { "nombre": "Visto", "titulo": "Visto", "tipo": "note", "nota": "v0.15.0 (2026-09-13): la marca de lectura de ESTA persona, compartida entre sus dispositivos: JSON {\"inicio\": iso, \"chat\": {\"<ProyectoId>\": iso}}. La escribe la propia app y solo sobre el renglon propio; vacia = nada visto. Sin la columna la app cae a localStorage (por dispositivo) sin fallar." }
       ]
     },
     {
@@ -82,7 +83,7 @@
         { "nombre": "Title", "titulo": "Que paso (frase)", "tipo": "text", "obligatorio": true },
         { "nombre": "ProyectoId", "titulo": "ID del proyecto", "tipo": "number", "indexada": true },
         { "nombre": "TareaId", "titulo": "ID de la tarea", "tipo": "number" },
-        { "nombre": "Accion", "titulo": "Accion", "tipo": "choice", "opciones": ["crear-proyecto", "editar-proyecto", "cerrar-proyecto", "crear-tarea", "editar-tarea", "mover-tarea", "borrar-tarea", "ligar", "subir", "desligar", "comentar", "reabrir-proyecto", "borrar-proyecto"], "obligatorio": true, "nota": "«desligar» y «comentar» nacieron en v0.2.0 (2026-09-11) y «reabrir-proyecto» en v0.3.0 (F6) y «borrar-proyecto» en v0.13.0 (2026-09-12): en una lista ya provisionada se AGREGAN con provisionar.html (PATCH de opciones, idempotente). «comentar» es la nota de una tarjeta: el texto va en Title (255 max) y se pinta en el dialogo de la tarjeta" },
+        { "nombre": "Accion", "titulo": "Accion", "tipo": "choice", "opciones": ["crear-proyecto", "editar-proyecto", "cerrar-proyecto", "crear-tarea", "editar-tarea", "mover-tarea", "borrar-tarea", "ligar", "subir", "desligar", "comentar", "reabrir-proyecto", "borrar-proyecto", "visto"], "obligatorio": true, "nota": "«desligar» y «comentar» nacieron en v0.2.0 (2026-09-11) y «reabrir-proyecto» en v0.3.0 (F6) y «borrar-proyecto» en v0.13.0 (2026-09-12): en una lista ya provisionada se AGREGAN con provisionar.html (PATCH de opciones, idempotente). «comentar» es la nota de una tarjeta: el texto va en Title (255 max) y se pinta en el dialogo de la tarjeta. «visto» (v0.15.0, 2026-09-13) es la reaccion ✓ a un comentario del chat: Title = id del comentario, ProyectoId el del frente, sin TareaId; un renglon por persona y quitarlo es borrarlo" },
         { "nombre": "Quien", "titulo": "Quien (correo)", "tipo": "text", "obligatorio": true },
         { "nombre": "Cuando", "titulo": "Cuando", "tipo": "dateTime", "obligatorio": true, "indexada": true }
       ]

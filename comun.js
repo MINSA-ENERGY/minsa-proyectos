@@ -3,9 +3,9 @@
 // la bitacora PROY_Actividad.
 
 import { CONFIG } from './config.js';
-import { PUEDE, iniciales, nombreDe, diasPara, estadoVence, tipoArchivo, trozosConMenciones, columnasDe } from './reglas.js';
+import { PUEDE, iniciales, nombreDe, diasPara, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe } from './reglas.js';
 
-export const VERSION = '0.14.0';
+export const VERSION = '0.15.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -316,7 +316,7 @@ export async function registrarActividad(accion, frase, proyectoId, tareaId) {
  * v0.11.0 (Carlos, 12-sep): los movimientos («de Por hacer a En curso») NO se ensenan en ninguna lista de
  * actividad — se siguen escribiendo en PROY_Actividad (bitacora y metrica del piloto), solo no se pintan.
  */
-export const actividadVisible = () => estado.actividad.filter(a => a.Accion !== 'mover-tarea');
+export const actividadVisible = () => estado.actividad.filter(a => a.Accion !== 'mover-tarea' && a.Accion !== 'visto');   // v0.15.0: los ✓ tampoco son actividad
 
 // ---------------------------------------------------------------- actividad acotada (v0.13.1, auditoria de rendimiento)
 //
@@ -524,7 +524,11 @@ export async function borrarComentario(c, p) {
     if (!ok) return false;
     try {
         await estado.cliente.borrarRenglon(estado.siteId, L.actividad, c.id, m => avisar(m, 'ojo'));
-        estado.actividad = estado.actividad.filter(a => a.id !== c.id);
+        // v0.15.0: sus ✓ se van con el (best-effort; si alguno falla queda invisible, actividadVisible los filtra).
+        const vs = vistosDe(estado.actividad, c.id);
+        for (const v of vs) { try { await estado.cliente.borrarRenglon(estado.siteId, L.actividad, v.id); } catch (_) {} }
+        const fuera = new Set([c.id, ...vs.map(v => v.id)]);
+        estado.actividad = estado.actividad.filter(a => !fuera.has(a.id));
         avisar(c.TareaId ? 'Nota borrada.' : 'Comentario borrado.', 'ok');
         return true;
     } catch (e) { avisar('No se pudo borrar: ' + (e && e.message ? e.message : e), 'error'); return false; }
@@ -537,8 +541,66 @@ export async function borrarComentario(c, p) {
  * vez, o el navegador no guarda) nada es nuevo: mejor callar que gritar todo.
  */
 const LLAVE_VISTO = pid => `proy.chatVisto.${pid}`;
-export function chatVistoHasta(pid) { try { return localStorage.getItem(LLAVE_VISTO(pid)) || ''; } catch (_) { return ''; } }
-export function marcarChatVisto(pid, iso) { if (!iso) return; try { if (iso > chatVistoHasta(pid)) localStorage.setItem(LLAVE_VISTO(pid), iso); } catch (_) {} }
+const LLAVE_VISTO_INICIO = 'proy.inicioVisto';
+const leerLocal = k => { try { return localStorage.getItem(k) || ''; } catch (_) { return ''; } };
+const guardarLocal = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
+/**
+ * v0.15.0: la marca es COMPARTIDA entre los dispositivos de la misma persona. Vive en su renglon de
+ * PROY_Roles (columna Visto, JSON) y localStorage queda como cache: se lee la fecha mayor de las dos y se
+ * escribe en las dos. La escritura al tenant se agrupa (1.5 s) y es best-effort: sin la columna (400) se
+ * apaga para esta carga y todo sigue por dispositivo, como en v0.9.0.
+ */
+export const miRenglonRol = () => { const yo = String(estado.cuenta && estado.cuenta.username || '').toLowerCase(); return (estado.roles || []).find(r => String(r.Title || '').toLowerCase() === yo) || null; };
+const vistoCompartido = () => { const r = miRenglonRol(); return leerVisto(r && r.Visto); };
+export function chatVistoHasta(pid) { const local = leerLocal(LLAVE_VISTO(pid)); const c = vistoCompartido().chat[String(pid)] || ''; return c > local ? c : local; }
+export function inicioVistoHasta() { const local = leerLocal(LLAVE_VISTO_INICIO); const c = vistoCompartido().inicio; return c > local ? c : local; }
+export function marcarChatVisto(pid, iso) { if (!iso || !(iso > chatVistoHasta(pid))) return; guardarLocal(LLAVE_VISTO(pid), iso); encolarVisto({ chat: { [String(pid)]: iso } }); }
+export function marcarInicioVisto(iso) { if (!iso || !(iso > inicioVistoHasta())) return; guardarLocal(LLAVE_VISTO_INICIO, iso); encolarVisto({ inicio: iso }); }
+let vistoPendiente = null, vistoTimer = 0, vistoApagado = false;
+function encolarVisto(cambio) { vistoPendiente = fundirVisto(vistoPendiente || {}, cambio); clearTimeout(vistoTimer); vistoTimer = setTimeout(guardarVisto, 1500); }
+/** Manda al tenant lo encolado (app.js lo llama tambien al ocultarse la pagina). Devuelve true si escribio. */
+export async function guardarVisto() {
+    clearTimeout(vistoTimer);
+    const r = miRenglonRol(); const cambio = vistoPendiente; vistoPendiente = null;
+    if (!r || !cambio || vistoApagado || !estado.cliente || !estado.siteId) return false;
+    // Dos dispositivos de la misma persona escriben el mismo renglon: se RELEE antes de fundir (la copia local
+    // puede tener minutos) y se manda con If-Match; un 412 (alguien escribio en medio) se reintenta una vez (revisor, 13-sep).
+    for (let intento = 0; intento < 2; intento++) {
+        let fresco = r;
+        try { const f = await estado.cliente.renglones(estado.siteId, L.roles, `fields/Title eq '${String(r.Title || '').replace(/'/g, "''")}'`); if (f && f.length) fresco = f.find(x => x.id === r.id) || f[0]; } catch (_) { /* sin red o 400: se funde con la copia local */ }
+        const celda = JSON.stringify(fundirVisto(fresco.Visto, cambio));
+        if (celda === String(fresco.Visto || '')) { r.Visto = fresco.Visto; return false; }
+        try { await estado.cliente.actualizarRenglon(estado.siteId, L.roles, r.id, { Visto: celda }, undefined, fresco._etag); r.Visto = celda; return true; }
+        catch (e) {
+            if (e && e.status === 412 && intento === 0) continue;
+            if (e && e.status === 400) vistoApagado = true;
+            console.warn('la marca de lectura compartida no se guardó:', e && e.message ? e.message : e); return false;
+        }
+    }
+    return false;
+}
+/** Solo para pruebas: si la escritura compartida se apago en esta carga. */
+export const vistoCompartidoApagado = () => vistoApagado;
+
+/**
+ * v0.15.0: la reaccion ✓ «visto» a un comentario del chat — un renglon Accion=visto con Title = id del
+ * comentario, uno por persona; volver a pulsar lo quita (se borra). Contesta «¿ya viste el oficio?» sin escribir.
+ */
+export const vistosDeComentario = c => vistosDe(estado.actividad, c && c.id);
+export function miVistoDe(c) { const yo = String(estado.cuenta && estado.cuenta.username || '').toLowerCase(); return vistosDeComentario(c).find(a => String(a.Quien || '').toLowerCase() === yo) || null; }
+export const puedeMarcarVisto = (c, p) => !!c && !!p && p.Estado === 'activo' && PUEDE.tarea(estado.rol) && String(c.Quien || '').toLowerCase() !== String(estado.cuenta && estado.cuenta.username || '').toLowerCase();
+export async function alternarVisto(c, p) {
+    if (!puedeMarcarVisto(c, p)) { avisar('Tu rol es de lectura o el proyecto está cerrado: no puedes marcar visto.', 'error'); return false; }
+    const mio = miVistoDe(c);
+    try {
+        if (mio) { await estado.cliente.borrarRenglon(estado.siteId, L.actividad, mio.id, m => avisar(m, 'ojo')); estado.actividad = estado.actividad.filter(a => a.id !== mio.id); }
+        else {
+            const n = await estado.cliente.crearRenglon(estado.siteId, L.actividad, { Title: String(c.id), Accion: 'visto', Quien: estado.cuenta.username, Cuando: new Date().toISOString(), ProyectoId: Number(p.id) }, m => avisar(m, 'ojo'));
+            estado.actividad.unshift(n);
+        }
+        return true;
+    } catch (e) { avisar('No se pudo marcar: ' + (e && e.message ? e.message : e), 'error'); return false; }
+}
 export function comentariosNuevos(pid, desde = chatVistoHasta(pid)) {
     if (!desde) return [];
     const yo = String(estado.cuenta && estado.cuenta.username || '').toLowerCase();

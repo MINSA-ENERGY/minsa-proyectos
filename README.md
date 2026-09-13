@@ -6,6 +6,48 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.15.0** (2026-09-13) — **El mismo canal: «Nuevo para ti», marca de lectura compartida, ✓ visto en el chat y «Las que
+delegué».** Salió de auditar la app como usuario (rol colaborador, 86 vistas a 390 y 1366) buscando dónde se rompe el
+canal entre colegas; Carlos aprobó los puntos 1, 3, 4 y 5 de esa auditoría y dejó el 2 (avisos fuera de la app) para otra
+sesión. **CON cambio de esquema (v2)** → correr `provisionar.html` con rol `manage` ANTES del push: columna `Visto` (note) en
+`PROY_Roles` y opción `visto` en `PROY_Actividad.Accion`. Sin provisionar la app no se rompe: la marca cae a localStorage
+(por dispositivo, como v0.9.0) y el ✓ da 400 con aviso.
+
+- **«Nuevo para ti» en Inicio** (`app.js: pintarInicio`, reglas puras en `reglas.js: nuevoParaMi`): lo que OTROS hicieron
+  sobre lo tuyo desde tu última visita a Inicio — te asignaron una tarjeta («te asignó», ámbar), cambiaron una tuya, anotaron
+  en ella o te mencionaron —, a lo ancho bajo los KPI, con quién, cuándo y el frente; el renglón
+  abre la tarjeta o el chat (dos o tres columnas según el ancho). El piso se **congela al entrar** (la marca sube al pintar sin vaciar la lista y lo que llegue con
+  el refresco SE SUMA) y sale al cambiar de pantalla. Sin marca (primera vez) son los últimos 3 días. «Te mencionaron»
+  (14 d) se queda como estaba: una mención nueva sale en las dos, a propósito.
+- **Marca de lectura compartida** (`comun.js: chatVistoHasta · inicioVistoHasta · guardarVisto`): el «hasta dónde leí» de
+  cada chat y de Inicio vive en el renglón PROPIO de `PROY_Roles` (columna `Visto`, JSON `{inicio, chat:{pid: iso}}`);
+  localStorage queda como caché y gana la fecha mayor de las dos. La escritura al tenant se agrupa 1.5 s, se empuja al
+  ocultarse la página, **relee el renglón y manda If-Match** (dos dispositivos de la misma persona no se pisan; un 412 se
+  reintenta una vez — lo cazó el revisor), y es best-effort (un 400 la apaga para esa carga). Con esto el celular y la laptop de la misma persona
+  dicen lo mismo. Sigue sin haber «leído» de los DEMÁS: eso es el ✓.
+- **✓ visto en el chat** (`chat.js`, `comun.js: alternarVisto`): bajo cada mensaje ajeno un botón ✓ (36 × 40 px en táctil);
+  marcarlo escribe un renglón `Accion=visto` con `Title` = id del comentario (uno por persona, sin `TareaId`) y volver a
+  pulsar lo borra; borrar el comentario se lleva sus ✓. Debajo del mensaje se lee «✓ Colega, Jefa» con la hora en el `title`. Los ✓ **no son actividad**: no
+  salen en Actividad reciente ni cuentan como comentario (`actividadVisible`, `comentariosDe`). Rol lectura no lo ve.
+- **«Las que delegué» en Mis tareas** (`tablero.js`, `reglas.js: delegadas`): cuarto chip; lista las tarjetas ABIERTAS de
+  otro que yo creé (`createdBy` de SharePoint) o asigné («asignó …» en la bitácora), con su dueño a la vista.
+- **Defectos de la auditoría:** el diálogo Equipo crece a 760 px (la columna «Abiertas» se cortaba a 1366) · en celular el
+  FAB «Nueva tarea» se esconde en el chat (`body.is-chat`) y el hilo mide 40 vh, así el redactor queda a la vista.
+- **Declarado sin aplicar (de la misma auditoría):** avisos fuera de la app (correo/Teams desde el exportador) — sesión
+  futura, decisión de Carlos · una cubeta «En espera de terceros» en la LAU es configuración del proyecto, no código ·
+  enseñar «hecho» en Actividad reabriría la decisión de v0.11.0 · los 5 KPI de Inicio a 390 siguen en 4 + 1 (B3, a propósito).
+- **Superficie de escritura nueva, declarada:** es la primera versión que **escribe en `PROY_Roles`** (la celda `Visto` del
+  renglón propio). La restricción «solo el propio» vive en el cliente: con `Sites.Selected write` cualquier cuenta puede
+  escribir el `Visto` —o el `Rol`— de otra por Graph fuera de la app, y firmar un ✓ con otro `Quien`, como ya pasaba con
+  `comentar` (README, «Riesgos»). Y la caída a 400 sin provisionar está razonada, **no medida contra el tenant**.
+
+Medido: `npm test` verde (122 reglas, +7), E2E **288 / 252 / 27** (+26 / +25 / +1: marca compartida en `PROY_Roles` y
+«otro dispositivo» sin localStorage, ✓ en lo ajeno y no en lo propio, alta y baja del renglón `visto`, ✓ fuera de la
+actividad, «Nuevo para ti» con apertura de tarjeta y marca que sube, «Las que delegué» con y sin filtro, lectura sin ✓),
+**45 vistas × 3 anchos × 2 temas = 270 capturas con 0 desborde**. Vistas nuevas del driver: `mis-delegadas` y `chat-visto`
+(el ✓ puesto con su chip de nombres, que la vista `chat` deja arriba del scroll); la siembra rica
+trae una asignación ajena y un ✓ ajeno y limpia la marca que la E2E deja en el futuro. SW `minsa-proyectos-v19`.
+
 **v0.14.0** (2026-09-13) — **Chat legible y Actividad reciente a lo ancho.** Dos pedidos de Carlos del 13-sep. Sin cambio
 de esquema: solo push.
 

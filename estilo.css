@@ -962,3 +962,22 @@ button.g-barra { cursor: pointer; } button.g-barra:hover { filter: brightness(.9
 .proyecto-cab .estado:empty { display: none; }
 @media (max-width: 720px) { .tonos button { width: 28px; height: 28px; } }
 
+/* ---- v0.15.0: el mismo canal (auditoria como usuario, 2026-09-13) ---- */
+/* ✓ visto bajo cada mensaje del chat: quienes lo vieron (texto data) y el boton en lo ajeno; encendido = tu visto. */
+.msg .vistos { display: flex; gap: var(--sp-2); align-items: center; flex-wrap: wrap; margin-top: 2px; font-size: .72rem; color: var(--text-muted); }
+.msg .vistos .q { font-family: var(--font-data); }
+.visto-btn { font: inherit; font-size: .72rem; line-height: 1; min-height: 24px; padding: 0 8px; border: 1px solid var(--border-default); border-radius: var(--r-pill); background: transparent; color: var(--text-muted); cursor: pointer; }
+.visto-btn.is-on { background: var(--status-ok-bg); color: var(--status-ok-fg); border-color: transparent; font-weight: 600; }
+.visto-btn:hover, .visto-btn:focus-visible { color: var(--text-strong); border-color: var(--text-muted); }
+@media (hover: none) { .visto-btn { min-height: 36px; min-width: 40px; padding: 0 12px; } }
+#cardNuevo h2 .n { margin-left: var(--sp-2); vertical-align: middle; }
+#cardNuevo { margin-bottom: var(--sp-3); }
+@media (min-width: 721px) { #inicioNuevo { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 0 var(--sp-4); } }
+/* Equipo: la tabla de 5 columnas se cortaba en «Abiertas» a 1366 (auditoria 13-sep): el dialogo crece y el correo parte. */
+#dlgEquipo { width: min(96vw, 760px); }
+.eq-tabla td, .eq-tabla th { overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  /* El FAB «Nueva tarea» tapaba el ultimo mensaje y el redactor quedaba bajo la barra: en el chat no hay FAB y el hilo mide menos. */
+  body.is-chat #btnNuevaTarea { display: none; }
+  .chat .hilo { max-height: 40vh; }
+}

@@ -14,8 +14,8 @@
 
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
-import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, tituloSegmentos, partesEnProceso, desdeHaceDias } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe } from './comun.js';
+import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, tituloSegmentos, partesEnProceso, desdeHaceDias, nuevoParaMi } from './reglas.js';
+import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
@@ -204,6 +204,9 @@ if (CONFIG.refrescoMs > 0 && new URLSearchParams(location.search).get('refresco'
     setInterval(() => { if (estado.siteId && document.visibilityState === 'visible' && !editando()) recargar(); }, CONFIG.refrescoMs);
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && rancio() && !editando()) recargar(); });
+// v0.15.0: la marca de lectura compartida se manda agrupada (1.5 s); al ocultarse la pagina se empuja lo que quede.
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') guardarVisto(); });
+window.addEventListener('pagehide', () => { guardarVisto(); });
 const DLG_LECTURA = ['dlgEquipo', 'dlgActividad'];
 fijarAlCerrar(id => { if (DLG_LECTURA.includes(id) && rancio() && !editando()) recargar(); });
 for (const id of DLG_LECTURA) $(id).addEventListener('close', () => { if (rancio() && !editando()) recargar(); });   // Esc no pasa por cerrarDialogo
@@ -273,6 +276,8 @@ function fijarProyectoAbierto(p) {
 }
 function repintar() {
     if (estado.pestana !== 'proyecto' || estado.tab !== 'chat') salirDelChat();   // v0.9.0: la proxima vez que se vea el chat cuenta como «entrar»
+    if (estado.pestana !== 'inicio') estado.nuevosInicio = null;   // v0.15.0: la proxima visita a Inicio fija otro conjunto de «Nuevo para ti»
+    document.body.classList.toggle('is-chat', estado.pestana === 'proyecto' && estado.tab === 'chat');   // v0.15.0: en celular el FAB se esconde en el chat
     pintarInsignias();
     pintarRailEquipos();
     if (estado.pestana === 'inicio') pintarInicio();
@@ -479,6 +484,25 @@ function pintarInicio() {
     const abrirT = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; };
     // v0.8.0: «Te mencionaron» — los comentarios del chat (o notas) que nombran a esta persona, lo mas nuevo arriba;
     // el renglon abre la tarjeta si la nota es de una, o el chat del proyecto. La tarjeta solo existe si hay alguna.
+    // v0.15.0: «Nuevo para ti» — lo que OTROS hicieron sobre lo tuyo (te asignaron o cambiaron una tarjeta, anotaron en
+    // ella, te mencionaron) desde tu ultima visita a Inicio. La marca es compartida entre tus dispositivos
+    // (PROY_Roles.Visto); el piso se fija al ENTRAR (la marca sube al pintar sin vaciar la lista) y sale al cambiar de pantalla.
+    // Sin marca (primera vez) son los ultimos 3 dias. Las menciones siguen ademas en «Te mencionaron» (14 d).
+    // El piso se congela al entrar: la marca sube al pintar sin vaciar la lista, y lo que llegue con el refresco SE SUMA.
+    if (!estado.nuevosInicio) estado.nuevosInicio = { desde: inicioVistoHasta() };
+    const nuevos = nuevoParaMi(estado.actividad, estado.tareas, estado.roles, estado.cuenta.username, estado.nuevosInicio.desde);
+    const fijos = nuevos;
+    const nv = $('inicioNuevo'); nv.textContent = '';
+    const VERBO = { asignada: 'te asignó', cambio: 'cambió tu tarjeta', nota: 'anotó en tu tarjeta', mencion: 'te mencionó' };
+    for (const x of fijos.slice(0, 8)) {
+        const p = porId(estado.proyectos, x.a.ProyectoId || (x.tarea && x.tarea.ProyectoId));
+        const abrir = abridorDe(x.a) || (p ? () => irAHash(`#p/${p.Clave}/chat`) : null);
+        const que = x.tipo === 'mencion' || x.tipo === 'nota' ? x.a.Title : x.tarea ? x.tarea.Title : x.a.Title;
+        nv.appendChild(itemMini(x.a.Quien, `${VERBO[x.tipo]}: «${que}»`, p ? p.Title : '', fechaHora(x.a.Cuando), x.tipo === 'asignada' ? 'warn' : null, abrir));
+    }
+    $('cardNuevo').classList.toggle('oculto', fijos.length === 0);
+    $('nNuevoInicio').textContent = String(fijos.length); $('nNuevoInicio').hidden = !fijos.length;
+    if (nuevos.length) marcarInicioVisto(nuevos[0].a.Cuando);
     const mn = $('inicioMenciones'); mn.textContent = '';
     const menciones = mencionesA(estado.cuenta.username);
     for (const a of menciones.slice(0, 6)) {
@@ -633,6 +657,7 @@ function pintarProyecto() {
     for (const b of document.querySelectorAll('.tab')) { const on = b.dataset.tab === estado.tab; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }
     for (const t of ['tablero', 'lista', 'roadmap', 'docs', 'chat']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
     if (estado.tab !== 'chat') salirDelChat();   // v0.9.0: cambiar de pestana dentro del proyecto tambien es salir
+    document.body.classList.toggle('is-chat', estado.tab === 'chat');   // v0.15.0: pintarProyecto no pasa por repintar() al cambiar de pestana
     // v0.8.0: las pestanas dicen cuanto hay adentro (Trello): documentos ligados y comentarios del chat.
     const nDocs = estado.ligas.filter(l => Number(l.ProyectoId) === p.id).length, nChat = comentariosDe(p.id).length;
     $('nDocsTab').textContent = String(nDocs); $('nDocsTab').hidden = !nDocs;
