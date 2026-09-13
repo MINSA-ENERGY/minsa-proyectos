@@ -7,8 +7,8 @@
 // «→ siguiente» de la cara de la tarjeta se quito, y «Origen en la KB» ya no se ensena ni se pide.
 
 import { CONFIG } from './config.js';
-import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido } from './reglas.js';
-import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea } from './comun.js';
+import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro } from './reglas.js';
+import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
 import { engancharSelectorMenciones } from './chat.js';
@@ -71,10 +71,11 @@ export function tarjeta(t, conProyecto = false) {
     if (conProyecto) { const p = porId(estado.proyectos, t.ProyectoId); if (p) f.appendChild(chip(p.Clave)); }
     if (conProyecto) f.appendChild(chipColumna(t));
     const v = chipVence(t); if (v) f.appendChild(v);
-    if (estado.ligas.some(l => Number(l.TareaId) === t.id && l.Tipo === 'buzon')) f.appendChild(chip('en el buzón', 'info'));
+    // v0.13.1: indices por tarjeta calculados una vez por pintada (antes cada tarjeta recorria toda la actividad y todas las ligas).
+    if (buzonPorTarea().get(t.id)) f.appendChild(chip('en el buzón', 'info'));
     if (sinMovimiento([t], CONFIG.sinMovimientoDias, new Date(), columnasDeTarea).length) f.appendChild(el('span', 'stale', `· sin movimiento ${-diasPara(t.Desde)} días`));
     // v0.8.0: insignias de la cara (Trello): cuantas notas y cuantos documentos trae, sin abrirla.
-    const nNotas = notasDe(t.id).length, nDocs = estado.ligas.filter(l => Number(l.TareaId) === t.id).length;
+    const nNotas = notasPorTarea().get(t.id) || 0, nDocs = ligasPorTarea().get(t.id) || 0;
     if (nNotas) f.appendChild(insignia(TRAZOS.burbuja, nNotas, `${nNotas} nota${nNotas === 1 ? '' : 's'}`, 'is-notas'));
     if (nDocs) f.appendChild(insignia(TRAZOS.clip, nDocs, `${nDocs} documento${nDocs === 1 ? '' : 's'}`, 'is-docs'));
     b.appendChild(f);
@@ -350,7 +351,7 @@ function pintarDocsDeTarjeta(t, p) {
     for (const l of ligas) {
         const fila = el('div', 'tdoc');
         fila.appendChild(iconoArchivo(l.Ruta || l.Title, l.Tipo, 'sm'));   // v0.8.0
-        const a = el('a', '', l.Title); if (l.Url) { a.href = l.Url; a.target = '_blank'; a.rel = 'noopener'; }
+        const a = el('a', '', l.Title); const href = hrefSeguro(l.Url); if (href) { a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; }   // v0.13.1: solo http(s)
         fila.appendChild(a);
         fila.appendChild(chip(l.Tipo === 'buzon' ? 'en el buzón' : l.Tipo === 'enlace' ? 'enlace' : 'archivado', l.Tipo === 'buzon' ? 'info' : l.Tipo === 'enlace' ? null : 'ok'));
         if (puede || (l.Tipo === 'enlace' && puedeEnlazarEn(p))) fila.appendChild(boton('Quitar', 'mn-btn is-ghost is-sm', async () => { if (await quitarLiga(l)) pintarDocsDeTarjeta(t, p); }, { quitar: String(l.id) }));

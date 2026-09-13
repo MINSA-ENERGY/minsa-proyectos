@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, iniciales, nombreDe, diasPara, estadoVence, tipoArchivo, trozosConMenciones, columnasDe } from './reglas.js';
 
-export const VERSION = '0.13.0';
+export const VERSION = '0.13.1';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -36,7 +36,7 @@ export const estado = {
     sitiosUnidad: {},
     // Rutas del buzon ya consultadas en esta carga: ruta -> true|false (existe)
     buzonExiste: {},
-    // v0.13.0: ids de proyecto cuya actividad esta COMPLETA en memoria (fuera de la ventana de CONFIG.actividadDias)
+    // v0.13.1: ids de proyecto cuya actividad esta COMPLETA en memoria (fuera de la ventana de CONFIG.actividadDias)
     actividadCompleta: new Set()
 };
 
@@ -318,7 +318,7 @@ export async function registrarActividad(accion, frase, proyectoId, tareaId) {
  */
 export const actividadVisible = () => estado.actividad.filter(a => a.Accion !== 'mover-tarea');
 
-// ---------------------------------------------------------------- actividad acotada (v0.13.0, auditoria de rendimiento)
+// ---------------------------------------------------------------- actividad acotada (v0.13.1, auditoria de rendimiento)
 //
 // PROY_Actividad es la unica lista que crece sin tope (un renglon por accion, nunca se poda) y antes se bajaba
 // ENTERA cada 120 s por cada persona conectada. Ahora la carga trae solo los ultimos CONFIG.actividadDias, y el
@@ -349,7 +349,7 @@ export async function asegurarActividadDe(proyectoId) {
     } catch (e) { console.warn('no se pudo completar la actividad del proyecto', id, e && e.message ? e.message : e); return false; }
 }
 
-// Indices por tarjeta, calculados UNA vez por pintada (v0.13.0): la cara de cada tarjeta preguntaba «cuantas notas
+// Indices por tarjeta, calculados UNA vez por pintada (v0.13.1): la cara de cada tarjeta preguntaba «cuantas notas
 // tiene» recorriendo toda la actividad y «cuantas ligas» recorriendo todas las ligas — O(tarjetas x renglones) en
 // cada repintado, cada 120 s. La llave es la identidad y el largo de la lista: toda escritura la cambia.
 let idxNotas = { lista: null, n: -1, mapa: new Map() }, idxLigas = { lista: null, n: -1, mapa: new Map() };

@@ -14,7 +14,7 @@
 // acorta con `urlParaLiga` y ningun texto sale hacia Graph sin pasar por `textosLargos`.
 
 import { CONFIG } from './config.js';
-import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX } from './reglas.js';
+import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX, hrefSeguro } from './reglas.js';
 import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO } from './lote.js';
 import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaHora, aplicar, pedirRelectura } from './comun.js';
 import { esConflicto } from './graph.js';
@@ -103,7 +103,8 @@ function doc(l, p, puede) {
     const c = el('div');
     const t = el('div', 't');
     const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : l.Tipo === 'enlace' ? chip('enlace') : chip('archivado', 'ok')); t.appendChild(est);
-    if (l.Url) { const a = el('a', '', l.Title); a.href = l.Url; a.target = '_blank'; a.rel = 'noopener'; t.appendChild(a); } else t.appendChild(el('span', '', l.Title));
+    const href = hrefSeguro(l.Url);   // v0.13.1: solo http(s) llega al href, venga de donde venga la Url
+    if (href) { const a = el('a', '', l.Title); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; t.appendChild(a); } else t.appendChild(el('span', '', l.Title));
     c.appendChild(t);
     c.appendChild(el('div', 'p', l.Tipo === 'enlace' ? String(l.Url || '').replace(/^https?:\/\//, '').slice(0, 90) : `${l.Unidad ? l.Unidad + '/' : ''}${l.Ruta || ''}`));
     if (puede) {
@@ -341,6 +342,9 @@ async function subirAlBuzon(ev) {
     if (!concepto) { avisar('Di qué es lo que subes.', 'error'); $('sbConcepto').focus(); return; }
     if (!archivos.length) { avisar('Elige al menos un archivo.', 'error'); return; }
     if (archivos.some(a => a.name === NOMBRE_MANIFIESTO)) { avisar(`Un archivo no se puede llamar ${NOMBRE_MANIFIESTO}.`, 'error'); return; }
+    // v0.13.1 (auditoria de seguridad): el nombre va en la RUTA de Graph; nada que suba de carpeta ni cambie de carpeta.
+    const raro = archivos.find(a => !a.name || a.name === '.' || a.name === '..' || /[\\/]/.test(a.name));
+    if (raro) { avisar(`El nombre «${raro.name}» no es válido para subirlo.`, 'error'); return; }
     const tareaId = $('sbTarea').value ? Number($('sbTarea').value) : undefined;
     const fecha = fechaMexico();
     const nombreCarpeta = nombreCarpetaLote(fecha, CONFIG.etiquetaLote, p.Clave, slug(concepto));

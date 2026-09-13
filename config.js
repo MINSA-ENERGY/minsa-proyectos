@@ -90,6 +90,10 @@ export const CONFIG = {
     mencionesDias: 14,
     // Cada cuanto se releen las listas mientras la app esta a la vista (ms). 0 = solo con Actualizar.
     refrescoMs: 120000,
+    // v0.13.1 (auditoria de rendimiento): PROY_Actividad crece un renglon por cada accion y nunca se poda; se lee
+    // ENTERA solo lo de estos ultimos dias (columna Cuando, indexada). El proyecto abierto se completa aparte
+    // (todo su historial, por ProyectoId) para que el chat y las notas no pierdan nada. 0 = leer toda la lista.
+    actividadDias: 90,
     // Cuanto dura el toast de un aviso ok/info (ms); el error se queda hasta cerrarlo.
     avisoMs: 4000
 };

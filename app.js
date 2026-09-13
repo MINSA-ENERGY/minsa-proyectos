@@ -14,8 +14,8 @@
 
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
-import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, tituloSegmentos, partesEnProceso } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea } from './comun.js';
+import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, tituloSegmentos, partesEnProceso, desdeHaceDias } from './reglas.js';
+import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
@@ -95,7 +95,9 @@ async function refrescarCliente() {
         if (pideInteraccion) { avisar('La sesión caducó: volviendo a entrar…', 'ojo'); await pca.acquireTokenRedirect({ scopes: CONFIG.scopes, account: pca.getAllAccounts()[0] }); }
         throw e;
     }
-    estado.cliente = crearCliente(CONFIG.graph, estado.token);
+    // v0.13.1 (auditoria de seguridad): el cliente pide el token VIGENTE en cada peticion (MSAL lo renueva en
+    // silencio y lo cachea, asi que es barato); si la renovacion falla se usa el ultimo leido y el 401 lo dice.
+    estado.cliente = crearCliente(CONFIG.graph, async () => { try { estado.token = await token(); } catch (_) { /* se queda el ultimo */ } return estado.token; });
 }
 /* A5 (2026-09-12): el correo + rol en un solo span se partia a media palabra («gerenci / a»).
    Ahora: nombre en negrita, rol como chip, correo en el title. */
@@ -152,11 +154,24 @@ async function cargarTodo() {
     recargando = true; pintarSync(true);
     const c = estado.cliente, s = estado.siteId;
     try {
-        const [proyectos, tareas, ligas, roles, actividad] = await Promise.all([
-            c.renglones(s, L.proyectos), c.renglones(s, L.tareas), c.renglones(s, L.ligas), c.renglones(s, L.roles), c.renglones(s, L.actividad)
+        // v0.13.1 (auditoria de rendimiento): PROY_Actividad se lee ACOTADA a CONFIG.actividadDias (Cuando esta
+        // indexada) y el proyecto abierto se completa con todo su historial en la misma tanda. Si el tenant
+        // rechazara el filtro de fecha (400), se cae a la lectura entera de antes y se avisa en consola.
+        const piso = desdeHaceDias(CONFIG.actividadDias);
+        const abierto = estado.proyectoAbierto ? Number(estado.proyectoAbierto.id) : 0;
+        const actividadAcotada = async () => {
+            if (!piso) return c.renglones(s, L.actividad);
+            try { return await c.renglones(s, L.actividad, `fields/Cuando ge '${piso}'`); }
+            catch (e) { if (!/HTTP 400/.test(String(e && e.message))) throw e; console.warn('PROY_Actividad: el filtro por fecha dio 400; se lee entera.', e.message); return c.renglones(s, L.actividad); }
+        };
+        const [proyectos, tareas, ligas, roles, actividad, delAbierto] = await Promise.all([
+            c.renglones(s, L.proyectos), c.renglones(s, L.tareas), c.renglones(s, L.ligas), c.renglones(s, L.roles), actividadAcotada(),
+            abierto && piso ? c.renglones(s, L.actividad, `fields/ProyectoId eq ${abierto}`).catch(() => null) : Promise.resolve(null)
         ]);
         estado.proyectos = proyectos; estado.tareas = tareas; estado.ligas = ligas; estado.roles = roles;
         estado.actividad = actividad.sort((a, b) => String(b.Cuando || '').localeCompare(String(a.Cuando || '')));
+        estado.actividadCompleta = new Set(piso ? [] : proyectos.map(p => p.id));
+        if (delAbierto) { estado.actividadCompleta.add(abierto); fusionarActividad(delAbierto); }
         estado.buzonExiste = {};
         estado.cargadoEl = Date.now();
         if (estado.proyectoAbierto) estado.proyectoAbierto = porId(estado.proyectos, estado.proyectoAbierto.id);
@@ -252,6 +267,9 @@ function fijarProyectoAbierto(p) {
         estado.hechoTodas = false; estado.filtroDocs = null;
     }
     estado.proyectoAbierto = p;
+    // v0.13.1: la actividad de este proyecto se completa fuera de la ventana (chat y notas viejas); si trae algo
+    // nuevo y el proyecto sigue abierto, se repinta. Best-effort: sin red se queda lo que hay.
+    asegurarActividadDe(p.id).then(hubo => { if (hubo && estado.proyectoAbierto && estado.proyectoAbierto.id === p.id) repintar(); });
 }
 function repintar() {
     if (estado.pestana !== 'proyecto' || estado.tab !== 'chat') salirDelChat();   // v0.9.0: la proxima vez que se vea el chat cuenta como «entrar»
@@ -418,7 +436,8 @@ function fraseMarcada(texto) {
 function pintarInicio() {
     const yo = nombreDe(estado.cuenta.username, estado.roles);
     $('inicioSub').textContent = `${yo} · ${estado.rol} · ${activos().length} proyecto(s) activo(s)`;
-    const abiertas = estado.tareas.filter(t => t.Columna !== 'hecho' && activos().some(p => p.id === Number(t.ProyectoId)));
+    const idsActivos = new Set(activos().map(p => p.id));   // v0.13.1: una vez, no por cada tarjeta
+    const abiertas = estado.tareas.filter(t => t.Columna !== 'hecho' && idsActivos.has(Number(t.ProyectoId)));
     const mias = misAbiertas();
     // U3: los dos KPI de vencimiento cuentan lo MIO, porque el boton aterriza en Mis tareas con ese
     // filtro y el numero tiene que ser el que se ve al llegar (revision 2026-09-11). Lo global sigue

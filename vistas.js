@@ -6,7 +6,7 @@
 // graficos son SVG por DOM o cajas con ancho en %.
 
 import { CONFIG } from './config.js';
-import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, sinDueno, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, enProceso, segmentosDe, segmentosGlobales, tituloSegmentos } from './reglas.js';
+import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, sinDueno, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, enProceso, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro } from './reglas.js';
 import { $, estado, el, boton, avatar, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, mencionesA, columnasDeTarea } from './comun.js';
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -120,7 +120,8 @@ export function pintarRoadmapProyecto(p) {
 export function pintarRoadmap() {
     // El filtro por equipo del rail aplica PAREJO: filas, KPI e hitos (el revisor vio KPI globales con «2 frentes de CALYTEK» arriba).
     const ps = ordenarProyectos(activos().filter(p => !estado.filtroEquipo || p.Equipo === estado.filtroEquipo));
-    const todas = estado.tareas.filter(t => ps.some(p => p.id === Number(t.ProyectoId)));
+    const idsPs = new Set(ps.map(p => p.id));   // v0.13.1
+    const todas = estado.tareas.filter(t => idsPs.has(Number(t.ProyectoId)));
     const abiertas = todas.filter(t => t.Columna !== 'hecho');
     const k = $('roadmapKpis'); k.textContent = '';
     const kpi = (v, l, cls) => { const d = el('div', 'mn-kpi' + (cls ? ' is-' + cls : '')); d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v))); k.appendChild(d); };
@@ -169,7 +170,8 @@ export function pintarCalendario() {
     const mes = estado.mesCal; const hoy = hoyDia();
     $('calTitulo').textContent = nombreMes(mes);
     const activosF = activos().filter(p => !estado.filtroEquipo || p.Equipo === estado.filtroEquipo);
-    const agenda = agendaPorDia(estado.tareas.filter(t => activosF.some(p => p.id === Number(t.ProyectoId))), activosF);
+    const idsF = new Set(activosF.map(p => p.id));   // v0.13.1
+    const agenda = agendaPorDia(estado.tareas.filter(t => idsF.has(Number(t.ProyectoId))), activosF);
     const celdas = celdasDelMes(mes);
     const enMes = celdas.filter(c => c.enMes);
     const nT = enMes.reduce((n, c) => n + ((agenda.get(c.dia) || { tareas: [] }).tareas.length), 0), nF = enMes.reduce((n, c) => n + ((agenda.get(c.dia) || { fines: [] }).fines.length), 0);
@@ -310,7 +312,8 @@ export function pintarArchivos() {
             d.appendChild(iconoArchivo(l.Ruta || l.Title, l.Tipo));
             const c = el('div'); const t = el('div', 't');
             const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : l.Tipo === 'enlace' ? chip('enlace') : chip('archivado', 'ok')); t.appendChild(est);
-            if (l.Url) { const a = el('a', '', l.Title); a.href = l.Url; a.target = '_blank'; a.rel = 'noopener'; t.appendChild(a); } else t.appendChild(el('span', '', l.Title));
+            const href = hrefSeguro(l.Url);   // v0.13.1: solo http(s)
+            if (href) { const a = el('a', '', l.Title); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; t.appendChild(a); } else t.appendChild(el('span', '', l.Title));
             c.appendChild(t);
             c.appendChild(el('div', 'p', l.Tipo === 'enlace' ? String(l.Url || '').replace(/^https?:\/\//, '').slice(0, 90) : `${l.Unidad ? l.Unidad + '/' : ''}${l.Ruta || ''}`));
             if (l.TareaId) { const tt = porId(estado.tareas, l.TareaId); const b = boton(tt ? `tarjeta: ${tt.Title}` : `tarjeta #${l.TareaId}`, 'p tarjeta-liga', tt ? () => irTarjeta(tt) : null); c.appendChild(b); }
@@ -383,7 +386,8 @@ function columnas(cont, series, textoDe) {
  */
 export function pintarReportes() {
     const ps = activos().filter(p => !estado.filtroEquipo || p.Equipo === estado.filtroEquipo);
-    const todas = estado.tareas.filter(t => ps.some(p => p.id === Number(t.ProyectoId)));
+    const idsPs = new Set(ps.map(p => p.id));   // v0.13.1
+    const todas = estado.tareas.filter(t => idsPs.has(Number(t.ProyectoId)));
     const a = avanceGlobal(todas, columnasDeTarea); const abiertas = todas.filter(t => t.Columna !== 'hecho');   // v0.11.0: entre proyectos, por categoria
     const venc = abiertas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger');
     $('reportesSub').textContent = `${ps.length} frente(s) activo(s)${estado.filtroEquipo ? ` de ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}` : ''} · ${todas.length} tarjetas · calculado de las listas al ${fechaCorta(new Date().toISOString())}.`;

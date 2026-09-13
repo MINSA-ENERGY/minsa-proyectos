@@ -329,6 +329,26 @@ export function reordenar(tareasColumna, id, delta) {
     return lista.map((x, k) => ({ id: x.id, Orden: k + 1 })).filter((c, k) => Number(lista[k].Orden) !== c.Orden);
 }
 
+/**
+ * v0.13.1 (auditoria de seguridad): la URL que se pone en un <a href> al PINTAR una liga, o null. Las ligas
+ * «enlace» ya pasan por validarUrl al capturarse, pero PROY_Ligas.Url es una columna de texto que cualquier
+ * cuenta con permiso de escritura en el sitio puede editar desde SharePoint: aqui se vuelve a exigir http(s)
+ * para que un `javascript:` o `data:` pegado a mano no llegue nunca al DOM (la CSP lo bloquearia; esto lo
+ * bloquea antes y sin depender de ella).
+ */
+export function hrefSeguro(url) {
+    const s = String(url || '').trim();
+    if (!/^https?:\/\//i.test(s)) return null;
+    try { const u = new URL(s); return ['http:', 'https:'].includes(u.protocol) ? u.href : null; } catch (_) { return null; }
+}
+
+/** ISO del instante «hace `dias` dias» (v0.13.1: el piso de la ventana de PROY_Actividad). `dias` <= 0 = sin piso (null). */
+export function desdeHaceDias(dias, hoy = new Date()) {
+    const n = Number(dias);
+    if (!Number.isFinite(n) || n <= 0) return null;
+    return new Date(hoy.getTime() - n * 86400000).toISOString();
+}
+
 /** Sin esquema http(s) no es un enlace que la app pinte como liga (F4): evita javascript: y rutas locales. */
 export function validarUrl(texto) {
     const s = String(texto || '').trim();

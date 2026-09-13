@@ -6,6 +6,52 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.13.1** (2026-09-12, noche 6) — **Auditoría de rendimiento y seguridad** (Carlos, 12-sep: «que no se sature ni se vuelva lenta;
+que esté bien en seguridad»). Sin cambio de esquema: solo push.
+
+*Lo que se iba a saturar y cómo se arregló:*
+
+- **`PROY_Actividad` era la única lista sin tope** (un renglón por cada acción, comentario y movimiento; nunca se poda) **y se bajaba
+  ENTERA cada 120 s por cada persona conectada**, a 500 renglones por página. Medido con el uso del piloto (10 cuentas, ~20 acciones/día
+  entre todas): ~7,000 renglones/año → 14 páginas por refresco por persona, ~600 peticiones/hora entre todos solo por esa lista, que
+  es donde Graph empieza a contestar 429 y la app a «esperar al servidor». Ahora la carga trae solo los últimos **`CONFIG.actividadDias`
+  (90)** —`$filter=fields/Cuando ge …`, columna indexada— y el **proyecto abierto se completa aparte** con todo su historial
+  (`fields/ProyectoId eq N`, indexada) una vez por carga: el chat y las notas de una tarjeta vieja no pierden nada; lo global (Inicio
+  14 d, Mensajes 90 d, Reportes 30 d) ya miraba ventanas más cortas. Lo que llega se **fusiona por id** (`fusionarActividad`), nunca se
+  duplica. Si el tenant rechazara el filtro por fecha (400) se cae a la lectura entera de antes y lo dice en consola. `actividadDias: 0`
+  vuelve al comportamiento viejo.
+- **La cara de cada tarjeta recorría toda la actividad y todas las ligas** para contar sus notas y documentos: O(tarjetas × renglones)
+  en cada repintado. Ahora son tres índices por tarjeta (`notasPorTarea` · `ligasPorTarea` · `buzonPorTarea`, comun.js) calculados una
+  vez por pintada y cacheados por identidad+largo de la lista (toda escritura la cambia). Inicio, Roadmap, Calendario y Reportes dejan
+  de recalcular `activos()` por cada tarjeta (un `Set` de ids).
+- **Sin fugas de memoria encontradas**: el DOM se rehace con `textContent = ''` (los listeners se van con los nodos), los `setInterval`
+  son dos fijos, los temporizadores de avisos se limpian, los caches por carga (`buzonExiste`, `actividadCompleta`) se reinician en
+  cada lectura y `sitiosUnidad` está acotado a 5.
+
+*Seguridad (lo que se revisó y lo que cambió):*
+
+- **Token vigente en cada petición**: `crearCliente` acepta ahora una función; la app le pasa `acquireTokenSilent` (MSAL lo cachea y
+  renueva solo). Antes el cliente se creaba con el token leído y solo se renovaba con «Actualizar»: una escritura después de ~1 h sin
+  refresco daba 401.
+- **Ningún `href` sin http(s)**: `hrefSeguro()` (reglas.js) se aplica al pintar toda liga (Documentos, tarjeta, Archivos). Las ligas
+  «enlace» ya se validaban al capturarse, pero `PROY_Ligas.Url` es texto que cualquier cuenta con escritura en el sitio puede editar
+  desde SharePoint; la CSP ya bloqueaba un `javascript:`, esto lo bloquea antes y sin depender de ella. Los enlaces externos llevan
+  `rel="noopener noreferrer"`.
+- **Comilla simple en el buscador de la biblioteca**: `search(q='…')` duplica la `'` (era el único literal OData sin escapar; solo
+  lectura, pero un nombre con apóstrofo daba 400).
+- **Nombre de archivo al subir al buzón**: se rechaza `.`, `..` o cualquier `/` `\` antes de armar la ruta de Graph (un `File` del
+  navegador no los trae; es cinturón).
+- **Revisado y correcto sin cambios**: CSP estricta sin inline; cero `innerHTML`/`eval`; hash de navegación validado por regex; claves
+  y filtros OData con valores numéricos o escapados; MSAL en `sessionStorage`; guarda `window.self !== window.top`; SW cachea solo el
+  armazón (nunca Graph ni login); `localStorage` solo guarda tema y «visto hasta» del chat; vendor con hash verificado; el repo público
+  sin correos ni secretos (`datos.test.js`).
+- **Riesgo aceptado, no arreglable desde la app** (decisión 3 del plan): los roles de `PROY_Roles` son cinturón en pantalla; quien puede
+  escribir de verdad lo decide SharePoint. Un `colaborador` con escritura en el sitio puede, con su propio token, hacer un PATCH que la
+  app le niega. El control real es el permiso del sitio y la traza `Creado/Modificado por`.
+
+*Lo que queda declarado sin aplicar:* `PROY_Tareas` y `PROY_Ligas` sí se bajan enteras (crecen con proyectos cerrados: ~300
+tarjetas/año al ritmo del piloto = 1 página; a partir de ~1,000 conviene el mismo patrón de ventana + completar el abierto). El
+refresco sigue siendo cada 120 s aunque no haya cambios; un `/items/delta` de Graph lo haría incremental, pero el arnés no lo simula.
 **v0.13.0** (2026-09-12, noche 5) — **Menú «⋮» del proyecto también en escritorio, Eliminar proyecto, tema sin apagado, rótulo y
 contadores del rail.** Cuatro pedidos de Carlos. **CON cambio de esquema** (una opción nueva en `PROY_Actividad.Accion`, ver «Al
 publicar v0.13.0»).

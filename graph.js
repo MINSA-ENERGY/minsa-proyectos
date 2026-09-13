@@ -81,8 +81,13 @@ function errorHttp(mensaje, status) { const e = new Error(mensaje); e.status = s
 export const esConflicto = e => !!e && e.status === 412;
 export const esSinRed = e => !!e && e.sinRed === true;
 
+/**
+ * `token` es una cadena o una FUNCION async que devuelve la cadena vigente (v0.13.1, auditoria de seguridad):
+ * con la funcion, cada peticion lleva el token que MSAL tiene en ese momento —renovado en silencio— en
+ * vez del que se leyo al crear el cliente, que a la hora ya caduco y solo se renovaba con «Actualizar».
+ */
 export function crearCliente(graph, token) {
-    const cab = { Authorization: 'Bearer ' + token };
+    const tokenActual = typeof token === 'function' ? token : async () => token;
     const json = { 'Content-Type': 'application/json' };
     const listasPorNombre = new Map();
     const urlPorNombre = new Map();   // webUrl de cada lista (F13: «Ver en SharePoint»)
@@ -95,9 +100,9 @@ export function crearCliente(graph, token) {
         if (typeof navigator !== 'undefined' && navigator.onLine === false && (opciones.method || 'GET') !== 'GET') {
             const e = errorHttp('sin conexión: puedes ver, no guardar. Vuelve a intentarlo cuando regrese la red.', 0); e.sinRed = true; throw e;
         }
-        return conReintento(() => fetch(url, {
+        return conReintento(async () => fetch(url, {
             ...opciones,
-            headers: { ...cab, ...(opciones.headers || {}) }
+            headers: { Authorization: 'Bearer ' + await tokenActual(), ...(opciones.headers || {}) }
         }), avisar);
     }
 
@@ -259,7 +264,8 @@ export function crearCliente(graph, token) {
          * Devuelve [{ id, nombre, ruta, url, modificado, tamano }] con `ruta` relativa a la raiz.
          */
         async buscarEnDrive(siteId, texto, buzon, avisar) {
-            const q = encodeURIComponent(String(texto || '').trim());
+            // La comilla simple cierra el literal OData (`search(q='…')`): se duplica, como en todo $filter (v0.13.1).
+            const q = encodeURIComponent(String(texto || '').trim().replace(/'/g, "''"));
             if (!q) return [];
             const r = await pedir(`${graph}/sites/${siteId}/drive/root/search(q='${q}')?$select=id,name,file,folder,webUrl,parentReference,lastModifiedDateTime,size&$top=50`, {}, avisar);
             if (!r.ok) throw new Error('no se pudo buscar en la biblioteca: ' + await motivo(r));
