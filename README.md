@@ -676,6 +676,8 @@ el renglón … (412)» y relee: la protección T1 funciona en real. Las dos sec
    anillo de Avance toma ese color; abrir una tarjeta → Editar → un color → Guardar → la tarjeta se tiñe; recargar y sigue.
    La cabecera ya no trae «← Proyectos» ni el «N/M hechas»; el diálogo de Cubetas cabe sin barras.
 
+**Aceptada el 2026-09-12 (Carlos, «si funcionó»): esquema aplicado, push hecho y la prueba del paso 5 pasó en real.**
+
 ## Al publicar v0.11.0: primero el esquema, luego el push
 
 **Hay cambio de esquema** y va ANTES del push, o la app en Pages no podrá guardar cubetas ni mover a una nueva:
