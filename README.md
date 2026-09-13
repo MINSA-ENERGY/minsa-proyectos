@@ -6,6 +6,21 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.14.0** (2026-09-13) — **Chat legible y Actividad reciente a lo ancho.** Dos pedidos de Carlos del 13-sep. Sin cambio
+de esquema: solo push.
+
+- **Burbujas por persona en el chat.** Cada mensaje va en una burbuja del tono de su autor (el mismo de su avatar,
+  `tonoDe`; `data-tono` en `.msg`, `--msg-tono` en CSS): fondo al 9 % del tono sobre la tarjeta y filete izquierdo
+  de 3 px. Los mensajes seguidos de la misma persona se pegan (radios de 4 px entre ellos). Antes el hilo era un
+  solo bloque del mismo color y costaba ver dónde acababa uno y empezaba otro.
+- **Actividad reciente en la columna ancha de Inicio**, bajo Proyectos activos, donde sobraba media pantalla; deja
+  la lateral de 340 px (Te mencionaron · Vencimientos · Sin movimiento). En escritorio son **8** renglones (eran 5;
+  celular sigue en 3) y la frase corre en una línea (verbo, título y complemento), con el proyecto debajo. Por
+  debajo de 900 px la tarjeta vuelve al acomodo apilado.
+
+Medido: `npm test` verde; capturas Inicio y Chat a 1366 (claro/oscuro) y 390 con 0 desborde. La falla conocida
+de «comentó/anotó» a 390 sigue igual (tope 3). SW `minsa-proyectos-v18`.
+
 **v0.13.1** (2026-09-12, noche 6) — **Auditoría de rendimiento y seguridad** (Carlos, 12-sep: «que no se sature ni se vuelva lenta;
 que esté bien en seguridad»). Sin cambio de esquema: solo push.
 

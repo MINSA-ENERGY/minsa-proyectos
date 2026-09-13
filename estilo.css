@@ -382,6 +382,18 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .mini .it .d.is-danger { color: var(--status-danger-fg); font-weight: 600; }
 .mini .it .d.is-warn { color: var(--status-warn-fg); font-weight: 600; }
 .mini .vacio { color: var(--text-faint); font-size: .85rem; }
+/* v0.14.0: en la columna ancha de Inicio (Actividad reciente bajo Proyectos activos) la frase corre en UNA linea
+   (verbo, titulo y complemento seguidos) y el proyecto va a la derecha en la misma cabecera; el acomodo apilado
+   de 3-4 renglones era para la lateral de 340 px. Por debajo de 900 px la tarjeta vuelve a ser angosta y aplica lo de arriba. */
+@media (min-width: 901px) {
+  #inicioActividad .it { grid-template-columns: auto minmax(0, 1fr); padding: var(--sp-2) 0; }
+  #inicioActividad .it .cab { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: baseline; }
+  #inicioActividad .it .cab .q { white-space: nowrap; }
+  #inicioActividad .it .f { display: block; }
+  #inicioActividad .it .f b { display: inline; -webkit-line-clamp: unset; overflow: visible; }
+  #inicioActividad .it .f .sino { display: inline; margin-left: var(--sp-1); }
+  #inicioActividad .it .w { font-size: .78rem; }
+}
 /* C9 (v0.6.0): el renglon de actividad con tarjeta es un boton que la abre (mismo acomodo que el div). */
 .mini button.it { width: 100%; background: none; border: 0; border-top: 1px solid var(--border-hairline); font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: var(--r-sm); }
 .mini button.it:first-child { border-top: 0; }
@@ -670,9 +682,17 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .chat .hilo .vacio { color: var(--text-faint); font-size: .85rem; margin: 0; }
 .chat .dia { justify-self: center; margin: var(--sp-2) 0 var(--sp-1); padding: 2px 10px; border-radius: var(--r-pill); background: var(--surface-sunken); font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }   /* muted, no faint: 2.45:1 a 10 px (revisor) */
 .msg { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: var(--sp-2); align-items: start; padding: var(--sp-1) 0; }
-.msg.is-seguido { padding-top: 0; }
 .msg .av-hueco { width: 26px; height: 1px; }
-.msg .cuerpo { display: grid; gap: 2px; min-width: 0; }
+.msg .cuerpo { display: grid; gap: 2px; min-width: 0; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md); border-left: 3px solid var(--msg-tono, var(--border-default)); background: color-mix(in srgb, var(--msg-tono, var(--text-muted)) 9%, var(--surface-card)); }
+/* v0.14.0 (Carlos 13-sep): cada persona escribe en su burbuja, del tono de su avatar (comun.js tonoDe), para que el hilo no sea
+   un solo bloque del mismo color. 9 % del tono sobre la tarjeta: en claro y oscuro el texto sigue siendo el del cuerpo (los
+   tonos de --av-N ya cambian con el tema). Los mensajes seguidos de la misma persona se pegan: la burbuja de arriba pierde
+   el redondeo de abajo y la de abajo el de arriba, con 2 px entre ellas. */
+.msg[data-tono="1"] { --msg-tono: var(--av-1); } .msg[data-tono="2"] { --msg-tono: var(--av-2); } .msg[data-tono="3"] { --msg-tono: var(--av-3); } .msg[data-tono="4"] { --msg-tono: var(--av-4); }
+.msg[data-tono="5"] { --msg-tono: var(--av-5); } .msg[data-tono="6"] { --msg-tono: var(--av-6); } .msg[data-tono="7"] { --msg-tono: var(--av-7); } .msg[data-tono="8"] { --msg-tono: var(--av-8); }
+.msg:has(+ .msg.is-seguido) .cuerpo { border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; }
+.msg.is-seguido .cuerpo { border-top-left-radius: 4px; border-top-right-radius: 4px; }
+.msg.is-seguido { padding-top: 2px; }
 .msg .cab { display: flex; gap: var(--sp-2); align-items: baseline; }
 .msg .cab .q { font-weight: 600; color: var(--text-strong); font-size: .85rem; }
 .msg.is-mio .cab .q { color: var(--brand-primary); }

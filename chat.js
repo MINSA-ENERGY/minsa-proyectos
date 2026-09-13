@@ -9,7 +9,7 @@
 // junta «Te mencionaron». El selector aparece al teclear @ (tambien en la nota de la tarjeta).
 
 import { PUEDE, mencionEnCurso, aliasDe, aliasParaMencion, nombreDe, sinAcentos } from './reglas.js';
-import { $, L, estado, el, boton, avatar, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos } from './comun.js';
+import { $, L, estado, el, boton, avatar, tonoDe, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos } from './comun.js';
 
 let alCambiar = () => {};
 export function alCambiarChat(fn) { alCambiar = fn; }
@@ -57,6 +57,7 @@ export function pintarChat(p) {
         // Mensajes seguidos de la misma persona (en el mismo dia, y sin tarjeta de por medio) se agrupan: sin avatar ni nombre.
         const seguido = anterior && String(anterior.Quien || '').toLowerCase() === quien && !c.TareaId && !anterior.TareaId;
         const m = el('div', 'msg' + (quien === yo ? ' is-mio' : '') + (seguido ? ' is-seguido' : '')); m.dataset.comentario = String(c.id);
+        if (quien) m.dataset.tono = String(tonoDe(quien));   // v0.14.0: burbuja del color de la persona
         m.appendChild(seguido ? el('span', 'av-hueco') : avatar(quien));
         const cuerpo = el('div', 'cuerpo');
         if (!seguido) { const cab = el('div', 'cab'); cab.appendChild(el('span', 'q', nombreDe(quien, estado.roles))); cab.appendChild(el('span', 'h mn-mono', fechaHora(c.Cuando))); cuerpo.appendChild(cab); }

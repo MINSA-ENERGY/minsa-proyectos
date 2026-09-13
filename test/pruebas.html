@@ -441,7 +441,7 @@ try {
         irHash('#p/no-existe'); await esperar(() => visible('p-inicio') && avisoCon('No hay un proyecto'), 'clave desconocida');
         R.ok('clave desconocida: aviso y a Inicio, hash corregido', location.hash === '#inicio', location.hash);
         R.ok('Inicio: la nota sale como «anotó: …» en la actividad', $('inicioActividad').textContent.includes('anotó: «Esperando'));
-        { const nAct = document.querySelectorAll('#inicioActividad .it').length, tope = matchMedia('(max-width: 720px)').matches ? 3 : 5; R.ok('Inicio: actividad reciente con verbos, SIN movimientos (v0.11.0), tope de 5 renglones (3 en celular, B3) y «ver toda» si hay más (2026-09-12)', !$('inicioActividad').textContent.includes('movió') && $('inicioActividad').textContent.includes('anotó') && nAct <= tope && (nAct < tope ? $('btnActividadInicio').hidden : true), `${nAct} renglones`); }
+        { const nAct = document.querySelectorAll('#inicioActividad .it').length, tope = matchMedia('(max-width: 720px)').matches ? 3 : 8; R.ok('Inicio: actividad reciente con verbos, SIN movimientos (v0.11.0), tope de 8 renglones (3 en celular, B3; 8 desde v0.14.0) y «ver toda» si hay más (2026-09-12)', !$('inicioActividad').textContent.includes('movió') && $('inicioActividad').textContent.includes('anotó') && nAct <= tope && (nAct < tope ? $('btnActividadInicio').hidden : true), `${nAct} renglones`); }
         R.ok('el aviso es un toast con role=status y ×', $('avisos').getAttribute('role') === 'status' && !!$('avisos').querySelector('.mensaje .cerrar'));
         $('avisos').querySelector('.mensaje .cerrar').click();
         R.ok('la × cierra el aviso', !$('avisos').querySelector('.mensaje'));

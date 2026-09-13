@@ -69,13 +69,16 @@
       <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8v10H3z"/><path d="M9 21v-6h6v6"/></svg></span><h1>Inicio</h1><p class="sub" id="inicioSub"></p></header>
       <div class="mn-kpis" id="inicioKpis"></div>
       <div class="dos-columnas">
-        <section class="mn-card"><h2>Proyectos activos</h2><div class="lista" id="inicioProyectos"></div></section>
+        <div class="apilado">
+          <section class="mn-card"><h2>Proyectos activos</h2><div class="lista" id="inicioProyectos"></div></section>
+          <!-- v0.14.0: la actividad vive en la columna ancha (bajo los proyectos), no apretada en la lateral de 340 px -->
+          <section class="mn-card"><h2>Actividad reciente <button class="mn-btn is-ghost is-sm ver-toda" id="btnActividadInicio" type="button">ver toda</button></h2><div class="mini" id="inicioActividad"></div></section>
+        </div>
         <div class="apilado">
           <!-- v0.8.0: lo que el chat le dijo a esta persona (@mencion), solo si hay -->
           <section class="mn-card oculto" id="cardMenciones"><h2>Te mencionaron</h2><div class="mini" id="inicioMenciones"></div></section>
           <section class="mn-card"><h2>Próximos vencimientos</h2><div class="mini" id="inicioVence"></div></section>
           <section class="mn-card" id="cardSinMov"><h2>Sin movimiento</h2><div class="mini" id="inicioSinMov"></div></section>
-          <section class="mn-card"><h2>Actividad reciente <button class="mn-btn is-ghost is-sm ver-toda" id="btnActividadInicio" type="button">ver toda</button></h2><div class="mini" id="inicioActividad"></div></section>
         </div>
       </div>
     </section>

@@ -494,8 +494,9 @@ function pintarInicio() {
     for (const t of quietas.slice(0, 6)) { const p = porId(estado.proyectos, t.ProyectoId); sm.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', `${-diasPara(t.Desde)} d`, 'warn', abrirT(t))); }
     $('cardSinMov').classList.toggle('oculto', quietas.length === 0);
     const act = $('inicioActividad'); act.textContent = '';
-    // B3: en celular Inicio media 2,400 px; la actividad baja a 3 renglones (5 en escritorio).
-    const tope = enCelular.matches ? 3 : 5;
+    // B3: en celular Inicio media 2,400 px; la actividad baja a 3 renglones. v0.14.0: en escritorio son 8 (la tarjeta
+    // paso a la columna ancha, bajo Proyectos activos, donde antes sobraba media pantalla).
+    const tope = enCelular.matches ? 3 : 8;
     const visible = actividadVisible();   // v0.11.0: sin movimientos entre cubetas
     for (const a of visible.slice(0, tope)) act.appendChild(itemActividad(a, true));   // C9
     if (!visible.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
