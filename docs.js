@@ -71,7 +71,8 @@ export async function pintarDocs(p) {
     } else estado.filtroDocs = null;
     // v0.17.0: buscador propio de la pestaña (nombre, ruta o dirección, sin acentos) y el conteo «N de M».
     if ($('docsBusca').value !== (estado.buscaDocs || '')) $('docsBusca').value = estado.buscaDocs || '';
-    $('docsBusca').hidden = todas.length < 2;
+    // Con menos de 2 ligas el buscador se esconde Y deja de filtrar: un filtro sin control en pantalla no se puede quitar (revisor, 13-sep).
+    $('docsBusca').hidden = todas.length < 2; if (todas.length < 2) estado.buscaDocs = '';
     const ligas = filtrarLigas(todas, { tipo: estado.filtroDocs, texto: estado.buscaDocs }).sort((a, b) => b.id - a.id);
     $('docsResumen').textContent = todas.length ? `${ligas.length} de ${todas.length}` : '';
     if (!ligas.length) { cont.appendChild(el('p', 'vacio', todas.length ? 'Nada con ese filtro.' : 'Sin documentos ligados todavía.')); return; }

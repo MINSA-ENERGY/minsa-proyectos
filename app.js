@@ -267,7 +267,7 @@ function fijarProyectoAbierto(p) {
     if (!estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id) {
         estado.filtroTareas = { quien: null, alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = '';
         estado.colMovil = null; estado.ordenLista = { col: 'vence', dir: 1 };   // v0.11.0: null = la primera cubeta del proyecto
-        estado.hechoTodas = false; estado.filtroDocs = null;
+        estado.hechoTodas = false; estado.filtroDocs = null; estado.buscaDocs = '';   // v0.17.0: el buscador de Docs tampoco viaja entre proyectos
     }
     estado.proyectoAbierto = p;
     // v0.13.1: la actividad de este proyecto se completa fuera de la ventana (chat y notas viejas); si trae algo

@@ -225,7 +225,8 @@
 /* v0.16.0: Docs agrupa por PESTAÑA que sobresale (opción C del artifact 2a9932bc, Carlos 13-sep): lengüeta sólida con icono, nombre de la tarjeta y conteo; la caja con filete de marca envuelve a sus archivos; «Del proyecto» en gris. */
 /* v0.17.0: Documentos y #archivos son UNA tabla (estilo «My Documents», Carlos 13-sep). La lengüeta de v0.16.0
    (opcion C) vive ahora en el renglon de grupo (tr.pest > td > .cab). En celular la tabla se apila en fichas. */
-.dtabla { width: 100%; border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-card); overflow-x: auto; }
+.dtabla { width: 100%; border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-card); overflow: visible; }   /* visible: el menu «⋯» flota fuera; el ancho lo cuidan las container queries, no un scroll */
+.dtabla th:first-child { border-top-left-radius: var(--r-md); } .dtabla th:last-child { border-top-right-radius: var(--r-md); }
 .dtabla table { border-collapse: collapse; width: 100%; font-size: .85rem; }
 .dtabla th { text-align: left; font-family: var(--font-data); font-size: .66rem; letter-spacing: .07em; font-weight: 600; text-transform: uppercase; color: var(--text-muted); padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--border-hairline); background: var(--surface-sunken); white-space: nowrap; }
 .dtabla td { padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--border-hairline); vertical-align: middle; }
@@ -233,7 +234,8 @@
 .dtabla tr.doc { display: table-row; border: 0; padding: 0; background: none; }
 .dtabla tr.doc:hover td { background: var(--surface-hover); }
 .dtabla .c-nombre { width: 100%; min-width: 0; }   /* el sobrante es de Nombre; las demas van a su min-content */
-.dtabla .c-tipo, .dtabla .c-estado, .dtabla .c-fecha, .dtabla .c-acc { white-space: nowrap; }
+.dtabla .c-tipo, .dtabla .c-fecha, .dtabla .c-acc { white-space: nowrap; }
+.dtabla .c-estado .mn-chip { white-space: nowrap; }   /* la celda sí parte: chip + «Buscar el archivado» en dos renglones */
 .dtabla .c-acc { width: 1%; text-align: right; }
 .dtabla .nombre { display: flex; min-width: 240px; gap: var(--sp-2); align-items: center; }
 .dtabla .nombre .cuerpo { display: grid; gap: 2px; min-width: 0; }
@@ -245,8 +247,8 @@
 /* cuando el PANEL (no la ventana) se estrecha, la tabla cede columnas antes que desbordar: primero quien, luego la fecha */
 .docs > .lista { container-type: inline-size; }
 @container (max-width: 900px) { .dtabla .c-quien { display: none; } }
-@container (max-width: 760px) { .dtabla .c-fecha { display: none; } }
-.dtabla .c-fecha { font-family: var(--font-data); font-size: .78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+@container (max-width: 760px) { .dtabla .c-fecha { display: none; } .dtabla .nombre { min-width: 170px; } .dtabla .c-tarjeta select { max-width: 150px; } }
+.dtabla td.c-fecha { font-family: var(--font-data); font-size: .78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
 .dtabla .c-tarjeta select { min-height: var(--control-h-sm); font: inherit; font-family: var(--font-ui); font-size: .82rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); max-width: 180px; }
 .dtabla .tarjeta-liga { border: 0; background: none; font: inherit; font-size: .82rem; color: var(--text-link); cursor: pointer; text-align: left; padding: 0; }
 .dtabla td .estado { display: inline-flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; }
@@ -278,7 +280,8 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .docs-barra { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
 .docs-barra .p { font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); margin-left: auto; }
 .docs-barra .buscador { flex: 0 1 260px; }
-@media (max-width: 720px) {
+/* fichas apiladas cuando el PANEL baja de 720 px (celular, o la pestaña Docs en tableta): container query, no media */
+@container (max-width: 720px) {
   .dtabla { overflow: visible; border: 0; background: none; }
   .dtabla table, .dtabla tbody { display: block; }
   .dtabla thead { display: none; }
@@ -293,6 +296,8 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
   .dtabla tr.doc .c-tarjeta select { max-width: 100%; width: 100%; }
   .dtabla tr.pest { display: block; } .dtabla tr.pest td { display: block; padding: var(--sp-2) 0 var(--sp-1); }
   .dtabla .t { white-space: normal; overflow-wrap: anywhere; }
+}
+@media (max-width: 720px) {
   .docs-barra .buscador { flex-basis: 100%; }
 }
 .doc .t .mn-chip { margin-right: var(--sp-1); vertical-align: middle; }
