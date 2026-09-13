@@ -770,10 +770,14 @@ try {
         // U10 (v0.4.0): Docs agrupa «Del proyecto» / por tarjeta, chip de estado junto al nombre, chips por tipo.
         await esperar(() => document.querySelectorAll('#docsLista .grupo').length === 2, 'grupos');
         const grupos = [...document.querySelectorAll('#docsLista .grupo')].map(g => g.textContent);
-        R.ok('U10: dos grupos, «Del proyecto» primero y luego la tarjeta', grupos[0] === 'Del proyecto' && grupos[1].startsWith('Lista de insumos') && !!document.querySelector('#docsLista [data-liga] .t .estado .mn-chip'), grupos.join(' | '));
-        // v0.16.0: cada grupo es una pestaña (.pest) con lengüeta (.cab: icono + .grupo + conteo) y cuerpo con sus .doc; «Del proyecto» lleva is-proyecto.
-        const pests = document.querySelectorAll('#docsLista .pest');
-        R.ok('v0.16.0: pestañas — «Del proyecto» es .is-proyecto, la de la tarjeta trae data-tarjeta, y cada cuerpo tiene 1 doc con su conteo', pests.length === 2 && pests[0].classList.contains('is-proyecto') && !!pests[1].dataset.tarjeta && [...pests].every(s => s.querySelectorAll(':scope > .cuerpo > .doc').length === 1 && s.querySelector(':scope > .cab .n').textContent === '1' && !!s.querySelector(':scope > .cab svg')));
+        R.ok('U10: dos grupos, «Del proyecto» primero y luego la tarjeta', grupos[0] === 'Del proyecto' && grupos[1].startsWith('Lista de insumos') && !!document.querySelector('#docsLista [data-liga] .estado .mn-chip'), grupos.join(' | '));
+        // v0.17.0: Docs es UNA tabla (.dtabla) con encabezado de 7 columnas; cada grupo es un renglon tr.pest con la lengüeta de
+        // v0.16.0 (icono + .grupo + conteo) y sus documentos son los tr.doc que le siguen; «Del proyecto» lleva is-proyecto.
+        const pests = document.querySelectorAll('#docsLista tr.pest');
+        const siguiente = tr => tr.nextElementSibling;
+        R.ok('v0.17.0: tabla con 7 columnas y un renglon de grupo por tarjeta — «Del proyecto» es .is-proyecto, la de la tarjeta trae data-tarjeta, cada una seguida de su único doc y con conteo 1', document.querySelectorAll('#docsLista .dtabla thead th').length === 7 && pests.length === 2 && pests[0].classList.contains('is-proyecto') && !!pests[1].dataset.tarjeta && [...pests].every(s => siguiente(s) && siguiente(s).classList.contains('doc') && s.querySelector('.cab .n').textContent === '1' && !!s.querySelector('.cab svg')));
+        R.ok('v0.17.0: cada renglon trae el chip del tipo (PDF / Enlace), quién con avatar, fecha y el menú «⋯» con Abrir y Quitar', [...document.querySelectorAll('#docsLista tr.doc')].every(tr => !!tr.querySelector('.c-tipo .mn-chip.tipo[data-tipo]') && !!tr.querySelector('.c-quien .av') && /\d{2}\/\d{2}\/\d{4}/.test(tr.querySelector('.c-fecha').textContent) && !!tr.querySelector('.fila-menu a.mn-btn') && !!tr.querySelector('.fila-menu [data-quitar]')));
+        R.ok('v0.17.0: el buscador de Docs filtra por nombre sin acentos y «N de M» lo dice', (() => { poner('docsBusca', 'oficio'); const n1 = document.querySelectorAll('#docsLista tr.doc').length; const txt = $('docsResumen').textContent; poner('docsBusca', ''); return n1 === 1 && txt === '1 de 2' && document.querySelectorAll('#docsLista tr.doc').length === 2; })());
         R.ok('U10: chips por tipo (hay archivado y enlace)', document.querySelectorAll('#docsFiltro button').length === 3);
         document.querySelector('#docsFiltro [data-docs="enlace"]').click(); await dormir(30);
         R.ok('U10: el chip «enlace» deja solo el enlace', document.querySelectorAll('#docsLista .doc').length === 1 && document.querySelector('#docsLista .doc .fico').dataset.tipo === 'enlace');
@@ -1144,6 +1148,7 @@ try {
             irHash('#archivos'); await esperar(() => visible('p-archivos'), 'archivos');
             const nLigas = filas('ligas').length;
             R.ok('v0.10.0: #archivos lista todas las ligas de todos los frentes, agrupadas por proyecto, con su icono', visible('p-archivos') && document.querySelectorAll('#archivosLista [data-archivo]').length === nLigas && document.querySelectorAll('#archivosLista .grupo-proy').length >= 1 && document.querySelectorAll('#archivosLista .fico').length === nLigas, `${nLigas} ligas`);
+            R.ok('v0.17.0: #archivos es la misma tabla, con 4 cifras arriba que cuadran con las ligas, la tarjeta como botón y el menú «⋯» sin Quitar', document.querySelectorAll('#archivosLista .dtabla thead th').length === 7 && Number(document.querySelector('#archivosKpis [data-kpi="total"] .mn-kpi-val').textContent) === nLigas && Number(document.querySelector('#archivosKpis [data-kpi="enlace"] .mn-kpi-val').textContent) === filas('ligas').filter(l => l.fields.Tipo === 'enlace').length && document.querySelectorAll('#archivosLista .tarjeta-liga').length === filas('ligas').filter(l => l.fields.TareaId).length && !document.querySelector('#archivosLista [data-quitar]') && !!document.querySelector('#archivosLista .fila-menu'));
             document.querySelector('#archivosTipo [data-tipo="enlace"]').click(); await dormir(30);
             R.ok('v0.10.0: el chip por tipo filtra', document.querySelectorAll('#archivosLista [data-archivo]').length === filas('ligas').filter(l => l.fields.Tipo === 'enlace').length);
             document.querySelector('#archivosTipo [data-tipo="todos"]').click(); poner('textoArchivos', 'contingencia'); await dormir(60);

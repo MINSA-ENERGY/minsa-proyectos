@@ -14,9 +14,9 @@
 // acorta con `urlParaLiga` y ningun texto sale hacia Graph sin pasar por `textosLargos`.
 
 import { CONFIG } from './config.js';
-import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX, hrefSeguro } from './reglas.js';
+import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX, hrefSeguro, filtrarLigas, tipoArchivo } from './reglas.js';
 import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO } from './lote.js';
-import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, iconoSvg, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaHora, aplicar, pedirRelectura } from './comun.js';
+import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, iconoSvg, avatar, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaCorta, fechaHora, aplicar, pedirRelectura, irAHash } from './comun.js';
 import { esConflicto } from './graph.js';
 
 let alCambiar = () => {};
@@ -69,15 +69,21 @@ export async function pintarDocs(p) {
         if (k && !tipos.includes(k)) continue;
         const b = boton(texto, estado.filtroDocs === k ? 'is-on' : '', () => { estado.filtroDocs = k; pintarDocs(p); }, { docs: k || 'todos' }); b.setAttribute('aria-pressed', estado.filtroDocs === k ? 'true' : 'false'); fl.appendChild(b);
     } else estado.filtroDocs = null;
-    const ligas = todas.filter(l => !estado.filtroDocs || l.Tipo === estado.filtroDocs).sort((a, b) => b.id - a.id);
+    // v0.17.0: buscador propio de la pestaña (nombre, ruta o dirección, sin acentos) y el conteo «N de M».
+    if ($('docsBusca').value !== (estado.buscaDocs || '')) $('docsBusca').value = estado.buscaDocs || '';
+    $('docsBusca').hidden = todas.length < 2;
+    const ligas = filtrarLigas(todas, { tipo: estado.filtroDocs, texto: estado.buscaDocs }).sort((a, b) => b.id - a.id);
+    $('docsResumen').textContent = todas.length ? `${ligas.length} de ${todas.length}` : '';
     if (!ligas.length) { cont.appendChild(el('p', 'vacio', todas.length ? 'Nada con ese filtro.' : 'Sin documentos ligados todavía.')); return; }
     const puedeDe = l => puede || (l.Tipo === 'enlace' && puedeEnlazarEn(p));
+    const tabla = tablaDocs(); const tb = tabla.querySelector('tbody');
     const delProyecto = ligas.filter(l => !l.TareaId);
-    if (delProyecto.length) cont.appendChild(grupo(null, 'Del proyecto', delProyecto.map(l => doc(l, p, puedeDe(l)))));
+    if (delProyecto.length) { tb.appendChild(filaGrupo(null, 'Del proyecto', delProyecto.length)); for (const l of delProyecto) tb.appendChild(filaDoc(l, { p, puede: puedeDe(l) })); }
     const porTarjeta = new Map();
     for (const l of ligas.filter(l => l.TareaId)) { const k = Number(l.TareaId); if (!porTarjeta.has(k)) porTarjeta.set(k, []); porTarjeta.get(k).push(l); }
-    const tarjetas = [...porTarjeta.keys()].sort((a, b) => { const ta = porId(estado.tareas, a), tb = porId(estado.tareas, b); return String(ta ? ta.Title : '').localeCompare(String(tb ? tb.Title : '')) || a - b; });
-    for (const k of tarjetas) { const tt = porId(estado.tareas, k); cont.appendChild(grupo(k, tt ? tt.Title : `Tarjeta #${k}`, porTarjeta.get(k).map(l => doc(l, p, puedeDe(l))))); }
+    const tarjetas = [...porTarjeta.keys()].sort((a, b) => { const ta = porId(estado.tareas, a), tb2 = porId(estado.tareas, b); return String(ta ? ta.Title : '').localeCompare(String(tb2 ? tb2.Title : '')) || a - b; });
+    for (const k of tarjetas) { const tt = porId(estado.tareas, k); tb.appendChild(filaGrupo(k, tt ? tt.Title : `Tarjeta #${k}`, porTarjeta.get(k).length)); for (const l of porTarjeta.get(k)) tb.appendChild(filaDoc(l, { p, puede: puedeDe(l) })); }
+    cont.appendChild(tabla);
     // «En el buzon» en vivo: una consulta por liga de tipo buzon, cacheada por carga.
     if (bib) {
         const s = await sitioDe(bib);
@@ -96,45 +102,85 @@ export async function pintarDocs(p) {
     }
 }
 
-// v0.16.0: cada grupo es una PESTAÑA que sobresale (opción C del artifact 2a9932bc, Carlos 13-sep): la lengüeta
-// lleva el icono, el nombre de la tarjeta y el conteo, y la caja de abajo envuelve a sus archivos, para que con el
-// filtro puesto se vea dónde termina una tarjeta y empieza otra. «Del proyecto» va en gris para no competir.
-// El `.grupo` es el texto del título (la E2E lo lee); el conteo va aparte.
+// ---------------------------------------------------------------- v0.17.0: la tabla de documentos (Docs del proyecto y #archivos)
+// Carlos (13-sep) pidio que la seccion de archivos se viera como «My Documents» de la captura de referencia: UNA tabla
+// con columnas (Nombre · Tipo · Estado · Tarjeta · Ligado por · Fecha · acciones «⋯»), buscador y conteo. La agrupacion
+// de v0.16.0 (pestaña que sobresale, opcion C) sobrevive como RENGLON de grupo dentro de la tabla, con la misma lengüeta.
+// Sin columna «Tamaño»: PROY_Ligas no lo guarda (la busqueda de Graph si lo trae, pero no se persiste). En celular la
+// tabla se apila en fichas por CSS (.dtabla), sin segunda estructura.
 const TRAZOS_TARJETA = ['M4 5h16v14H4z', 'M4 10h16', 'M9 5v14'];
 const TRAZOS_PROYECTO = ['M3 7h7l2 2h9v10H3z'];
-function grupo(tareaId, titulo, docs) {
-    const s = el('section', 'pest' + (tareaId ? '' : ' is-proyecto')); if (tareaId) s.dataset.tarjeta = String(tareaId);
-    const cab = el('div', 'cab'); cab.appendChild(iconoSvg(tareaId ? TRAZOS_TARJETA : TRAZOS_PROYECTO));
-    cab.appendChild(el('span', 'grupo', titulo)); cab.appendChild(el('span', 'n', docs.length)); s.appendChild(cab);
-    const cuerpo = el('div', 'cuerpo'); for (const d of docs) cuerpo.appendChild(d); s.appendChild(cuerpo);
-    return s;
+export const COLUMNAS_DOCS = [['c-nombre', 'Nombre'], ['c-tipo', 'Tipo'], ['c-estado', 'Estado'], ['c-tarjeta', 'Tarjeta'], ['c-quien', 'Ligado por'], ['c-fecha', 'Fecha'], ['c-acc', '']];
+
+/** La tabla vacia con su encabezado; el que pinta le llena el <tbody>. */
+export function tablaDocs() {
+    const w = el('div', 'dtabla'); const t = el('table'); const th = el('thead'); const tr = el('tr');
+    for (const [cls, texto] of COLUMNAS_DOCS) { const h = el('th', cls, texto); h.scope = 'col'; if (!texto) h.setAttribute('aria-label', 'Acciones'); tr.appendChild(h); }
+    th.appendChild(tr); t.appendChild(th); t.appendChild(el('tbody')); w.appendChild(t);
+    return w;
 }
 
-function doc(l, p, puede) {
-    const d = el('div', 'doc'); d.dataset.liga = String(l.id);
-    // v0.8.0: el icono del tipo (PDF, Word, Excel…) en lugar de la extension escrita; el lote es una carpeta y el enlace una cadena.
-    d.appendChild(iconoArchivo(l.Ruta || l.Title, l.Tipo));
-    const c = el('div');
-    const t = el('div', 't');
-    const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : l.Tipo === 'enlace' ? chip('enlace') : chip('archivado', 'ok')); t.appendChild(est);
+/**
+ * Renglon de grupo: la lengüeta de v0.16.0 (icono + `.grupo` con el titulo + conteo) sobre un <tr class="pest">.
+ * Con `icono` (un nodo) y `alClic` es la cabecera de un PROYECTO en #archivos: la lengüeta es un boton .grupo-proy.
+ */
+export function filaGrupo(tareaId, titulo, n, { icono = null, alClic = null, title = '' } = {}) {
+    const tr = el('tr', 'pest' + (tareaId ? '' : ' is-proyecto')); if (tareaId) tr.dataset.tarjeta = String(tareaId);
+    const td = el('td'); td.colSpan = COLUMNAS_DOCS.length;
+    const cab = alClic ? el('button', 'cab grupo-proy') : el('div', 'cab'); if (alClic) { cab.type = 'button'; cab.addEventListener('click', alClic); if (title) cab.title = title; }
+    cab.appendChild(icono || iconoSvg(tareaId ? TRAZOS_TARJETA : TRAZOS_PROYECTO));
+    cab.appendChild(el('span', 'grupo', titulo)); cab.appendChild(el('span', 'n', String(n)));
+    td.appendChild(cab); tr.appendChild(td);
+    return tr;
+}
+
+/**
+ * Renglon de un documento. `puede` habilita el select de tarjeta y «Quitar» (Docs del proyecto); `enArchivos`
+ * pinta la tarjeta como boton que la abre y marca el renglon con data-archivo (la E2E de #archivos lo cuenta).
+ */
+export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarjeta = null } = {}) {
+    const tr = el('tr', 'doc'); tr.dataset.liga = String(l.id); if (enArchivos) tr.dataset.archivo = String(l.id);
+    // Nombre: icono + titulo (liga) + ruta o direccion.
+    const tdN = el('td', 'c-nombre'); const caja = el('div', 'nombre');
+    caja.appendChild(iconoArchivo(l.Ruta || l.Title, l.Tipo));
+    const c = el('div', 'cuerpo'); const t = el('div', 't');
     const href = hrefSeguro(l.Url);   // v0.13.1: solo http(s) llega al href, venga de donde venga la Url
-    if (href) { const a = el('a', '', l.Title); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; t.appendChild(a); } else t.appendChild(el('span', '', l.Title));
+    if (href) { const a = el('a', '', l.Title); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = l.Title; t.appendChild(a); } else t.appendChild(el('span', '', l.Title));
     c.appendChild(t);
-    c.appendChild(el('div', 'p', l.Tipo === 'enlace' ? String(l.Url || '').replace(/^https?:\/\//, '').slice(0, 90) : `${l.Unidad ? l.Unidad + '/' : ''}${l.Ruta || ''}`));
-    if (puede) {
-        // F1: la tarjeta de la liga se cambia aqui mismo (o se deja para el proyecto entero).
-        const fila = el('label', 'p tarjeta-de'); fila.appendChild(el('span', '', 'tarjeta: '));
+    const sub = l.Tipo === 'enlace' ? String(l.Url || '').replace(/^https?:\/\//, '').slice(0, 90) : `${l.Unidad ? l.Unidad + '/' : ''}${l.Ruta || ''}`;
+    const ps = el('div', 'p', sub); ps.title = sub; c.appendChild(ps);
+    caja.appendChild(c); tdN.appendChild(caja); tr.appendChild(tdN);
+    // Tipo de archivo (PDF, Word, Excel, Lote, Enlace…): la misma clave que colorea el icono.
+    const ta = tipoArchivo(l.Ruta || l.Title, l.Tipo);
+    const tdT = el('td', 'c-tipo'); const bt = el('span', 'mn-chip tipo is-' + ta.clave, ta.clave === 'lote' ? 'Lote' : ta.clave === 'archivo' ? ta.etiqueta.replace('Archivo ', '') : ta.etiqueta); bt.dataset.tipo = ta.clave; tdT.appendChild(bt); tr.appendChild(tdT);
+    // Estado de la liga (archivado / en el buzon / enlace); el 404 del buzon lo reemplaza pintarDocs.
+    const tdE = el('td', 'c-estado'); const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : l.Tipo === 'enlace' ? chip('enlace') : chip('archivado', 'ok')); tdE.appendChild(est); tr.appendChild(tdE);
+    // Tarjeta: select (F1) si puede; boton que la abre en #archivos; texto en lectura.
+    const tdC = el('td', 'c-tarjeta');
+    const tt = l.TareaId ? porId(estado.tareas, l.TareaId) : null;
+    if (puede && p) {
         const sel = el('select'); sel.dataset.tarjetaDe = String(l.id); sel.setAttribute('aria-label', 'Tarjeta de la liga');
         opcionesTarjetas(sel, p); sel.value = l.TareaId ? String(l.TareaId) : '';
-        sel.addEventListener('change', () => reasignarLiga(l, sel.value));
-        fila.appendChild(sel); c.appendChild(fila);
-    } else if (l.TareaId) { const tt = porId(estado.tareas, l.TareaId); c.appendChild(el('div', 'p', tt ? `tarjeta: ${tt.Title}` : `tarjeta #${l.TareaId}`)); }
-    d.appendChild(c);
-    const lado = el('div', 'lado');
-    if (l.LigadoPor) lado.appendChild(el('span', 'p', nombreDe(l.LigadoPor, estado.roles)));
-    if (puede) lado.appendChild(boton('Quitar', 'mn-btn is-ghost is-sm', () => quitarLiga(l), { quitar: String(l.id) }));
-    d.appendChild(lado);
-    return d;
+        sel.addEventListener('change', () => reasignarLiga(l, sel.value)); tdC.appendChild(sel);
+    } else if (l.TareaId && enArchivos) { tdC.appendChild(boton(tt ? tt.Title : `tarjeta #${l.TareaId}`, 'tarjeta-liga', tt && alTarjeta ? () => alTarjeta(tt) : null)); }
+    else tdC.appendChild(el('span', l.TareaId ? '' : 'p', tt ? tt.Title : l.TareaId ? `tarjeta #${l.TareaId}` : 'el proyecto entero'));
+    tr.appendChild(tdC);
+    // Quien y cuando.
+    const tdQ = el('td', 'c-quien'); if (l.LigadoPor) { const q = el('span', 'quien'); q.appendChild(avatar(l.LigadoPor)); q.appendChild(el('span', '', nombreDe(l.LigadoPor, estado.roles))); tdQ.appendChild(q); } else tdQ.appendChild(el('span', 'p', '—')); tr.appendChild(tdQ);
+    const tdF = el('td', 'c-fecha'); const f = el('span', '', fechaCorta(l._creado)); if (l._creado) f.title = fechaHora(l._creado); tdF.appendChild(f); tr.appendChild(tdF);
+    // Acciones «⋯»: Abrir · Quitar (si puede) · Documentos del proyecto (en #archivos).
+    const tdA = el('td', 'c-acc');
+    const acciones = [];
+    if (href) { const a = el('a', 'mn-btn is-ghost is-sm', 'Abrir'); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; acciones.push(a); }
+    if (enArchivos && p) acciones.push(boton('Documentos del proyecto', 'mn-btn is-ghost is-sm', () => irAHash(`#p/${p.Clave}/docs`)));
+    if (puede) acciones.push(boton('Quitar', 'mn-btn is-ghost is-sm is-peligro', () => quitarLiga(porId(estado.ligas, l.id) || l), { quitar: String(l.id) }));
+    if (acciones.length) {
+        const d = el('details', 'fila-menu'); const s = el('summary', 'mn-btn is-ghost is-sm is-icono', '⋯'); s.setAttribute('aria-label', 'Acciones del documento'); s.title = 'Acciones'; d.appendChild(s);
+        const m = el('div', 'menu'); for (const a of acciones) m.appendChild(a); d.appendChild(m); tdA.appendChild(d);
+        d.addEventListener('toggle', () => { if (d.open) for (const o of document.querySelectorAll('.fila-menu[open]')) if (o !== d) o.open = false; });
+    }
+    tr.appendChild(tdA);
+    return tr;
 }
 
 // ---------------------------------------------------------------- quitar / cambiar de tarjeta (F1)
@@ -414,6 +460,10 @@ export function engancharDocs() {
     $('sbCancelar').addEventListener('click', () => cerrarDialogo('dlgSubir'));
     $('formSubir').addEventListener('submit', subirAlBuzon);
     $('btnEnlace').addEventListener('click', () => abrirEnlace());
+    // v0.17.0: buscador de la pestaña; el proyecto abierto se repinta al teclear.
+    $('docsBusca').addEventListener('input', () => { estado.buscaDocs = $('docsBusca').value; if (estado.proyectoAbierto) pintarDocs(estado.proyectoAbierto); });
+    // Un clic fuera cierra el menu «⋯» abierto.
+    document.addEventListener('click', e => { for (const o of document.querySelectorAll('.fila-menu[open]')) if (!o.contains(e.target)) o.open = false; });
     $('enCancelar').addEventListener('click', () => cerrarDialogo('dlgEnlace'));
     $('formEnlace').addEventListener('submit', guardarEnlace);
 }

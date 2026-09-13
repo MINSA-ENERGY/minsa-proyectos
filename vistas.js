@@ -8,6 +8,7 @@
 import { CONFIG } from './config.js';
 import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, sinDueno, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, enProceso, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro } from './reglas.js';
 import { $, estado, el, boton, avatar, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, mencionesA, columnasDeTarea } from './comun.js';
+import { tablaDocs, filaGrupo, filaDoc } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -301,27 +302,21 @@ export function pintarArchivos() {
     }
     const ligas = filtrarLigas(estado.ligas, f).sort((a, b) => b.id - a.id);
     $('archivosSub').textContent = `${ligas.length} de ${estado.ligas.length} documento(s) ligado(s) en todos los frentes. Para ligar, quitar o cambiar de tarjeta, entra a Documentos del proyecto.`;
+    // v0.17.0: cuatro cifras arriba (como la captura de referencia): total, archivados, en el buzon, enlaces.
+    const k = $('archivosKpis'); k.textContent = '';
+    const cuenta = tipo => estado.ligas.filter(l => l.Tipo === tipo).length;
+    const kpi = (v, l, cls, id) => { const d = el('div', 'mn-kpi' + (cls ? ' is-' + cls : '')); d.dataset.kpi = id; d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v))); k.appendChild(d); };
+    kpi(estado.ligas.length, 'Documentos ligados', '', 'total'); kpi(cuenta('archivado'), 'Archivados', 'ok', 'archivado'); kpi(cuenta('buzon'), 'En el buzón', 'info', 'buzon'); kpi(cuenta('enlace'), 'Enlaces', '', 'enlace');
     const cont = $('archivosLista'); cont.textContent = '';
     if (!ligas.length) { cont.appendChild(el('p', 'vacio', estado.ligas.length ? 'Nada con ese filtro.' : 'Ningún documento ligado todavía.')); return; }
+    // v0.17.0: una sola tabla (la de Docs del proyecto) con un renglon de grupo por proyecto, que abre sus Documentos.
     const porP = new Map(); for (const l of ligas) { const k = Number(l.ProyectoId); if (!porP.has(k)) porP.set(k, []); porP.get(k).push(l); }
+    const tabla = tablaDocs(); const tb = tabla.querySelector('tbody');
     for (const p of ordenarProyectos(estado.proyectos.filter(p => porP.has(p.id)))) {
-        const cab = el('button', 'grupo grupo-proy'); cab.type = 'button'; cab.appendChild(iconoEquipo(equipoDe(p), 'sm')); cab.appendChild(el('span', '', p.Title)); cab.appendChild(el('span', 'n', String(porP.get(p.id).length)));
-        cab.title = 'Abrir Documentos del proyecto'; cab.addEventListener('click', () => irAHash(`#p/${p.Clave}/docs`)); cont.appendChild(cab);
-        for (const l of porP.get(p.id)) {
-            const d = el('div', 'doc'); d.dataset.archivo = String(l.id);
-            d.appendChild(iconoArchivo(l.Ruta || l.Title, l.Tipo));
-            const c = el('div'); const t = el('div', 't');
-            const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : l.Tipo === 'enlace' ? chip('enlace') : chip('archivado', 'ok')); t.appendChild(est);
-            const href = hrefSeguro(l.Url);   // v0.13.1: solo http(s)
-            if (href) { const a = el('a', '', l.Title); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; t.appendChild(a); } else t.appendChild(el('span', '', l.Title));
-            c.appendChild(t);
-            c.appendChild(el('div', 'p', l.Tipo === 'enlace' ? String(l.Url || '').replace(/^https?:\/\//, '').slice(0, 90) : `${l.Unidad ? l.Unidad + '/' : ''}${l.Ruta || ''}`));
-            if (l.TareaId) { const tt = porId(estado.tareas, l.TareaId); const b = boton(tt ? `tarjeta: ${tt.Title}` : `tarjeta #${l.TareaId}`, 'p tarjeta-liga', tt ? () => irTarjeta(tt) : null); c.appendChild(b); }
-            d.appendChild(c);
-            const lado = el('div', 'lado'); if (l.LigadoPor) lado.appendChild(el('span', 'p', nombreDe(l.LigadoPor, estado.roles))); d.appendChild(lado);
-            cont.appendChild(d);
-        }
+        tb.appendChild(filaGrupo(null, p.Title, porP.get(p.id).length, { icono: iconoEquipo(equipoDe(p), 'sm'), alClic: () => irAHash(`#p/${p.Clave}/docs`), title: 'Abrir Documentos del proyecto' }));
+        for (const l of porP.get(p.id)) tb.appendChild(filaDoc(l, { p, enArchivos: true, alTarjeta: irTarjeta }));
     }
+    cont.appendChild(tabla);
 }
 export function engancharArchivos() {
     $('archivosProyecto').addEventListener('change', () => { estado.filtroArchivos.proyectoId = $('archivosProyecto').value ? Number($('archivosProyecto').value) : null; pintarArchivos(); });

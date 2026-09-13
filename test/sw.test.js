@@ -15,4 +15,8 @@ assert.ok(/const CACHE = 'minsa-proyectos-v(\d+)'/.test(sw), 'sw.js versiona su 
 assert.ok(!/\.addAll\s*\(/.test(sw), 'sin addAll: pasa por la caché HTTP');
 assert.ok(/cache:\s*'reload'/.test(sw), 'cada petición del armazón lleva cache: reload');
 assert.ok(!/graph\.microsoft\.com|login\.microsoftonline\.com/.test(sw), 'el sw no menciona Graph ni login');
+// obs. 595 (2026-09-13): el numero de version vive en dos archivos y se desincronizo en v0.15.1; la unica guarda que aguanta es esta.
+const version = JSON.parse(readFileSync(join(raiz, 'package.json'), 'utf8')).version;
+const m = /export const VERSION = '([^']+)'/.exec(readFileSync(join(raiz, 'comun.js'), 'utf8'));
+assert.ok(m && m[1] === version, `comun.js VERSION (${m && m[1]}) debe ser igual a package.json version (${version})`);
 console.log('sw: ok');

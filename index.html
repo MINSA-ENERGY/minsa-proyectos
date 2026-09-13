@@ -133,7 +133,8 @@
           <div id="tab-roadmap" class="roadmap oculto"></div>
           <div id="tab-docs" class="docs oculto">
             <div class="docs-acciones"><button id="btnLigar" class="mn-btn is-sm" type="button">Ligar archivo de la biblioteca</button><button id="btnSubir" class="mn-btn is-sm" type="button">Subir al buzón</button><button id="btnEnlace" class="mn-btn is-sm" type="button">Pegar un enlace</button><span class="mn-help" id="docsBiblioteca"></span></div>
-            <div class="filtros" id="docsFiltro"></div>
+            <!-- v0.17.0: chips de estado + conteo «N de M» + buscador, sobre la tabla de documentos -->
+            <div class="docs-barra"><div class="filtros" id="docsFiltro"></div><span class="p" id="docsResumen"></span><input id="docsBusca" class="buscador" type="search" placeholder="Buscar en los documentos" aria-label="Buscar en los documentos" autocomplete="off" hidden></div>
             <div class="lista" id="docsLista"></div>
           </div>
           <div id="tab-chat" class="chat oculto">
@@ -189,6 +190,7 @@
     <!-- v0.10.0: Archivos = todas las ligas de todos los frentes -->
     <section id="p-archivos" class="pantalla oculto">
       <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><h1>Archivos</h1><p class="sub" id="archivosSub"></p></header>
+      <div class="mn-kpis" id="archivosKpis"></div>   <!-- v0.17.0 -->
       <div class="archivos-filtros"><div class="filtros" id="archivosTipo"></div><select id="archivosProyecto" aria-label="Proyecto"></select><input id="textoArchivos" class="buscador" type="search" placeholder="Buscar por nombre, ruta o dirección" aria-label="Buscar un archivo" autocomplete="off"></div>
       <div class="docs"><div class="lista" id="archivosLista"></div></div>
     </section>

@@ -223,15 +223,78 @@
 /* U10: grupos de Documentos */
 /* Auditoria #14: los rotulos propios de la app llevan la metrica de .mn-label (.68rem · .07em · 600); los de «dias» (.62rem) igual entre si. */
 /* v0.16.0: Docs agrupa por PESTAÑA que sobresale (opción C del artifact 2a9932bc, Carlos 13-sep): lengüeta sólida con icono, nombre de la tarjeta y conteo; la caja con filete de marca envuelve a sus archivos; «Del proyecto» en gris. */
-.pest { display: grid; min-width: 0; }
-.pest > .cab { display: inline-flex; align-items: center; gap: var(--sp-2); max-width: 100%; min-width: 0; padding: var(--sp-1) var(--sp-3); background: var(--brand-primary); color: var(--text-on-brand); border-radius: var(--r-sm) var(--r-sm) 0 0; justify-self: start; }
-.pest > .cab svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.pest > .cab .grupo { font-family: var(--font-display); font-weight: 600; font-size: .85rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pest > .cab .n { font-family: var(--font-data); font-size: .68rem; opacity: .8; flex: none; }
-.pest > .cuerpo { display: grid; gap: var(--sp-2); padding: var(--sp-2); border: 1px solid var(--brand-primary); border-radius: 0 var(--r-md) var(--r-md) var(--r-md); background: var(--surface-card); }
-.pest .doc { border-radius: var(--r-sm); }
-.pest.is-proyecto > .cab { background: var(--surface-sunken); color: var(--text-muted); border: 1px solid var(--border-default); border-bottom: 0; }
-.pest.is-proyecto > .cuerpo { border-color: var(--border-default); }
+/* v0.17.0: Documentos y #archivos son UNA tabla (estilo «My Documents», Carlos 13-sep). La lengüeta de v0.16.0
+   (opcion C) vive ahora en el renglon de grupo (tr.pest > td > .cab). En celular la tabla se apila en fichas. */
+.dtabla { width: 100%; border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-card); overflow-x: auto; }
+.dtabla table { border-collapse: collapse; width: 100%; font-size: .85rem; }
+.dtabla th { text-align: left; font-family: var(--font-data); font-size: .66rem; letter-spacing: .07em; font-weight: 600; text-transform: uppercase; color: var(--text-muted); padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--border-hairline); background: var(--surface-sunken); white-space: nowrap; }
+.dtabla td { padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--border-hairline); vertical-align: middle; }
+.dtabla tbody tr:last-child td { border-bottom: 0; }
+.dtabla tr.doc { display: table-row; border: 0; padding: 0; background: none; }
+.dtabla tr.doc:hover td { background: var(--surface-hover); }
+.dtabla .c-nombre { width: 100%; min-width: 0; }   /* el sobrante es de Nombre; las demas van a su min-content */
+.dtabla .c-tipo, .dtabla .c-estado, .dtabla .c-fecha, .dtabla .c-acc { white-space: nowrap; }
+.dtabla .c-acc { width: 1%; text-align: right; }
+.dtabla .nombre { display: flex; min-width: 240px; gap: var(--sp-2); align-items: center; }
+.dtabla .nombre .cuerpo { display: grid; gap: 2px; min-width: 0; }
+.dtabla td .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dtabla td .t a { color: inherit; text-decoration: none; } .dtabla td .t a:hover { text-decoration: underline; }
+.dtabla td .p { font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dtabla .fico { width: 28px; height: 32px; } .dtabla .fico svg { width: 26px; height: 26px; }
+.dtabla .quien { display: inline-flex; gap: var(--sp-1); align-items: center; white-space: nowrap; } .dtabla .quien .av { width: 22px; height: 22px; font-size: .58rem; } .dtabla .quien > span:last-child { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+/* cuando el PANEL (no la ventana) se estrecha, la tabla cede columnas antes que desbordar: primero quien, luego la fecha */
+.docs > .lista { container-type: inline-size; }
+@container (max-width: 900px) { .dtabla .c-quien { display: none; } }
+@container (max-width: 760px) { .dtabla .c-fecha { display: none; } }
+.dtabla .c-fecha { font-family: var(--font-data); font-size: .78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.dtabla .c-tarjeta select { min-height: var(--control-h-sm); font: inherit; font-family: var(--font-ui); font-size: .82rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); max-width: 180px; }
+.dtabla .tarjeta-liga { border: 0; background: none; font: inherit; font-size: .82rem; color: var(--text-link); cursor: pointer; text-align: left; padding: 0; }
+.dtabla td .estado { display: inline-flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; }
+/* chip del tipo de archivo, con el color del icono */
+.mn-chip.tipo { font-family: var(--font-data); font-weight: 600; letter-spacing: .03em; background: color-mix(in srgb, var(--idle-solid) 14%, transparent); color: var(--idle-solid); }
+.mn-chip.tipo.is-pdf { color: var(--bad-solid); background: color-mix(in srgb, var(--bad-solid) 12%, transparent); }
+.mn-chip.tipo.is-word { color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, transparent); }
+.mn-chip.tipo.is-excel { color: var(--ok-solid); background: color-mix(in srgb, var(--ok-solid) 12%, transparent); }
+.mn-chip.tipo.is-ppt { color: var(--serie); background: color-mix(in srgb, var(--serie) 12%, transparent); }
+.mn-chip.tipo.is-imagen { color: var(--serie2); background: color-mix(in srgb, var(--serie2) 12%, transparent); }
+.mn-chip.tipo.is-lote, .mn-chip.tipo.is-correo { color: var(--info-solid); background: color-mix(in srgb, var(--info-solid) 12%, transparent); }
+/* renglon de grupo: la lengüeta de v0.16.0 */
+.dtabla tr.pest td { padding: var(--sp-3) var(--sp-3) 0; border-bottom: 0; background: var(--surface-card); }
+.dtabla tr.pest + tr.doc td { border-top: 1px solid var(--border-hairline); }
+.pest .cab { display: inline-flex; align-items: center; gap: var(--sp-2); max-width: 100%; min-width: 0; padding: var(--sp-1) var(--sp-3); background: var(--brand-primary); color: var(--text-on-brand); border: 0; border-radius: var(--r-sm); font: inherit; text-align: left; }
+button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter: brightness(1.08); }
+.pest .cab svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.pest .cab .grupo { font-family: var(--font-display); font-weight: 600; font-size: .85rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pest .cab .n { font-family: var(--font-data); font-size: .68rem; opacity: .8; flex: none; }
+.pest.is-proyecto .cab { background: var(--surface-sunken); color: var(--text-muted); border: 1px solid var(--border-default); }
+/* menu «⋯» por renglon */
+.fila-menu { position: relative; display: inline-block; }
+.fila-menu > summary { list-style: none; cursor: pointer; color: var(--text-muted); display: inline-flex; }
+.fila-menu > summary::-webkit-details-marker { display: none; }
+.fila-menu .menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: var(--z-pop); display: grid; gap: 2px; min-width: 200px; padding: var(--sp-2); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); text-align: left; }
+.fila-menu .menu .mn-btn { justify-content: flex-start; width: 100%; }
+.fila-menu .menu .is-peligro { color: var(--status-danger-fg); }
+/* barra de la pestaña Docs: chips + conteo + buscador */
+.docs-barra { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
+.docs-barra .p { font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); margin-left: auto; }
+.docs-barra .buscador { flex: 0 1 260px; }
+@media (max-width: 720px) {
+  .dtabla { overflow: visible; border: 0; background: none; }
+  .dtabla table, .dtabla tbody { display: block; }
+  .dtabla thead { display: none; }
+  .dtabla tr.doc { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-2); align-items: center; padding: var(--sp-2) var(--sp-3); margin-bottom: var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-card); }
+  .dtabla tr.doc td { display: block; padding: 0; border: 0 !important; background: none !important; }
+  .dtabla tr.doc .c-nombre { grid-column: 1; grid-row: 1; width: auto; }
+  .dtabla tr.doc .c-acc { grid-column: 2; grid-row: 1; }
+  .dtabla tr.doc .c-tipo, .dtabla tr.doc .c-estado, .dtabla tr.doc .c-fecha, .dtabla tr.doc .c-quien { display: inline-block; grid-column: 1 / -1; grid-row: auto; width: auto; margin-right: var(--sp-2); }
+  .dtabla tr.doc .c-tipo { grid-row: 2; } .dtabla tr.doc .c-estado { grid-row: 2; grid-column: 2; justify-self: end; }
+  .dtabla tr.doc .c-quien, .dtabla tr.doc .c-fecha { grid-row: 3; } .dtabla tr.doc .c-fecha { grid-column: 2; justify-self: end; }
+  .dtabla tr.doc .c-tarjeta { grid-column: 1 / -1; grid-row: 4; }
+  .dtabla tr.doc .c-tarjeta select { max-width: 100%; width: 100%; }
+  .dtabla tr.pest { display: block; } .dtabla tr.pest td { display: block; padding: var(--sp-2) 0 var(--sp-1); }
+  .dtabla .t { white-space: normal; overflow-wrap: anywhere; }
+  .docs-barra .buscador { flex-basis: 100%; }
+}
 .doc .t .mn-chip { margin-right: var(--sp-1); vertical-align: middle; }
 /* U11: imprimir = lo que hay en pantalla, sin cromo. Ctrl+P o el boton «Imprimir». */
 @media print {
