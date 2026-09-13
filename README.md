@@ -6,6 +6,13 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.15.1** (2026-09-13) — **Dos ajustes de piel a pedido de Carlos.** (1) Las burbujas del chat pierden el filete de 3 px a la
+izquierda; el tono de cada persona lo da solo el fondo. (2) La lista de Actividad (lateral del proyecto e Inicio) ocupa todo el ancho
+de la tarjeta: «ver toda» iba en `float: right` y, como el `h2` no contenía el flotante, la lista `.mini` (un grid, contexto de formato
+propio) se acortaba a su lado en toda su altura — 171 de 246 px en la lateral a 1366 y el hover del renglón se veía partido (captura
+del 13-sep). El `h2` con «ver toda» es ahora flex. Medido por `capturas.mjs --medir`: 244/244 px a 1366, 332/332 a 390; `npm test`
+verde y E2E 288 · 252 · 27 con 0 fallas. Sin cambio de esquema; SW v20.
+
 **v0.15.0** (2026-09-13) — **El mismo canal: «Nuevo para ti», marca de lectura compartida, ✓ visto en el chat y «Las que
 delegué».** Salió de auditar la app como usuario (rol colaborador, 86 vistas a 390 y 1366) buscando dónde se rompe el
 canal entre colegas; Carlos aprobó los puntos 1, 3, 4 y 5 de esa auditoría y dejó el 2 (avisos fuera de la app) para otra

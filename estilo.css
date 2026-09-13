@@ -212,8 +212,11 @@
 .mn-btn.is-icono svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .mn-dialog-head h2 { min-width: 0; overflow-wrap: anywhere; }
 .rail .sesion a.mn-btn { text-decoration: none; }
-/* F12: «ver toda» pegado al titulo de la tarjeta de actividad */
-.mn-card h2 .ver-toda { float: right; text-transform: none; letter-spacing: 0; }
+/* F12: «ver toda» pegado al titulo de la tarjeta de actividad. v0.15.1 (captura de Carlos 13-sep): era float: right, y
+   como el h2 no contenia el flotante, la lista .mini (un grid = contexto de formato propio) se ACORTABA a su lado en toda
+   su altura (171 de 246 px en la lateral a 1366; el hover del renglon se partia). El h2 es ahora flex y contiene al boton. */
+.mn-card h2:has(.ver-toda) { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.mn-card h2 .ver-toda { text-transform: none; letter-spacing: 0; }
 /* U6: «ver las N anteriores» en Hecho — un .mn-btn.is-ghost.is-sm mas (auditoria #8: era un boton de texto
    propio de 27 px, radio 0 y .78rem; en la rejilla de la columna hay que anclarlo, o se estira a lo ancho). */
 .col .mas { justify-self: start; }
@@ -683,11 +686,12 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .chat .dia { justify-self: center; margin: var(--sp-2) 0 var(--sp-1); padding: 2px 10px; border-radius: var(--r-pill); background: var(--surface-sunken); font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }   /* muted, no faint: 2.45:1 a 10 px (revisor) */
 .msg { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: var(--sp-2); align-items: start; padding: var(--sp-1) 0; }
 .msg .av-hueco { width: 26px; height: 1px; }
-.msg .cuerpo { display: grid; gap: 2px; min-width: 0; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md); border-left: 3px solid var(--msg-tono, var(--border-default)); background: color-mix(in srgb, var(--msg-tono, var(--text-muted)) 9%, var(--surface-card)); }
+.msg .cuerpo { display: grid; gap: 2px; min-width: 0; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md); background: color-mix(in srgb, var(--msg-tono, var(--text-muted)) 9%, var(--surface-card)); }
 /* v0.14.0 (Carlos 13-sep): cada persona escribe en su burbuja, del tono de su avatar (comun.js tonoDe), para que el hilo no sea
    un solo bloque del mismo color. 9 % del tono sobre la tarjeta: en claro y oscuro el texto sigue siendo el del cuerpo (los
    tonos de --av-N ya cambian con el tema). Los mensajes seguidos de la misma persona se pegan: la burbuja de arriba pierde
-   el redondeo de abajo y la de abajo el de arriba, con 2 px entre ellas. */
+   el redondeo de abajo y la de abajo el de arriba, con 2 px entre ellas. v0.15.1 (Carlos 13-sep): sin el filete de 3 px a la
+   izquierda; el tono lo da solo el fondo. */
 .msg[data-tono="1"] { --msg-tono: var(--av-1); } .msg[data-tono="2"] { --msg-tono: var(--av-2); } .msg[data-tono="3"] { --msg-tono: var(--av-3); } .msg[data-tono="4"] { --msg-tono: var(--av-4); }
 .msg[data-tono="5"] { --msg-tono: var(--av-5); } .msg[data-tono="6"] { --msg-tono: var(--av-6); } .msg[data-tono="7"] { --msg-tono: var(--av-7); } .msg[data-tono="8"] { --msg-tono: var(--av-8); }
 .msg:has(+ .msg.is-seguido) .cuerpo { border-bottom-left-radius: 4px; border-bottom-right-radius: 4px; }
