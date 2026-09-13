@@ -368,7 +368,7 @@ function renglonProyecto(p) {
     const avs = el('span', 'avs'); for (const q of quienes.slice(0, 6)) avs.appendChild(avatar(q)); chips.appendChild(avs);
     lado.appendChild(chips);
     const barra = el('span', 'segbar'); barra.title = tituloSegmentos(segmentosDe(a));
-    for (const [c, n, cls] of segmentosDe(a)) { const i = el('i', cls); i.style.flex = String(n); i.title = `${c.nombre}: ${n}`; barra.appendChild(i); }
+    for (const [c, n, cls, tono] of segmentosDe(a)) { const i = el('i', cls); if (tono) i.dataset.tono = tono; i.style.flex = String(n); i.title = `${c.nombre}: ${n}`; barra.appendChild(i); }   // v0.12.0: el color elegido manda sobre la clase
     if (!a.total) { const i = el('i', 'p'); i.style.flex = '1'; barra.appendChild(i); }
     lado.appendChild(barra);
     r.appendChild(lado);
@@ -584,12 +584,14 @@ function pintarProyecto() {
     const eq = equipoDe(p); const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p));
     $('pEquipo').textContent = ''; $('pEquipo').appendChild(iconoEquipo(eq, 'lg'));   // v0.7.0: icono, no nombre
     $('pTitulo').textContent = p.Title; $('pDesc').textContent = p.Descripcion || '';
-    $('pPct').textContent = `${a.hechas}/${a.total} hechas · ${a.pct}%${p.Estado === 'cerrado' ? ' · CERRADO' : ''}`;
+    $('pEstado').textContent = p.Estado === 'cerrado' ? 'Cerrado' : '';   // v0.12.0: el «N/M hechas · %» salio del titulo (Carlos, 12-sep); vive en Avance
     $('btnEditarProyecto').disabled = !PUEDE.proyecto(estado.rol) || p.Estado !== 'activo';
     $('btnCubetas').disabled = !PUEDE.proyecto(estado.rol) || p.Estado !== 'activo';   // v0.11.0
     $('btnCerrarProyecto').disabled = !PUEDE.proyecto(estado.rol) || p.Estado !== 'activo';
     const faltan = ts.filter(t => t.Columna !== 'hecho').length;
-    $('btnCerrarProyecto').textContent = p.Estado !== 'activo' ? 'Cerrado' : faltan ? `Cerrar proyecto · faltan ${faltan}` : 'Cerrar proyecto';
+    // v0.12.0: el boton ya no cuenta («· faltan N» salio del titulo); la cuenta va en su title y en la confirmacion.
+    $('btnCerrarProyecto').textContent = p.Estado !== 'activo' ? 'Cerrado' : 'Cerrar proyecto';
+    $('btnCerrarProyecto').title = p.Estado !== 'activo' ? '' : faltan ? `Faltan ${faltan} tarjeta(s) por terminar` : 'Todas las tarjetas están hechas';
     // F6: un cerrado se reabre (solo gerencia); el boton solo existe en ese estado.
     $('btnReabrirProyecto').classList.toggle('oculto', !(PUEDE.proyecto(estado.rol) && p.Estado === 'cerrado'));
     $('btnNuevaTarea').disabled = !PUEDE.tarea(estado.rol) || p.Estado !== 'activo';
@@ -801,7 +803,6 @@ $('menuRail').querySelector('.menu-caja').addEventListener('click', () => { $('m
 $('filtroEquipoMovil').addEventListener('change', () => { estado.filtroEquipo = $('filtroEquipoMovil').value || null; repintar(); });
 $('textoProyectos').addEventListener('input', () => { estado.textoProyectos = $('textoProyectos').value; if (estado.pestana === 'proyectos') pintarProyectos(); });
 $('textoMis').addEventListener('input', () => { estado.textoMis = $('textoMis').value; if (estado.pestana === 'mis') pintarMisTareas(); });
-$('btnVolver').addEventListener('click', () => irA('proyectos'));
 $('btnNuevoProyecto').addEventListener('click', () => abrirFormaProyecto(null));
 $('btnEditarProyecto').addEventListener('click', () => abrirFormaProyecto(estado.proyectoAbierto));
 $('btnCerrarProyecto').addEventListener('click', cerrarProyecto);

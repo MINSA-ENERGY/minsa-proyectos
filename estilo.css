@@ -217,7 +217,7 @@
 .doc .t .mn-chip { margin-right: var(--sp-1); vertical-align: middle; }
 /* U11: imprimir = lo que hay en pantalla, sin cromo. Ctrl+P o el boton «Imprimir». */
 @media print {
-  .mn-rail, .barra-movil, .sync, #avisos, #sinRed, .tabs, .filtros, .col-tabs, .proyecto-cab .acciones, .lateral, .col .mas, .ver-toda, .pie, .tema, #btnVolver, .docs-acciones { display: none !important; }
+  .mn-rail, .barra-movil, .sync, #avisos, #sinRed, .tabs, .filtros, .col-tabs, .proyecto-cab .acciones, .lateral, .col .mas, .ver-toda, .pie, .tema, .docs-acciones { display: none !important; }
   body { background: #fff; color: #000; }
   .contenido { padding: 0; }
   .mn-shell { display: block; }
@@ -277,7 +277,6 @@
 .resumen-linea.is-danger { color: var(--status-danger-fg); font-weight: 600; }
 .solo-movil { display: none; }
 .t-corto { display: none; }
-.pct { color: var(--text-muted); font-size: .85rem; }
 .pie { margin: var(--sp-6) 0 0; font-size: .72rem; color: var(--text-faint); }
 
 /* 2026-09-12: la lateral gana 40 px (300 → 340) y la principal lleva minmax(0, 1fr): en Inicio la principal
@@ -462,7 +461,9 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .orden { display: flex; gap: var(--sp-2); align-items: center; margin: 0 0 var(--sp-3); font-size: .8rem; color: var(--text-muted); }
 .orden:empty { display: none; }
 .editar summary { cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--text-link); padding: 0; min-height: var(--control-h-sm); display: flex; align-items: center; }   /* misma altura que un .is-sm: 32 / 40 tactil */
-.forma .mn-dialog-foot { margin: var(--sp-3) calc(-1 * var(--sp-4)) calc(-1 * var(--sp-4)); }
+/* v0.12.0: el pie de un formulario de dialogo ya NO lleva margen negativo: se salia del ancho del <dialog> (el boton primario
+   cortado y 14 px de scroll vertical en «Cubetas», medido con capturas.mjs: dialog=512x427 scrollH=441). */
+.forma .mn-dialog-foot { margin: 0; }
 /* Auditoria #2: en todo pie el primario va al FINAL; el destructivo, solo, a la izquierda. */
 .mn-dialog-foot .is-danger { margin-right: auto; }
 /* Un pie cuyo unico boton esta oculto (Actividad sin «ver 50 mas») no deja la barra vacia. */
@@ -536,7 +537,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .proyecto-cab { gap: var(--sp-1) var(--sp-2); }
   .proyecto-cab h1 { font-size: 1.15rem; }
   .proyecto-cab .titulo h1 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .proyecto-cab .pct { font-size: .75rem; }
   /* B1: las tres acciones, en menu */
   .acc-menu { display: block; margin-left: auto; position: relative; }
   .acc-menu > summary { display: inline-flex; list-style: none; cursor: pointer; color: var(--text-muted); }   /* el tamano y el borde los pone .mn-btn.is-sm.is-icono */
@@ -640,13 +640,13 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tablero[data-n="8"] { grid-template-columns: repeat(8, minmax(150px, 1fr)); }
 /* ---- editor de cubetas (v0.11.0) */
 .cubetas { display: grid; gap: var(--sp-2); margin-bottom: var(--sp-2); }
-.cubeta { display: grid; grid-template-columns: 8px 1fr auto auto auto auto; gap: var(--sp-2); align-items: center; }
+.cubeta { display: grid; grid-template-columns: auto 1fr auto auto auto auto; gap: var(--sp-2); align-items: center; }
 .cubeta .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--border-default); }
 .cubeta .punto.is-c { background: var(--brand-primary); } .cubeta .punto.is-r { background: var(--status-info-solid); } .cubeta .punto.is-h { background: var(--status-ok-solid); }
-.cubeta input { min-width: 0; }
+.cubeta input { min-width: 0; font: inherit; min-height: var(--control-h-sm); padding: 0 var(--sp-2); color: var(--text-strong); background: var(--surface-sunken); border: 1px solid var(--border-default); border-radius: var(--r-sm); }   /* v0.12.0: misma piel que .mn-field input (era el input crudo de 21 px) */
 .cubeta .n { font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); white-space: nowrap; }
 /* En celular la cuenta baja a un segundo renglon; el nombre y los tres botones se quedan en el primero. */
-@media (max-width: 720px) { .cubeta { grid-template-columns: 8px 1fr auto auto auto; row-gap: 2px; } .cubeta .n { grid-column: 2 / -1; grid-row: 2; } }
+@media (max-width: 720px) { .cubeta { grid-template-columns: auto 1fr auto auto auto; row-gap: 2px; } .cubeta .n { grid-column: 2 / -1; grid-row: 2; } }
 /* ---- contador en la pestana (Documentos · N, Chat · N) */
 .tab .n { margin-left: 6px; font-family: var(--font-data); font-size: .7rem; font-weight: 500; padding: 1px 6px; border-radius: var(--r-pill); background: var(--surface-sunken); color: var(--text-muted); }
 .tab.is-on .n { background: var(--surface-selected); color: var(--brand-primary); }
@@ -706,7 +706,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* ==== v0.9.0 (2026-09-12): borrar comentario, «nuevos desde tu ultima visita», enlaces clicables, cabecera de dialogo marcada ==== */
 /* ---- cabecera de dialogo: Carlos pidio que se distinga de lo editable. Fondo hundido, filete mas firme abajo y una
    linea de marca arriba; el pie ya era hundido, asi que el cuerpo (lo editable) queda como la unica superficie clara. */
-.mn-dialog-head { background: color-mix(in srgb, var(--brand-primary) 7%, var(--surface-sunken)); border-bottom: 1px solid var(--border-default); border-radius: var(--r-md) var(--r-md) 0 0; box-shadow: inset 0 3px 0 var(--brand-primary); padding-top: calc(var(--sp-4) + 2px); }
+.mn-dialog-head { background: color-mix(in srgb, var(--brand-primary) 7%, var(--surface-sunken)); border-bottom: 1px solid var(--border-default); border-radius: var(--r-md) var(--r-md) 0 0; }   /* v0.12.0: la franja azul de arriba (inset 3px) salio a pedido de Carlos, 12-sep */
 .mn-dialog-foot { border-top-color: var(--border-default); }
 /* Las secciones DENTRO del dialogo de tarjeta (Mover a… · Notas · Documentos · Editar): un filete arriba y aire, para que
    cada bloque se lea como bloque y no como una lista continua de rotulos. El primero no lleva filete. */
@@ -892,3 +892,37 @@ button.g-barra { cursor: pointer; } button.g-barra:hover { filter: brightness(.9
   .rep-fila { grid-template-columns: 1fr; gap: var(--sp-1); }
   .msg-proy .t { font-size: .9rem; }
 }
+
+/* ==== v0.12.0 (2026-09-12): colores a elegir para cubetas y tarjetas; sin franja en la cabecera del dialogo; sin «← Proyectos» ni «N/M hechas» ==== */
+/* La paleta: una clave por tono (COLORES en reglas.js). El tono es un SOLIDO; el fondo suave sale con color-mix sobre la
+   superficie, asi que en oscuro se atenua solo. Se aplica por `data-tono="<clave>"` en el elemento. */
+:root {
+  --tono-azul: var(--brand); --tono-celeste: var(--sky-600); --tono-verde: var(--green-700); --tono-ambar: var(--amber-600);
+  --tono-rojo: var(--red-600); --tono-morado: #7c3aed; --tono-rosa: #db2777; --tono-gris: var(--slate-400);
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --tono-azul: #7f9bff; --tono-morado: #a78bfa; --tono-rosa: #f472b6; } }
+:root[data-theme="dark"] { --tono-azul: #7f9bff; --tono-morado: #a78bfa; --tono-rosa: #f472b6; }
+[data-tono="azul"] { --tono: var(--tono-azul); } [data-tono="celeste"] { --tono: var(--tono-celeste); } [data-tono="verde"] { --tono: var(--tono-verde); }
+[data-tono="ambar"] { --tono: var(--tono-ambar); } [data-tono="rojo"] { --tono: var(--tono-rojo); } [data-tono="morado"] { --tono: var(--tono-morado); }
+[data-tono="rosa"] { --tono: var(--tono-rosa); } [data-tono="gris"] { --tono: var(--tono-gris); }
+/* Donde se ve: el punto y el fondo de la columna, el punto del editor, el segmento de barra/anillo/leyenda, y la tarjeta. */
+.col[data-tono] { background: color-mix(in srgb, var(--tono) 9%, var(--surface-sunken)); }
+.col[data-tono] h3 .punto, .cubeta .punto[data-tono], .leyenda span[data-tono] i { background: var(--tono); }
+.segbar i[data-tono] { background: var(--tono); }
+.anillo .seg[data-tono] { stroke: var(--tono); }
+.tarjeta[data-tono] { background: color-mix(in srgb, var(--tono) 13%, var(--surface-card)); border-color: color-mix(in srgb, var(--tono) 38%, var(--border-hairline)); }
+.tarjeta[data-tono]:hover { border-color: color-mix(in srgb, var(--tono) 60%, var(--border-default)); }
+.tarjeta.alta[data-tono] { border-left-color: var(--brand-primary); }
+/* Selector de color: una fila de circulos, el elegido con anillo; «sin color» es el primero (un circulo hueco). */
+.tonos { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }
+.tonos button { width: 24px; height: 24px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid transparent; background: var(--tono, transparent); cursor: pointer; box-shadow: 0 0 0 1px var(--border-default); }
+.tonos button[data-tono=""] { background: var(--surface-card); position: relative; }
+.tonos button[data-tono=""]::after { content: ""; position: absolute; inset: 9px 2px auto 2px; height: 2px; background: var(--border-default); transform: rotate(-45deg); }
+.tonos button[aria-pressed="true"] { border-color: var(--surface-card); box-shadow: 0 0 0 2px var(--text-strong); }
+.tonos button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.cubeta .tonos { grid-column: 2 / -1; gap: 3px; } .cubeta .tonos button { width: 20px; height: 20px; }
+.mn-field .tonos { min-height: var(--control-h); align-items: center; }
+/* Estado «cerrado» en la cabecera del proyecto: un chip donde antes iba «N/M hechas · %». */
+.proyecto-cab .estado:empty { display: none; }
+@media (max-width: 720px) { .tonos button { width: 28px; height: 28px; } }
+

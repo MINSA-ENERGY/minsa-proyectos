@@ -94,9 +94,8 @@
     <!-- Proyecto -->
     <section id="p-proyecto" class="pantalla oculto">
       <header class="cabecera proyecto-cab">
-        <button id="btnVolver" class="mn-btn is-ghost is-sm" type="button">← Proyectos</button>
         <div class="titulo"><span id="pEquipo"></span> <h1 id="pTitulo"></h1></div>
-        <span class="mn-mono pct" id="pPct"></span>
+        <span class="mn-chip is-ok estado" id="pEstado"></span>   <!-- v0.12.0: solo «Cerrado»; el «N/M hechas · %» salio (vive en Avance) -->
         <span class="reloj" id="pReloj"></span>
         <!-- B1: en celular las tres acciones del proyecto viven en un menu «···»; en escritorio el
              <details> es display:contents y se ven los tres botones de siempre. -->
@@ -241,6 +240,7 @@
           <div class="mn-field"><label for="ftAsignado">Asignado</label><select id="ftAsignado"></select></div>
           <div class="mn-field"><label for="ftPrioridad">Prioridad</label><select id="ftPrioridad"><option value="alta">alta</option><option value="normal" selected>normal</option><option value="baja">baja</option></select></div>
         </div>
+        <div class="mn-field"><label id="ftColorEtiqueta">Color de la tarjeta</label><div class="tonos" id="ftColor" role="radiogroup" aria-labelledby="ftColorEtiqueta"></div></div>
         <div class="mn-field"><label for="ftVence">Vence</label><input id="ftVence" type="date"><div class="atajos-fecha" id="ftAtajos"></div></div>
         <div class="mn-field"><label for="ftDesc">Descripción</label><textarea id="ftDesc" rows="3"></textarea></div>
         <div class="mn-field oculto" id="ftProyectoCampo"><label for="ftProyecto">Proyecto (moverla a otro frente)</label><select id="ftProyecto"></select></div>
@@ -266,6 +266,7 @@
         <div class="mn-field"><label for="ntColumna">Cubeta</label><select id="ntColumna"></select></div>
       </div>
       <div class="mn-field"><label for="ntDesc">Descripción (opcional)</label><textarea id="ntDesc" rows="3"></textarea></div>
+      <div class="mn-field"><label id="ntColorEtiqueta">Color (opcional)</label><div class="tonos" id="ntColor" role="radiogroup" aria-labelledby="ntColorEtiqueta"></div></div>
     </div>
     <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="ntCancelar" type="button">Cancelar</button><button class="mn-btn is-sm" id="ntGuardarYOtra" type="button" title="Guarda y deja el diálogo abierto con asignado, prioridad, columna y vence">Crear y otra</button><button class="mn-btn is-primary is-sm" id="ntGuardar" type="submit">Crear tarea</button></div>
   </form>
@@ -279,7 +280,7 @@
       <div class="dlg-avisos"></div>
       <div class="cubetas" id="cbLista"></div>
       <button class="mn-btn is-ghost is-sm" id="cbAgregar" type="button">+ Agregar cubeta</button>
-      <p class="mn-help">Una tarjeta nueva nace en la primera. «Hecho» cierra las tarjetas: se puede renombrar, no quitar. Una cubeta con tarjetas no se quita hasta moverlas.</p>
+      <p class="mn-help">Una tarjeta nueva nace en la primera. «Hecho» cierra las tarjetas: se puede renombrar, no quitar. Una cubeta con tarjetas no se quita hasta moverlas. El color tiñe la columna y su punto; sin color, el punto va por posición.</p>
     </div>
     <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="cbCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="cbGuardar" type="submit">Guardar cubetas</button></div>
   </form>

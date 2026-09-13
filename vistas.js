@@ -337,10 +337,10 @@ export function anillo(segs, total, tam = 120) {
     svg.setAttribute('aria-label', `${total ? Math.round(hechas * 100 / total) : 0}% hechas`);
     svg.appendChild(svgEl('circle', { cx: 21, cy: 21, r: 15.9, class: 'fondo' }));
     let acumulado = 0;
-    for (const [col, n, cls] of segs) {
+    for (const [col, n, cls, tono] of segs) {
         if (!n || !total) continue;
         const pct = n * 100 / total;
-        const c = svgEl('circle', { cx: 21, cy: 21, r: 15.9, class: 'seg is-' + cls, 'stroke-dasharray': `${Math.max(pct - 1.5, 0)} ${100 - Math.max(pct - 1.5, 0)}`, 'stroke-dashoffset': String(25 - acumulado) });
+        const c = svgEl('circle', { cx: 21, cy: 21, r: 15.9, class: 'seg is-' + cls, ...(tono ? { 'data-tono': tono } : {}), 'stroke-dasharray': `${Math.max(pct - 1.5, 0)} ${100 - Math.max(pct - 1.5, 0)}`, 'stroke-dashoffset': String(25 - acumulado) });
         const tt = svgEl('title'); tt.textContent = `${col.nombre}: ${n}`; c.appendChild(tt);
         svg.appendChild(c); acumulado += pct;
     }
@@ -349,7 +349,7 @@ export function anillo(segs, total, tam = 120) {
 }
 function leyenda(segs) {
     const l = el('div', 'leyenda');
-    for (const [col, n, cls] of segs) { const s = el('span', 'is-' + cls); s.appendChild(el('i')); s.appendChild(el('span', '', `${col.nombre} `)); s.appendChild(el('b', '', String(n))); l.appendChild(s); }
+    for (const [col, n, cls, tono] of segs) { const s = el('span', 'is-' + cls); if (tono) s.dataset.tono = tono; s.appendChild(el('i')); s.appendChild(el('span', '', `${col.nombre} `)); s.appendChild(el('b', '', String(n))); l.appendChild(s); }
     return l;
 }
 /** Barra horizontal con segmentos por cubeta del proyecto (la misma leyenda que la lista de proyectos) y su % a la derecha. */
@@ -357,7 +357,7 @@ function barraSeg(a) {
     const w = el('div', 'rep-barra');
     const segs = segmentosDe(a);
     const b = el('div', 'segbar alta'); b.title = tituloSegmentos(segs);
-    for (const [col, n, cls] of segs) { const i = el('i', cls); i.style.flex = String(n); i.title = `${col.nombre}: ${n}`; if (n) i.appendChild(el('span', '', String(n))); b.appendChild(i); }
+    for (const [col, n, cls, tono] of segs) { const i = el('i', cls); if (tono) i.dataset.tono = tono; i.style.flex = String(n); i.title = `${col.nombre}: ${n}`; if (n) i.appendChild(el('span', '', String(n))); b.appendChild(i); }
     if (!a.total) { const i = el('i', 'p'); i.style.flex = '1'; b.appendChild(i); }
     w.appendChild(b); w.appendChild(el('b', 'mn-mono', `${a.pct}%`));
     return w;

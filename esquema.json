@@ -40,7 +40,8 @@
         { "nombre": "Desde", "titulo": "En esta columna desde", "tipo": "dateTime", "nota": "se reescribe en cada movimiento; base de «sin movimiento N dias»" },
         { "nombre": "HechoPor", "titulo": "Hecho por", "tipo": "text" },
         { "nombre": "HechoEl", "titulo": "Hecho el", "tipo": "dateTime" },
-        { "nombre": "Notas", "titulo": "Notas", "tipo": "note" }
+        { "nombre": "Notas", "titulo": "Notas", "tipo": "note" },
+        { "nombre": "Color", "titulo": "Color de la tarjeta", "tipo": "text", "nota": "v0.12.0 (2026-09-12): clave de la paleta COLORES de reglas.js (azul, celeste, verde, ambar, rojo, morado, rosa, gris) o vacio. Solo tiñe la tarjeta; no cambia nada mas. En una lista ya provisionada se AGREGA con provisionar.html" }
       ]
     },
     {

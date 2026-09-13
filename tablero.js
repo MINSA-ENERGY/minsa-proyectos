@@ -7,7 +7,7 @@
 // «→ siguiente» de la cara de la tarjeta se quito, y «Origen en la KB» ya no se ensena ni se pide.
 
 import { CONFIG } from './config.js';
-import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA } from './reglas.js';
+import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido } from './reglas.js';
 import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
@@ -34,11 +34,27 @@ const personas = () => estado.roles.filter(r => r.Activo !== false).map(r => Str
 
 // ---------------------------------------------------------------- tarjeta (elemento)
 
+// ---------------------------------------------------------------- selector de color (v0.12.0)
+//
+// Una fila de circulos (sin color + los 8 de COLORES) con aria-pressed; el valor vive en cont.dataset.valor.
+// Sirve para la cubeta (editor de cubetas) y para la tarjeta (editar / nueva). `alElegir` es opcional.
+export function selectorTonos(cont, actual, alElegir, rotulo = 'Color') {
+    cont.textContent = ''; cont.dataset.valor = colorValido(actual);
+    for (const c of [{ clave: '', nombre: 'Sin color' }, ...COLORES]) {
+        const b = el('button'); b.type = 'button'; b.dataset.tono = c.clave; b.title = c.nombre; b.setAttribute('aria-label', `${rotulo}: ${c.nombre}`);
+        b.setAttribute('aria-pressed', cont.dataset.valor === c.clave ? 'true' : 'false');
+        b.addEventListener('click', () => { cont.dataset.valor = c.clave; for (const x of cont.children) x.setAttribute('aria-pressed', x.dataset.tono === c.clave ? 'true' : 'false'); if (alElegir) alElegir(c.clave); });
+        cont.appendChild(b);
+    }
+    return cont;
+}
+
 export function tarjeta(t, conProyecto = false) {
     // D4 (v0.6.0): la prioridad alta es un atributo estable y va como BORDE izquierdo; el chip rojo
     // se queda solo para «venció» — dos rojos lado a lado se leian como dos vencimientos.
     const b = el('button', 'tarjeta' + (t.Prioridad === 'alta' ? ' alta' : '')); b.type = 'button'; b.dataset.t = String(t.id);
     if (t.Prioridad === 'alta') b.title = 'Prioridad alta';
+    if (colorValido(t.Color)) b.dataset.tono = colorValido(t.Color);   // v0.12.0: el color elegido tiñe la tarjeta
     b.appendChild(el('span', 't', t.Title));
     const f = el('span', 'f');
     f.appendChild(avatar(t.Asignado));
@@ -128,6 +144,7 @@ export function pintarTablero(proyecto) {
     for (const [i, c] of columnas.entries()) {
         const col = el('div', 'col' + (estado.colMovil === c.clave ? ' is-activa' : '') + (c.huerfana ? ' is-huerfana' : '')); col.dataset.col = c.clave;
         col.dataset.cls = claseDeColumna(c.clave, columnas);   // v0.11.0: el color del punto va por POSICION, no por nombre
+        if (c.color) col.dataset.tono = c.color;   // v0.12.0: salvo que la cubeta tenga color elegido
         const h = el('h3'); h.appendChild(el('i', 'punto')); h.appendChild(el('span', '', c.nombre));   // v0.8.0: el punto lleva el color de la barra segmentada
         if (c.huerfana) h.title = 'Esta cubeta ya no existe en el proyecto: mueve sus tarjetas a otra.';
         let cs = ordenar(ts.filter(t => t.Columna === c.clave));
@@ -310,6 +327,7 @@ export function abrirTarjeta(id) {
     $('ftProyecto').value = String(t.ProyectoId);
     $('ftTitulo').value = t.Title || ''; $('ftAsignado').value = String(t.Asignado || '').toLowerCase(); $('ftPrioridad').value = t.Prioridad || 'normal';
     $('ftVence').value = diaInput(t.Vence); $('ftDesc').value = t.Descripcion || '';
+    selectorTonos($('ftColor'), t.Color, null, 'Color de la tarjeta');   // v0.12.0
     atajosFecha('ftVence', 'ftAtajos', p && p.Vence);   // C2 + D1
     abrirDialogo('dlgTarea');
     fijarHash(hashDe(t.id));
@@ -488,7 +506,8 @@ async function guardarEdicion(ev) {
     if (!titulo) { avisar('La tarea necesita un título.', 'error'); $('ftTitulo').focus(); return; }
     const campos = {
         Title: titulo, Asignado: $('ftAsignado').value || null, Prioridad: $('ftPrioridad').value, Vence: vence,
-        Descripcion: $('ftDesc').value.trim() || null   // v0.11.0: Origen ya no se edita desde la app (se conserva lo que traiga)
+        Descripcion: $('ftDesc').value.trim() || null,   // v0.11.0: Origen ya no se edita desde la app (se conserva lo que traiga)
+        Color: $('ftColor').dataset.valor || null   // v0.12.0
     };
     const cambioAsignado = String(t.Asignado || '').toLowerCase() !== String(campos.Asignado || '').toLowerCase();
     // F11: a otro frente (solo gerencia). Cae al final de su cubeta en el proyecto nuevo y arrastra sus ligas.
@@ -557,6 +576,7 @@ export function abrirNuevaTarea() {
     opciones($('ntColumna'), cols, c => c.clave, c => c.nombre, null);
     $('ntColumna').value = cols[0].clave;
     $('ntTitulo').value = ''; $('ntPrioridad').value = 'normal'; $('ntVence').value = ''; $('ntDesc').value = '';
+    selectorTonos($('ntColor'), '', null, 'Color de la tarjeta');   // v0.12.0
     atajosFecha('ntVence', 'ntAtajos', p.Vence);   // C2 + D1
     abrirDialogo('dlgNuevaTarea');
     $('ntTitulo').focus();
@@ -580,7 +600,7 @@ async function guardarNuevaTarea(ev, seguirCapturando = false) {
     const campos = limpiar({
         Title: titulo, ProyectoId: p.id, Columna: columna, Asignado: $('ntAsignado').value || undefined,
         Vence: vence || undefined, Prioridad: $('ntPrioridad').value, Orden: tareasDe(p, estado.tareas).filter(t => t.Columna === columna).length + 1,
-        Descripcion: $('ntDesc').value.trim() || undefined, Desde: ahora,
+        Descripcion: $('ntDesc').value.trim() || undefined, Desde: ahora, Color: $('ntColor').dataset.valor || undefined,   // v0.12.0
         HechoPor: columna === HECHO ? estado.cuenta.username : undefined, HechoEl: columna === HECHO ? ahora : undefined
     });
     // Los dos botones se apagan AQUI, dentro del alcance del `finally` que los repone: apagar
@@ -626,7 +646,7 @@ function pintarCubetas() {
     for (const [i, c] of cubetasEdicion.entries()) {
         const esHecho = c.clave === HECHO; const n = ts.filter(t => t.Columna === c.clave).length;
         const fila = el('div', 'cubeta' + (esHecho ? ' is-hecho' : '')); fila.dataset.cubeta = c.clave;
-        fila.appendChild(el('i', 'punto is-' + claseDeColumna(c.clave, cubetasEdicion)));
+        const punto = el('i', 'punto is-' + claseDeColumna(c.clave, cubetasEdicion)); if (c.color) punto.dataset.tono = c.color; fila.appendChild(punto);
         const inp = el('input'); inp.value = c.nombre; inp.maxLength = MAX_NOMBRE_COLUMNA; inp.setAttribute('aria-label', `Nombre de la cubeta ${i + 1}`); inp.placeholder = 'Nombre de la cubeta';
         inp.addEventListener('input', () => { c.nombre = inp.value; });
         fila.appendChild(inp);
@@ -639,6 +659,8 @@ function pintarCubetas() {
         q.disabled = esHecho || n > 0 || cubetasEdicion.length <= 2;
         q.title = esHecho ? '«Hecho» no se quita: es la cubeta que cierra las tarjetas.' : n ? `Tiene ${n} tarjeta(s): muévelas antes de quitarla.` : cubetasEdicion.length <= 2 ? 'Hace falta al menos una cubeta abierta.' : 'Quitar esta cubeta';
         fila.appendChild(q);
+        // v0.12.0: el color de la cubeta; cambia el punto al instante, se guarda con las demas.
+        fila.appendChild(selectorTonos(el('div', 'tonos'), c.color, v => { c.color = v; if (v) punto.dataset.tono = v; else delete punto.dataset.tono; }, `Color de «${c.nombre || 'la cubeta'}»`));
         l.appendChild(fila);
     }
     $('cbAgregar').disabled = cubetasEdicion.length >= MAX_COLUMNAS;
@@ -655,7 +677,7 @@ async function guardarCubetas(ev) {
     const p = estado.proyectoAbierto; if (!p || !cubetasEdicion) return;
     if (!PUEDE.proyecto(estado.rol)) { avisar('Solo gerencia cambia las cubetas del proyecto.', 'error'); return; }
     // Las claves ya usadas no cambian; una nueva nace del nombre y no puede chocar con una existente.
-    const v = normalizarColumnas(cubetasEdicion.map(c => ({ clave: c.nueva ? '' : c.clave, nombre: c.nombre })));
+    const v = normalizarColumnas(cubetasEdicion.map(c => ({ clave: c.nueva ? '' : c.clave, nombre: c.nombre, color: c.color || '' })));
     if (!v.ok) { avisar('Cubetas: ' + v.motivo, 'error'); return; }
     const antes = columnasDe(p); const nuevas = v.columnas;
     const quitadas = antes.filter(c => !nuevas.some(n => n.clave === c.clave)).map(c => c.clave);

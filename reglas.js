@@ -23,6 +23,17 @@ export const COLUMNAS = COLUMNAS_DEFAULT.map(c => c.clave);
 export const HECHO = 'hecho';
 export const MAX_COLUMNAS = 8, MAX_NOMBRE_COLUMNA = 30;
 
+// v0.12.0: colores a elegir para una cubeta o una tarjeta. La CLAVE es lo que se guarda (en Columnas[].color
+// y en PROY_Tareas.Color); el tono lo pone el CSS (`--tono-<clave>`), asi que claro y oscuro salen solos.
+// '' = sin color (la cubeta toma el suyo por posicion, la tarjeta queda blanca).
+export const COLORES = [
+    { clave: 'azul', nombre: 'Azul' }, { clave: 'celeste', nombre: 'Celeste' }, { clave: 'verde', nombre: 'Verde' },
+    { clave: 'ambar', nombre: 'Ámbar' }, { clave: 'rojo', nombre: 'Rojo' }, { clave: 'morado', nombre: 'Morado' },
+    { clave: 'rosa', nombre: 'Rosa' }, { clave: 'gris', nombre: 'Gris' }
+];
+/** La clave de color si es una de la paleta; si no, '' (nunca lanza: un valor raro en la lista no rompe el tablero). */
+export function colorValido(c) { c = String(c || '').trim().toLowerCase(); return COLORES.some(x => x.clave === c) ? c : ''; }
+
 /**
  * Las cubetas de un proyecto: lo que trae en `Columnas` si es valido; si no, el default. Nunca lanza:
  * un JSON roto en la lista no puede dejar el tablero en blanco. Devuelve copias (nadie muta el default).
@@ -53,7 +64,7 @@ export function normalizarColumnas(lista, { estricto = true } = {}) {
         // Una nueva que se llame «Hecho» chocaria con la clave fija (aunque Hecho este renombrada): se dice con palabras, no con la clave.
         if (estricto && !c.clave && clave === HECHO) return { ok: false, motivo: 'ya hay una cubeta que cierra las tarjetas (la última); renómbrala en vez de agregar otra' };
         if (claves.has(clave)) { if (estricto && c.clave) return { ok: false, motivo: `clave repetida: ${clave}` }; let n = 2; while (claves.has(`${clave}-${n}`)) n++; clave = `${clave}-${n}`; }
-        claves.add(clave); salida.push({ clave, nombre });
+        claves.add(clave); const color = colorValido(c.color); salida.push(color ? { clave, nombre, color } : { clave, nombre });   // v0.12.0: color opcional
     }
     const iH = salida.findIndex(c => c.clave === HECHO);
     if (iH < 0) salida.push({ clave: HECHO, nombre: 'Hecho' });
@@ -86,7 +97,7 @@ export function categoriaDe(tarea, columnas) {
 export function enProceso(tarea, columnas) { return categoriaDe(tarea, columnas) === 'en-proceso'; }
 
 /** Segmentos de la barra/anillo de UN proyecto, de Hecho a la primera (el orden visual de siempre): [cubeta, n, clase]. */
-export function segmentosDe(a) { return [...a.columnas].reverse().map(c => [c, a.porColumna[c.clave] || 0, claseDeColumna(c.clave, a.columnas)]); }
+export function segmentosDe(a) { return [...a.columnas].reverse().map(c => [c, a.porColumna[c.clave] || 0, claseDeColumna(c.clave, a.columnas), c.color || '']); }   // v0.12.0: 4.º = color elegido, si hay
 /** Segmentos de un avance GLOBAL (avanceGlobal): tres categorias con los mismos colores. */
 export function segmentosGlobales(a) { return [[{ nombre: 'Hechas' }, a.porCategoria.hecho, 'h'], [{ nombre: 'En proceso' }, a.porCategoria['en-proceso'], 'c'], [{ nombre: 'Por hacer' }, a.porCategoria['por-hacer'], 'p']]; }
 /** «3 hechas · 1 en revisión · 2 en curso · 4 por hacer» (el title de la barra). */

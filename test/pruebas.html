@@ -385,16 +385,24 @@ try {
         await mover('en-curso'); R.ok('→ en-curso, Desde reescrito, sin HechoPor', t.fields.Columna === 'en-curso' && !t.fields.HechoPor);
         await mover('en-revision'); R.ok('→ en-revision', t.fields.Columna === 'en-revision');
         await mover('hecho'); R.ok('→ hecho sella HechoPor/HechoEl', t.fields.HechoPor === YO && !!t.fields.HechoEl, t.fields.HechoPor);
-        await esperar(() => $('pPct').textContent.includes('1/'), 'avance repintado');
-        R.ok('panel de avance: 1 hecha', $('pPct').textContent.includes('1/'), $('pPct').textContent);
+        await esperar(() => $('pAvance').textContent.includes('1 de '), 'avance repintado');
+        R.ok('panel de avance: 1 hecha', $('pAvance').textContent.includes('1 de '), $('pAvance').textContent);
+        R.ok('v0.12.0: la cabecera del proyecto ya no trae «← Proyectos» ni «N/M hechas · %»', !$('btnVolver') && !$('pPct') && $('pEstado').textContent === '' && !$('btnCerrarProyecto').textContent.includes('faltan'), $('btnCerrarProyecto').textContent);
         await mover('por-hacer'); R.ok('→ por-hacer limpia el sello', !t.fields.HechoPor && !t.fields.HechoEl);
         R.ok('PROY_Actividad: 4 mover-tarea', actividad('mover-tarea').length === 4, String(actividad('mover-tarea').length));
         R.ok('la tarjeta volvió a por-hacer en el tablero', !!document.querySelector(`.col[data-col="por-hacer"] .tarjeta[data-t="${t.id}"]`));
         // Editar: reasignar a mí.
         document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
-        $('tEditar').open = true; poner('ftAsignado', YO); clic('btnGuardarTarea');
+        $('tEditar').open = true; poner('ftAsignado', YO); $('ftColor').querySelector('[data-tono="morado"]').click(); clic('btnGuardarTarea');
         await esperar(() => t.fields.Asignado === YO, 'reasignada');
         R.ok('editar reasigna y registra', t.fields.Asignado === YO && actividad('editar-tarea').length === 1);
+        // v0.12.0: color de la tarjeta (PROY_Tareas.Color) — se guarda, tiñe la cara y el selector lo trae marcado al reabrir.
+        R.ok('v0.12.0: el color elegido se guarda en Color y la tarjeta lleva data-tono', t.fields.Color === 'morado' && document.querySelector(`.tarjeta[data-t="${t.id}"]`).dataset.tono === 'morado', t.fields.Color);
+        document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+        R.ok('v0.12.0: al reabrir, el selector marca «morado» y trae 9 opciones (sin color + 8)', $('ftColor').querySelector('[aria-pressed="true"]').dataset.tono === 'morado' && $('ftColor').children.length === 9);
+        // «Sin color» deja el valor vacio (se guardaria como null); no se guarda aqui para no sumar una actividad mas (Inicio lista las ultimas 5).
+        $('ftColor').querySelector('[data-tono=""]').click();
+        R.ok('v0.12.0: «sin color» deja el selector en vacío y marcado', $('ftColor').dataset.valor === '' && $('ftColor').querySelector('[aria-pressed="true"]').dataset.tono === '');
         // 503 reintenta; 403 nombra el permiso.
         DB.fallas.push({ metodo: 'PATCH', incluye: `/items/${t.id}/fields`, status: 503, veces: 1 });
         await mover('en-curso'); R.ok('503 en el PATCH: reintenta y la tarjeta se mueve', t.fields.Columna === 'en-curso');
@@ -608,8 +616,12 @@ try {
             const nueva = [...$('cbLista').querySelectorAll('.cubeta')][3]; nueva.querySelector('input').value = 'Bloqueado'; nueva.querySelector('input').dispatchEvent(new Event('input'));
             R.ok('cubetas: la nueva nace antes de Hecho y con el foco', document.querySelectorAll('#cbLista .cubeta').length === 5 && [...$('cbLista').querySelectorAll('.cubeta')][4].dataset.cubeta === 'hecho' && document.activeElement === nueva.querySelector('input'));
             nueva.querySelector('[data-sube]').click(); await dormir(20);
+            // v0.12.0: color de la cubeta — un clic en el selector de la fila; el punto cambia al instante.
+            const filaCurso = $('cbLista').querySelector('[data-cubeta="en-curso"]'); filaCurso.querySelector('.tonos [data-tono="ambar"]').click();
+            R.ok('v0.12.0: cada fila del editor trae el selector de color y el punto lo refleja al instante', $('cbLista').querySelectorAll('.cubeta .tonos').length === 5 && filaCurso.querySelector('.punto').dataset.tono === 'ambar');
             clic('cbGuardar'); await esperar(() => !$('dlgCubetas').open, 'cubetas guardadas');
             const cols = JSON.parse(proy.fields.Columnas || '[]');
+            R.ok('v0.12.0: el color se guarda en Columnas[].color y la columna del tablero lleva data-tono (el punto por posición sigue para las demás)', cols.find(c => c.clave === 'en-curso').color === 'ambar' && !('color' in cols.find(c => c.clave === 'hecho')) && document.querySelector('.col[data-col="en-curso"]').dataset.tono === 'ambar' && !document.querySelector('.col[data-col="hecho"]').dataset.tono, proy.fields.Columnas);
             R.ok('cubetas: se guardan en PROY_Proyectos.Columnas con clave nueva del nombre, orden y renombre', cols.map(c => c.clave).join(',') === 'por-hacer,en-curso,bloqueado,en-revision,hecho' && cols[3].nombre === 'Por validar' && cols[2].nombre === 'Bloqueado', proy.fields.Columnas);
             R.ok('cubetas: la bitácora lo registra como editar-proyecto', actividad('editar-proyecto').some(a => a.fields.Title.includes('cubetas')));
             await esperar(() => document.querySelectorAll('#tableroCols .col').length === 5, 'tablero con 5');
@@ -629,6 +641,7 @@ try {
             clic('btnCubetas'); await esperar(() => $('dlgCubetas').open, 'cubetas');
             $('cbLista').querySelector('[data-quita="bloqueado"]').click(); await dormir(20);
             const inpRev2 = $('cbLista').querySelector('[data-cubeta="en-revision"] input'); inpRev2.value = 'En revisión'; inpRev2.dispatchEvent(new Event('input'));
+            $('cbLista').querySelector('[data-cubeta="en-curso"] .tonos [data-tono=""]').click();   // v0.12.0: sin color, para que vuelva a ser exactamente el default
             clic('cbGuardar'); await esperar(() => !$('dlgCubetas').open, 'guardadas');
             R.ok('cubetas: al volver exactamente a las 4 de siempre, Columnas queda vacía (el default no se guarda)', proy.fields.Columnas === null || proy.fields.Columnas === undefined, String(proy.fields.Columnas));
             await esperar(() => document.querySelectorAll('#tableroCols .col').length === 4, 'tablero con 4');
@@ -882,7 +895,7 @@ try {
             clic('btnCerrarProyecto'); await confirmar(); await esperar(() => filas('proyectos')[0].fields.Estado === 'cerrado', 'cerrado');
             const pc = filas('proyectos')[0];
             R.ok('proyecto cerrado con sello', pc.fields.CerradoPor === YO && !!pc.fields.CerradoEl && actividad('cerrar-proyecto').length === 1);
-            R.ok('cerrado: sin Nueva tarea y sale de activos', $('btnNuevaTarea').disabled && $('pPct').textContent.includes('CERRADO'));
+            R.ok('cerrado: sin Nueva tarea y sale de activos', $('btnNuevaTarea').disabled && $('pEstado').textContent === 'Cerrado');   // v0.12.0: el chip «Cerrado» donde iba el %
             pestana('proyectos'); await esperar(() => $('listaCerrados').textContent.includes('LAU ASEA'), 'en cerrados');
             R.ok('Proyectos: el cerrado aparece en «cerrados» y no en activos', !$('listaProyectos').textContent.includes('LAU ASEA'));
             // F6 (v0.3.0): reabrir.

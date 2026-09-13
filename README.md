@@ -6,6 +6,31 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.12.0** (2026-09-12, noche 3) — **Colores a elegir para cubetas y tarjetas; cabecera del proyecto limpia; diálogos sin
+franja y sin barras.** Cinco pedidos de Carlos a partir de tres capturas de la app en operación. **CON cambio de esquema**
+(ver «Al publicar v0.12.0»).
+
+- **Color de cubeta** (editor «Cubetas», una fila de 9 círculos bajo cada nombre: sin color + `COLORES` de `reglas.js` — azul ·
+  celeste · verde · ámbar · rojo · morado · rosa · gris). Se guarda en `PROY_Proyectos.Columnas[].color` (sin esquema nuevo:
+  va dentro del JSON; `normalizarColumnas` conserva solo claves de la paleta y no escribe la llave cuando está vacía). Tiñe el
+  fondo de la columna y su punto, y manda sobre el color por posición en la barra segmentada, el anillo y la leyenda
+  (`segmentosDe` devuelve el color en 4.º lugar; los pintores ponen `data-tono`). Sin color, todo sigue por posición.
+- **Color de tarjeta** (`PROY_Tareas.Color`, texto; **columna nueva** → provisionar). Selector en «Editar la tarjeta» y en
+  «Nueva tarea»; tiñe el fondo de la tarjeta (13 % sobre la superficie, así claro y oscuro salen solos) y su borde. La
+  prioridad alta conserva su borde izquierdo azul encima del tinte. `colorValido()` filtra cualquier valor raro de la lista.
+- **Cabecera del proyecto:** fuera «← Proyectos» (el rail ya lleva ahí), fuera «N/M hechas · %» (vive en Avance) y el botón
+  dice solo «Cerrar proyecto» (la cuenta de pendientes va en su `title` y en la confirmación). Cuando el proyecto está cerrado,
+  un chip «Cerrado» ocupa el lugar del %.
+- **Diálogos:** la cabecera ya no lleva la franja azul de 3 px (v0.9.0); el pie de los formularios (`.forma .mn-dialog-foot`)
+  ya no tiene margen negativo — se salía del ancho del `<dialog>` y disparaba las barras (medido: `dialog=512x427`,
+  `scrollH=441` en «Cubetas»). Los inputs del editor de cubetas llevan la piel de `.mn-field input` (eran el input crudo de
+  21 px).
+- Vista `colores` en `capturas.mjs` (cubetas ámbar/morado + tarjeta verde) para verlo en claro y oscuro.
+
+Decisiones reversibles en una línea: 8 tonos (agregar uno = un renglón en `COLORES` + su `--tono-*`); el color de tarjeta
+es texto y no choice (así sumar un tono no toca el esquema); la cuenta «faltan N» salió del botón (volverla es una línea en
+`pintarProyecto`).
+
 **v0.11.0** (2026-09-12) — **Cubetas por proyecto (renombrar · agregar · quitar · ordenar), sin el atajo «→ siguiente», sin
 «Origen en la KB» a la vista y sin movimientos en Actividad.** Las cuatro peticiones de Carlos del 12-sep por la noche.
 **CON cambio de esquema** (ver «Al publicar v0.11.0»).
@@ -636,6 +661,20 @@ Carlos corrió el paso de esquema de v0.3.0 (abajo, tal cual: consentir `Sites.F
 mover una tarjeta con la consola abierta no imprime «Graph rechazó If-Match» (SharePoint acepta la cabecera), y con la
 misma tarjeta en dos pestañas —mover en la 2.ª y luego en la 1.ª sin recargar— la 1.ª recibe el toast «alguien cambió
 el renglón … (412)» y relee: la protección T1 funciona en real. Las dos secciones siguientes quedan como registro.
+
+## Al publicar v0.12.0: primero el esquema, luego el push
+
+**Hay cambio de esquema** (una columna nueva) y va ANTES del push, o «Guardar cambios» y «Crear tarea» contestarán 400
+(`Color` no existe en `PROY_Tareas`):
+
+1. **Subir Administración a rol `manage`** como en v0.11.0.
+2. `npm run serve:provisionar` → Revisar. Debe reportar una sola cosa: `PROY_Tareas` **FALTA la columna `Color`** (text).
+   → Aplicar. Idempotente.
+3. **Regresar Administración a `write`** y revocar el consentimiento amplio.
+4. `git push` (lo hace Carlos); el service worker va en `minsa-proyectos-v14`.
+5. Prueba de aceptación en real (gerencia): LAU → «Cubetas» → un color en «En curso» → Guardar → la columna se tiñe y el
+   anillo de Avance toma ese color; abrir una tarjeta → Editar → un color → Guardar → la tarjeta se tiñe; recargar y sigue.
+   La cabecera ya no trae «← Proyectos» ni el «N/M hechas»; el diálogo de Cubetas cabe sin barras.
 
 ## Al publicar v0.11.0: primero el esquema, luego el push
 
