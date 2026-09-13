@@ -449,6 +449,25 @@ try {
         // subir/bajar (F11), «→ siguiente» con Deshacer (U7), 412 (T1), sin red (T2).
         R.ok('T4: el contador rojo del rail es solo vencidas (gerencia: nada; colaborador: 1)', $('nMis').hidden === gerencia && (gerencia || $('nMis').textContent === '1'), `${$('nMis').hidden}/${$('nMis').textContent}`);
         R.ok('Inicio: los 4 KPI son botones', document.querySelectorAll('#inicioKpis button.mn-kpi').length === 4);
+        // v0.18.0: acciones rapidas — 3 botones y el select con los activos; cada una abre el dialogo de su pantalla.
+        { const nAct = filas('proyectos').filter(p => p.fields.Estado === 'activo').length;
+          R.ok('v0.18.0: Inicio trae 3 acciones rápidas y el select con los proyectos activos', document.querySelectorAll('#inicioAcciones [data-accion]').length === 3 && $('inicioAccProyecto').options.length === nAct && nAct >= 1, `${$('inicioAccProyecto').options.length}/${nAct}`);
+          R.ok('v0.18.0: «Nuevo proyecto» solo para gerencia; las otras dos para quien puede', document.querySelector('#inicioAcciones [data-accion="proyecto"]').disabled === !gerencia && !document.querySelector('#inicioAcciones [data-accion="tarea"]').disabled && !document.querySelector('#inicioAcciones [data-accion="ligar"]').disabled);
+          document.querySelector('#inicioAcciones [data-accion="tarea"]').click(); await esperar(() => $('dlgNuevaTarea').open, 'nueva tarea desde Inicio');
+          R.ok('v0.18.0: «Nueva tarea» abre el proyecto del select y su diálogo', visible('p-proyecto') && $('pTitulo').textContent === $('inicioAccProyecto').selectedOptions[0].textContent, $('pTitulo').textContent);
+          clic('ntCancelar'); pestana('inicio'); await esperar(() => document.querySelector('#inicioAcciones [data-accion]'), 'inicio');
+          // La rama AUTORIZADA (CALYTEK es piloto): el select se pone en un activo de CALYTEK y tiene que abrir dlgLigar, no dlgEnlace.
+          const calytek = filas('proyectos').find(p => p.fields.Estado === 'activo' && p.fields.Equipo === 'CALYTEK');
+          poner('inicioAccProyecto', String(calytek.id));
+          document.querySelector('#inicioAcciones [data-accion="ligar"]').click(); await esperar(() => $('dlgLigar').open || $('dlgEnlace').open, 'ligar desde Inicio');
+          R.ok('v0.18.0: «Ligar documento» sobre un proyecto con biblioteca autorizada cae en Documentos con el diálogo de LIGAR', visible('p-proyecto') && visible('tab-docs') && $('dlgLigar').open && !$('dlgEnlace').open && $('pTitulo').textContent === calytek.fields.Title);
+          clic('lgCerrar'); pestana('inicio'); await esperar(() => document.querySelector('#inicioAcciones [data-accion]'), 'inicio');
+          R.ok('v0.18.0: el proyecto elegido se recuerda al volver a Inicio', $('inicioAccProyecto').value === String(calytek.id));
+          const sinPiloto = filas('proyectos').find(p => p.fields.Estado === 'activo' && ['PITEPEC', 'RABASA'].includes(p.fields.Equipo));
+          if (sinPiloto) { poner('inicioAccProyecto', String(sinPiloto.id)); document.querySelector('#inicioAcciones [data-accion="ligar"]').click(); await esperar(() => $('dlgEnlace').open, 'enlace desde Inicio');
+            R.ok('v0.18.0: sin biblioteca autorizada cae a «Pegar un enlace» y lo avisa', !$('dlgLigar').open && !!avisoCon('aún no está autorizada')); clic('enCancelar'); pestana('inicio'); await esperar(() => document.querySelector('#inicioAcciones [data-accion]'), 'inicio'); }
+          if (gerencia) { document.querySelector('#inicioAcciones [data-accion="proyecto"]').click(); await esperar(() => $('dlgProyecto').open, 'nuevo proyecto desde Inicio');
+            R.ok('v0.18.0: «Nuevo proyecto» abre el formulario vacío', $('npTituloDlg').textContent === 'Nuevo proyecto' && $('npTitulo').value === ''); clic('npCancelar'); } }
         document.querySelector('#inicioKpis [data-kpi="vencidas"]').click(); await esperar(() => visible('p-mis'), 'mis por kpi');
         R.ok('KPI «vencidas» abre Mis tareas con el filtro Vencidas puesto', location.hash === '#mis' && document.querySelector('#filtroMis button.is-on').dataset.mis === 'vencidas', location.hash);
         document.querySelector('#filtroMis [data-mis="todas"]').click(); await dormir(30);
@@ -778,6 +797,14 @@ try {
         R.ok('v0.17.0: tabla con 7 columnas y un renglon de grupo por tarjeta — «Del proyecto» es .is-proyecto, la de la tarjeta trae data-tarjeta, cada una seguida de su único doc y con conteo 1', document.querySelectorAll('#docsLista .dtabla thead th').length === 7 && pests.length === 2 && pests[0].classList.contains('is-proyecto') && !!pests[1].dataset.tarjeta && [...pests].every(s => siguiente(s) && siguiente(s).classList.contains('doc') && s.querySelector('.cab .n').textContent === '1' && !!s.querySelector('.cab svg')));
         R.ok('v0.17.0: cada renglon trae el chip del tipo (PDF / Enlace), quién con avatar, fecha y el menú «⋯» con Abrir y Quitar', [...document.querySelectorAll('#docsLista tr.doc')].every(tr => !!tr.querySelector('.c-tipo .mn-chip.tipo[data-tipo]') && !!tr.querySelector('.c-quien .av') && /\d{2}\/\d{2}\/\d{4}/.test(tr.querySelector('.c-fecha').textContent) && !!tr.querySelector('.fila-menu a.mn-btn') && !!tr.querySelector('.fila-menu [data-quitar]')));
         R.ok('v0.17.0: el buscador de Docs filtra por nombre sin acentos y «N de M» lo dice', (() => { poner('docsBusca', 'oficio'); const n1 = document.querySelectorAll('#docsLista tr.doc').length; const txt = $('docsResumen').textContent; poner('docsBusca', ''); return n1 === 1 && txt === '1 de 2' && document.querySelectorAll('#docsLista tr.doc').length === 2; })());
+        // v0.18.0: los encabezados ordenan (6 de 7; «⋯» no); arranca por Fecha con la mas nueva arriba; segundo clic invierte.
+        R.ok('v0.18.0: la tabla arranca por Fecha descendente y 6 encabezados ordenan', document.querySelector('#docsLista th[data-sort="fecha"]').getAttribute('aria-sort') === 'descending' && document.querySelectorAll('#docsLista th[data-sort]').length === 6 && !document.querySelector('#docsLista th.c-acc[data-sort]'));
+        document.querySelector('#docsLista th[data-sort="nombre"]').click(); await dormir(30);
+        R.ok('v0.18.0: clic en Nombre ordena ascendente y la flecha deja Fecha', document.querySelector('#docsLista th[data-sort="nombre"]').getAttribute('aria-sort') === 'ascending' && !document.querySelector('#docsLista th[data-sort="fecha"]').hasAttribute('aria-sort'));
+        document.querySelector('#docsLista th[data-sort="nombre"]').click(); await dormir(30);
+        R.ok('v0.18.0: el segundo clic invierte', document.querySelector('#docsLista th[data-sort="nombre"]').getAttribute('aria-sort') === 'descending');
+        document.querySelector('#docsLista th[data-sort="fecha"]').click(); await dormir(30);
+        R.ok('v0.18.0: volver a Fecha arranca descendente (la mas nueva arriba)', document.querySelector('#docsLista th[data-sort="fecha"]').getAttribute('aria-sort') === 'descending');
         R.ok('U10: chips por tipo (hay archivado y enlace)', document.querySelectorAll('#docsFiltro button').length === 3);
         document.querySelector('#docsFiltro [data-docs="enlace"]').click(); await dormir(30);
         R.ok('U10: el chip «enlace» deja solo el enlace', document.querySelectorAll('#docsLista .doc').length === 1 && document.querySelector('#docsLista .doc .fico').dataset.tipo === 'enlace');
@@ -1149,6 +1176,18 @@ try {
             const nLigas = filas('ligas').length;
             R.ok('v0.10.0: #archivos lista todas las ligas de todos los frentes, agrupadas por proyecto, con su icono', visible('p-archivos') && document.querySelectorAll('#archivosLista [data-archivo]').length === nLigas && document.querySelectorAll('#archivosLista .grupo-proy').length >= 1 && document.querySelectorAll('#archivosLista .fico').length === nLigas, `${nLigas} ligas`);
             R.ok('v0.17.0: #archivos es la misma tabla, con 4 cifras arriba que cuadran con las ligas, la tarjeta como botón y el menú «⋯» sin Quitar', document.querySelectorAll('#archivosLista .dtabla thead th').length === 7 && Number(document.querySelector('#archivosKpis [data-kpi="total"] .mn-kpi-val').textContent) === nLigas && Number(document.querySelector('#archivosKpis [data-kpi="enlace"] .mn-kpi-val').textContent) === filas('ligas').filter(l => l.fields.Tipo === 'enlace').length && document.querySelectorAll('#archivosLista .tarjeta-liga').length === filas('ligas').filter(l => l.fields.TareaId).length && !document.querySelector('#archivosLista [data-quitar]') && !!document.querySelector('#archivosLista .fila-menu'));
+            // v0.18.0: el orden de #archivos es el mismo estado que Docs; se ordena DENTRO de cada proyecto (el grupo no se mueve).
+            { const docsDe = pest => { const out = []; let s = pest.nextElementSibling; while (s && s.classList.contains('doc')) { out.push(s.querySelector('.c-nombre .t').textContent.toLowerCase()); s = s.nextElementSibling; } return out; };
+              document.querySelector('#archivosLista th[data-sort="nombre"]').click(); await dormir(30);
+              const pests = [...document.querySelectorAll('#archivosLista tr.pest')]; const conVarios = pests.filter(p => docsDe(p).length >= 2);
+              const ordenados = conVarios.every(p => { const d = docsDe(p); return d.every((x, i) => i === 0 || d[i - 1].localeCompare(x) <= 0); });
+              R.ok('v0.18.0: #archivos ordena por Nombre dentro de cada proyecto y el grupo no se mueve', document.querySelector('#archivosLista th[data-sort="nombre"]').getAttribute('aria-sort') === 'ascending' && conVarios.length >= 1 && ordenados && pests[0].querySelector('.grupo-proy'), `${conVarios.length} grupo(s) con 2+`);
+              document.querySelector('#archivosLista th[data-sort="fecha"]').click(); await dormir(30); }
+            // v0.18.0: el orden de #archivos es SUYO (estado.ordenArchivos): ordenar aqui por quien no toca el de Docs del proyecto.
+            { document.querySelector('#archivosLista th[data-sort="quien"]').click(); await dormir(30);
+              const mod = await import('../comun.js');
+              R.ok('v0.18.0: ordenar #archivos por «Ligado por» no cambia el orden de Docs del proyecto', mod.estado.ordenArchivos.col === 'quien' && mod.estado.ordenDocs.col === 'fecha');
+              document.querySelector('#archivosLista th[data-sort="fecha"]').click(); await dormir(30); }
             document.querySelector('#archivosTipo [data-tipo="enlace"]').click(); await dormir(30);
             R.ok('v0.10.0: el chip por tipo filtra', document.querySelectorAll('#archivosLista [data-archivo]').length === filas('ligas').filter(l => l.fields.Tipo === 'enlace').length);
             document.querySelector('#archivosTipo [data-tipo="todos"]').click(); poner('textoArchivos', 'contingencia'); await dormir(60);
@@ -1264,6 +1303,7 @@ try {
         R.ok('lectura: Mis tareas trae la sembrada, vencida arriba en «Urgentes» con los días grandes', document.querySelectorAll('#misLista .tarjeta').length === 1 && !!document.querySelector('#misLista .urgentes .urgente.is-danger .tarjeta') && $('misLista').textContent.includes('venció') && $('misLista').querySelector('.urgente .k b').textContent === String(-diasPara('2026-09-01T18:00:00Z')));
         pestana('inicio'); await dormir(50);
         R.ok('lectura: Inicio muestra 1 vencida', [...document.querySelectorAll('#inicioKpis .mn-kpi')].some(k => k.textContent.includes('vencidas') && k.querySelector('.mn-kpi-val').textContent === '1'));
+        R.ok('v0.18.0 (lectura): las 3 acciones rápidas se ven apagadas y con su porqué', [...document.querySelectorAll('#inicioAcciones [data-accion]')].length === 3 && [...document.querySelectorAll('#inicioAcciones [data-accion]')].every(b => b.disabled && b.title));
         clic('btnEquipo'); await esperar(() => $('dlgEquipo').open, 'equipo');
         R.ok('A2 (lectura): Equipo trae tabla y fichas con la misma gente', document.querySelectorAll('#eqFichas .eq-ficha').length === document.querySelectorAll('#eqLista tr').length);
         clic('eqCerrar');

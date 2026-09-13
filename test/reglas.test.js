@@ -1,6 +1,6 @@
 // node test/reglas.test.js — reglas puras de MINSA Proyectos (decisiones del plan 2026-09-11).
 import assert from 'node:assert/strict';
-import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, vistosDe, leerVisto, fundirVisto } from '../reglas.js';
+import { ordenarLigas, direccionInicial, rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, vistosDe, leerVisto, fundirVisto } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -221,5 +221,22 @@ ok('vistosDe: una vez por persona, en orden de marca', vistosDe(actV, 13).map(a 
 ok('leerVisto: tolera vacio, basura y tipos raros', leerVisto('').inicio === '' && leerVisto('{no').inicio === '' && leerVisto('{"inicio":5,"chat":"x"}').inicio === '' && leerVisto('{"inicio":"2026-09-01","chat":{"1":"2026-09-02"}}').chat['1'] === '2026-09-02');
 const fv = fundirVisto('{"inicio":"2026-09-01","chat":{"1":"2026-09-05","2":"2026-09-01"}}', { inicio: '2026-09-03', chat: { 1: '2026-09-04', 3: '2026-09-09' } });
 ok('fundirVisto: gana la fecha mayor por llave, une los chats', fv.inicio === '2026-09-03' && fv.chat['1'] === '2026-09-05' && fv.chat['2'] === '2026-09-01' && fv.chat['3'] === '2026-09-09');
+
+// v0.18.0: orden de la tabla de documentos por columna.
+const lg = [
+    { id: 1, Title: 'beta.pdf', Ruta: 'x/beta.pdf', Tipo: 'archivado', TareaId: 2, LigadoPor: 'zoe@example.invalid', _creado: '2026-09-01T10:00:00Z' },
+    { id: 2, Title: 'Alfa.docx', Ruta: 'x/Alfa.docx', Tipo: 'archivado', TareaId: null, LigadoPor: 'ana@example.invalid', _creado: '2026-09-03T10:00:00Z' },
+    { id: 3, Title: 'gamma', Url: 'https://x', Tipo: 'enlace', TareaId: 1, LigadoPor: null, _creado: '2026-09-02T10:00:00Z' },
+    { id: 4, Title: 'lote', Ruta: '99_Pendiente-Archivar/l', Tipo: 'buzon', TareaId: null, LigadoPor: 'ana@example.invalid', _creado: null }
+];
+const ids = (col, dir, o) => ordenarLigas(lg, col, dir, o).map(l => l.id).join(',');
+ok('ordenarLigas: por omision Fecha con la mas nueva arriba y sin fecha al final', ids() === '2,3,1,4' && ids('fecha', 1) === '1,3,2,4');
+ok('ordenarLigas por nombre: alfabetico sin importar mayusculas, invertible', ids('nombre', 1) === '2,1,3,4' && ids('nombre', -1) === '4,3,1,2');
+ok('ordenarLigas por tipo: por la etiqueta visible (Enlace, Lote en el buzon, PDF, Word)', ids('tipo', 1) === '3,4,1,2');
+ok('ordenarLigas por estado: archivado, buzon, enlace; empate = mas nueva arriba', ids('estado', 1) === '2,1,4,3');
+ok('ordenarLigas por tarjeta usa el titulo que se ve y deja «el proyecto entero» al final', ids('tarjeta', 1, { tarjeta: id => id === 1 ? 'Zeta' : 'Alfa' }) === '1,3,4,2');
+ok('ordenarLigas por quien usa el nombre visible y deja sin quien al final', ids('quien', 1, { nombre: c => c.startsWith('zoe') ? 'Zoe' : 'Ana' }) === '4,2,1,3');
+ok('ordenarLigas: columna desconocida no revienta ni pierde ligas', ordenarLigas(lg, 'nada', 1).length === 4 && ordenarLigas(null).length === 0);
+ok('direccionInicial: Fecha arranca descendente, el resto ascendente', direccionInicial('fecha') === -1 && direccionInicial('nombre') === 1);
 
 console.log(`reglas: ok (${n} comprobaciones)`);

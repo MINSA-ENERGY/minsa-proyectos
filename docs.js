@@ -14,7 +14,7 @@
 // acorta con `urlParaLiga` y ningun texto sale hacia Graph sin pasar por `textosLargos`.
 
 import { CONFIG } from './config.js';
-import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX, hrefSeguro, filtrarLigas, tipoArchivo } from './reglas.js';
+import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX, hrefSeguro, filtrarLigas, tipoArchivo, ordenarLigas, direccionInicial } from './reglas.js';
 import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO } from './lote.js';
 import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, iconoSvg, avatar, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaCorta, fechaHora, aplicar, pedirRelectura, irAHash } from './comun.js';
 import { esConflicto } from './graph.js';
@@ -73,11 +73,11 @@ export async function pintarDocs(p) {
     if ($('docsBusca').value !== (estado.buscaDocs || '')) $('docsBusca').value = estado.buscaDocs || '';
     // Con menos de 2 ligas el buscador se esconde Y deja de filtrar: un filtro sin control en pantalla no se puede quitar (revisor, 13-sep).
     $('docsBusca').hidden = todas.length < 2; if (todas.length < 2) estado.buscaDocs = '';
-    const ligas = filtrarLigas(todas, { tipo: estado.filtroDocs, texto: estado.buscaDocs }).sort((a, b) => b.id - a.id);
+    const ligas = ordenarDocs(filtrarLigas(todas, { tipo: estado.filtroDocs, texto: estado.buscaDocs }));   // v0.18.0: por la columna elegida, dentro de cada grupo
     $('docsResumen').textContent = todas.length ? `${ligas.length} de ${todas.length}` : '';
     if (!ligas.length) { cont.appendChild(el('p', 'vacio', todas.length ? 'Nada con ese filtro.' : 'Sin documentos ligados todavía.')); return; }
     const puedeDe = l => puede || (l.Tipo === 'enlace' && puedeEnlazarEn(p));
-    const tabla = tablaDocs(); const tb = tabla.querySelector('tbody');
+    const tabla = tablaDocs({ orden: estado.ordenDocs, alOrdenar: o => { estado.ordenDocs = o; pintarDocs(p); } }); const tb = tabla.querySelector('tbody');
     const delProyecto = ligas.filter(l => !l.TareaId);
     if (delProyecto.length) { tb.appendChild(filaGrupo(null, 'Del proyecto', delProyecto.length)); for (const l of delProyecto) tb.appendChild(filaDoc(l, { p, puede: puedeDe(l) })); }
     const porTarjeta = new Map();
@@ -111,12 +111,37 @@ export async function pintarDocs(p) {
 // tabla se apila en fichas por CSS (.dtabla), sin segunda estructura.
 const TRAZOS_TARJETA = ['M4 5h16v14H4z', 'M4 10h16', 'M9 5v14'];
 const TRAZOS_PROYECTO = ['M3 7h7l2 2h9v10H3z'];
-export const COLUMNAS_DOCS = [['c-nombre', 'Nombre'], ['c-tipo', 'Tipo'], ['c-estado', 'Estado'], ['c-tarjeta', 'Tarjeta'], ['c-quien', 'Ligado por'], ['c-fecha', 'Fecha'], ['c-acc', '']];
+// v0.18.0: el tercer valor es la llave de orden (ordenarLigas); «⋯» no ordena.
+export const COLUMNAS_DOCS = [['c-nombre', 'Nombre', 'nombre'], ['c-tipo', 'Tipo', 'tipo'], ['c-estado', 'Estado', 'estado'], ['c-tarjeta', 'Tarjeta', 'tarjeta'], ['c-quien', 'Ligado por', 'quien'], ['c-fecha', 'Fecha', 'fecha'], ['c-acc', '', null]];
 
-/** La tabla vacia con su encabezado; el que pinta le llena el <tbody>. */
-export function tablaDocs() {
+/** v0.18.0: las ligas en el orden `o` ({ col, dir }; nombre visible de quien ligo y titulo de la tarjeta, como se ven). */
+export function ordenarDocs(ligas, o = estado.ordenDocs) {
+    return ordenarLigas(ligas, o.col, o.dir, { nombre: c => nombreDe(c, estado.roles), tarjeta: id => { const t = porId(estado.tareas, id); return t ? t.Title : `tarjeta #${id}`; } });
+}
+
+/**
+ * La tabla vacia con su encabezado; el que pinta le llena el <tbody>. v0.18.0: con `{ orden, alOrdenar }`, clic (o Enter /
+ * espacio) en un encabezado elige esa columna (Fecha arranca con la mas nueva arriba; las demas ascendente) y el segundo
+ * clic invierte; la flecha va en el activo (aria-sort), como en la Lista de tareas (F10). `alOrdenar(nuevo)` recibe el orden
+ * nuevo y lo guarda donde le toque: Docs en estado.ordenDocs (se reinicia por proyecto), #archivos en estado.ordenArchivos.
+ * Se ordena dentro de cada grupo: los grupos (tarjeta o proyecto) conservan su acomodo.
+ */
+export function tablaDocs({ orden = null, alOrdenar = null } = {}) {
     const w = el('div', 'dtabla'); const t = el('table'); const th = el('thead'); const tr = el('tr');
-    for (const [cls, texto] of COLUMNAS_DOCS) { const h = el('th', cls, texto); h.scope = 'col'; if (!texto) h.setAttribute('aria-label', 'Acciones'); tr.appendChild(h); }
+    const o = orden;
+    for (const [cls, texto, clave] of COLUMNAS_DOCS) {
+        const h = el('th', cls, texto); h.scope = 'col'; if (!texto) h.setAttribute('aria-label', 'Acciones');
+        if (clave && o && alOrdenar) {
+            const activo = o.col === clave;
+            h.dataset.sort = clave; h.tabIndex = 0;
+            h.title = activo ? `Ordenar por ${texto.toLowerCase()} ${o.dir === 1 ? 'descendente' : 'ascendente'}` : `Ordenar por ${texto.toLowerCase()}`;
+            if (activo) h.setAttribute('aria-sort', o.dir === 1 ? 'ascending' : 'descending');
+            const elegir = () => alOrdenar(activo ? { col: clave, dir: -o.dir } : { col: clave, dir: direccionInicial(clave) });
+            h.addEventListener('click', elegir);
+            h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); elegir(); } });
+        }
+        tr.appendChild(h);
+    }
     th.appendChild(tr); t.appendChild(th); t.appendChild(el('tbody')); w.appendChild(t);
     return w;
 }

@@ -670,6 +670,33 @@ export function filtrarLigas(ligas, f = {}) {
         && (!q || sinAcentos(`${l.Title} ${l.Ruta || ''} ${l.Url || ''}`).includes(q)));
 }
 
+/**
+ * v0.18.0: orden de la tabla de documentos (Docs del proyecto y #archivos) por columna, el mismo patron F10 de la
+ * Lista. `nombre(correo)` pinta «Ligado por» como se ve; `tarjeta(id)` da el titulo de la tarjeta. Sin valor
+ * (sin tarjeta, sin quien, sin fecha) va al final en las dos direcciones; el empate lo rompe la liga mas nueva.
+ */
+export function ordenarLigas(ligas, col = 'fecha', dir = -1, { nombre = x => x, tarjeta = () => '' } = {}) {
+    const ESTADO = { archivado: 0, buzon: 1, enlace: 2 };
+    const llave = {
+        nombre: l => String(l.Title || '').toLowerCase(),
+        tipo: l => tipoArchivo(l.Ruta || l.Title, l.Tipo).etiqueta.toLowerCase(),
+        estado: l => l.Tipo in ESTADO ? ESTADO[l.Tipo] : 3,
+        tarjeta: l => l.TareaId ? String(tarjeta(l.TareaId) || '').toLowerCase() : null,
+        quien: l => l.LigadoPor ? String(nombre(l.LigadoPor)).toLowerCase() : null,
+        fecha: l => l._creado ? String(l._creado) : null
+    }[col] || (l => l.id);
+    return [...(ligas || [])].sort((a, b) => {
+        const x = llave(a), y = llave(b);
+        if (x === null && y === null) return b.id - a.id;
+        if (x === null) return 1;
+        if (y === null) return -1;
+        const c = typeof x === 'number' ? x - y : String(x).localeCompare(String(y));
+        return (c * dir) || (b.id - a.id);
+    });
+}
+/** La direccion con que arranca una columna al elegirla: Fecha, la mas nueva arriba; las demas, ascendente. */
+export function direccionInicial(col) { return col === 'fecha' ? -1 : 1; }
+
 // ---------------------------------------------------------------- v0.15.0: el mismo canal (auditoria como usuario, 2026-09-13)
 
 /**

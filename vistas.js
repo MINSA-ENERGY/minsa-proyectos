@@ -8,7 +8,7 @@
 import { CONFIG } from './config.js';
 import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, sinDueno, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, enProceso, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro } from './reglas.js';
 import { $, estado, el, boton, avatar, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, mencionesA, columnasDeTarea } from './comun.js';
-import { tablaDocs, filaGrupo, filaDoc } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto
+import { tablaDocs, filaGrupo, filaDoc, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -300,7 +300,7 @@ export function pintarArchivos() {
     for (const [k, texto] of [[null, 'Todos'], ['archivado', 'archivado'], ['buzon', 'en el buzón'], ['enlace', 'enlace']]) {
         const on = f.tipo === k; const b = boton(texto, on ? 'is-on' : '', () => { f.tipo = k; pintarArchivos(); }, { tipo: k || 'todos' }); b.setAttribute('aria-pressed', on ? 'true' : 'false'); chips.appendChild(b);
     }
-    const ligas = filtrarLigas(estado.ligas, f).sort((a, b) => b.id - a.id);
+    const ligas = ordenarDocs(filtrarLigas(estado.ligas, f), estado.ordenArchivos);   // v0.18.0: por la columna elegida, dentro de cada proyecto
     $('archivosSub').textContent = `${ligas.length} de ${estado.ligas.length} documento(s) ligado(s) en todos los frentes. Para ligar, quitar o cambiar de tarjeta, entra a Documentos del proyecto.`;
     // v0.17.0: cuatro cifras arriba (como la captura de referencia): total, archivados, en el buzon, enlaces.
     const k = $('archivosKpis'); k.textContent = '';
@@ -311,7 +311,7 @@ export function pintarArchivos() {
     if (!ligas.length) { cont.appendChild(el('p', 'vacio', estado.ligas.length ? 'Nada con ese filtro.' : 'Ningún documento ligado todavía.')); return; }
     // v0.17.0: una sola tabla (la de Docs del proyecto) con un renglon de grupo por proyecto, que abre sus Documentos.
     const porP = new Map(); for (const l of ligas) { const k = Number(l.ProyectoId); if (!porP.has(k)) porP.set(k, []); porP.get(k).push(l); }
-    const tabla = tablaDocs(); const tb = tabla.querySelector('tbody');
+    const tabla = tablaDocs({ orden: estado.ordenArchivos, alOrdenar: o => { estado.ordenArchivos = o; pintarArchivos(); } }); const tb = tabla.querySelector('tbody');
     for (const p of ordenarProyectos(estado.proyectos.filter(p => porP.has(p.id)))) {
         tb.appendChild(filaGrupo(null, p.Title, porP.get(p.id).length, { icono: iconoEquipo(equipoDe(p), 'sm'), alClic: () => irAHash(`#p/${p.Clave}/docs`), title: 'Abrir Documentos del proyecto' }));
         for (const l of porP.get(p.id)) tb.appendChild(filaDoc(l, { p, enArchivos: true, alTarjeta: irTarjeta }));

@@ -16,8 +16,8 @@ import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, tituloSegmentos, partesEnProceso, desdeHaceDias, nuevoParaMi } from './reglas.js';
 import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
-import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros } from './tablero.js';
-import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
+import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
+import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
 import { pintarRoadmap, pintarRoadmapProyecto, pintarCalendario, engancharCalendario, pintarMensajes, mensajesNuevos, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
 
@@ -268,6 +268,7 @@ function fijarProyectoAbierto(p) {
         estado.filtroTareas = { quien: null, alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = '';
         estado.colMovil = null; estado.ordenLista = { col: 'vence', dir: 1 };   // v0.11.0: null = la primera cubeta del proyecto
         estado.hechoTodas = false; estado.filtroDocs = null; estado.buscaDocs = '';   // v0.17.0: el buscador de Docs tampoco viaja entre proyectos
+        estado.ordenDocs = { col: 'fecha', dir: -1 };   // v0.18.0: ni su orden (una columna oculta en este panel no puede quedar mandando)
     }
     estado.proyectoAbierto = p;
     // v0.13.1: la actividad de este proyecto se completa fuera de la ventana (chat y notas viejas); si trae algo
@@ -476,6 +477,7 @@ function pintarInicio() {
         });
         k.appendChild(d);
     }
+    pintarAccionesRapidas();   // v0.18.0
     const lp = $('inicioProyectos'); lp.textContent = '';
     for (const p of ordenarProyectos(activos())) lp.appendChild(renglonProyecto(p));   // C10
     if (!activos().length) lp.appendChild(el('p', 'vacio', PUEDE.proyecto(estado.rol) ? 'Sin proyectos activos: crea el primero en Proyectos.' : 'Sin proyectos activos todavía.'));
@@ -525,6 +527,41 @@ function pintarInicio() {
     for (const a of visible.slice(0, tope)) act.appendChild(itemActividad(a, true));   // C9
     if (!visible.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
     $('btnActividadInicio').hidden = visible.length <= tope;
+}
+
+/**
+ * v0.18.0: acciones rapidas de Inicio (recomendacion 3 de las capturas de referencia del 13-sep): Nueva tarea ·
+ * Ligar documento · Nuevo proyecto. Las dos primeras necesitan un proyecto y aqui no hay ninguno abierto: el select
+ * lo elige (arranca en el activo que vence antes, el mismo orden que la lista de abajo) y la eleccion se recuerda
+ * mientras dure la sesion. Cada boton abre el MISMO dialogo que su pantalla, ya parado en ese proyecto, asi que al
+ * guardar se aterriza donde se ve lo creado. «Ligar documento» cae a «Pegar un enlace» si la biblioteca de la unidad
+ * no esta autorizada (A1). Con rol de lectura los tres van apagados con su porque en el title, como sus originales.
+ */
+function pintarAccionesRapidas() {
+    const ac = $('inicioAcciones'); ac.textContent = '';
+    const proys = ordenarProyectos(activos());
+    const sel = el('select'); sel.id = 'inicioAccProyecto'; sel.setAttribute('aria-label', 'Proyecto al que va la acción');
+    opciones(sel, proys, p => p.id, p => p.Title, null);
+    if (estado.accionProyectoId && proys.some(p => p.id === estado.accionProyectoId)) sel.value = String(estado.accionProyectoId);
+    sel.addEventListener('change', () => { estado.accionProyectoId = Number(sel.value); });
+    sel.disabled = !proys.length;
+    const elegido = () => porId(estado.proyectos, Number(sel.value));
+    const sinActivos = proys.length ? '' : 'Sin proyectos activos';
+    const bt = boton('Nueva tarea', 'mn-btn is-primary is-sm', () => { const p = elegido(); if (!p) return; abrirProyecto(p.id); abrirNuevaTarea(); }, { accion: 'tarea' });
+    bt.disabled = !proys.length || !PUEDE.tarea(estado.rol); bt.title = PUEDE.tarea(estado.rol) ? sinActivos : 'Tu rol es de lectura: no puedes crear tarjetas';
+    const bl = boton('Ligar documento', 'mn-btn is-sm', () => {
+        const p = elegido(); if (!p) return;
+        fijarProyectoAbierto(p); estado.tab = 'docs'; irA('proyecto');
+        if (puedeLigarEn(p)) abrirLigar({ proyecto: p });
+        else { avisar(`La biblioteca de ${p.Title} aún no está autorizada: se pega un enlace en su lugar.`, 'ojo'); abrirEnlace({ proyecto: p }); }   // A1, y se dice al momento (revisor, 13-sep)
+    }, { accion: 'ligar' });
+    bl.disabled = !proys.length || !PUEDE.ligar(estado.rol); bl.title = PUEDE.ligar(estado.rol) ? sinActivos : 'Tu rol es de lectura: no puedes ligar documentos';
+    const bp = boton('Nuevo proyecto', 'mn-btn is-sm', () => abrirFormaProyecto(null), { accion: 'proyecto' });
+    bp.disabled = !PUEDE.proyecto(estado.rol); bp.title = PUEDE.proyecto(estado.rol) ? '' : 'Solo gerencia crea proyectos';
+    // El select va pegado a los DOS botones que lo usan; «Nuevo proyecto» aparte, que no va a ningun proyecto (revisor, 13-sep).
+    const en = el('label', 'en'); en.appendChild(el('span', '', 'en')); en.appendChild(sel); if (sinActivos) en.title = sinActivos;
+    const fila = el('div', 'botones'); fila.appendChild(bt); fila.appendChild(bl); fila.appendChild(en); ac.appendChild(fila);
+    const fila2 = el('div', 'botones'); fila2.appendChild(bp); ac.appendChild(fila2);
 }
 
 // ---------------------------------------------------------------- toda la actividad (F12) y el equipo (F13)
