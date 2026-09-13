@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, iniciales, nombreDe, diasPara, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe } from './reglas.js';
 
-export const VERSION = '0.18.0';
+export const VERSION = '0.19.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -28,8 +28,8 @@ export const estado = {
     // v0.4.0: «ver las N anteriores» de Hecho (U6), filtro de Documentos (U10), firma de la ultima carga (T3)
     hechoTodas: false,
     filtroDocs: null,
-    ordenDocs: { col: 'fecha', dir: -1 },       // v0.18.0: orden de la tabla de Docs del proyecto (se reinicia al cambiar de proyecto, como ordenLista)
-    ordenArchivos: { col: 'fecha', dir: -1 },   // v0.18.0: orden de #archivos (vive la sesion, como su filtro); separado del de Docs (revisor, 13-sep)
+    ordenDocs: { col: 'del', dir: -1 },         // v0.19.0: por la fecha del DOCUMENTO (la unica de las dos que se ve en el panel de Docs a 1366); v0.18.0: orden de la tabla de Docs del proyecto (se reinicia al cambiar de proyecto, como ordenLista)
+    ordenArchivos: { col: 'del', dir: -1 },     // v0.19.0: idem; v0.18.0: orden de #archivos (vive la sesion, como su filtro); separado del de Docs (revisor, 13-sep)
     accionProyectoId: null,                 // v0.18.0: proyecto elegido en las acciones rapidas de Inicio
     // v0.10.0: mes del calendario (YYYY-MM) y dia elegido; filtro de Archivos
     mesCal: null, calDia: null,

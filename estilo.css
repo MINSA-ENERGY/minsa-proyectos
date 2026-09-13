@@ -239,12 +239,23 @@
 .dtabla tbody tr:last-child td { border-bottom: 0; }
 .dtabla tr.doc { display: table-row; border: 0; padding: 0; background: none; }
 .dtabla tr.doc:hover td { background: var(--surface-hover); }
-.dtabla .c-nombre { width: 100%; min-width: 0; }   /* el sobrante es de Nombre; las demas van a su min-content */
+.dtabla .c-nombre { width: auto; min-width: 0; }   /* v0.19.0: la UNICA columna auto — el sobrante es de Nombre; las demas van a 1% (min-content). Con 100% aqui y 1% en las demas, Chrome repartia el sobrante a Tarjeta */
 .dtabla .c-tipo, .dtabla .c-fecha, .dtabla .c-acc { white-space: nowrap; }
 .dtabla .c-estado .mn-chip { white-space: nowrap; }   /* la celda sí parte: chip + «Buscar el archivado» en dos renglones */
 .dtabla .c-acc { width: 1%; text-align: right; }
-.dtabla .nombre { display: flex; min-width: 240px; gap: var(--sp-2); align-items: center; }
-.dtabla .nombre .cuerpo { display: grid; gap: 2px; min-width: 0; }
+/* v0.19.0: todas las columnas menos Nombre a su min-content (width: 1%), para que el sobrante lo tome Nombre y no Tarjeta
+   (a 1366 el titulo se recortaba con ~250 px vacios entre Tarjeta y «⋯»; revisor 13-sep). Estado sigue partiendo en dos renglones. */
+.dtabla .c-del, .dtabla .c-tipo, .dtabla .c-estado, .dtabla .c-tarjeta, .dtabla .c-quien, .dtabla .c-fecha { width: 1%; }
+/* v0.19.0: un solo renglon — [icono] [emisor] titulo [rev]; la ruta se fue al title y a «Copiar ruta». Es GRID con el titulo
+   en minmax(0, 1fr) y no flex: en una tabla de layout automatico el flex aporta el ancho de su texto nowrap como minimo y la
+   tabla desborda (99 px a 1366 en #archivos, medido); la pista de 0 minimo deja que el titulo se recorte. Columnas fijas por
+   posicion (emisor y rev son opcionales: sin gap, cada pieza trae su margen). */
+.dtabla .nombre { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; min-width: 240px; align-items: center; }
+.dtabla .nombre .fico { grid-column: 1; }
+.dtabla .nombre .emisor { grid-column: 2; margin-left: var(--sp-2); font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.dtabla .nombre .t { grid-column: 3; margin-left: var(--sp-2); }
+.dtabla .nombre .rev { grid-column: 4; margin-left: var(--sp-2); font-family: var(--font-data); font-size: .66rem; padding: 0 6px; background: var(--status-idle-bg); color: var(--status-idle-fg); }
+.dtabla td.c-del { font-family: var(--font-data); font-size: .78rem; color: var(--text-body); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .dtabla td .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dtabla td .t a { color: inherit; text-decoration: none; } .dtabla td .t a:hover { text-decoration: underline; }
 .dtabla td .p { font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -252,10 +263,12 @@
 .dtabla .quien { display: inline-flex; gap: var(--sp-1); align-items: center; white-space: nowrap; } .dtabla .quien .av { width: 22px; height: 22px; font-size: .58rem; } .dtabla .quien > span:last-child { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
 /* cuando el PANEL (no la ventana) se estrecha, la tabla cede columnas antes que desbordar: primero quien, luego la fecha */
 .docs > .lista { container-type: inline-size; }
-@container (max-width: 900px) { .dtabla .c-quien { display: none; } }
-@container (max-width: 760px) { .dtabla .c-fecha { display: none; } .dtabla .nombre { min-width: 170px; } .dtabla .c-tarjeta select { max-width: 150px; } }
+/* v0.19.0: con la columna Fecha (del documento) la tabla ya no cabe en el panel de Docs a 1366 (810 px) con «Ligado por» y
+   «Ligada»: bajo 900 se ceden las dos (la fecha que importa es la del documento; la de la liga sigue en escritorio ancho). */
+@container (max-width: 900px) { .dtabla .c-quien, .dtabla .c-fecha, .dtabla .c-tipo { display: none; } }   /* y Tipo: el icono ya lo dice, y sus ~86 px van al titulo (medido: la tabla del panel de Docs a 1366 mide 808 y Nombre quedaba en 270) */
+@container (max-width: 760px) { .dtabla .nombre { min-width: 170px; } .dtabla .c-tarjeta select { width: 150px; } }
 .dtabla td.c-fecha { font-family: var(--font-data); font-size: .78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
-.dtabla .c-tarjeta select { min-height: var(--control-h-sm); font: inherit; font-family: var(--font-ui); font-size: .82rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); max-width: 180px; }
+.dtabla .c-tarjeta select { min-height: var(--control-h-sm); font: inherit; font-family: var(--font-ui); font-size: .82rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); width: 180px; max-width: 100%; }   /* v0.19.0: width fijo, no max-width: con max-width la tabla reservaba a la columna el ancho de la opcion mas larga del select (~400 px) y recortaba el Nombre */
 .dtabla .tarjeta-liga { border: 0; background: none; font: inherit; font-size: .82rem; color: var(--text-link); cursor: pointer; text-align: left; padding: 0; }
 .dtabla td .estado { display: inline-flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; }
 /* chip del tipo de archivo, con el color del icono */
@@ -295,9 +308,12 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
   .dtabla tr.doc td { display: block; padding: 0; border: 0 !important; background: none !important; }
   .dtabla tr.doc .c-nombre { grid-column: 1; grid-row: 1; width: auto; }
   .dtabla tr.doc .c-acc { grid-column: 2; grid-row: 1; }
-  .dtabla tr.doc .c-tipo, .dtabla tr.doc .c-estado, .dtabla tr.doc .c-fecha, .dtabla tr.doc .c-quien { display: inline-block; grid-column: 1 / -1; grid-row: auto; width: auto; margin-right: var(--sp-2); }
-  .dtabla tr.doc .c-tipo { grid-row: 2; } .dtabla tr.doc .c-estado { grid-row: 2; grid-column: 2; justify-self: end; }
-  .dtabla tr.doc .c-quien, .dtabla tr.doc .c-fecha { grid-row: 3; } .dtabla tr.doc .c-fecha { grid-column: 2; justify-self: end; }
+  .dtabla tr.doc .c-tipo, .dtabla tr.doc .c-estado, .dtabla tr.doc .c-del, .dtabla tr.doc .c-quien { display: inline-block; grid-column: 1 / -1; grid-row: auto; width: auto; margin-right: var(--sp-2); }
+  .dtabla tr.doc .c-fecha { display: none; }   /* v0.19.0: en ficha apilada la fecha que se ve es la del documento; «Ligada» queda para el escritorio */
+  /* v0.19.0: la fecha del documento va con el TIPO (renglon 2: «PDF … 01/07/2025» se lee como la fecha del archivo) y no junto a quien
+     ligo, donde se leia como la fecha de la liga (revisor 13-sep); el estado baja al renglon 3 con quien. */
+  .dtabla tr.doc .c-tipo { grid-row: 2; } .dtabla tr.doc .c-del { grid-row: 2; grid-column: 2; justify-self: end; }
+  .dtabla tr.doc .c-quien { grid-row: 3; } .dtabla tr.doc .c-estado { grid-row: 3; grid-column: 2; justify-self: end; }
   .dtabla tr.doc .c-tarjeta { grid-column: 1 / -1; grid-row: 4; }
   .dtabla tr.doc .c-tarjeta select { max-width: 100%; width: 100%; }
   .dtabla tr.pest { display: block; } .dtabla tr.pest td { display: block; padding: var(--sp-2) 0 var(--sp-1); }

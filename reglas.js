@@ -468,6 +468,49 @@ export function tipoArchivo(nombre, tipoLiga = null) {
     return t ? { clave: t[0], etiqueta: t[1] } : { clave: 'archivo', etiqueta: ext ? `Archivo .${ext}` : 'Archivo' };
 }
 
+// ---------------------------------------------------------------- v0.19.0: el nombre humano de un documento
+
+/**
+ * Parte un nombre de archivo de la convencion de la casa (`AAAA-MM-DD_Emisor_Tipo_detalle-en-kebab_ID_rev2.ext`,
+ * la de los _LEEME de cada biblioteca) en lo que la tabla pinta aparte: { titulo, fecha, emisor, rev, original }.
+ * - `fecha`: el prefijo AAAA-MM-DD (seguido de `_` o espacio) o null; no se valida como fecha real, solo la forma. Un
+ *   prefijo de solo año o año-mes (`2025_MINSA_Politica…`, `2025-06_…`, 22 reales) se acepta tal cual: se pinta `2025-06`
+ *   y ordena antes que cualquier dia de ese mes (comparacion de texto).
+ * - `emisor`: el primer segmento tras la fecha SOLO si hay fecha y quedan 2+ segmentos (sin fecha no se adivina).
+ * - `rev`: un ultimo segmento `rev2` / `rev02` / `v3` / `v3.0` (tambien `_con-anexos_rev2` deja el rev aparte); null si no hay.
+ * - `titulo`: los segmentos restantes unidos con « · »; dentro de cada uno los guiones pasan a espacio SALVO en lo
+ *   que parece identificador (lleva digitos y NINGUNA minuscula): `SOLPED-1000080660`, `PDH-009`, `UGI-ABC-1234-2026`
+ *   se quedan enteros; `sistema-organico` → «sistema organico» y `desemulsificante-RD-EB-26` → «desemulsificante RD EB 26»
+ *   (medido sobre 9,308 nombres reales, revisor 13-sep: exigir mayuscula sin prohibir minuscula dejaba 27 frases con guion).
+ *   La primera letra del titulo va en mayuscula (la convencion escribe el detalle en minusculas).
+ * Un nombre fuera de la convencion (sin fecha) sale entero como titulo, sin extension: nada se inventa.
+ */
+export function nombreHumano(nombre) {
+    return partirNombre(nombre);
+}
+/** La lectura de una LIGA: un enlace se pinta, ordena y busca por su titulo tal cual (lo escribio una persona); lo demas por nombreHumano. */
+export function nombreDeLiga(l) {
+    return l && l.Tipo === 'enlace' ? { titulo: String(l.Title || ''), fecha: null, emisor: null, rev: null, original: String(l.Title || '') } : partirNombre(l && l.Title);
+}
+function partirNombre(nombre) {
+    const original = String(nombre || '').split(/[\\/]/).pop();
+    const ext = extensionDe(original);
+    let s = ext ? original.slice(0, -(ext.length + 1)) : original;
+    let fecha = null;
+    const mf = /^(\d{4}(?:-\d{2}){0,2})[_ ](.+)$/.exec(s);
+    if (mf) { fecha = mf[1]; s = mf[2]; }
+    let rev = null;
+    const mr = /^(.+)_((?:rev|v)\d+(?:\.\d+)?)$/i.exec(s);
+    if (mr) { s = mr[1]; rev = mr[2].toLowerCase(); }
+    let segs = s.split('_').filter(Boolean);
+    let emisor = null;
+    if (fecha && segs.length >= 2) emisor = segs.shift();
+    const esId = x => /\d/.test(x) && !/[a-z]/.test(x);
+    let titulo = segs.map(x => esId(x) ? x : x.replace(/-/g, ' ')).join(' · ') || original;
+    if (fecha) titulo = titulo.charAt(0).toUpperCase() + titulo.slice(1);   // solo lo que viene de la convencion; un nombre libre no se retoca
+    return { titulo, fecha, emisor, rev, original };
+}
+
 // ---------------------------------------------------------------- menciones @nombre (v0.8.0, chat por proyecto)
 
 /** Los alias por los que se puede mencionar a alguien: primer nombre y parte local del correo, sin acentos. */
@@ -667,7 +710,7 @@ export function ultimoComentarioPorProyecto(actividad) {
 export function filtrarLigas(ligas, f = {}) {
     const q = sinAcentos(f.texto || '').trim();
     return (ligas || []).filter(l => (!f.proyectoId || Number(l.ProyectoId) === Number(f.proyectoId)) && (!f.tipo || l.Tipo === f.tipo)
-        && (!q || sinAcentos(`${l.Title} ${l.Ruta || ''} ${l.Url || ''}`).includes(q)));
+        && (!q || sinAcentos(`${l.Title} ${nombreDeLiga(l).titulo} ${l.Ruta || ''} ${l.Url || ''}`).includes(q)));   // v0.19.0: tambien el titulo que se ve
 }
 
 /**
@@ -678,7 +721,8 @@ export function filtrarLigas(ligas, f = {}) {
 export function ordenarLigas(ligas, col = 'fecha', dir = -1, { nombre = x => x, tarjeta = () => '' } = {}) {
     const ESTADO = { archivado: 0, buzon: 1, enlace: 2 };
     const llave = {
-        nombre: l => String(l.Title || '').toLowerCase(),
+        nombre: l => { const h = nombreDeLiga(l); return `${h.emisor ? h.emisor + ' ' : ''}${h.titulo}`.toLowerCase(); },   // v0.19.0: por lo que se ve ([emisor] titulo), no por el nombre del archivo
+        del: l => nombreDeLiga(l).fecha,                             // v0.19.0: la fecha del documento (del nombre); enlaces y sin fecha, al final
         tipo: l => tipoArchivo(l.Ruta || l.Title, l.Tipo).etiqueta.toLowerCase(),
         estado: l => l.Tipo in ESTADO ? ESTADO[l.Tipo] : 3,
         tarjeta: l => l.TareaId ? String(tarjeta(l.TareaId) || '').toLowerCase() : null,
@@ -694,8 +738,8 @@ export function ordenarLigas(ligas, col = 'fecha', dir = -1, { nombre = x => x, 
         return (c * dir) || (b.id - a.id);
     });
 }
-/** La direccion con que arranca una columna al elegirla: Fecha, la mas nueva arriba; las demas, ascendente. */
-export function direccionInicial(col) { return col === 'fecha' ? -1 : 1; }
+/** La direccion con que arranca una columna al elegirla: las dos fechas (Ligada y la del documento), la mas nueva arriba; las demas, ascendente. */
+export function direccionInicial(col) { return col === 'fecha' || col === 'del' ? -1 : 1; }
 
 // ---------------------------------------------------------------- v0.15.0: el mismo canal (auditoria como usuario, 2026-09-13)
 

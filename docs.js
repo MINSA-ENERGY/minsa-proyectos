@@ -14,7 +14,7 @@
 // acorta con `urlParaLiga` y ningun texto sale hacia Graph sin pasar por `textosLargos`.
 
 import { CONFIG } from './config.js';
-import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX, hrefSeguro, filtrarLigas, tipoArchivo, ordenarLigas, direccionInicial } from './reglas.js';
+import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX, hrefSeguro, filtrarLigas, tipoArchivo, ordenarLigas, direccionInicial, nombreDeLiga } from './reglas.js';
 import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO } from './lote.js';
 import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, iconoSvg, avatar, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaCorta, fechaHora, aplicar, pedirRelectura, irAHash } from './comun.js';
 import { esConflicto } from './graph.js';
@@ -112,7 +112,9 @@ export async function pintarDocs(p) {
 const TRAZOS_TARJETA = ['M4 5h16v14H4z', 'M4 10h16', 'M9 5v14'];
 const TRAZOS_PROYECTO = ['M3 7h7l2 2h9v10H3z'];
 // v0.18.0: el tercer valor es la llave de orden (ordenarLigas); «⋯» no ordena.
-export const COLUMNAS_DOCS = [['c-nombre', 'Nombre', 'nombre'], ['c-tipo', 'Tipo', 'tipo'], ['c-estado', 'Estado', 'estado'], ['c-tarjeta', 'Tarjeta', 'tarjeta'], ['c-quien', 'Ligado por', 'quien'], ['c-fecha', 'Fecha', 'fecha'], ['c-acc', '', null]];
+// v0.19.0: «Fecha» es la del DOCUMENTO (el prefijo AAAA-MM-DD de la convencion, nombreHumano) y «Ligada» la de la liga
+// (_creado, la que antes se llamaba Fecha; conserva la llave `fecha` y sigue siendo el orden de arranque).
+export const COLUMNAS_DOCS = [['c-nombre', 'Nombre', 'nombre'], ['c-del', 'Fecha', 'del'], ['c-tipo', 'Tipo', 'tipo'], ['c-estado', 'Estado', 'estado'], ['c-tarjeta', 'Tarjeta', 'tarjeta'], ['c-quien', 'Ligado por', 'quien'], ['c-fecha', 'Ligada', 'fecha'], ['c-acc', '', null]];
 
 /** v0.18.0: las ligas en el orden `o` ({ col, dir }; nombre visible de quien ligo y titulo de la tarjeta, como se ven). */
 export function ordenarDocs(ligas, o = estado.ordenDocs) {
@@ -166,16 +168,22 @@ export function filaGrupo(tareaId, titulo, n, { icono = null, alClic = null, tit
  */
 export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarjeta = null } = {}) {
     const tr = el('tr', 'doc'); tr.dataset.liga = String(l.id); if (enArchivos) tr.dataset.archivo = String(l.id);
-    // Nombre: icono + titulo (liga) + ruta o direccion.
+    // Nombre (v0.19.0): icono + [emisor] + titulo humano (liga) + [rev]. La ruta ya no va debajo: vive en el title del
+    // nombre (hover) y en «Copiar ruta» del menu «⋯»; el buscador la sigue leyendo (filtrarLigas). Un renglon por documento.
     const tdN = el('td', 'c-nombre'); const caja = el('div', 'nombre');
     caja.appendChild(iconoArchivo(l.Ruta || l.Title, l.Tipo));
-    const c = el('div', 'cuerpo'); const t = el('div', 't');
+    const nh = nombreDeLiga(l);   // la misma lectura con la que ordenarLigas ordena y filtrarLigas busca
+    const ruta = l.Tipo === 'enlace' ? String(l.Url || '') : `${l.Unidad ? l.Unidad + '/' : ''}${l.Ruta || ''}`;
+    const pista = nh.original === nh.titulo ? ruta : `${nh.original}\n${ruta}`;
+    if (nh.emisor) caja.appendChild(el('span', 'emisor', nh.emisor));
+    const t = el('div', 't');
     const href = hrefSeguro(l.Url);   // v0.13.1: solo http(s) llega al href, venga de donde venga la Url
-    if (href) { const a = el('a', '', l.Title); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = l.Title; t.appendChild(a); } else t.appendChild(el('span', '', l.Title));
-    c.appendChild(t);
-    const sub = l.Tipo === 'enlace' ? String(l.Url || '').replace(/^https?:\/\//, '').slice(0, 90) : `${l.Unidad ? l.Unidad + '/' : ''}${l.Ruta || ''}`;
-    const ps = el('div', 'p', sub); ps.title = sub; c.appendChild(ps);
-    caja.appendChild(c); tdN.appendChild(caja); tr.appendChild(tdN);
+    if (href) { const a = el('a', '', nh.titulo); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.title = pista; t.appendChild(a); } else { const s = el('span', '', nh.titulo); s.title = pista; t.appendChild(s); }
+    caja.appendChild(t);
+    if (nh.rev) caja.appendChild(el('span', 'mn-chip rev', nh.rev));
+    tdN.appendChild(caja); tr.appendChild(tdN);
+    // Fecha del documento (la del nombre); «—» si el nombre no la trae.
+    const tdD = el('td', 'c-del'); const fd = el('span', nh.fecha ? '' : 'p', nh.fecha ? fechaCorta(nh.fecha) : '—'); if (nh.fecha) fd.title = 'Fecha del documento, según su nombre'; tdD.appendChild(fd); tr.appendChild(tdD);
     // Tipo de archivo (PDF, Word, Excel, Lote, Enlace…): la misma clave que colorea el icono.
     const ta = tipoArchivo(l.Ruta || l.Title, l.Tipo);
     const tdT = el('td', 'c-tipo'); const bt = el('span', 'mn-chip tipo is-' + ta.clave, ta.clave === 'lote' ? 'Lote' : ta.clave === 'archivo' ? ta.etiqueta.replace('Archivo ', '') : ta.etiqueta); bt.dataset.tipo = ta.clave; tdT.appendChild(bt); tr.appendChild(tdT);
@@ -198,6 +206,7 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
     const tdA = el('td', 'c-acc');
     const acciones = [];
     if (href) { const a = el('a', 'mn-btn is-ghost is-sm', 'Abrir'); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; acciones.push(a); }
+    if (ruta) acciones.push(boton(l.Tipo === 'enlace' ? 'Copiar dirección' : 'Copiar ruta', 'mn-btn is-ghost is-sm', () => copiarTexto(ruta), { copiar: String(l.id) }));   // v0.19.0: la ruta que salio de debajo del nombre
     if (enArchivos && p) acciones.push(boton('Documentos del proyecto', 'mn-btn is-ghost is-sm', () => irAHash(`#p/${p.Clave}/docs`)));
     if (puede) acciones.push(boton('Quitar', 'mn-btn is-ghost is-sm is-peligro', () => quitarLiga(porId(estado.ligas, l.id) || l), { quitar: String(l.id) }));
     if (acciones.length) {
@@ -207,6 +216,12 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
     }
     tr.appendChild(tdA);
     return tr;
+}
+
+/** v0.19.0: «Copiar ruta» del menu «⋯». Sin portapapeles (http, permiso negado) la ruta se deja en el aviso, como compartirTarjeta. */
+async function copiarTexto(texto) {
+    try { if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(texto); avisar('Ruta copiada.', 'ok'); return; } } catch (e) { /* cae al aviso */ }
+    avisar(texto, 'ojo');
 }
 
 // ---------------------------------------------------------------- quitar / cambiar de tarjeta (F1)
