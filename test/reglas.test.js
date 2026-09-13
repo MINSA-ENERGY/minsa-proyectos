@@ -1,6 +1,6 @@
 // node test/reglas.test.js — reglas puras de MINSA Proyectos (decisiones del plan 2026-09-11).
 import assert from 'node:assert/strict';
-import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso } from '../reglas.js';
+import { rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, columnaSiguiente, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -132,5 +132,33 @@ ok('aliasDe sin punto final («Ma.» -> «ma»), y lo que el selector escribe se
 ok('mencionesEn: un correo no es mencion, un @nadie tampoco, una inactiva tampoco', mencionesEn('escribe a x@francisco.com o @nadie o @baja', gente).length === 0);
 ok('trozosConMenciones parte el texto y conserva lo escrito', JSON.stringify(trozosConMenciones('ok @Francisco?', gente)) === '[{"texto":"ok "},{"mencion":"francisco.perez@example.invalid","texto":"@Francisco"},{"texto":"?"}]');
 ok('mencionEnCurso: alias a medio escribir donde esta el cursor, y la palabra entera hasta su fin', JSON.stringify(mencionEnCurso('hola @fra', 9)) === '{"alias":"fra","desde":5,"hasta":9}' && mencionEnCurso('hola @fra x', 11) === null && mencionEnCurso('@', 1).alias === '' && mencionEnCurso('a@b', 3) === null && mencionEnCurso('hola @francisco resto', 9).hasta === 15 && mencionEnCurso('hola @josé', 10).alias === 'josé');
+
+// --- v0.10.0: roadmap, calendario, reportes
+ok('diaDe: dia UTC del ISO; basura = null', diaDe('2026-09-12T23:30:00Z') === '2026-09-12' && diaDe('') === null && diaDe('x') === null);
+ok('sumarDias / diasEntre / lunesDe / mesSumar', sumarDias('2026-09-30', 1) === '2026-10-01' && diasEntre('2026-09-01', '2026-09-11') === 10 && lunesDe('2026-09-12') === '2026-09-07' && lunesDe('2026-09-07') === '2026-09-07' && mesSumar('2026-12', 1) === '2027-01' && mesSumar('2026-01', -1) === '2025-12');
+const tA = { Columna: 'en-curso', Desde: '2026-09-05T12:00:00Z', Vence: '2026-09-20T18:00:00Z', _creado: '2026-09-01T00:00:00Z' };
+const tH = { Columna: 'hecho', Vence: '2026-09-20T18:00:00Z', HechoEl: '2026-09-10T18:00:00Z', _creado: '2026-09-01T00:00:00Z' };
+const tS = { Columna: 'por-hacer', _creado: '2026-09-01T00:00:00Z' };
+ok('lapsoTarea: Desde -> Vence; hecha termina en HechoEl; sin Desde usa la creacion; sin fin no hay barra', JSON.stringify(lapsoTarea(tA)) === '{"inicio":"2026-09-05","fin":"2026-09-20"}' && lapsoTarea(tH).fin === '2026-09-10' && lapsoTarea(tH).inicio === '2026-09-01' && lapsoTarea(tS).fin === null);
+ok('lapsoTarea: un Desde posterior al fin se recorta al fin', lapsoTarea({ Columna: 'en-curso', Desde: '2026-09-25T00:00:00Z', Vence: '2026-09-20T00:00:00Z' }).inicio === '2026-09-20');
+const pr = { id: 7, Vence: '2026-10-31T18:00:00Z', _creado: '2026-09-01T00:00:00Z' };
+ok('lapsoProyecto: de su creacion a su fin de frente; sin fin, la tarjeta que vence al ultimo', lapsoProyecto(pr, [{ ProyectoId: 7, ...tA }]).fin === '2026-10-31' && lapsoProyecto({ id: 7 }, [{ ProyectoId: 7, ...tA }]).fin === '2026-09-20');
+const R = rangoRoadmap([{ inicio: '2026-09-01', fin: '2026-10-31' }], HOY);
+ok('rangoRoadmap: lunes antes del primero, domingo despues del ultimo, contiene hoy', R.desde === '2026-08-31' && R.hasta === '2026-11-01' && R.dias === 63);
+ok('rangoRoadmap: sin lapsos, el minimo de dias desde hoy', rangoRoadmap([], HOY).dias >= 56 && rangoRoadmap([], HOY).desde <= '2026-09-11');
+ok('barraEn: posicion y ancho en %, recortada al rango; fuera = null', Math.round(barraEn({ inicio: '2026-09-10', fin: '2026-09-20' }, R).left * 10) / 10 === 15.9 && Math.round(barraEn({ inicio: '2026-08-01', fin: '2026-09-01' }, R).left) === 0 && barraEn({ inicio: '2027-01-01', fin: '2027-01-05' }, R) === null && barraEn({ inicio: null, fin: null }, R) === null);
+ok('mesesDelRango: los meses que cruza el eje suman 100 %', mesesDelRango(R).map(m => m.mes).join(',') === '2026-08,2026-09,2026-10,2026-11' && Math.round(mesesDelRango(R).reduce((n, m) => n + m.width, 0)) === 100);
+const celdas = celdasDelMes('2026-09');
+ok('celdasDelMes: 42 celdas desde el lunes anterior, 30 en el mes', celdas.length === 42 && celdas[0].dia === '2026-08-31' && !celdas[0].enMes && celdas.filter(c => c.enMes).length === 30);
+const ag = agendaPorDia([{ Title: 'b', Vence: '2026-09-20T18:00:00Z', Columna: 'hecho' }, { Title: 'a', Vence: '2026-09-20T18:00:00Z', Columna: 'por-hacer' }, { Title: 'sin', Columna: 'por-hacer' }], [{ Title: 'P', Estado: 'activo', Vence: '2026-09-20T18:00:00Z' }, { Title: 'C', Estado: 'cerrado', Vence: '2026-09-21T18:00:00Z' }]);
+ok('agendaPorDia: tarjetas por Vence (abiertas antes que hechas) y fines de frente solo de activos', ag.get('2026-09-20').tareas.map(t => t.Title).join(',') === 'a,b' && ag.get('2026-09-20').fines.length === 1 && !ag.has('2026-09-21') && ag.size === 1);
+const hs = hechasPorSemana([{ Columna: 'hecho', HechoEl: '2026-09-10T00:00:00Z' }, { Columna: 'hecho', HechoEl: '2026-09-01T00:00:00Z' }, { Columna: 'hecho' }, { Columna: 'en-curso', HechoEl: '2026-09-10T00:00:00Z' }], 3, HOY);
+ok('hechasPorSemana: 3 semanas terminando en la de hoy, solo hechas con HechoEl', hs.map(x => x.desde).join(',') === '2026-08-24,2026-08-31,2026-09-07' && hs.map(x => x.n).join(',') === '0,1,1');
+const cp = cargaPorPersona([{ Asignado: 'A@x', Columna: 'por-hacer', Vence: '2026-09-01T00:00:00Z' }, { Asignado: 'a@x', Columna: 'hecho' }, { Asignado: 'b@x', Columna: 'en-curso' }, { Asignado: 'b@x', Columna: 'en-curso' }, { Columna: 'por-hacer' }], 7, HOY);
+ok('cargaPorPersona: abiertas/vencidas/hechas por correo (sin mayusculas), mas abiertas primero, sin dueño al final', cp.map(x => `${x.quien}:${x.abiertas}/${x.vencidas}/${x.hechas}`).join(' ') === 'b@x:2/0/0 a@x:1/1/1 :1/0/0');
+ok('actividadPorPersona: solo los ultimos N dias', actividadPorPersona([{ Quien: 'a', Cuando: '2026-09-10T00:00:00Z' }, { Quien: 'a', Cuando: '2026-09-11T00:00:00Z' }, { Quien: 'b', Cuando: '2026-07-01T00:00:00Z' }], 30, HOY).map(x => `${x.quien}:${x.n}`).join(',') === 'a:2');
+ok('ultimoComentarioPorProyecto: el mas reciente de cada frente, frentes del mas reciente al mas viejo', ultimoComentarioPorProyecto([{ Accion: 'comentar', ProyectoId: 1, Cuando: '2026-09-01T00:00:00Z', Title: 'v' }, { Accion: 'comentar', ProyectoId: 1, Cuando: '2026-09-05T00:00:00Z', Title: 'n' }, { Accion: 'comentar', ProyectoId: 2, Cuando: '2026-09-09T00:00:00Z', Title: 'o' }, { Accion: 'mover-tarea', ProyectoId: 3, Cuando: '2026-09-10T00:00:00Z' }]).map(x => `${x.proyectoId}:${x.ultimo.Title}`).join(',') === '2:o,1:n');
+const ligas = [{ Title: 'Plan de contingencia', ProyectoId: 1, Tipo: 'archivado', Ruta: '04_SGI/plan.pdf' }, { Title: 'Oficio', ProyectoId: 2, Tipo: 'enlace', Url: 'https://x/ofício' }];
+ok('filtrarLigas: por proyecto, tipo y texto sin acentos sobre nombre/ruta/url', filtrarLigas(ligas, { proyectoId: 1 }).length === 1 && filtrarLigas(ligas, { tipo: 'enlace' })[0].Title === 'Oficio' && filtrarLigas(ligas, { texto: 'oficio' }).length === 1 && filtrarLigas(ligas, { texto: '04_sgi' }).length === 1 && filtrarLigas(ligas, {}).length === 2);
 
 console.log(`reglas: ok (${n} comprobaciones)`);

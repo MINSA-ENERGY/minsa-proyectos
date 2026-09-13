@@ -980,6 +980,78 @@ try {
             R.ok('v0.8.0: el renglón de la mención abre el chat del proyecto', visible('tab-chat') && location.hash === `#p/${CLAVE}/chat`);
             pestana('inicio'); await dormir(30);
         }
+        // ---- v0.10.0: Roadmap · Calendario · Mensajes · Archivos · Reportes (foto de referencia, 12-sep) + titulo con icono + anillo
+        {
+            const hoyIso = new Date().toISOString();
+            R.ok('v0.10.0: cada pantalla lleva su icono a la izquierda del título', ['p-inicio', 'p-proyectos', 'p-mis', 'p-roadmap', 'p-calendario', 'p-mensajes', 'p-archivos', 'p-reportes'].every(id => !!$(id).querySelector('.cabecera > .titulo-ico svg')));
+            R.ok('v0.10.0: el rail trae las 8 secciones y las 3 que no caben en la barra móvil van en el menú «···»', document.querySelectorAll('#pestanas button').length === 8 && document.querySelectorAll('#menuMovil .ir-movil').length === 3);
+            // una tarjeta que vence HOY y una hecha hace 2 dias, para el calendario, el roadmap y «hechas por semana»
+            const tHoy = { id: DB.siguienteId++, fields: { Title: 'Vence hoy para el calendario', ProyectoId: proyectoId, Columna: 'en-curso', Asignado: YO, Prioridad: 'normal', Vence: hoyIso, Desde: new Date(Date.now() - 5 * 86400000).toISOString() } };
+            filas('tareas').push(tHoy);
+            filas('tareas').push({ id: DB.siguienteId++, fields: { Title: 'Hecha esta semana', ProyectoId: proyectoId, Columna: 'hecho', Asignado: YO, Prioridad: 'normal', Vence: hoyIso, HechoEl: new Date(Date.now() - 2 * 86400000).toISOString(), HechoPor: YO } });
+            await recargarYEsperar();
+            // Roadmap global
+            irHash('#roadmap'); await esperar(() => visible('p-roadmap'), 'roadmap');
+            R.ok('v0.10.0: #roadmap abre la línea de tiempo con 4 KPI, una barra por frente activo, la raya de hoy y el eje de meses', visible('p-roadmap') && document.querySelectorAll('#roadmapKpis .mn-kpi').length === 4 && document.querySelectorAll('#roadmapCaja .g-barra[data-roadmap-barra]').length === filas('proyectos').filter(p => p.fields.Estado === 'activo').length && !!document.querySelector('#roadmapCaja .g-hoy') && document.querySelectorAll('#roadmapCaja .g-meses span').length >= 2);
+            R.ok('v0.10.0: la barra del frente lleva su avance adentro y el texto dice cuándo vence', !!document.querySelector(`#roadmapCaja [data-roadmap-barra="${proyectoId}"] .g-pct`) && /vence|venció|sin fin/.test(document.querySelector(`#roadmapCaja [data-roadmap-barra="${proyectoId}"]`).title));   // el texto va adentro o, si la barra es corta, afuera: el title lo trae siempre
+            document.querySelector(`#roadmapCaja [data-roadmap-barra="${proyectoId}"]`).click(); await esperar(() => visible('p-proyecto') && location.hash === `#p/${CLAVE}`, 'proyecto desde la barra');
+            R.ok('v0.10.0: la barra abre su proyecto', visible('p-proyecto'));
+            // Roadmap del proyecto
+            tab('roadmap'); await esperar(() => visible('tab-roadmap') && document.querySelector('#tab-roadmap .g-barra[data-roadmap]'), 'roadmap del proyecto');
+            const conFecha = filas('tareas').filter(t => String(t.fields.ProyectoId) === String(proyectoId) && (t.fields.Vence || t.fields.HechoEl)).length;
+            R.ok('v0.10.0: la pestaña Roadmap dibuja una barra por tarjeta con fecha, agrupadas por columna, y el hash lo dice', document.querySelectorAll('#tab-roadmap .g-barra[data-roadmap]').length === conFecha && document.querySelectorAll('#tab-roadmap .g-fila.is-grupo').length >= 2 && location.hash === `#p/${CLAVE}/roadmap`, `${document.querySelectorAll('#tab-roadmap .g-barra[data-roadmap]').length} barras / ${conFecha} con fecha`);
+            R.ok('v0.10.0: la hecha va en verde hasta que se hizo; la que vence hoy, en el color de su columna', document.querySelector(`#tab-roadmap [data-roadmap="${tHoy.id}"]`).classList.contains('is-brand') && !!document.querySelector('#tab-roadmap .g-barra.is-ok'));
+            R.ok('v0.10.0: el fin del frente sale como hito (solo si el proyecto tiene fecha)', (!!filas('proyectos').find(p => p.id === proyectoId).fields.Vence) === !!document.querySelector('#tab-roadmap .g-barra.is-hito'));
+            document.querySelector(`#tab-roadmap [data-roadmap="${tHoy.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde el roadmap');
+            R.ok('v0.10.0: la barra de la tarjeta abre su diálogo', $('dlgTarea').open && $('tTitulo').textContent === 'Vence hoy para el calendario');
+            clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+            R.ok('v0.10.0: la lateral trae el anillo de avance con el % al centro', !!document.querySelector('#pAnillo svg.anillo .pct') && /^\d+%$/.test(document.querySelector('#pAnillo svg.anillo .pct').textContent));
+            R.ok('v0.10.0: con Roadmap abierto no hay filtros de tarjetas', $('filtroTareas').classList.contains('oculto'), `hash=${location.hash} tab=${document.querySelector('.tab.is-on')?.dataset.tab}`);
+            // Calendario
+            irHash('#calendario'); await esperar(() => visible('p-calendario'), 'calendario');
+            const mesHoy = hoyIso.slice(0, 7);
+            R.ok('v0.10.0: #calendario abre el mes en curso con 42 celdas, hoy marcado y la tarjeta que vence hoy en su día', visible('p-calendario') && document.querySelectorAll('#calRejilla .cal-dia').length === 42 && !!document.querySelector('#calRejilla .cal-dia.is-hoy') && !!document.querySelector(`#calRejilla .cal-dia.is-hoy [data-cal-t="${tHoy.id}"]`) && $('calTitulo').textContent.endsWith(mesHoy.slice(0, 4)));
+            R.ok('v0.10.0: la agenda de celular trae el mismo día', !!document.querySelector(`#calAgenda [data-cal-t="${tHoy.id}"]`));
+            clic('calSiguiente'); await dormir(30); const tituloSig = $('calTitulo').textContent; clic('calHoy'); await dormir(30);
+            R.ok('v0.10.0: ‹ › cambian de mes y «Hoy» vuelve y elige el día', tituloSig !== $('calTitulo').textContent && !!document.querySelector('#calRejilla .cal-dia.is-hoy.is-elegido') && !$('calDetalle').classList.contains('oculto') && $('calDetalle').textContent.includes('Vence hoy para el calendario'));
+            document.querySelector(`#calRejilla [data-cal-t="${tHoy.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde el calendario');
+            R.ok('v0.10.0: la tarjeta del calendario abre su diálogo en el proyecto', $('dlgTarea').open && location.hash === `#p/${CLAVE}/t/${tHoy.id}`);
+            clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+            // Mensajes: entrar al chat fija «visto»; un comentario ajeno posterior cuenta como nuevo en el rail y en la bandeja
+            irHash(`#p/${CLAVE}/chat`); await esperar(() => visible('tab-chat'), 'chat'); await dormir(30);
+            irHash('#mensajes'); await esperar(() => visible('p-mensajes'), 'mensajes');
+            R.ok('v0.10.0: #mensajes lista un renglón por frente, el que tiene chat con su último mensaje y quién lo escribió', visible('p-mensajes') && document.querySelectorAll('#mensajesLista [data-mensajes]').length >= 1 && document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"] .m b`).textContent.length > 1 && $('nMensajes').hidden);
+            filas('actividad').push({ id: DB.siguienteId++, fields: { Title: 'mensaje nuevo para la bandeja', Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date(Date.now() + 1000).toISOString(), ProyectoId: proyectoId } });
+            await recargarYEsperar(); await dormir(30);
+            R.ok('v0.10.0: un comentario ajeno posterior a la visita enciende la insignia del rail y marca el renglón como nuevo', !$('nMensajes').hidden && $('nMensajes').textContent === '1' && document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`).classList.contains('is-nuevo') && $('mensajesSub').textContent.includes('1 mensaje(s) nuevo(s)'));
+            document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`).click(); await esperar(() => visible('tab-chat') && location.hash === `#p/${CLAVE}/chat`, 'chat desde la bandeja');
+            R.ok('v0.10.0: el renglón abre el chat del frente y la insignia se apaga al leerlo', visible('tab-chat') && $('nMensajes').hidden);
+            // Archivos
+            irHash('#archivos'); await esperar(() => visible('p-archivos'), 'archivos');
+            const nLigas = filas('ligas').length;
+            R.ok('v0.10.0: #archivos lista todas las ligas de todos los frentes, agrupadas por proyecto, con su icono', visible('p-archivos') && document.querySelectorAll('#archivosLista [data-archivo]').length === nLigas && document.querySelectorAll('#archivosLista .grupo-proy').length >= 1 && document.querySelectorAll('#archivosLista .fico').length === nLigas, `${nLigas} ligas`);
+            document.querySelector('#archivosTipo [data-tipo="enlace"]').click(); await dormir(30);
+            R.ok('v0.10.0: el chip por tipo filtra', document.querySelectorAll('#archivosLista [data-archivo]').length === filas('ligas').filter(l => l.fields.Tipo === 'enlace').length);
+            document.querySelector('#archivosTipo [data-tipo="todos"]').click(); poner('textoArchivos', 'contingencia'); await dormir(60);
+            R.ok('v0.10.0: el buscador filtra por nombre o ruta sin acentos', document.querySelectorAll('#archivosLista [data-archivo]').length === filas('ligas').filter(l => /contingencia/i.test(`${l.fields.Title} ${l.fields.Ruta || ''}`)).length && document.querySelectorAll('#archivosLista [data-archivo]').length >= 1);
+            poner('textoArchivos', '');
+            document.querySelector('#archivosLista .grupo-proy').click(); await esperar(() => visible('tab-docs'), 'docs desde archivos');
+            R.ok('v0.10.0: el nombre del proyecto abre sus Documentos', visible('tab-docs') && location.hash.endsWith('/docs'));
+            // Reportes
+            irHash('#reportes'); await esperar(() => visible('p-reportes'), 'reportes');
+            const activosN = filas('proyectos').filter(p => p.fields.Estado === 'activo').length;
+            R.ok('v0.10.0: #reportes trae 5 KPI, el anillo global, una barra por proyecto activo, la carga por persona y 8 semanas de hechas', visible('p-reportes') && document.querySelectorAll('#reportesKpis .mn-kpi').length === 5 && !!document.querySelector('#repGlobal svg.anillo') && document.querySelectorAll('#repProyectos [data-rep-p]').length === activosN && document.querySelectorAll('#repPersonas [data-rep-q]').length >= 1 && document.querySelectorAll('#repSemanas .col-s').length === 8);
+            R.ok('v0.10.0: la hecha de esta semana cuenta en la última columna y la vencida sale en «Vencidas por proyecto»', Number(document.querySelector('#repSemanas .col-s:last-child b').textContent) >= 1 && document.querySelectorAll('#repVencidas [data-rep-v]').length === filas('tareas').filter(t => t.fields.Columna !== 'hecho' && t.fields.Vence && diasPara(t.fields.Vence) < 0).length);
+            R.ok('v0.10.0: el KPI «vencidas» de Reportes cuadra con el de Inicio (global, no solo mías)', document.querySelector('#reportesKpis [data-rep="vencidas"] .mn-kpi-val').textContent === String(filas('tareas').filter(t => t.fields.Columna !== 'hecho' && t.fields.Vence && diasPara(t.fields.Vence) < 0 && filas('proyectos').some(p => p.id === Number(t.fields.ProyectoId) && p.fields.Estado === 'activo')).length));
+            document.querySelector(`#repProyectos [data-rep-p="${proyectoId}"]`).click(); await esperar(() => visible('p-proyecto'), 'proyecto desde reportes');
+            R.ok('v0.10.0: la fila del reporte abre el proyecto', visible('p-proyecto') && location.hash === `#p/${CLAVE}`);
+            // el filtro del rail aplica a Roadmap/Calendario/Reportes sin saltar a Proyectos
+            irHash('#reportes'); await esperar(() => visible('p-reportes'), 'reportes');
+            document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
+            R.ok('v0.10.0: el filtro por equipo del rail se queda en Reportes y lo vacía si no hay frentes de ese equipo', visible('p-reportes') && document.querySelectorAll('#repProyectos [data-rep-p]').length === 0 && $('reportesSub').textContent.includes('PITEPEC'));
+            document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
+            pestana('inicio'); await dormir(30);
+        }
         // Sesion caducada -> vuelve al login.
         const pcaFalso = window.msal; let redirigio = false;
         // E2 (2026-09-12): esta prueba ROMPE el MSAL falso. Sin restaurarlo, cualquier herramienta que
@@ -1032,6 +1104,18 @@ try {
         clic('btnEquipo'); await esperar(() => $('dlgEquipo').open, 'equipo');
         R.ok('A2 (lectura): Equipo trae tabla y fichas con la misma gente', document.querySelectorAll('#eqFichas .eq-ficha').length === document.querySelectorAll('#eqLista tr').length);
         clic('eqCerrar');
+        // v0.10.0 (lectura): las cinco pantallas nuevas se ven y no ofrecen nada que escriba.
+        irHash('#roadmap'); await esperar(() => visible('p-roadmap'), 'roadmap');
+        R.ok('v0.10.0 (lectura): Roadmap se ve con su barra', document.querySelectorAll('#roadmapCaja .g-barra[data-roadmap-barra]').length === 1);
+        irHash(`#p/${CLAVE}/roadmap`); await esperar(() => visible('tab-roadmap'), 'roadmap del proyecto');
+        R.ok('v0.10.0 (lectura): la pestaña Roadmap del proyecto dibuja la tarjeta sembrada (vencida, en rojo)', !!document.querySelector('#tab-roadmap .g-barra[data-roadmap].is-danger'));
+        irHash('#calendario'); await esperar(() => visible('p-calendario'), 'calendario');
+        irHash('#mensajes'); await esperar(() => visible('p-mensajes'), 'mensajes');
+        R.ok('v0.10.0 (lectura): Mensajes lista el frente con su último mensaje', document.querySelectorAll('#mensajesLista [data-mensajes]').length === 1 && $('mensajesLista').textContent.includes('comentario'));
+        irHash('#archivos'); await esperar(() => visible('p-archivos'), 'archivos');
+        irHash('#reportes'); await esperar(() => visible('p-reportes'), 'reportes');
+        R.ok('v0.10.0 (lectura): Reportes cuenta 1 vencida y ninguna pantalla nueva trae botones de escritura', document.querySelector('#reportesKpis [data-rep="vencidas"] .mn-kpi-val').textContent === '1' && !document.querySelector('#p-roadmap [data-enlace], #p-archivos [data-quitar], #p-archivos select[data-tarjeta-de]'));
+        pestana('inicio'); await dormir(30);
     }
 } catch (e) {
     R.ok('la corrida terminó sin excepción', false, `hash=${location.hash} · dlgTarea=${$('dlgTarea').open} · pestaña=${[...document.querySelectorAll('.pantalla')].find(x => !x.classList.contains('oculto'))?.id} · ${String(e && e.message || e)}
@@ -1044,7 +1128,8 @@ try {
             pestana('proyectos'); document.querySelector('#listaProyectos .renglon, #listaCerrados .renglon')?.click();
             if (v === 'docs') tab('docs');
             if (v === 'tarjeta') document.querySelector('#tab-tablero .tarjeta')?.click();
-        } else pestana(v);
+        } else if (v === 'roadmap-proyecto') { pestana('proyectos'); document.querySelector('#listaProyectos .renglon')?.click(); tab('roadmap'); }
+        else pestana(v);
     }
 }
 </script>

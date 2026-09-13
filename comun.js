@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, iniciales, nombreDe, diasPara, estadoVence, tipoArchivo, trozosConMenciones } from './reglas.js';
 
-export const VERSION = '0.9.0';
+export const VERSION = '0.10.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -28,6 +28,9 @@ export const estado = {
     // v0.4.0: «ver las N anteriores» de Hecho (U6), filtro de Documentos (U10), firma de la ultima carga (T3)
     hechoTodas: false,
     filtroDocs: null,
+    // v0.10.0: mes del calendario (YYYY-MM) y dia elegido; filtro de Archivos
+    mesCal: null, calDia: null,
+    filtroArchivos: { proyectoId: null, tipo: null, texto: '' },
     cargadoEl: 0,
     // Sitios de bibliotecas de unidad ya resueltos: clave -> { id, motivo }
     sitiosUnidad: {},

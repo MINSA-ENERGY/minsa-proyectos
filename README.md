@@ -6,6 +6,74 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.10.0** (2026-09-12) — **Roadmap, Calendario, Mensajes, Archivos y Reportes, y el título con su icono.** Carlos mandó
+la foto de un tablero de referencia («Product Roadmap», WhatsApp 12-sep 18:07) y pidió un roadmap, esas cuatro secciones en la
+columna izquierda y el título con icono a la izquierda; el resto salió de recorrer la foto contra lo que la app ya sabe. **Sin
+cambio de esquema**: todo se deriva de las cinco listas (`vistas.js`, módulo nuevo; reglas puras en `reglas.js` con 16 pruebas).
+Con esto **salen del «fuera del piloto» Mensajes, Calendario y Timeline** (decisión 6 del plan): Carlos las pidió con esas palabras.
+
+- **Título con icono** (`.titulo-ico`): cada pantalla lleva su icono en un cuadro tenue de marca a la izquierda del `h1`, el
+  mismo gesto que el icono de equipo en la cabecera del proyecto. El rail pasa de 3 a **8 secciones** (Inicio · Proyectos ·
+  Roadmap · Calendario · Mensajes · Archivos · Reportes · Mis tareas); en celular la barra solo trae 5 y **Roadmap · Archivos ·
+  Reportes viven en el menú «···»** (`.ir-movil`).
+- **Roadmap** (`#roadmap`): un frente por fila, la barra va de la creación del proyecto (`_creado`) a su fin de frente con el
+  avance como relleno (rojo vencido · ámbar ≤ 7 d · marca después · gris sin fecha, hasta hoy), eje de meses + lunes de cada
+  semana + raya de HOY, 4 KPI (total · en curso · hechas · vencidas) y «Fines de frente próximos» (≤ 60 d) con la fecha grande.
+  **Pestaña Roadmap del proyecto** (`#p/<clave>/roadmap`): un carril por columna, cada tarjeta una barra de «en esta columna
+  desde» (o su creación) al vencimiento —las hechas hasta `HechoEl`, en verde—, el fin del frente como rombo; sin vencimiento no
+  hay barra («sin fecha de vencimiento»). Una barra de pocos días escribe su texto AFUERA. Barra y etiqueta abren la tarjeta
+  **conservando la pestaña** (`irTarjeta(t, 'roadmap')`: sin el tab en el hash el router volvía al tablero). El gantt es el
+  mismo (`gantt()`), en `%` sobre `rangoRoadmap` (lunes anterior → domingo posterior, mínimo 56/84 días, siempre con hoy).
+- **Calendario** (`#calendario`): rejilla de 6 semanas lunes-domingo con las tarjetas por su `Vence` (color por columna;
+  vencida en rojo; hecha tachada en verde) y los fines de frente; «‹ Hoy ›»; clic en el día abre su detalle; `+N más` a partir
+  de 3. En celular es la **agenda del mes** (`.cal-agenda`), no la rejilla. El filtro por equipo del rail aplica.
+- **Mensajes** (`#mensajes`): la bandeja de los chats de todos los frentes —último mensaje, quién, cuándo, **N nuevos desde tu
+  última visita** (v0.9.0, por dispositivo)— y arriba «Te mencionaron» (90 días; Inicio sigue en 14). Los frentes sin
+  conversación salen al final para arrancarla. **Insignia azul en el rail** (`#nMensajes`, `mensajesNuevos()`): suma de nuevos
+  sobre frentes activos, sin contar el chat que está en pantalla. Límite declarado: solo cuenta a partir de la primera visita a
+  cada chat (sin marca de visto nada es «nuevo», como en v0.9.0).
+- **Archivos** (`#archivos`): todas las ligas de todos los frentes agrupadas por proyecto, chips por tipo, select por proyecto
+  y buscador sin acentos (nombre, ruta, dirección; `filtrarLigas`). Solo encuentra y abre: ligar, quitar y reasignar siguen en
+  Documentos del proyecto (el nombre del grupo lleva ahí). No consulta «en el buzón» en vivo (eso sigue siendo de Documentos).
+- **Reportes** (`#reportes`): 5 KPI (proyectos · abiertas · hechas · vencidas · sin dueño), **anillo** de avance global con
+  leyenda, avance por proyecto (barra segmentada con la cuenta adentro + %), carga por persona (abiertas con las vencidas en rojo
+  y la cifra), **hechas por semana** (8 semanas, `HechoEl`), actividad por persona (30 días) y vencidas por proyecto. Todo
+  clicable hacia el proyecto o la tarjeta; «Imprimir». El filtro por equipo del rail aplica y **se queda** (antes, tocar el rail
+  desde otra pantalla saltaba a Proyectos; ahora salta solo desde las que no filtran).
+- **Anillo en la lateral del proyecto** (`#pAnillo`, `anillo()`): el «68 %» de la foto, encima de la barra de Avance.
+- **Colores de los gráficos:** los de las columnas que la app ya usa (verde hechas · celeste revisión · marca en curso · gris por
+  hacer); validados con el `validate_palette.js` de dataviz: separación CVD 21.8 ΔE (pasa); el gris por hacer queda bajo el
+  piso de croma y de contraste **a propósito** (es «nada todavía», y siempre lleva cifra o leyenda al lado).
+- **Corregido de paso:** la insignia de la barra móvil (`.mn-rail-hot`, `right: 25%` absoluta) se anclaba al rail entero y el
+  «1» de Mis tareas caía sobre Mensajes con 5 pestañas — `position: relative` en el botón.
+- **Lo que el `revisor-entregable` cazó con la E2E en verde, corregido antes del commit:** el filtro del rail aplicaba a medias
+  en Roadmap (filas filtradas, KPI e hitos globales) y en Calendario (los fines de frente de todos) — ahora parejo · las 24
+  capturas a 390 de las pantallas nuevas salían tapadas por el menú «···» que la vista `menu-movil` dejaba abierto (el driver
+  lo cierra antes de cada vista) · la barra gris «por hacer» se perdía en oscuro (filete + fondo hundido) · la barra corta
+  quedaba como `<button>` sin nombre (`aria-label`) · el día del calendario era un `<div>` con clic (ahora `role=button`,
+  tabulable, Enter/espacio) · «SEPTIEMBRE 2…» truncado (nombre completo solo si el mes ocupa ≥ 18 % del eje; si no, «sep 26») ·
+  etiquetas de Reportes cortadas a 1366 (columna al 52 %) · `#tab-roadmap` definido dos veces.
+- **Lo de la foto que NO se hizo, a propósito:** buscador global («Search anything»), migas «Proyectos › …» (el botón «← Proyectos»
+  ya hace ese viaje), tendencia en los KPI («↑ 12 % vs mes pasado» — no hay histórico en las listas), selector de rango de fechas
+  (el eje se calcula solo de los datos), avatares encima de las barras (van en la etiqueta), Calendario **por proyecto** (el
+  global filtra por equipo; por frente se propone aparte si hace falta), bloque «Team Members» con rol (vive en «Quiénes» y en
+  el diálogo Equipo), icono dentro de cada KPI (la casa usa el filete de color).
+- **Declarado sin aplicar:** «hoy» es el día **UTC**, como `diasPara` en toda la app: a partir de las 18:00 de México el
+  calendario marca mañana y Reportes imprime «calculado al» con la fecha de mañana — cambiarlo toca `diasPara` y todos los
+  chips «vence hoy», se decide aparte · las barras del gantt miden 22 px de alto (18 objetivos < 36 px a 390 según el driver);
+  cada una tiene su etiqueta de 36 px a la izquierda que abre lo mismo · no hay vista de tabla de los reportes (cada gráfico
+  lleva cifras y `aria-label`) · el roadmap no se arrastra ni edita fechas (se editan en la tarjeta) · Mensajes no tiene
+  «leído» compartido · las 3 secciones extra del celular viven en el menú «···» sin `role=tab` · la E2E de v0.8.0
+  «comentó/anotó» **falla a 390 px desde v0.9.0** (el tope de 3 renglones de actividad en celular deja fuera el que busca;
+  verificado con `git stash` contra v0.9.0) y no se tocó.
+
+Medido: `npm test` verde (90 reglas, +16), E2E **244 / 224 / 26** (+27 / +27 / +4: las 5 pantallas, roadmap del proyecto con
+apertura de tarjeta que conserva la pestaña, calendario con navegación y agenda, insignia de mensajes que enciende con un
+comentario ajeno y se apaga al leer, archivos con chip y buscador, reportes con KPI que cuadran con Inicio, filtro del rail que
+se queda en Reportes, rol lectura sin botones de escritura), **40 vistas × 3 anchos × 2 temas = 240 capturas con 0 desborde**
+(el gantt desbordaba 176 px a 390 hasta `min-width: 0` en su tarjeta). Vistas nuevas del driver: `roadmap`,
+`roadmap-proyecto`, `calendario`, `mensajes`, `archivos`, `reportes`. SW `minsa-proyectos-v12`.
+
 **v0.9.0** (2026-09-12) — **borrar lo escrito en el chat, secciones que se distinguen, enlaces clicables y «nuevos desde tu
 última visita».** Carlos pidió poder borrar texto mandado al chat y que la cabecera de un pop-up se distinga de lo editable;
 el resto salió de recorrer la app buscando qué le falta a un chat que ya se usa. Sin cambio de esquema.

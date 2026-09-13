@@ -406,3 +406,136 @@ export function mencionEnCurso(texto, cursor) {
     const resto = RE_RESTO.exec(s.slice(cursor))[0];
     return { alias: m[2], desde: antes.length - m[2].length - 1, hasta: cursor + resto.length };
 }
+
+// ---------------------------------------------------------------- v0.10.0: roadmap, calendario, reportes (reglas puras)
+
+/** Dia UTC de un ISO como YYYY-MM-DD (el mismo dia que usa diasPara); null si no es fecha. */
+export function diaDe(iso) {
+    if (!iso) return null;
+    const f = iso instanceof Date ? iso : new Date(iso);
+    return Number.isNaN(f.getTime()) ? null : f.toISOString().slice(0, 10);
+}
+/** Suma `n` dias a un YYYY-MM-DD. */
+export function sumarDias(dia, n) { const f = new Date(dia + 'T00:00:00Z'); f.setUTCDate(f.getUTCDate() + n); return f.toISOString().slice(0, 10); }
+/** Dias enteros de `a` a `b` (YYYY-MM-DD); negativo si b es antes. */
+export function diasEntre(a, b) { return Math.round((Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10)) - Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8, 10))) / 86400000); }
+/** El lunes de la semana de `dia`. */
+export function lunesDe(dia) { const f = new Date(dia + 'T00:00:00Z'); const d = (f.getUTCDay() + 6) % 7; return sumarDias(dia, -d); }
+/** El mes que sigue (o el anterior con -1) a un YYYY-MM. */
+export function mesSumar(mes, n) { const f = new Date(mes + '-01T00:00:00Z'); f.setUTCMonth(f.getUTCMonth() + n); return f.toISOString().slice(0, 7); }
+
+/**
+ * Cuando EMPIEZA una tarjeta en el roadmap: `Desde` (en esta columna desde), si no la fecha de
+ * creacion que SharePoint sabe (`_creado`), si no nada. Cuando TERMINA: `HechoEl` si esta hecha,
+ * si no `Vence`. Una tarjeta sin fin no tiene barra: sale en la lista «sin fecha».
+ */
+export function lapsoTarea(t) {
+    const fin = diaDe(t.Columna === 'hecho' ? (t.HechoEl || t.Vence) : t.Vence);
+    let inicio = diaDe(t.Desde) || diaDe(t._creado);
+    if (fin && inicio && inicio > fin) inicio = fin;
+    return { inicio: inicio || fin, fin };
+}
+/** Lapso de un proyecto: desde su creacion (o la tarjeta mas vieja) hasta su fin de frente (o la tarjeta que vence al ultimo). */
+export function lapsoProyecto(p, tareas) {
+    const ts = tareasDe(p, tareas);
+    const inicios = ts.map(t => lapsoTarea(t).inicio).filter(Boolean).sort();
+    const fines = ts.map(t => lapsoTarea(t).fin).filter(Boolean).sort();
+    const inicio = diaDe(p._creado) || inicios[0] || null;
+    const fin = diaDe(p.Vence) || (fines.length ? fines[fines.length - 1] : null);
+    return { inicio: inicio && fin && inicio > fin ? fin : inicio || fin, fin };
+}
+/**
+ * El eje del roadmap: del lunes anterior al lapso mas temprano al domingo posterior al mas tardio,
+ * siempre conteniendo `hoy` y con un minimo de `minDias` para que las barras tengan donde vivir.
+ */
+export function rangoRoadmap(lapsos, hoy, minDias = 56) {
+    const h = diaDe(hoy);
+    let a = h, b = h;
+    for (const l of lapsos) { if (l.inicio && l.inicio < a) a = l.inicio; if (l.fin && l.fin > b) b = l.fin; if (l.fin && l.fin < a) a = l.fin; if (l.inicio && l.inicio > b) b = l.inicio; }
+    if (diasEntre(a, b) < minDias) b = sumarDias(a, minDias);
+    a = lunesDe(a); b = sumarDias(lunesDe(b), 6);
+    return { desde: a, hasta: b, dias: diasEntre(a, b) + 1 };
+}
+/** Posicion y ancho (en %) de una barra dentro del rango; recorta a los bordes. null si no cabe nada. */
+export function barraEn(lapso, rango) {
+    if (!lapso.fin) return null;   // sin fin no hay barra (una tarjeta sin vencimiento sale como texto)
+    const i = lapso.inicio || lapso.fin, f = lapso.fin;
+    const a = Math.max(0, diasEntre(rango.desde, i)), b = Math.min(rango.dias, diasEntre(rango.desde, f) + 1);
+    if (b <= 0 || a >= rango.dias) return null;
+    return { left: a * 100 / rango.dias, width: Math.max(b - a, 1) * 100 / rango.dias };
+}
+/** Los meses que cruza el rango, con su posicion y ancho en % (para la cabecera del eje). */
+export function mesesDelRango(rango) {
+    const out = []; let d = rango.desde;
+    while (d <= rango.hasta) {
+        const fin = sumarDias(mesSumar(d.slice(0, 7), 1) + '-01', -1);
+        const hasta = fin < rango.hasta ? fin : rango.hasta;
+        out.push({ mes: d.slice(0, 7), desde: d, hasta, width: (diasEntre(d, hasta) + 1) * 100 / rango.dias, left: diasEntre(rango.desde, d) * 100 / rango.dias });
+        d = sumarDias(hasta, 1);
+    }
+    return out;
+}
+
+/** Las 42 celdas (6 semanas, lunes a domingo) del mes YYYY-MM: { dia, enMes }. */
+export function celdasDelMes(mes) {
+    const inicio = lunesDe(mes + '-01');
+    return Array.from({ length: 42 }, (_, i) => { const dia = sumarDias(inicio, i); return { dia, enMes: dia.slice(0, 7) === mes }; });
+}
+/**
+ * Lo que cae en cada dia del calendario: tarjetas por su Vence (abiertas y hechas) y fines de frente
+ * de proyectos activos. Map YYYY-MM-DD -> { tareas: [], fines: [] }.
+ */
+export function agendaPorDia(tareas, proyectos) {
+    const m = new Map();
+    const de = d => { if (!m.has(d)) m.set(d, { tareas: [], fines: [] }); return m.get(d); };
+    for (const t of tareas || []) { const d = diaDe(t.Vence); if (d) de(d).tareas.push(t); }
+    for (const p of proyectos || []) { const d = diaDe(p.Vence); if (d && p.Estado === 'activo') de(d).fines.push(p); }
+    for (const v of m.values()) v.tareas.sort((a, b) => (a.Columna === 'hecho') - (b.Columna === 'hecho') || String(a.Title).localeCompare(String(b.Title)));
+    return m;
+}
+
+/** Tarjetas HECHAS por semana (lunes) en las ultimas `n` semanas, la mas vieja primero; sin HechoEl no cuentan. */
+export function hechasPorSemana(tareas, n = 8, hoy = new Date()) {
+    const fin = lunesDe(diaDe(hoy));
+    const semanas = Array.from({ length: n }, (_, i) => ({ desde: sumarDias(fin, -7 * (n - 1 - i)), n: 0 }));
+    for (const t of tareas || []) {
+        if (t.Columna !== 'hecho') continue;
+        const d = diaDe(t.HechoEl); if (!d) continue;
+        const s = semanas.find(x => x.desde === lunesDe(d)); if (s) s.n++;
+    }
+    return semanas;
+}
+/** Carga por persona: abiertas, vencidas y hechas, de mas abiertas a menos; sin dueño ('') al final. */
+export function cargaPorPersona(tareas, pronto = 7, hoy = new Date()) {
+    const m = new Map();
+    for (const t of tareas || []) {
+        const q = String(t.Asignado || '').toLowerCase();
+        if (!m.has(q)) m.set(q, { quien: q, abiertas: 0, vencidas: 0, hechas: 0 });
+        const r = m.get(q);
+        if (t.Columna === 'hecho') r.hechas++; else { r.abiertas++; if (estadoVence(t, pronto, hoy) === 'danger') r.vencidas++; }
+    }
+    return [...m.values()].sort((a, b) => (a.quien === '') - (b.quien === '') || b.abiertas - a.abiertas || a.quien.localeCompare(b.quien));
+}
+/** Renglones de actividad por persona en los ultimos `dias`, de mas a menos. */
+export function actividadPorPersona(actividad, dias = 30, hoy = new Date()) {
+    const desde = new Date(hoy.getTime() - dias * 86400000).toISOString();
+    const m = new Map();
+    for (const a of actividad || []) { if (String(a.Cuando || '') < desde) continue; const q = String(a.Quien || '').toLowerCase(); m.set(q, (m.get(q) || 0) + 1); }
+    return [...m.entries()].map(([quien, n]) => ({ quien, n })).sort((a, b) => b.n - a.n || a.quien.localeCompare(b.quien));
+}
+/** El ultimo comentario (chat o nota) de cada proyecto, del mas reciente al mas viejo. */
+export function ultimoComentarioPorProyecto(actividad) {
+    const m = new Map();
+    for (const a of actividad || []) {
+        if (a.Accion !== 'comentar' || !a.ProyectoId) continue;
+        const k = Number(a.ProyectoId); const v = m.get(k);
+        if (!v || String(a.Cuando || '') > String(v.Cuando || '')) m.set(k, a);
+    }
+    return [...m.entries()].map(([proyectoId, ultimo]) => ({ proyectoId, ultimo })).sort((a, b) => String(b.ultimo.Cuando || '').localeCompare(String(a.ultimo.Cuando || '')));
+}
+/** Filtro de Archivos (v0.10.0): por proyecto, tipo de liga y texto (nombre, ruta, url), sin acentos. */
+export function filtrarLigas(ligas, f = {}) {
+    const q = sinAcentos(f.texto || '').trim();
+    return (ligas || []).filter(l => (!f.proyectoId || Number(l.ProyectoId) === Number(f.proyectoId)) && (!f.tipo || l.Tipo === f.tipo)
+        && (!q || sinAcentos(`${l.Title} ${l.Ruta || ''} ${l.Url || ''}`).includes(q)));
+}

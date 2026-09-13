@@ -19,6 +19,7 @@ import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limp
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
+import { pintarRoadmap, pintarRoadmapProyecto, pintarCalendario, engancharCalendario, pintarMensajes, mensajesNuevos, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
 const pca = new msal.PublicClientApplication({
@@ -222,7 +223,8 @@ function irA(p) {
 // Router por hash (v0.2.0, F8): LEE location.hash y deja la pantalla como dice; es idempotente, asi
 // que las escrituras propias (fijarHash desde irA / abrirTarjeta) no repintan dos veces. Con Atras
 // del navegador se cierra la tarjeta o se vuelve a la pantalla anterior, que es lo que la gente espera.
-const RE_HASH = /^#(?:(inicio|proyectos|mis)|p\/([a-z0-9-]+)(?:\/(lista|docs|chat|tablero|resumen))?)(?:\/t\/(\d+))?$/;
+// v0.10.0: cinco pantallas mas (roadmap · calendario · mensajes · archivos · reportes) y la pestana roadmap del proyecto.
+const RE_HASH = /^#(?:(inicio|proyectos|mis|roadmap|calendario|mensajes|archivos|reportes)|p\/([a-z0-9-]+)(?:\/(lista|docs|chat|tablero|resumen|roadmap))?)(?:\/t\/(\d+))?$/;
 function esHashDeLaApp(h) { return RE_HASH.test(String(h || '')); }
 function aplicarHash() {
     if (!estado.siteId) return;
@@ -259,6 +261,11 @@ function repintar() {
     else if (estado.pestana === 'proyectos') pintarProyectos();
     else if (estado.pestana === 'proyecto') pintarProyecto();
     else if (estado.pestana === 'mis') pintarMisTareas();
+    else if (estado.pestana === 'roadmap') pintarRoadmap();
+    else if (estado.pestana === 'calendario') pintarCalendario();
+    else if (estado.pestana === 'mensajes') pintarMensajes();
+    else if (estado.pestana === 'archivos') pintarArchivos();
+    else if (estado.pestana === 'reportes') pintarReportes();
 }
 alCambiarTareas(repintar);
 alCambiarDocs(repintar);
@@ -278,6 +285,9 @@ function pintarInsignias() {
     const nombrar = (id, texto) => { $(id).setAttribute('aria-label', texto); $(id).title = texto; };
     nombrar('nMis', `${vencidas} vencida${vencidas === 1 ? '' : 's'}`);
     nombrar('nProyectos', `${n} activo${n === 1 ? '' : 's'}`);
+    // v0.10.0: mensajes nuevos desde tu ultima visita (v0.9.0, por dispositivo), sumados sobre los frentes activos.
+    const nm = mensajesNuevos(); $('nMensajes').textContent = String(nm); $('nMensajes').hidden = nm === 0;
+    nombrar('nMensajes', `${nm} mensaje${nm === 1 ? '' : 's'} nuevo${nm === 1 ? '' : 's'}`);
 }
 /** Rail de equipos (U2, v0.7.0): agrupados por RAMA como el rail del Tablero de escritorio (opcion A del
  *  artifact c52cb229, Carlos 2026-09-12), cada uno con su icono en su color y cuantos proyectos activos lleva.
@@ -290,7 +300,7 @@ function pintarRailEquipos() {
         c.appendChild(el('div', 'mn-label rama', r));
         for (const e of eqs) {
             const on = estado.filtroEquipo === e.clave;
-            const b = boton('', on ? 'is-on' : '', () => { estado.filtroEquipo = on ? null : e.clave; if (estado.pestana === 'proyectos') repintar(); else irA('proyectos'); }, { equipo: e.clave });
+            const b = boton('', on ? 'is-on' : '', () => { estado.filtroEquipo = on ? null : e.clave; if (['proyectos', 'roadmap', 'calendario', 'reportes'].includes(estado.pestana)) repintar(); else irA('proyectos'); }, { equipo: e.clave });   // v0.10.0: el filtro vive donde se puso
             b.setAttribute('aria-pressed', on ? 'true' : 'false');
             b.appendChild(iconoEquipo(e, 'sm')); b.appendChild(el('span', '', e.nombre));
             const n = activos().filter(p => p.Equipo === e.clave).length;
@@ -596,7 +606,7 @@ function pintarProyecto() {
     $('pDesc').title = p.Descripcion || '';
     $('pDesc').classList.remove('abierta');
     for (const b of document.querySelectorAll('.tab')) { const on = b.dataset.tab === estado.tab; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }
-    for (const t of ['tablero', 'lista', 'docs', 'chat']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
+    for (const t of ['tablero', 'lista', 'roadmap', 'docs', 'chat']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
     if (estado.tab !== 'chat') salirDelChat();   // v0.9.0: cambiar de pestana dentro del proyecto tambien es salir
     // v0.8.0: las pestanas dicen cuanto hay adentro (Trello): documentos ligados y comentarios del chat.
     const nDocs = estado.ligas.filter(l => Number(l.ProyectoId) === p.id).length, nChat = comentariosDe(p.id).length;
@@ -608,17 +618,19 @@ function pintarProyecto() {
     $('nChatTab').title = nNuevos ? `${nNuevos} nuevo${nNuevos === 1 ? '' : 's'} desde tu última visita` : '';
     // B2: «Resumen» es una pestana mas, solo en celular (en escritorio la lateral siempre se ve).
     $('p-proyecto').classList.toggle('ver-resumen', estado.tab === 'resumen');
-    const sinFiltros = ['docs', 'chat', 'resumen'].includes(estado.tab);
+    const sinFiltros = ['docs', 'chat', 'resumen', 'roadmap'].includes(estado.tab);
     $('filtroTareas').classList.toggle('oculto', sinFiltros);
     $('filtroTareas').classList.toggle('plegado', !estado.filtrosAbiertos);
     if (!sinFiltros) pintarFiltroTareas(p);
     pintarBotonFiltros();
     if (estado.tab === 'tablero') pintarTablero(p);
     else if (estado.tab === 'lista') pintarLista(p);
+    else if (estado.tab === 'roadmap') pintarRoadmapProyecto(p);   // v0.10.0
     else if (estado.tab === 'docs') pintarDocs(p);
     else if (estado.tab === 'chat') pintarChat(p);
     // lateral
     $('pBarra').style.width = a.pct + '%';
+    $('pAnillo').textContent = ''; $('pAnillo').appendChild(anillo(a.porColumna, a.total, 96));   // v0.10.0: el anillo de la foto
     const kv = $('pAvance'); kv.textContent = '';
     const par = (k, v) => { kv.appendChild(el('b', '', k)); kv.appendChild(el('span', '', v)); };
     par('Hechas', `${a.hechas} de ${a.total}`); par('En curso', String(a.porColumna['en-curso'])); par('En revisión', String(a.porColumna['en-revision']));
@@ -797,6 +809,8 @@ $('npCancelar').addEventListener('click', () => cerrarDialogo('dlgProyecto'));
 engancharTablero();
 engancharDocs();
 engancharChat();
+engancharCalendario(); engancharArchivos(); engancharReportes();   // v0.10.0
+for (const b of document.querySelectorAll('.ir-movil')) b.addEventListener('click', () => { $('menuMovil').open = false; irA(b.dataset.ir); });   // v0.10.0: Roadmap · Archivos · Reportes no caben en la barra del celular
 $('btnActividadInicio').addEventListener('click', () => abrirActividad(null));
 $('btnActividadProyecto').addEventListener('click', () => abrirActividad(estado.proyectoAbierto && estado.proyectoAbierto.id));
 $('acCerrar').addEventListener('click', () => cerrarDialogo('dlgActividad'));
