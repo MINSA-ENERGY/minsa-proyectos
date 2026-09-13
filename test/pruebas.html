@@ -770,7 +770,10 @@ try {
         // U10 (v0.4.0): Docs agrupa «Del proyecto» / por tarjeta, chip de estado junto al nombre, chips por tipo.
         await esperar(() => document.querySelectorAll('#docsLista .grupo').length === 2, 'grupos');
         const grupos = [...document.querySelectorAll('#docsLista .grupo')].map(g => g.textContent);
-        R.ok('U10: dos grupos, «Del proyecto» primero y luego la tarjeta', grupos[0] === 'Del proyecto' && grupos[1].startsWith('Tarjeta · Lista de insumos') && !!document.querySelector('#docsLista [data-liga] .t .estado .mn-chip'), grupos.join(' | '));
+        R.ok('U10: dos grupos, «Del proyecto» primero y luego la tarjeta', grupos[0] === 'Del proyecto' && grupos[1].startsWith('Lista de insumos') && !!document.querySelector('#docsLista [data-liga] .t .estado .mn-chip'), grupos.join(' | '));
+        // v0.16.0: cada grupo es una pestaña (.pest) con lengüeta (.cab: icono + .grupo + conteo) y cuerpo con sus .doc; «Del proyecto» lleva is-proyecto.
+        const pests = document.querySelectorAll('#docsLista .pest');
+        R.ok('v0.16.0: pestañas — «Del proyecto» es .is-proyecto, la de la tarjeta trae data-tarjeta, y cada cuerpo tiene 1 doc con su conteo', pests.length === 2 && pests[0].classList.contains('is-proyecto') && !!pests[1].dataset.tarjeta && [...pests].every(s => s.querySelectorAll(':scope > .cuerpo > .doc').length === 1 && s.querySelector(':scope > .cab .n').textContent === '1' && !!s.querySelector(':scope > .cab svg')));
         R.ok('U10: chips por tipo (hay archivado y enlace)', document.querySelectorAll('#docsFiltro button').length === 3);
         document.querySelector('#docsFiltro [data-docs="enlace"]').click(); await dormir(30);
         R.ok('U10: el chip «enlace» deja solo el enlace', document.querySelectorAll('#docsLista .doc').length === 1 && document.querySelector('#docsLista .doc .fico').dataset.tipo === 'enlace');

@@ -6,6 +6,13 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.16.0** (2026-09-13) — **Docs agrupa por pestaña que sobresale.** Carlos pidió que al filtrar los documentos se viera
+más obvio dónde termina una tarjeta y empieza otra; de cuatro opciones en un artifact (globo hundido, franja de color, pestaña,
+globo + estado) eligió la **C, pestaña**: una lengüeta sólida de marca con icono, nombre de la tarjeta y conteo, y una caja con
+filete de marca que envuelve a sus archivos (`docs.js: grupo()`, `estilo.css: .pest`). «Del proyecto» va en gris (`is-proyecto`)
+para no competir. El rótulo suelto `TARJETA · …` en mayúsculas se fue; `.grupo` es ahora el texto del título dentro de la lengüeta
+(la E2E lo sigue leyendo) y el conteo va aparte. Sin cambio de esquema; SW v21.
+
 **v0.15.1** (2026-09-13) — **Dos ajustes de piel a pedido de Carlos.** (1) Las burbujas del chat pierden el filete de 3 px a la
 izquierda; el tono de cada persona lo da solo el fondo. (2) La lista de Actividad (lateral del proyecto e Inicio) ocupa todo el ancho
 de la tarjeta: «ver toda» iba en `float: right` y, como el `h2` no contenía el flotante, la lista `.mini` (un grid, contexto de formato

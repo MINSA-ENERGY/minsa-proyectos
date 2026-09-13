@@ -222,7 +222,16 @@
 .col .mas { justify-self: start; }
 /* U10: grupos de Documentos */
 /* Auditoria #14: los rotulos propios de la app llevan la metrica de .mn-label (.68rem · .07em · 600); los de «dias» (.62rem) igual entre si. */
-.docs .grupo { margin: var(--sp-2) 0 0; font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; font-weight: 600; text-transform: uppercase; color: var(--text-muted); }
+/* v0.16.0: Docs agrupa por PESTAÑA que sobresale (opción C del artifact 2a9932bc, Carlos 13-sep): lengüeta sólida con icono, nombre de la tarjeta y conteo; la caja con filete de marca envuelve a sus archivos; «Del proyecto» en gris. */
+.pest { display: grid; min-width: 0; }
+.pest > .cab { display: inline-flex; align-items: center; gap: var(--sp-2); max-width: 100%; min-width: 0; padding: var(--sp-1) var(--sp-3); background: var(--brand-primary); color: var(--text-on-brand); border-radius: var(--r-sm) var(--r-sm) 0 0; justify-self: start; }
+.pest > .cab svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.pest > .cab .grupo { font-family: var(--font-display); font-weight: 600; font-size: .85rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pest > .cab .n { font-family: var(--font-data); font-size: .68rem; opacity: .8; flex: none; }
+.pest > .cuerpo { display: grid; gap: var(--sp-2); padding: var(--sp-2); border: 1px solid var(--brand-primary); border-radius: 0 var(--r-md) var(--r-md) var(--r-md); background: var(--surface-card); }
+.pest .doc { border-radius: var(--r-sm); }
+.pest.is-proyecto > .cab { background: var(--surface-sunken); color: var(--text-muted); border: 1px solid var(--border-default); border-bottom: 0; }
+.pest.is-proyecto > .cuerpo { border-color: var(--border-default); }
 .doc .t .mn-chip { margin-right: var(--sp-1); vertical-align: middle; }
 /* U11: imprimir = lo que hay en pantalla, sin cromo. Ctrl+P o el boton «Imprimir». */
 @media print {

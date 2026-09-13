@@ -16,7 +16,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX, hrefSeguro } from './reglas.js';
 import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO } from './lote.js';
-import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaHora, aplicar, pedirRelectura } from './comun.js';
+import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, iconoSvg, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaHora, aplicar, pedirRelectura } from './comun.js';
 import { esConflicto } from './graph.js';
 
 let alCambiar = () => {};
@@ -73,11 +73,11 @@ export async function pintarDocs(p) {
     if (!ligas.length) { cont.appendChild(el('p', 'vacio', todas.length ? 'Nada con ese filtro.' : 'Sin documentos ligados todavía.')); return; }
     const puedeDe = l => puede || (l.Tipo === 'enlace' && puedeEnlazarEn(p));
     const delProyecto = ligas.filter(l => !l.TareaId);
-    if (delProyecto.length) { cont.appendChild(el('div', 'grupo', 'Del proyecto')); for (const l of delProyecto) cont.appendChild(doc(l, p, puedeDe(l))); }
+    if (delProyecto.length) cont.appendChild(grupo(null, 'Del proyecto', delProyecto.map(l => doc(l, p, puedeDe(l)))));
     const porTarjeta = new Map();
     for (const l of ligas.filter(l => l.TareaId)) { const k = Number(l.TareaId); if (!porTarjeta.has(k)) porTarjeta.set(k, []); porTarjeta.get(k).push(l); }
     const tarjetas = [...porTarjeta.keys()].sort((a, b) => { const ta = porId(estado.tareas, a), tb = porId(estado.tareas, b); return String(ta ? ta.Title : '').localeCompare(String(tb ? tb.Title : '')) || a - b; });
-    for (const k of tarjetas) { const tt = porId(estado.tareas, k); cont.appendChild(el('div', 'grupo', tt ? `Tarjeta · ${tt.Title}` : `Tarjeta #${k}`)); for (const l of porTarjeta.get(k)) cont.appendChild(doc(l, p, puedeDe(l))); }
+    for (const k of tarjetas) { const tt = porId(estado.tareas, k); cont.appendChild(grupo(k, tt ? tt.Title : `Tarjeta #${k}`, porTarjeta.get(k).map(l => doc(l, p, puedeDe(l))))); }
     // «En el buzon» en vivo: una consulta por liga de tipo buzon, cacheada por carga.
     if (bib) {
         const s = await sitioDe(bib);
@@ -94,6 +94,20 @@ export async function pintarDocs(p) {
             }
         }
     }
+}
+
+// v0.16.0: cada grupo es una PESTAÑA que sobresale (opción C del artifact 2a9932bc, Carlos 13-sep): la lengüeta
+// lleva el icono, el nombre de la tarjeta y el conteo, y la caja de abajo envuelve a sus archivos, para que con el
+// filtro puesto se vea dónde termina una tarjeta y empieza otra. «Del proyecto» va en gris para no competir.
+// El `.grupo` es el texto del título (la E2E lo lee); el conteo va aparte.
+const TRAZOS_TARJETA = ['M4 5h16v14H4z', 'M4 10h16', 'M9 5v14'];
+const TRAZOS_PROYECTO = ['M3 7h7l2 2h9v10H3z'];
+function grupo(tareaId, titulo, docs) {
+    const s = el('section', 'pest' + (tareaId ? '' : ' is-proyecto')); if (tareaId) s.dataset.tarjeta = String(tareaId);
+    const cab = el('div', 'cab'); cab.appendChild(iconoSvg(tareaId ? TRAZOS_TARJETA : TRAZOS_PROYECTO));
+    cab.appendChild(el('span', 'grupo', titulo)); cab.appendChild(el('span', 'n', docs.length)); s.appendChild(cab);
+    const cuerpo = el('div', 'cuerpo'); for (const d of docs) cuerpo.appendChild(d); s.appendChild(cuerpo);
+    return s;
 }
 
 function doc(l, p, puede) {
