@@ -240,7 +240,7 @@
           <div class="mn-field"><label for="ftAsignado">Asignado</label><select id="ftAsignado"></select></div>
           <div class="mn-field"><label for="ftPrioridad">Prioridad</label><select id="ftPrioridad"><option value="alta">alta</option><option value="normal" selected>normal</option><option value="baja">baja</option></select></div>
         </div>
-        <div class="mn-field"><label id="ftColorEtiqueta">Color de la tarjeta</label><div class="tonos" id="ftColor" role="radiogroup" aria-labelledby="ftColorEtiqueta"></div></div>
+        <div class="mn-field"><label id="ftColorEtiqueta">Color de la tarjeta</label><div class="tonos" id="ftColor" aria-labelledby="ftColorEtiqueta"></div></div>
         <div class="mn-field"><label for="ftVence">Vence</label><input id="ftVence" type="date"><div class="atajos-fecha" id="ftAtajos"></div></div>
         <div class="mn-field"><label for="ftDesc">Descripción</label><textarea id="ftDesc" rows="3"></textarea></div>
         <div class="mn-field oculto" id="ftProyectoCampo"><label for="ftProyecto">Proyecto (moverla a otro frente)</label><select id="ftProyecto"></select></div>
@@ -261,12 +261,12 @@
         <div class="mn-field"><label for="ntAsignado">Asignado</label><select id="ntAsignado"></select></div>
         <div class="mn-field"><label for="ntPrioridad">Prioridad</label><select id="ntPrioridad"><option value="alta">alta</option><option value="normal" selected>normal</option><option value="baja">baja</option></select></div>
       </div>
+      <div class="mn-field"><label id="ntColorEtiqueta">Color (opcional)</label><div class="tonos" id="ntColor" aria-labelledby="ntColorEtiqueta"></div></div>
       <div class="mn-row">
         <div class="mn-field"><label for="ntVence">Vence</label><input id="ntVence" type="date"><div class="atajos-fecha" id="ntAtajos"></div></div>
         <div class="mn-field"><label for="ntColumna">Cubeta</label><select id="ntColumna"></select></div>
       </div>
       <div class="mn-field"><label for="ntDesc">Descripción (opcional)</label><textarea id="ntDesc" rows="3"></textarea></div>
-      <div class="mn-field"><label id="ntColorEtiqueta">Color (opcional)</label><div class="tonos" id="ntColor" role="radiogroup" aria-labelledby="ntColorEtiqueta"></div></div>
     </div>
     <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="ntCancelar" type="button">Cancelar</button><button class="mn-btn is-sm" id="ntGuardarYOtra" type="button" title="Guarda y deja el diálogo abierto con asignado, prioridad, columna y vence">Crear y otra</button><button class="mn-btn is-primary is-sm" id="ntGuardar" type="submit">Crear tarea</button></div>
   </form>

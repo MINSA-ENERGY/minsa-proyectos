@@ -38,14 +38,23 @@ const personas = () => estado.roles.filter(r => r.Activo !== false).map(r => Str
 //
 // Una fila de circulos (sin color + los 8 de COLORES) con aria-pressed; el valor vive en cont.dataset.valor.
 // Sirve para la cubeta (editor de cubetas) y para la tarjeta (editar / nueva). `alElegir` es opcional.
+// Accesible como grupo de radios (revisor 12-sep): role=radio + aria-checked, UN solo tab por fila (roving tabindex)
+// y flechas para moverse; asi «Cubetas» con 5 filas no son 45 tabulaciones hasta «Guardar».
 export function selectorTonos(cont, actual, alElegir, rotulo = 'Color') {
-    cont.textContent = ''; cont.dataset.valor = colorValido(actual);
-    for (const c of [{ clave: '', nombre: 'Sin color' }, ...COLORES]) {
-        const b = el('button'); b.type = 'button'; b.dataset.tono = c.clave; b.title = c.nombre; b.setAttribute('aria-label', `${rotulo}: ${c.nombre}`);
-        b.setAttribute('aria-pressed', cont.dataset.valor === c.clave ? 'true' : 'false');
-        b.addEventListener('click', () => { cont.dataset.valor = c.clave; for (const x of cont.children) x.setAttribute('aria-pressed', x.dataset.tono === c.clave ? 'true' : 'false'); if (alElegir) alElegir(c.clave); });
+    cont.textContent = ''; cont.dataset.valor = colorValido(actual); cont.setAttribute('role', 'radiogroup');
+    const opciones = [{ clave: '', nombre: 'Sin color' }, ...COLORES];
+    const marcar = clave => { cont.dataset.valor = clave; for (const x of cont.children) { const on = x.dataset.tono === clave; x.setAttribute('aria-checked', on ? 'true' : 'false'); x.tabIndex = on ? 0 : -1; } };
+    for (const c of opciones) {
+        const b = el('button'); b.type = 'button'; b.dataset.tono = c.clave; b.title = c.nombre; b.setAttribute('role', 'radio'); b.setAttribute('aria-label', `${rotulo}: ${c.nombre}`);
+        b.addEventListener('click', () => { marcar(c.clave); if (alElegir) alElegir(c.clave); });
+        b.addEventListener('keydown', ev => {
+            const d = ev.key === 'ArrowRight' || ev.key === 'ArrowDown' ? 1 : ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' ? -1 : 0; if (!d) return;
+            ev.preventDefault(); const i = (opciones.findIndex(o => o.clave === c.clave) + d + opciones.length) % opciones.length;
+            marcar(opciones[i].clave); cont.children[i].focus(); if (alElegir) alElegir(opciones[i].clave);
+        });
         cont.appendChild(b);
     }
+    marcar(cont.dataset.valor);
     return cont;
 }
 
@@ -507,7 +516,7 @@ async function guardarEdicion(ev) {
     const campos = {
         Title: titulo, Asignado: $('ftAsignado').value || null, Prioridad: $('ftPrioridad').value, Vence: vence,
         Descripcion: $('ftDesc').value.trim() || null,   // v0.11.0: Origen ya no se edita desde la app (se conserva lo que traiga)
-        Color: $('ftColor').dataset.valor || null   // v0.12.0
+        ...(($('ftColor').dataset.valor || '') !== colorValido(t.Color) ? { Color: $('ftColor').dataset.valor || null } : {})   // v0.12.0: solo si cambio (antes de provisionar, un Color siempre presente daria 400 en toda edicion — revisor)
     };
     const cambioAsignado = String(t.Asignado || '').toLowerCase() !== String(campos.Asignado || '').toLowerCase();
     // F11: a otro frente (solo gerencia). Cae al final de su cubeta en el proyecto nuevo y arrastra sus ligas.

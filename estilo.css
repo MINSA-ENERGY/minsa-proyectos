@@ -913,12 +913,13 @@ button.g-barra { cursor: pointer; } button.g-barra:hover { filter: brightness(.9
 .tarjeta[data-tono] { background: color-mix(in srgb, var(--tono) 13%, var(--surface-card)); border-color: color-mix(in srgb, var(--tono) 38%, var(--border-hairline)); }
 .tarjeta[data-tono]:hover { border-color: color-mix(in srgb, var(--tono) 60%, var(--border-default)); }
 .tarjeta.alta[data-tono] { border-left-color: var(--brand-primary); }
+.urgente .tarjeta[data-tono] { border: 0; background: transparent; }   /* la lista «Urgentes» de Inicio no lleva tinte (revisor 12-sep) */
 /* Selector de color: una fila de circulos, el elegido con anillo; «sin color» es el primero (un circulo hueco). */
 .tonos { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }
 .tonos button { width: 24px; height: 24px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid transparent; background: var(--tono, transparent); cursor: pointer; box-shadow: 0 0 0 1px var(--border-default); }
 .tonos button[data-tono=""] { background: var(--surface-card); position: relative; }
 .tonos button[data-tono=""]::after { content: ""; position: absolute; inset: 9px 2px auto 2px; height: 2px; background: var(--border-default); transform: rotate(-45deg); }
-.tonos button[aria-pressed="true"] { border-color: var(--surface-card); box-shadow: 0 0 0 2px var(--text-strong); }
+.tonos button[aria-checked="true"] { border-color: var(--surface-card); box-shadow: 0 0 0 2px var(--text-strong); }
 .tonos button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .cubeta .tonos { grid-column: 2 / -1; gap: 3px; } .cubeta .tonos button { width: 20px; height: 20px; }
 .mn-field .tonos { min-height: var(--control-h); align-items: center; }
