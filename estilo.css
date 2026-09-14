@@ -182,13 +182,17 @@
    iconos: los rotulos, la marca, el nombre y el sync se ocultan; los contadores saltan a la esquina
    del icono; el pie se apila. El title de cada pestana lo pone app.js (el rotulo ya no se ve). En
    celular no aplica: ahi el rail ya es la barra de pestanas y el boton no se muestra. */
+/* v0.28.1: la marca entera es el boton de plegar (se queda como estaba, solo gana cursor y hover); el chevron vive solo plegado. */
+.rail .marca-btn { display: flex; align-items: center; gap: var(--sp-2); min-height: 0; padding: 0; border: 0; border-radius: var(--r-sm); background: none; font: inherit; color: inherit; cursor: pointer; min-width: 0; }
+.rail .marca-btn:hover { background: none; opacity: .8; }
+.app:not(.rail-plegado) .rail .plegar { display: none; }
 .rail .plegar { margin-left: auto; width: 28px; height: 28px; min-height: 0; padding: 0; justify-content: center; border-radius: var(--r-sm); color: var(--text-muted); flex: none; }
 .rail .plegar svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .2s; }
 @media (min-width: 721px) {
   .app.rail-plegado { grid-template-columns: 64px 1fr; }
   .rail-plegado .rail { padding-inline: var(--sp-2); }
   .rail-plegado .rail .marca { padding: 0 0 var(--sp-3); justify-content: center; }
-  .rail-plegado .rail .marca .logo, .rail-plegado .rail .marca > span { display: none; }
+  .rail-plegado .rail .marca-btn { display: none; }
   .rail-plegado .rail .plegar { margin-left: 0; }
   .rail-plegado .rail .plegar svg { transform: rotate(180deg); }
   .rail-plegado .rail nav button > span, .rail-plegado .rail .equipos .rama, .rail-plegado .rail .equipos button > span:not(.eqi):not(.n),
