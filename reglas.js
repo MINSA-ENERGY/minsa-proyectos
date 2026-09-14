@@ -477,23 +477,26 @@ export function extensionDe(nombre) {
  * ETIQUETA lo que dice el title. Cubre lo que circula en la casa (Office, PDF, imagenes, correos,
  * planos); lo demas es «archivo». `tipoLiga` = buzon | enlace manda sobre la extension.
  */
+// v0.27.0: la 4.ª columna es la SIGLA que va en la etiqueta de expediente de la tabla (chip «Tipo»); la etiqueta larga
+// sigue siendo lo que ordena, busca y va en el title.
 const TIPOS_ARCHIVO = [
-    ['pdf', 'PDF', ['pdf']],
-    ['word', 'Word', ['doc', 'docx', 'docm', 'dot', 'dotx', 'rtf', 'odt']],
-    ['excel', 'Excel', ['xls', 'xlsx', 'xlsm', 'xlsb', 'csv', 'ods']],
-    ['ppt', 'PowerPoint', ['ppt', 'pptx', 'pptm', 'potx', 'odp']],
-    ['imagen', 'Imagen', ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'bmp', 'tif', 'tiff', 'svg']],
-    ['correo', 'Correo', ['msg', 'eml']],
-    ['plano', 'Plano', ['dwg', 'dxf', 'kmz', 'kml']],
-    ['zip', 'Comprimido', ['zip', 'rar', '7z']],
-    ['texto', 'Texto', ['txt', 'md', 'json', 'xml']]
+    ['pdf', 'PDF', ['pdf'], 'PDF'],
+    ['word', 'Word', ['doc', 'docx', 'docm', 'dot', 'dotx', 'rtf', 'odt'], 'DOC'],
+    ['excel', 'Excel', ['xls', 'xlsx', 'xlsm', 'xlsb', 'csv', 'ods'], 'XLS'],
+    ['ppt', 'PowerPoint', ['ppt', 'pptx', 'pptm', 'potx', 'odp'], 'PPT'],
+    ['imagen', 'Imagen', ['png', 'jpg', 'jpeg', 'gif', 'webp', 'heic', 'bmp', 'tif', 'tiff', 'svg'], 'IMG'],
+    ['correo', 'Correo', ['msg', 'eml'], 'EML'],
+    ['plano', 'Plano', ['dwg', 'dxf', 'kmz', 'kml'], 'DWG'],
+    ['zip', 'Comprimido', ['zip', 'rar', '7z'], 'ZIP'],
+    ['texto', 'Texto', ['txt', 'md', 'json', 'xml'], 'TXT']
 ];
 export function tipoArchivo(nombre, tipoLiga = null) {
-    if (tipoLiga === 'buzon') return { clave: 'lote', etiqueta: 'Lote en el buzón' };
-    if (tipoLiga === 'enlace') return { clave: 'enlace', etiqueta: 'Enlace' };
+    if (tipoLiga === 'buzon') return { clave: 'lote', etiqueta: 'Lote en el buzón', sigla: 'LOTE' };
+    if (tipoLiga === 'enlace') return { clave: 'enlace', etiqueta: 'Enlace', sigla: 'URL' };
     const ext = extensionDe(nombre);
     const t = TIPOS_ARCHIVO.find(([, , exts]) => exts.includes(ext));
-    return t ? { clave: t[0], etiqueta: t[1] } : { clave: 'archivo', etiqueta: ext ? `Archivo .${ext}` : 'Archivo' };
+    // desconocido: la extension real en mayusculas (hasta 4 letras) hace de sigla; sin extension, «ARCH»
+    return t ? { clave: t[0], etiqueta: t[1], sigla: t[3] } : { clave: 'archivo', etiqueta: ext ? `Archivo .${ext}` : 'Archivo', sigla: ext ? ext.toUpperCase().slice(0, 4) : 'ARCH' };
 }
 
 // ---------------------------------------------------------------- v0.19.0: el nombre humano de un documento

@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, iniciales, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe } from './reglas.js';
 
-export const VERSION = '0.26.0';
+export const VERSION = '0.27.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -446,7 +446,7 @@ export function insignia(trazos, n, titulo, clase = '') {
  * extension sigue viva en el nombre del archivo y en la ruta.
  */
 const HOJA = 'M6 2h8l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z';
-const DOBLEZ = 'M14 2v5h5';
+const DOBLEZ = 'M14 2l5 5h-5z';   // v0.27.0: hoja SOLIDA (Carlos, 14-sep): el doblez es un triangulo relleno mas claro, no un trazo
 const MARCAS = {
     pdf: [],   // la marca es el texto «PDF» (abajo); las letras dibujadas se leian «PD»
     word: ['M8 11l1.5 6 1.5-4.5 1.5 4.5 1.5-6'],
@@ -469,7 +469,8 @@ export function iconoArchivo(nombre, tipoLiga = null, tam = '') {
     const trazos = t.clave === 'lote' ? CARPETA : t.clave === 'enlace' ? CADENA : [HOJA, DOBLEZ, ...(MARCAS[t.clave] || MARCAS.archivo)];
     for (const [i, d] of trazos.entries()) {
         const path = document.createElementNS(SVG_NS, 'path'); path.setAttribute('d', d);
-        if (i === 0 && t.clave !== 'enlace') path.setAttribute('class', 'cuerpo');
+        // cuerpo (relleno del color) · doblez (relleno claro) · marca (trazo blanco encima); el enlace es solo trazo
+        if (t.clave !== 'enlace') path.setAttribute('class', i === 0 ? 'cuerpo' : i === 1 && t.clave !== 'lote' ? 'doblez' : 'marca');
         svg.appendChild(path);
     }
     if (t.clave === 'pdf') { const tx = document.createElementNS(SVG_NS, 'text'); tx.setAttribute('x', '12'); tx.setAttribute('y', '17.5'); tx.setAttribute('class', 'letras'); tx.textContent = 'PDF'; svg.appendChild(tx); }

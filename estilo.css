@@ -44,6 +44,7 @@
   --bad-fg: var(--red-700); --bad-bg: var(--red-100); --bad-solid: var(--red-600);
   --info-fg: var(--sky-700); --info-bg: var(--sky-100); --info-solid: var(--sky-600);
   --idle-fg: var(--slate-600); --idle-bg: var(--slate-100); --idle-solid: var(--slate-400);
+  --sobre-solido: #ffffff;   /* v0.27.0: tinta sobre un relleno solido (icono de archivo, etiqueta de expediente) */
   --f-display: "Saira", "Barlow", system-ui, sans-serif;
   --f-ui: "Barlow", system-ui, -apple-system, sans-serif;
   --f-data: "IBM Plex Mono", ui-monospace, monospace;
@@ -84,6 +85,7 @@
     --warn-fg: #fbbf5c; --warn-bg: rgba(224,140,0,.18); --warn-solid: #fbbf5c;
     --bad-fg: #f4948b; --bad-bg: rgba(200,50,43,.20); --bad-solid: #f4948b;
     --info-fg: #8fd6ff; --info-bg: rgba(15,143,214,.16); --info-solid: #8fd6ff;
+    --sobre-solido: #141414;
     --idle-fg: var(--slate-300); --idle-bg: #2b2b2b; --idle-solid: #454545;
     --shadow-pop: 0 10px 34px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.40); --shadow-raise: 0 1px 3px rgba(0,0,0,.35);
   }
@@ -102,6 +104,7 @@
   --warn-fg: #fbbf5c; --warn-bg: rgba(224,140,0,.18); --warn-solid: #fbbf5c;
   --bad-fg: #f4948b; --bad-bg: rgba(200,50,43,.20); --bad-solid: #f4948b;
   --info-fg: #8fd6ff; --info-bg: rgba(15,143,214,.16); --info-solid: #8fd6ff;
+  --sobre-solido: #141414;
   --idle-fg: var(--slate-300); --idle-bg: #2b2b2b; --idle-solid: #454545;
   --shadow-pop: 0 10px 34px rgba(0,0,0,.55), 0 2px 6px rgba(0,0,0,.40); --shadow-raise: 0 1px 3px rgba(0,0,0,.35);
 }
@@ -272,13 +275,15 @@
 .dtabla .tarjeta-liga { border: 0; background: none; font: inherit; font-size: .82rem; color: var(--text-link); cursor: pointer; text-align: left; padding: 0; }
 .dtabla td .estado { display: inline-flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; }
 /* chip del tipo de archivo, con el color del icono */
-.mn-chip.tipo { font-family: var(--font-data); font-weight: 600; letter-spacing: .03em; background: color-mix(in srgb, var(--idle-solid) 14%, transparent); color: var(--idle-solid); }
-.mn-chip.tipo.is-pdf { color: var(--bad-solid); background: color-mix(in srgb, var(--bad-solid) 12%, transparent); }
-.mn-chip.tipo.is-word { color: var(--brand); background: color-mix(in srgb, var(--brand) 12%, transparent); }
-.mn-chip.tipo.is-excel { color: var(--ok-solid); background: color-mix(in srgb, var(--ok-solid) 12%, transparent); }
-.mn-chip.tipo.is-ppt { color: var(--serie); background: color-mix(in srgb, var(--serie) 12%, transparent); }
-.mn-chip.tipo.is-imagen { color: var(--serie2); background: color-mix(in srgb, var(--serie2) 12%, transparent); }
-.mn-chip.tipo.is-lote, .mn-chip.tipo.is-correo { color: var(--info-solid); background: color-mix(in srgb, var(--info-solid) 12%, transparent); }
+/* v0.27.0 (Carlos, 14-sep, artifact 24ba421e «B6»): el chip de tipo es una ETIQUETA DE EXPEDIENTE —pestaña sólida con
+   punta a la derecha, sigla en versalitas monospace, blanco sobre el color del tipo—. El color vive en --c, uno por tipo. */
+.mn-chip.tipo { --c: var(--idle-solid); font-family: var(--font-data); font-size: .66rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; border-radius: 3px; padding: 2px 12px 2px 7px; background: var(--c); color: var(--sobre-solido); clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 50%, calc(100% - 6px) 100%, 0 100%); }
+.mn-chip.tipo.is-pdf { --c: var(--bad-solid); } .mn-chip.tipo.is-word { --c: var(--brand); } .mn-chip.tipo.is-excel { --c: var(--ok-solid); } .mn-chip.tipo.is-ppt { --c: var(--serie); }
+.mn-chip.tipo.is-imagen { --c: var(--serie2); } .mn-chip.tipo.is-lote, .mn-chip.tipo.is-correo { --c: var(--info-solid); } .mn-chip.tipo.is-plano { --c: var(--sky-700); } .mn-chip.tipo.is-zip { --c: var(--amber-700); }
+/* v0.27.0 («C7»): el chip de ESTADO de la tabla de documentos es un SELLO —contorno cuadrado del color, versalitas
+   monospace, un grado y medio girado, como el «RECIBIDO» sobre papel—. Solo en la tabla: los chips del resto de la app no cambian. */
+.dtabla .c-estado .mn-chip { --c: var(--idle-solid); display: inline-flex; border-radius: 3px; background: transparent; border: 1.5px solid var(--c); color: var(--c); text-transform: uppercase; font-family: var(--font-data); font-size: .62rem; letter-spacing: .12em; padding: 2px 7px; transform: rotate(-1.5deg); }
+.dtabla .c-estado .mn-chip.is-ok { --c: var(--ok-solid); } .dtabla .c-estado .mn-chip.is-info { --c: var(--info-solid); } .dtabla .c-estado .mn-chip.is-danger { --c: var(--bad-solid); } .dtabla .c-estado .mn-chip.is-warn { --c: var(--warn-solid); }
 /* renglon de grupo: la lengüeta de v0.16.0 */
 .dtabla tr.pest td { padding: var(--sp-3) var(--sp-3) 0; border-bottom: 0; background: var(--surface-card); }
 .dtabla tr.pest + tr.doc td { border-top: 1px solid var(--border-hairline); }
@@ -776,13 +781,17 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
    PowerPoint naranja, PDF rojo) tomados de la paleta para que sigan al tema. */
 .fico { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 38px; flex: none; color: var(--idle-solid); }
 .fico svg { width: 30px; height: 30px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.fico svg .cuerpo { fill: color-mix(in srgb, currentColor 18%, transparent); }
+/* v0.27.0 (Carlos, 14-sep, artifact 24ba421e «A2»): HOJA SOLIDA — cuerpo relleno del color, doblez relleno mas claro, la
+   marca del tipo y las letras «PDF» en blanco. El enlace sigue siendo solo trazo. */
+.fico svg .cuerpo { fill: currentColor; }
+.fico svg .doblez { fill: color-mix(in srgb, currentColor 55%, var(--sobre-solido)); stroke: none; }
+.fico svg .marca { stroke: var(--sobre-solido); stroke-width: 1.7; }
 .fico.is-sm { width: 22px; height: 22px; } .fico.is-sm svg { width: 20px; height: 20px; stroke-width: 2; }
 .fico.is-pdf { color: var(--bad-solid); } .fico.is-word { color: var(--brand); } .fico.is-excel { color: var(--ok-solid); } .fico.is-ppt { color: var(--serie); }
 .fico.is-imagen { color: var(--serie2); } .fico.is-correo { color: var(--info-solid); } .fico.is-plano { color: var(--sky-700); } .fico.is-zip { color: var(--amber-700); }
 .fico.is-lote { color: var(--info-solid); } .fico.is-enlace { color: var(--text-muted); }
-.fico.is-lote svg .cuerpo { fill: color-mix(in srgb, currentColor 22%, transparent); }
-.fico svg .letras { fill: currentColor; stroke: none; font-family: var(--font-display); font-weight: 600; font-size: 5.6px; text-anchor: middle; letter-spacing: .02em; }
+.fico svg .letras { fill: var(--sobre-solido); stroke: none; font-family: var(--font-display); font-weight: 700; font-size: 6px; text-anchor: middle; letter-spacing: .02em; }
+.fico.is-sm svg .marca { stroke-width: 2; }
 
 /* ---- insignias en la cara de la tarjeta (Trello): notas y documentos, sin abrirla. */
 .insig { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-data); font-size: .7rem; color: var(--text-muted); }

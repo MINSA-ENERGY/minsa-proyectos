@@ -184,9 +184,10 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
     tdN.appendChild(caja); tr.appendChild(tdN);
     // Fecha del documento (la del nombre); «—» si el nombre no la trae.
     const tdD = el('td', 'c-del'); const fd = el('span', nh.fecha ? '' : 'p', nh.fecha ? fechaCorta(nh.fecha) : '—'); if (nh.fecha) fd.title = 'Fecha del documento, según su nombre'; tdD.appendChild(fd); tr.appendChild(tdD);
-    // Tipo de archivo (PDF, Word, Excel, Lote, Enlace…): la misma clave que colorea el icono.
+    // Tipo de archivo: la misma clave que colorea el icono. v0.27.0 (Carlos, 14-sep): «etiqueta de expediente» —la SIGLA
+    // (PDF · DOC · XLS · LOTE · URL) en una pestaña sólida con punta—; la etiqueta larga va en el title.
     const ta = tipoArchivo(l.Ruta || l.Title, l.Tipo);
-    const tdT = el('td', 'c-tipo'); const bt = el('span', 'mn-chip tipo is-' + ta.clave, ta.clave === 'lote' ? 'Lote' : ta.clave === 'archivo' ? ta.etiqueta.replace('Archivo ', '') : ta.etiqueta); bt.dataset.tipo = ta.clave; tdT.appendChild(bt); tr.appendChild(tdT);
+    const tdT = el('td', 'c-tipo'); const bt = el('span', 'mn-chip tipo is-' + ta.clave, ta.sigla); bt.dataset.tipo = ta.clave; bt.title = ta.etiqueta; tdT.appendChild(bt); tr.appendChild(tdT);
     // Estado de la liga (archivado / en el buzon / enlace); el 404 del buzon lo reemplaza pintarDocs.
     const tdE = el('td', 'c-estado'); const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : l.Tipo === 'enlace' ? chip('enlace') : chip('archivado', 'ok')); tdE.appendChild(est); tr.appendChild(tdE);
     // Tarjeta: select (F1) si puede; boton que la abre en #archivos; texto en lectura.
