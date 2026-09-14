@@ -961,6 +961,21 @@ for (const b of document.querySelectorAll('.tema button')) b.addEventListener('c
     aplicarTema(t);
 });
 
+// ---------------------------------------------------------------- rail plegable (v0.28.0)
+// En escritorio el rail se pliega a 64 px de iconos; la eleccion se guarda en localStorage `rail` = 'plegado'
+// (sin llave = desplegado). Cada pestana lleva su rotulo en el title para que plegada siga diciendo que es.
+function aplicarRail(plegado) {
+    $('shell').classList.toggle('rail-plegado', plegado);
+    const b = $('btnPlegar'); b.setAttribute('aria-expanded', plegado ? 'false' : 'true'); b.title = plegado ? 'Desplegar la barra' : 'Plegar la barra';
+}
+for (const b of document.querySelectorAll('#pestanas button')) { const s = b.querySelector('span'); if (s) b.title = s.textContent; }
+try { aplicarRail(localStorage.getItem('rail') === 'plegado'); } catch (_) { aplicarRail(false); }
+$('btnPlegar').addEventListener('click', () => {
+    const plegado = !$('shell').classList.contains('rail-plegado');
+    try { if (plegado) localStorage.setItem('rail', 'plegado'); else localStorage.removeItem('rail'); } catch (_) {}
+    aplicarRail(plegado);
+});
+
 // ---------------------------------------------------------------- enganche
 
 $('btnEntrar').addEventListener('click', entrar);

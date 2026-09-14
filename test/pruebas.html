@@ -559,6 +559,14 @@ try {
         R.ok('D5: los contadores del rail llevan aria-label («N vencidas» / «N activos»)', $('nProyectos').getAttribute('aria-label') === '1 activo' && /^\d+ vencidas?$/.test($('nMis').getAttribute('aria-label')) && $('nProyectos').title === '1 activo', $('nMis').getAttribute('aria-label'));
         // D6: el pie del rail — Equipo, Ver en SharePoint y Salir dentro del menú «···».
         R.ok('D6: Equipo, Ver en SharePoint y Salir viven en el menú «···» del rail; Actualizar y el tema, fuera', $('menuRail').contains($('btnEquipo')) && $('menuRail').contains($('lnkSharePoint')) && $('menuRail').contains($('btnSalir')) && !$('menuRail').contains($('btnActualizar')) && !$('menuRail').contains(document.querySelector('.rail .tema')) && $('btnSalir') === $('menuRail').querySelector('.menu-caja').lastElementChild);
+        // v0.28.0: el rail se pliega con un botón y la elección sobrevive en localStorage `rail`.
+        // El perfil de Edge conserva localStorage entre corridas (capturas.mjs corre claro y oscuro seguidos): se parte del estado desplegado sin suponerlo.
+        if ($('shell').classList.contains('rail-plegado')) { clic('btnPlegar'); await dormir(10); }
+        R.ok('v0.28.0: el rail desplegado no lleva la clase, cada pestaña lleva su rótulo en el title y el botón declara aria-expanded', !$('shell').classList.contains('rail-plegado') && $('btnPlegar').getAttribute('aria-expanded') === 'true' && document.querySelector('#pestanas [data-p="mis"]').title === 'Mis tareas');
+        clic('btnPlegar'); await dormir(10);
+        R.ok('v0.28.0: plegar pone .rail-plegado en el shell, aria-expanded=false y guarda `rail=plegado`', $('shell').classList.contains('rail-plegado') && $('btnPlegar').getAttribute('aria-expanded') === 'false' && localStorage.getItem('rail') === 'plegado');
+        clic('btnPlegar'); await dormir(10);
+        R.ok('v0.28.0: desplegar quita la clase y borra la llave', !$('shell').classList.contains('rail-plegado') && localStorage.getItem('rail') === null);
         $('menuRail').open = true; clic('btnEquipo'); await esperar(() => $('dlgEquipo').open, 'equipo desde el menú');
         R.ok('D6: elegir una opción cierra el menú', !$('menuRail').open);
         // B8: Atrás cierra cualquier diálogo (los seis sin hash): el diálogo empuja una entrada y popstate lo cierra.
