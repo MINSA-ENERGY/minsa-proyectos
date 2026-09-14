@@ -1187,6 +1187,14 @@ try {
                 R.ok('v0.22.0: el grupo «+N» abre la pestaña Roadmap del frente, donde cada tarjeta tiene su carril', location.hash === `#p/${CLAVE}/roadmap` && visible('tab-roadmap'));
                 irHash('#roadmap'); await esperar(() => visible('p-roadmap') && document.querySelector('#roadmapCaja .g-rombo'), 'roadmap');
             }
+            // v0.26.0: la linea de tiempo a pantalla completa —clase is-full en la tarjeta, boton con aria-pressed, Esc la cierra y la barra sigue ahi—
+            $('btnRoadmapFull').click();
+            R.ok('v0.26.0: «pantalla completa» fija la tarjeta de la línea de tiempo (is-full), el body pierde el scroll, el botón dice cómo salir y el gantt sigue pintado', $('roadmapLinea').classList.contains('is-full') && document.body.classList.contains('sin-scroll') && $('btnRoadmapFull').getAttribute('aria-pressed') === 'true' && /salir/.test($('btnRoadmapFull').textContent) && document.querySelectorAll('#roadmapCaja .g-barra[data-roadmap-barra]').length >= 1);
+            document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+            R.ok('v0.26.0: Esc sale de pantalla completa y el botón vuelve a «pantalla completa»', !$('roadmapLinea').classList.contains('is-full') && !document.body.classList.contains('sin-scroll') && $('btnRoadmapFull').getAttribute('aria-pressed') === 'false');
+            $('btnRoadmapFull').click(); irHash('#inicio'); await esperar(() => visible('p-inicio'), 'inicio');
+            R.ok('v0.26.0: cambiar de pantalla también cierra la pantalla completa', !$('roadmapLinea').classList.contains('is-full') && !document.body.classList.contains('sin-scroll'));
+            irHash('#roadmap'); await esperar(() => visible('p-roadmap') && document.querySelector('#roadmapCaja .g-barra'), 'roadmap');
             document.querySelector(`#roadmapCaja [data-roadmap-barra="${proyectoId}"]`).click(); await esperar(() => visible('p-proyecto') && location.hash === `#p/${CLAVE}`, 'proyecto desde la barra');
             R.ok('v0.10.0: la barra abre su proyecto', visible('p-proyecto'));
             // Roadmap del proyecto

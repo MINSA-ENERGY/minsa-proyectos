@@ -978,6 +978,14 @@ button.g-barra { cursor: pointer; } button.g-barra:hover { filter: brightness(.9
 .g-sinfecha { position: absolute; left: 6px; top: 10px; font-size: .72rem; color: var(--text-faint); font-style: italic; }
 .g-resumen { margin: 0; font-size: .8rem; color: var(--text-muted); }
 #tab-roadmap { display: grid; gap: var(--sp-3); min-width: 0; }
+/* v0.26.0: la linea de tiempo a pantalla completa. La tarjeta se fija a la ventana entera por encima del rail (z-pop),
+   la cabecera del gantt sigue pegada arriba al hacer scroll, y el gantt crece a todo el ancho (su min-width solo manda
+   cuando la caja es mas angosta). El body pierde el scroll mientras dure, para que la rueda no mueva la pagina de atras. */
+#roadmapLinea.is-full { position: fixed; inset: 0; z-index: var(--z-pop); border-radius: 0; overflow: auto; padding: var(--sp-3) var(--sp-4); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--sp-2); }
+#roadmapLinea.is-full .gantt-caja { overflow: auto; min-height: 0; }
+#roadmapLinea.is-full .gantt { width: 100%; }
+#roadmapLinea.is-full .g-leyenda { position: sticky; bottom: 0; background: var(--surface-card); padding-top: var(--sp-2); }
+body.sin-scroll { overflow: hidden; }
 /* ---- fines de frente proximos («Upcoming milestones»): fecha grande a la izquierda. */
 .hitos { display: grid; }
 .hito { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; width: 100%; padding: var(--sp-2) 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: var(--r-sm); }

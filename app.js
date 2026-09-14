@@ -19,7 +19,7 @@ import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limp
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
-import { pintarRoadmap, pintarRoadmapProyecto, pintarCalendario, engancharCalendario, pintarMensajes, mensajesNuevos, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
+import { pintarRoadmap, pintarRoadmapProyecto, roadmapFull, engancharRoadmap, pintarCalendario, engancharCalendario, pintarMensajes, mensajesNuevos, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
 const pca = new msal.PublicClientApplication({
@@ -227,6 +227,7 @@ pintarRed();
 
 function irA(p) {
     estado.pestana = p;
+    if (p !== 'roadmap') roadmapFull(false);   // v0.26.0: salir de pantalla completa al cambiar de pantalla
     for (const s of document.querySelectorAll('.pantalla')) s.classList.add('oculto');
     $('p-' + (p === 'proyecto' ? 'proyecto' : p)).classList.remove('oculto');
     for (const b of document.querySelectorAll('#pestanas button')) {
@@ -1007,7 +1008,7 @@ $('npCancelar').addEventListener('click', () => cerrarDialogo('dlgProyecto'));
 engancharTablero();
 engancharDocs();
 engancharChat();
-engancharCalendario(); engancharArchivos(); engancharReportes();   // v0.10.0
+engancharRoadmap(); engancharCalendario(); engancharArchivos(); engancharReportes();   // v0.10.0 · v0.26.0 roadmap a pantalla completa
 for (const b of document.querySelectorAll('.ir-movil')) b.addEventListener('click', () => { $('menuMovil').open = false; irA(b.dataset.ir); });   // v0.10.0: Roadmap · Archivos · Reportes no caben en la barra del celular
 $('btnActividadInicio').addEventListener('click', () => abrirActividad(null));
 $('btnActividadProyecto').addEventListener('click', () => abrirActividad(estado.proyectoAbierto && estado.proyectoAbierto.id));

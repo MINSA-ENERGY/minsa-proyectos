@@ -266,6 +266,25 @@ export function pintarCalendario() {
     }
     if (!ag.childNodes.length) ag.appendChild(el('p', 'vacio', 'Nada vence este mes.'));
 }
+/**
+ * v0.26.0: la linea de tiempo del Roadmap a PANTALLA COMPLETA (Carlos, 14-sep). La tarjeta `#roadmapLinea` toma la clase
+ * `is-full` (fija, ocupa la ventana entera, por encima del rail y de la barra movil) y el gantt se repinta para que el
+ * umbral de los rombos salga del ancho nuevo. Esc o el mismo boton la devuelven; cambiar de pantalla tambien la cierra.
+ * No usa la Fullscreen API: la PWA de iOS no la tiene, y una clase CSS se prueba en la E2E sin permisos del navegador.
+ */
+export function roadmapFull(activar) {
+    const sec = $('roadmapLinea'), b = $('btnRoadmapFull');
+    const on = activar === undefined ? !sec.classList.contains('is-full') : !!activar;
+    if (on === sec.classList.contains('is-full')) return;
+    sec.classList.toggle('is-full', on); document.body.classList.toggle('sin-scroll', on);
+    b.textContent = on ? 'salir de pantalla completa' : 'pantalla completa'; b.setAttribute('aria-pressed', String(on));
+    pintarRoadmap();   // el umbral de los rombos depende del ancho real de la pista
+}
+export function engancharRoadmap() {
+    $('btnRoadmapFull').addEventListener('click', () => roadmapFull());
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('roadmapLinea').classList.contains('is-full')) roadmapFull(false); });
+}
+
 export function engancharCalendario() {
     $('calAnterior').addEventListener('click', () => { estado.mesCal = mesSumar(estado.mesCal || hoyDia().slice(0, 7), -1); estado.calDia = null; pintarCalendario(); });
     $('calSiguiente').addEventListener('click', () => { estado.mesCal = mesSumar(estado.mesCal || hoyDia().slice(0, 7), 1); estado.calDia = null; pintarCalendario(); });
