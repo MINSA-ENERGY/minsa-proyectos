@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, iniciales, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe } from './reglas.js';
 
-export const VERSION = '0.31.0';
+export const VERSION = '0.32.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -296,9 +296,10 @@ export function atajosFecha(idInput, idCaja, finDelFrente) {
         const opciones = [['hoy', dia(0)], ['mañana', dia(1)], ['+7 d', dia(7)]];
         const fin = diaInput(finDelFrente);
         if (fin) opciones.push(['fin del frente', fin]);
+        const g = el('div', 'grupo'); caja.appendChild(g);   // v0.32.0: los atajos son excluyentes -> un solo marco
         for (const [texto, valor] of opciones) {
             const b = boton(texto, inp.value === valor ? 'is-on' : '', () => { inp.value = valor; pintar(); }, { fecha: valor });
-            caja.appendChild(b);
+            g.appendChild(b);
         }
         // D1: con valor, la fecha leida en el formato de la casa; vacio, el formato que se espera
         // (el campo nativo enseña mm/dd/yyyy si el DISPOSITIVO esta en ingles, que es el caso que

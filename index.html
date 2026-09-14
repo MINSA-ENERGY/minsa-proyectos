@@ -75,7 +75,7 @@
           <!-- v0.21.0: UNA cola por urgencia — vencidas · hoy y manana · nuevo para ti · te mencionaron · esta semana · sin dueño —
                que sustituye a «Nuevo para ti», «Te mencionaron» y «Proximos vencimientos» (tres tarjetas con tres formatos) -->
           <section class="mn-card cola" id="cardHoy">
-            <div class="cola-cab"><h2>Hoy <span class="n" id="nHoy"></span></h2><div class="filtros" id="hoyFiltro" role="group" aria-label="Qué tarjetas entran a la cola"></div></div>
+            <div class="cola-cab"><h2>Hoy <span class="n" id="nHoy"></span></h2><div class="filtros grupo" id="hoyFiltro" role="group" aria-label="Qué tarjetas entran a la cola"></div></div>
             <div class="cola-lista" id="inicioHoy"></div>
           </section>
           <section class="mn-card"><h2>Proyectos activos</h2><div class="lista" id="inicioProyectos"></div></section>
@@ -147,7 +147,7 @@
           <div id="tab-docs" class="docs oculto">
             <div class="docs-acciones"><button id="btnLigar" class="mn-btn is-sm" type="button">Ligar archivo de la biblioteca</button><button id="btnSubir" class="mn-btn is-sm" type="button">Subir al buzón</button><button id="btnEnlace" class="mn-btn is-sm" type="button">Pegar un enlace</button><span class="mn-help" id="docsBiblioteca"></span></div>
             <!-- v0.17.0: chips de estado + conteo «N de M» + buscador, sobre la tabla de documentos -->
-            <div class="docs-barra"><div class="filtros" id="docsFiltro"></div><span class="p" id="docsResumen"></span><input id="docsBusca" class="buscador" type="search" placeholder="Buscar en los documentos" aria-label="Buscar en los documentos" autocomplete="off" hidden></div>
+            <div class="docs-barra"><div class="filtros grupo" id="docsFiltro"></div><span class="p" id="docsResumen"></span><input id="docsBusca" class="buscador" type="search" placeholder="Buscar en los documentos" aria-label="Buscar en los documentos" autocomplete="off" hidden></div>
             <div class="lista" id="docsLista"></div>
           </div>
           <div id="tab-chat" class="chat oculto">
@@ -205,7 +205,7 @@
     <section id="p-archivos" class="pantalla oculto">
       <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><h1>Archivos</h1><p class="sub" id="archivosSub"></p></header>
       <div class="mn-kpis" id="archivosKpis"></div>   <!-- v0.17.0 -->
-      <div class="archivos-filtros"><div class="filtros" id="archivosTipo"></div><select id="archivosProyecto" aria-label="Proyecto"></select><input id="textoArchivos" class="buscador" type="search" placeholder="Buscar por nombre, ruta o dirección" aria-label="Buscar un archivo" autocomplete="off"></div>
+      <div class="archivos-filtros"><div class="filtros grupo" id="archivosTipo"></div><select id="archivosProyecto" aria-label="Proyecto"></select><input id="textoArchivos" class="buscador" type="search" placeholder="Buscar por nombre, ruta o dirección" aria-label="Buscar un archivo" autocomplete="off"></div>
       <div class="docs"><div class="lista" id="archivosLista"></div></div>
     </section>
 
@@ -396,7 +396,7 @@
 <dialog id="dlgActividad" class="mn-dialog">
   <div class="mn-dialog-head"><h2 id="acTitulo">Actividad</h2><button class="mn-btn is-ghost is-sm" id="acCerrar" type="button">Cerrar</button></div>
   <div class="mn-dialog-body">
-    <div class="filtros" id="acFiltro"></div>
+    <div class="filtros grupo" id="acFiltro"></div>
     <div class="filtros ac-tipo" id="acTipo"></div>
     <p class="mn-help">Los movimientos entre cubetas no se listan: quedan en la bitácora de SharePoint.</p>
     <div class="mini" id="acLista"></div>

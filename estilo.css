@@ -552,8 +552,20 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .filtros { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 /* Auditoria #5: UN chip-boton (pildora, 32/40 px, .8rem, pad 0 12) para los filtros, las pestanas de columna
    en celular y los atajos de fecha; antes eran tres reglas con padding 12/12/8 y fuente .8/.8/.75. */
-.filtros button, .col-tabs button, .atajos-fecha button { min-height: var(--control-h-sm); padding: 0 var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-muted); font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; display: inline-flex; gap: var(--sp-1); align-items: center; }
+.filtros button, .col-tabs button, .atajos-fecha button { min-height: var(--control-h-sm); padding: 0 var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-muted); font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; display: inline-flex; gap: var(--sp-1); align-items: center; }
 .filtros button.is-on, .col-tabs button.is-on, .atajos-fecha button.is-on { background: var(--surface-selected); color: var(--brand-primary); border-color: var(--brand-primary); }
+/* v0.32.0 (Carlos, 14-sep, artifact 4hGRbwE1 opcion B): SIN pildoras. Los filtros son rectangulos de 6 px (--r-sm), y los
+   EXCLUYENTES (elige uno: Hoy, Docs, Archivos por tipo, Actividad por quien, atajos de fecha, columnas en celular) van pegados en
+   un solo marco .grupo con el activo solido de marca; los ACUMULABLES (solo alta · solo vencidas · solo comentarios) siguen sueltos
+   con el relleno de seleccion. La forma dice cual es cual sin explicarlo. */
+.grupo { display: inline-flex; }
+.grupo, .col-tabs { gap: 0; border: 1px solid var(--border-hairline); border-radius: var(--r-sm); overflow: hidden; background: var(--surface-card); }
+.grupo:empty { display: none; }
+.grupo > button, .col-tabs > button { border: 0; border-radius: 0; border-right: 1px solid var(--border-hairline); }
+.grupo > button:last-child, .col-tabs > button:last-child { border-right: 0; }
+.grupo > button.is-on, .col-tabs > button.is-on { background: var(--brand-primary); color: var(--text-on-brand); border-color: var(--brand-primary); }
+.grupo > button.is-on .n, .col-tabs > button.is-on .n, .col-tabs > button.is-on .n.is-hot { color: inherit; }
+.grupo > button:focus-visible, .col-tabs > button:focus-visible { outline-offset: -2px; }   /* el overflow:hidden del marco recortaria un anillo exterior */
 .filtros button .av { margin: 0 var(--sp-1) 0 calc(-1 * var(--sp-2)); vertical-align: middle; }
 /* F9: filtro de tarjetas dentro del proyecto (chips + texto) */
 .tareas-filtros { align-items: center; }
@@ -561,7 +573,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 /* v0.30.0 (F3): el menu plegable «Quién» — un details cuyo summary es un .mn-btn.is-sm (avatar de la primera
    marcada · nombre o «Quién» · cuantas · chevron) y cuya caja flota debajo con una casilla por persona y su conteo. */
 .menu-quien { position: relative; }
-.menu-quien > summary { list-style: none; border-radius: var(--r-pill); gap: var(--sp-2); padding-inline: var(--sp-2) var(--sp-2); font-size: .8rem; color: var(--text-muted); }
+.menu-quien > summary { list-style: none; border-radius: var(--r-sm); gap: var(--sp-2); padding-inline: var(--sp-2) var(--sp-2); font-size: .8rem; color: var(--text-muted); }
 .menu-quien > summary::-webkit-details-marker { display: none; }
 .menu-quien > summary .av { margin-left: calc(-1 * var(--sp-1)); }
 .menu-quien > summary svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--dur-fast); }
@@ -584,7 +596,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 /* Auditoria #7: es el mismo .buscador de Proyectos y Mis tareas; aqui solo cambia el acomodo. */
 .tareas-filtros .buscador { margin-left: auto; min-width: 0; width: min(13rem, 100%); }   /* v0.20.0: 13rem (era 16) para que el conmutador quepa en la fila a 1366 */
 /* C3 (v0.6.0): el mismo buscador en Proyectos y Mis tareas, a lo ancho del contenido. */
-.buscador { min-height: var(--control-h-sm); font: inherit; font-size: .85rem; padding: 0 var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); width: min(24rem, 100%); }
+.buscador { min-height: var(--control-h-sm); font: inherit; font-size: .85rem; padding: 0 var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); width: min(24rem, 100%); }
 .buscador:focus { outline: 2px solid var(--brand-primary); outline-offset: 1px; }
 /* C8: el reloj del frente junto al % de la cabecera */
 .proyecto-cab .reloj:empty { display: none; }
@@ -660,7 +672,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tablero-caja { display: grid; gap: var(--sp-2); min-width: 0; }
 .col-tabs { display: none; }
 @media (max-width: 720px) {
-  .col-tabs { display: flex; gap: var(--sp-1); overflow-x: auto; padding-bottom: 2px; }
+  .col-tabs { display: flex; overflow-x: auto; }   /* v0.32.0: es un .grupo (marco unico); el scroll queda para cuando no caben */
   .col-tabs button { flex: none; }
   .col-tabs button .n { font-family: var(--font-data); font-size: .72rem; font-weight: 500; }
   .tablero { grid-template-columns: 1fr; overflow-x: visible; }
@@ -693,8 +705,8 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .leyenda-sem .alta i { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-primary); }
 /* Conmutador Cómodo / Compacto: en la fila de FILTROS, tras el buscador (en la de pestañas desbordaba 84 px a 820);
    solo se ve en el tablero. En celular vive, como los filtros, detrás de «Filtrar». */
-.densidad { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); flex: none; }
-.densidad button { border: 0; background: none; font: inherit; font-size: .74rem; font-weight: 600; padding: 0 var(--sp-2); min-height: calc(var(--control-h-sm) - 4px); border-radius: var(--r-pill); color: var(--text-muted); cursor: pointer; }   /* 28 px dentro de 32: el mismo alto que los chips de al lado */
+.densidad { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); flex: none; }
+.densidad button { border: 0; background: none; font: inherit; font-size: .74rem; font-weight: 600; padding: 0 var(--sp-2); min-height: calc(var(--control-h-sm) - 4px); border-radius: 4px; color: var(--text-muted); cursor: pointer; }   /* 28 px dentro de 32: el mismo alto que los chips de al lado */
 .densidad button[aria-pressed="true"] { background: var(--brand-primary); color: var(--text-on-brand); }
 .densidad button:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 1px; }
 /* Compacto: una linea por tarjeta — titulo con puntos suspensivos · avatar · chip de fecha. El nombre, las
@@ -1177,7 +1189,7 @@ body.sin-scroll { overflow: hidden; }
 /* ---- archivos */
 .archivos-filtros { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
 .archivos-filtros .buscador { flex: 1 1 240px; }
-.archivos-filtros > select { height: var(--control-h-sm); padding: 0 var(--sp-3); border: 1px solid var(--border-default); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); font: inherit; font-size: .85rem; }
+.archivos-filtros > select { height: var(--control-h-sm); padding: 0 var(--sp-3); border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); font: inherit; font-size: .85rem; }
 .grupo-proy { display: inline-flex; align-items: center; gap: var(--sp-2); width: 100%; border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; padding: var(--sp-2) 0 0; border-radius: var(--r-sm); }
 .grupo-proy:hover { color: var(--brand-primary); } .grupo-proy .n { font-family: var(--font-data); font-weight: 500; color: var(--text-faint); }
 .doc .tarjeta-liga { border: 0; background: none; font: inherit; color: var(--text-link); cursor: pointer; text-align: left; padding: 0; }
