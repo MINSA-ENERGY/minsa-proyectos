@@ -657,6 +657,14 @@ try {
         // F11: Subir / Bajar dentro de la columna (las dos están en en-curso: t con Orden 1, la normal sin Orden).
         document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
         R.ok('U12: la tarjeta dice quién la creó y cuándo', $('tKv').textContent.includes('Creada') && $('tKv').textContent.includes('Persona de Prueba'), $('tKv').textContent.slice(-80));
+        // v0.24.0 (iteración 6): asignado · cubeta · vence · prioridad son chips bajo el título; la tabla del frente (tKv) ya no los trae;
+        // el chip de vence es un botón que abre «Editar la tarjeta» con el foco en su campo; y la ficha va a dos columnas.
+        { const ch = [...$('tChips').querySelectorAll('[data-chip]')].map(c => c.dataset.chip);
+          R.ok('v0.24.0: la tarjeta trae los 4 chips en orden (asignado · cubeta · vence · prioridad) y tKv ya no repite asignado ni cubeta', ch.join(',') === 'asignado,cubeta,vence,prioridad' && $('tChips').querySelector('[data-chip="cubeta"]').textContent === 'En curso' && !$('tKv').textContent.includes('Asignado') && !$('tKv').textContent.includes('Cubeta'), ch.join(',') + ' · ' + $('tKv').textContent.slice(0, 60));
+          R.ok('v0.24.0: el cuerpo es una rejilla de dos columnas (t-main · t-side) con Editar cruzando abajo, y Documentos vive en la derecha', !!document.querySelector('#dlgTarea .t-main #tMover') && !!document.querySelector('#dlgTarea .t-side #tDocs') && !$('tEditar').closest('.t-main') && !$('tEditar').closest('.t-side'));
+          $('tEditar').open = false; $('tChips').querySelector('[data-edita="ftVence"]').click(); await dormir(30);
+          R.ok('v0.24.0: clic en el chip de vence abre «Editar la tarjeta» con el foco en Vence', $('tEditar').open && document.activeElement === $('ftVence'), document.activeElement && document.activeElement.id);
+          $('tEditar').open = false; }
         R.ok('la tarjeta dice su orden en la columna; Subir deshabilitado arriba', $('tOrden').textContent.includes('1 de 2') && $('tOrden').querySelector('[data-orden="subir"]').disabled && !$('tOrden').querySelector('[data-orden="bajar"]').disabled, $('tOrden').textContent);
         $('tOrden').querySelector('[data-orden="bajar"]').click();
         await esperar(() => $('tOrden').textContent.includes('2 de 2'), 'bajada');
@@ -726,7 +734,8 @@ try {
         document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
         document.querySelector('#tMover button[data-move="hecho"]').click();
         await esperar(() => avisoCon('Alguien cambió'), '412 avisado');
-        R.ok('412: el PATCH llevó If-Match, no se pisó el cambio ajeno y la tarjeta se reabrió con lo nuevo', DB.ifMatch > ifMatchAntes && t.fields.Columna === 'en-curso' && $('dlgTarea').open && $('tKv').textContent.includes('Descripción cambiada por alguien más'), $('tKv').textContent.slice(0, 120));
+        R.ok('412: el PATCH llevó If-Match, no se pisó el cambio ajeno y la tarjeta se reabrió con lo nuevo', DB.ifMatch > ifMatchAntes && t.fields.Columna === 'en-curso' && $('dlgTarea').open && $('tDesc').textContent.includes('Descripción cambiada por alguien más'), $('tDesc').textContent.slice(0, 120));   // v0.24.0: la descripción es tDesc
+        R.ok('v0.24.0: la tarjeta releída dice «Último cambio» (lastModifiedDateTime ≠ createdDateTime) en el frente', $('tKv').textContent.includes('Último cambio') && !$('tKv').textContent.includes('Descripción'), $('tKv').textContent.slice(-90));
         clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
         // T2: sin red se ve, no se guarda.
         Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false }); window.dispatchEvent(new Event('offline'));
@@ -1130,7 +1139,11 @@ try {
             // v0.21.0: «Te mencionaron» es un grupo de la cola «Hoy»; la mencion que ya salio en «Nuevo para ti» no se repite (un solo renglon).
             { const enCola = [...document.querySelectorAll('#inicioHoy .hoy-r[data-mencion], #inicioHoy .hoy-r[data-nuevo="mencion"]')].map(r => r.textContent).join(' | ');
               R.ok('v0.8.0 → v0.21.0: la cola enseña la mención ajena reciente UNA vez (como nueva o en «Te mencionaron»; no las mías, no la de hace un mes)', enCola.includes('ya viste el oficio') && !enCola.includes('favor de checar') && !enCola.includes('hace un mes') && document.querySelectorAll('#inicioHoy .hoy-r[data-mencion], #inicioHoy .hoy-r[data-nuevo="mencion"]').length === [...new Set([...document.querySelectorAll('#inicioHoy .hoy-r[data-mencion], #inicioHoy .hoy-r[data-nuevo="mencion"]')].map(r => r.querySelector('.t').textContent))].length, enCola); }
-            R.ok('v0.8.0: la actividad dice «comentó» para el chat y «anotó» para la nota de tarjeta', $('inicioActividad').textContent.includes('comentó: «segundo mensaje') && $('inicioActividad').textContent.includes('anotó: «lo reviso'));
+            // v0.24.0: a <= 720 px Inicio recorta la actividad a 3 renglones (B3) y «anotó» queda fuera: ahí se lee en «ver toda»
+            // (la corrida de capturas.mjs a 390 ya fallaba aquí en v0.23.0 sin que nadie lo leyera; e2e.ps1 corre a ancho de escritorio).
+            { let txt = $('inicioActividad').textContent;
+              if (window.matchMedia('(max-width: 720px)').matches) { clic('btnActividadInicio'); await esperar(() => $('dlgActividad').open, 'toda la actividad'); txt = $('acLista').textContent; clic('acCerrar'); await esperar(() => !$('dlgActividad').open, 'cerrada'); }
+              R.ok('v0.8.0: la actividad dice «comentó» para el chat y «anotó» para la nota de tarjeta', txt.includes('comentó: «segundo mensaje') && txt.includes('anotó: «lo reviso')); }
             [...document.querySelectorAll('#inicioHoy .hoy-r[data-mencion], #inicioHoy .hoy-r[data-nuevo="mencion"]')].find(r => r.textContent.includes('ya viste el oficio')).click(); await esperar(() => visible('p-proyecto') && location.hash === `#p/${CLAVE}/chat`, 'chat desde la mención');
             R.ok('v0.8.0: el renglón de la mención abre el chat del proyecto', visible('tab-chat') && location.hash === `#p/${CLAVE}/chat`);
             pestana('inicio'); await dormir(30);

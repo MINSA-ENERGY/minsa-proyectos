@@ -888,8 +888,8 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .mn-dialog-foot { border-top-color: var(--border-default); }
 /* Las secciones DENTRO del dialogo de tarjeta (Mover a… · Notas · Documentos · Editar): un filete arriba y aire, para que
    cada bloque se lea como bloque y no como una lista continua de rotulos. El primero no lleva filete. */
-.mn-dialog-body > .mn-label { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border-hairline); }
-.mn-dialog-body > .mn-label:first-child, .mn-dialog-body > .kv + .mn-label, .mn-dialog-body > .dlg-avisos + .mn-label { margin-top: 0; padding-top: 0; border-top: 0; }
+.mn-dialog-body > .mn-label, .t-main > .mn-label, .t-side > .mn-label { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border-hairline); }
+.mn-dialog-body > .mn-label:first-child, .mn-dialog-body > .kv + .mn-label, .mn-dialog-body > .dlg-avisos + .mn-label, .t-side > .mn-label:first-child, .t-main > .t-chips + .mn-label, .t-main > .t-desc + .mn-label, .t-main > .deny + .mn-label, .t-main > .solo-lectura + .mn-label { margin-top: 0; padding-top: 0; border-top: 0; }   /* v0.24.0: tambien dentro de las dos columnas */
 .mn-dialog-body > .editar { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border-hairline); }
 /* ---- borrar comentario/nota: boton de icono al final del renglon; en escritorio aparece al pasar el raton o con el
    foco, en tactil (sin hover) siempre, para que exista sin ensuciar el hilo. */
@@ -1205,4 +1205,43 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
   /* El FAB «Nueva tarea» tapaba el ultimo mensaje y el redactor quedaba bajo la barra: en el chat no hay FAB y el hilo mide menos. */
   body.is-chat #btnNuevaTarea { display: none; }
   .chat .hilo { max-height: 40vh; }
+}
+
+/* ==== v0.24.0 (2026-09-13): la tarjeta a dos columnas (iteracion 6 del artifact ed5130eb) ==== */
+/* El dialogo crece a 860 px: IZQUIERDA lo que se lee y se escribe (chips, descripcion, Mover a…, notas), DERECHA lo que
+   se consulta (frente, documentos) sobre fondo hundido, y «Editar la tarjeta» cruza las dos abajo (su formulario no cabe
+   en 280 px). El cuerpo pierde su padding y cada columna trae el suyo, para que el fondo de la derecha llegue al borde.
+   Bajo 900 px (tableta y celular) se apila: primero la izquierda, luego la derecha, en el orden del DOM. */
+#dlgTarea { width: min(860px, calc(100vw - var(--sp-5))); }
+#dlgTarea .t-cuerpo { padding: 0; display: grid; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; }
+#dlgTarea .dlg-avisos { grid-column: 1 / -1; margin: var(--sp-3) var(--sp-4) 0; }
+.t-main { padding: var(--sp-4); min-width: 0; }
+.t-side { padding: var(--sp-4); min-width: 0; background: var(--surface-sunken); border-left: 1px solid var(--border-hairline); align-self: stretch; }
+#dlgTarea .editar { grid-column: 1 / -1; margin: 0; padding: var(--sp-3) var(--sp-4) var(--sp-4); border-top: 1px solid var(--border-hairline); }
+#dlgTarea .editar .forma { max-width: 36rem; }   /* a 860 px el campo de fecha a todo el ancho se veia como una barra; el formulario conserva el ancho de siempre */
+/* Chips bajo el titulo: quien (con avatar) · cubeta · vence · prioridad. El chip que se puede cambiar es un boton sin
+   caja que abre «Editar la tarjeta» en su campo; el foco lo dibuja el anillo de la casa. */
+.t-chips { display: flex; flex-wrap: wrap; gap: 0 var(--sp-2); align-items: center; margin-bottom: var(--sp-2); }
+.t-chips .mn-chip { font-size: .78rem; padding: 3px 10px; }
+.t-chips .mn-chip .av { width: 16px; height: 16px; font-size: .5rem; margin-left: -4px; }
+.t-chips .chip-btn { border: 0; padding: 0; background: none; font: inherit; cursor: pointer; border-radius: var(--r-pill); display: inline-flex; align-items: center; min-height: var(--control-h-sm); }   /* el chip mide 25 px; el objetivo, 32 / 40 tactil (medido a 390: chip-btn 143x25 sin esto) */
+.t-chips .chip-btn:hover .mn-chip { filter: brightness(.95); }
+.t-chips .chip-btn:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.t-desc { margin: 0 0 var(--sp-3); font-size: .9rem; color: var(--text-body); white-space: pre-line; overflow-wrap: anywhere; }
+/* «Mover a…» en UNA fila: tantas columnas como cubetas quepan a 7 rem; con las 4 de siempre caben en la izquierda (≈540 px),
+   con 6 parten en dos filas. El texto del boton puede partir («En revisión · actual») en vez de desbordar. */
+#dlgTarea .mover { grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--sp-1); }
+#dlgTarea .mover .mn-btn { white-space: normal; line-height: 1.2; padding-inline: var(--sp-2); min-height: var(--control-h-sm); height: auto; }
+/* La columna derecha: rotulo, kv a una columna de rotulo estrecha, documentos en renglones que parten. */
+.t-side .kv { grid-template-columns: 82px minmax(0, 1fr); font-size: .82rem; }
+.t-side .kv span { overflow-wrap: anywhere; }
+.t-side .kv .proy { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }   /* en 280 px el titulo del frente parte en dos lineas y el icono del equipo caia solo en una tercera: el icono va en su columna, a la derecha */
+.t-side .tdocs { margin-bottom: 0; }
+.t-side .tdoc .mn-btn { margin-left: 0; }
+.t-side .tdoc-acciones .mn-btn { padding-inline: var(--sp-2); }
+.mn-label .n:not(:empty)::before { content: " · "; }
+.mn-label .n { font-weight: 500; color: var(--text-muted); }
+@media (max-width: 900px) {
+  #dlgTarea .t-cuerpo { grid-template-columns: minmax(0, 1fr); }
+  .t-side { border-left: 0; border-top: 1px solid var(--border-hairline); align-self: auto; }
 }

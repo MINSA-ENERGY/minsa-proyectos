@@ -234,24 +234,34 @@
 <!-- Tarjeta (ver / mover / editar) -->
 <dialog id="dlgTarea" class="mn-dialog">
   <div class="mn-dialog-head"><h2 id="tTitulo"></h2><div class="head-botones"><button class="mn-btn is-ghost is-sm is-icono" id="tCompartir" type="button" title="Copiar la liga de esta tarjeta para mandarla por chat" aria-label="Copiar la liga de esta tarjeta"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1"/></svg></button><button class="mn-btn is-ghost is-sm" id="tCerrar" type="button">Cerrar</button></div></div>
-  <div class="mn-dialog-body">
+  <!-- v0.24.0 (iteracion 6): dos columnas en escritorio. Izquierda (.t-main) lo que se lee y se escribe: chips, descripcion,
+       Mover a…, notas. Derecha (.t-side) lo que se consulta: el frente (Proyecto · Creada · Ultimo cambio) y los documentos.
+       «Editar la tarjeta» cruza las dos columnas abajo: su formulario no cabe en 280 px. Bajo 900 px se apila en este orden. -->
+  <div class="mn-dialog-body t-cuerpo">
     <div class="dlg-avisos"></div>
-    <div class="kv" id="tKv"></div>
-    <div id="tDeny" class="deny oculto"></div>
-    <p id="tSoloLectura" class="mn-help solo-lectura oculto">Solo lectura · la mueve su asignado o cualquier colaborador.</p>
-    <div class="mn-label" id="tMoverEtiqueta">Mover a…</div>
-    <div class="mover" id="tMover"></div>
-    <div class="orden" id="tOrden"></div>
-    <div class="mn-label">Notas</div>
-    <div class="notas" id="tNotasLista"></div>
-    <form id="formNota" class="nota-forma" novalidate>
-      <label for="tNota" class="oculto">Nueva nota</label>
-      <div class="chat-caja"><textarea id="tNota" rows="2" maxlength="250" placeholder="Anota qué pasó, qué falta o por qué está donde está; @nombre avisa a alguien (250 caracteres)"></textarea><div class="selector oculto" id="tNotaSelector" role="listbox" aria-label="Mencionar a"></div></div>
-      <span class="cont mn-mono" id="tNotaCont" aria-live="polite"></span>
-      <button class="mn-btn is-sm" id="tAnotar" type="submit" title="Ctrl+Enter también envía">Anotar</button>
-    </form>
-    <div class="mn-label">Documentos</div>
-    <div class="tdocs" id="tDocs"></div>
+    <div class="t-main">
+      <div class="t-chips" id="tChips"></div>
+      <p class="t-desc" id="tDesc"></p>
+      <div id="tDeny" class="deny oculto"></div>
+      <p id="tSoloLectura" class="mn-help solo-lectura oculto">Solo lectura · la mueve su asignado o cualquier colaborador.</p>
+      <div class="mn-label" id="tMoverEtiqueta">Mover a…</div>
+      <div class="mover" id="tMover"></div>
+      <div class="orden" id="tOrden"></div>
+      <div class="mn-label">Notas<span class="n" id="tNotasN"></span></div>
+      <div class="notas" id="tNotasLista"></div>
+      <form id="formNota" class="nota-forma" novalidate>
+        <label for="tNota" class="oculto">Nueva nota</label>
+        <div class="chat-caja"><textarea id="tNota" rows="2" maxlength="250" placeholder="Anota qué pasó, qué falta o por qué está donde está; @nombre avisa a alguien (250 caracteres)"></textarea><div class="selector oculto" id="tNotaSelector" role="listbox" aria-label="Mencionar a"></div></div>
+        <span class="cont mn-mono" id="tNotaCont" aria-live="polite"></span>
+        <button class="mn-btn is-sm" id="tAnotar" type="submit" title="Ctrl+Enter también envía">Anotar</button>
+      </form>
+    </div>
+    <aside class="t-side" aria-label="Frente y documentos de la tarjeta">
+      <div class="mn-label">Frente</div>
+      <div class="kv" id="tKv"></div>
+      <div class="mn-label">Documentos<span class="n" id="tDocsN"></span></div>
+      <div class="tdocs" id="tDocs"></div>
+    </aside>
     <details id="tEditar" class="editar"><summary>Editar la tarjeta</summary>
       <form id="formTarea" class="forma" novalidate>
         <div class="mn-field"><label for="ftTitulo">Tarea (verbo + objeto)</label><input id="ftTitulo" required maxlength="255"></div>

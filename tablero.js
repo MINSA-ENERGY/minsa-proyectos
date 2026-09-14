@@ -316,6 +316,29 @@ export function abrirTarjeta(id) {
     tarjetaAbierta = t;
     const p = porId(estado.proyectos, t.ProyectoId);
     $('tTitulo').textContent = t.Title;
+    // v0.24.0 (iteracion 6): asignado · cubeta · vence · prioridad son CHIPS bajo el titulo —«Persona · Por hacer ·
+    // venció 11/09 · alta» se lee en un golpe— y la tabla de 7 renglones se va; la descripcion es un parrafo. Un clic
+    // en el chip de asignado, de vence o de prioridad abre «Editar la tarjeta» en ese campo, si se puede editar.
+    const puedeEditar = PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';
+    const chips = $('tChips'); chips.textContent = '';
+    const ponerChip = (nodo, clave, campo) => {
+        nodo.dataset.chip = clave;
+        if (!campo || !puedeEditar) { chips.appendChild(nodo); return; }
+        const b = el('button', 'chip-btn'); b.type = 'button'; b.title = 'Cambiar en «Editar la tarjeta»'; b.dataset.edita = campo;
+        b.appendChild(nodo);
+        b.addEventListener('click', () => { $('tEditar').open = true; const f = $(campo); f.scrollIntoView({ block: 'nearest' }); f.focus(); });
+        chips.appendChild(b);
+    };
+    const quien = chip(t.Asignado ? nombreDe(t.Asignado, estado.roles) : 'sin asignar', t.Asignado ? 'ok' : 'warn');
+    if (t.Asignado) quien.prepend(avatar(t.Asignado));
+    ponerChip(quien, 'asignado', 'ftAsignado');
+    ponerChip(chipColumna(t), 'cubeta');
+    // Sin fecha, un chip gris que lo dice; hecha con fecha, la fecha a secas en verde (chipVence calla en «hecho»: ya no vence).
+    ponerChip(chipVence(t) || chip(t.Vence ? (t.Columna === HECHO ? fechaCorta(t.Vence) : `vence ${fechaCorta(t.Vence)}`) : 'sin fecha', t.Vence && t.Columna === HECHO ? 'ok' : null), 'vence', 'ftVence');
+    ponerChip(chip(t.Prioridad === 'alta' ? 'alta' : t.Prioridad === 'baja' ? 'baja' : 'normal', t.Prioridad === 'alta' ? 'warn' : null), 'prioridad', 'ftPrioridad');
+    $('tDesc').textContent = t.Descripcion || ''; $('tDesc').classList.toggle('oculto', !t.Descripcion);
+
+    // La columna derecha: lo que se consulta del frente (Proyecto · Hecho por · Creada · Último cambio).
     const kv = $('tKv'); kv.textContent = '';
     const par = (k, v, clase) => { kv.appendChild(el('b', '', k)); const s = el('span', clase || '', typeof v === 'string' ? v : null); if (typeof v !== 'string') s.appendChild(v); kv.appendChild(s); return s; };
     // D2 (v0.6.0): desde Mis tareas, «Proyecto» era texto plano; ahora lleva al tablero y trae el chip del equipo.
@@ -327,14 +350,11 @@ export function abrirTarjeta(id) {
         caja.appendChild(iconoEquipo(eq, 'sm'));   // v0.7.0: el equipo por icono (nombre en el title)
         par('Proyecto', caja);
     } else par('Proyecto', '—');
-    par('Asignado', t.Asignado ? nombreDe(t.Asignado, estado.roles) : 'sin asignar');
-    par('Cubeta', nombreColumna(t));
-    par('Vence', fechaCorta(t.Vence));
-    par('Prioridad', t.Prioridad || 'normal');
     // v0.11.0: «Origen» (el puntero a la KB) ya no se ensena; el dato sigue en la lista para los scripts.
-    if (t.Descripcion) par('Descripción', t.Descripcion);
     if (t.HechoPor) par('Hecho por', `${nombreDe(t.HechoPor, estado.roles)} · ${fechaCorta(t.HechoEl)}`);
     if (t._creado) par('Creada', `${t._creadoPor ? nombreDe(t._creadoPor, estado.roles) + ' · ' : ''}${fechaHora(t._creado)}`, 'creada');
+    // SharePoint no dice QUIEN modifico (graph.js solo trae lastModifiedDateTime); si coincide con la creacion, no se repite.
+    if (t._modificado && t._modificado !== t._creado) par('Último cambio', fechaHora(t._modificado), 'creada');
     pintarDocsDeTarjeta(t, p);
     pintarNotas(t, p);
 
@@ -372,8 +392,7 @@ export function abrirTarjeta(id) {
     }
     $('tBorrar').disabled = !PUEDE.borrar(estado.rol);
     $('tBorrar').title = PUEDE.borrar(estado.rol) ? '' : 'Solo gerencia borra tarjetas';
-    // Editar
-    const puedeEditar = PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';
+    // Editar (puedeEditar se calculo arriba, con los chips)
     $('tEditar').classList.toggle('oculto', !puedeEditar);
     $('tEditar').open = false;
     opciones($('ftAsignado'), personas(), x => x, x => nombreDe(x, estado.roles), 'sin asignar');
@@ -394,6 +413,7 @@ export function abrirTarjeta(id) {
 function pintarDocsDeTarjeta(t, p) {
     const c = $('tDocs'); c.textContent = '';
     const ligas = estado.ligas.filter(l => Number(l.TareaId) === t.id);
+    $('tDocsN').textContent = ligas.length ? String(ligas.length) : '';   // v0.24.0: «Documentos · 2»
     const puede = puedeLigarEn(p);
     for (const l of ligas) {
         const fila = el('div', 'tdoc');
@@ -423,6 +443,7 @@ function pintarDocsDeTarjeta(t, p) {
 function pintarNotas(t, p) {
     const c = $('tNotasLista'); c.textContent = '';
     const notas = notasDe(t.id);
+    $('tNotasN').textContent = notas.length ? String(notas.length) : '';   // v0.24.0: «Notas · 2»
     for (const n of notas) {
         const it = el('div', 'nota');
         it.appendChild(avatar(n.Quien));
