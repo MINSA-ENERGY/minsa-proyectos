@@ -113,9 +113,10 @@
 
 /* ---- utilidades propias */
 .oculto { display: none !important; }
-/* `.mn-btn { display: inline-flex }` de la piel pisa el [hidden] del UA: «ver 50 más (0 restantes)»
-   y «ver toda» se veian con .hidden = true (revisor, 2026-09-12). */
-.mn-btn[hidden] { display: none !important; }
+/* Todo `display:` de la piel pisa el [hidden] del UA: «ver 50 más (0 restantes)» y «ver toda» se veian
+   con .hidden = true (revisor, 2026-09-12), y las insignias del rail (Mensajes, Mis tareas, Proyectos)
+   pintaban «0» aunque el JS las ocultara (`.mn-rail-hot { display: inline-grid }`; Carlos, 2026-09-14). */
+[hidden] { display: none !important; }
 .solo-oscuro { display: none; }
 :root[data-theme="dark"] .solo-claro { display: none; }
 :root[data-theme="dark"] .solo-oscuro { display: inline; }

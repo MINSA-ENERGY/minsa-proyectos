@@ -1237,6 +1237,7 @@ try {
             R.ok('v0.10.0: un comentario ajeno posterior a la visita enciende la insignia del rail y marca el renglón como nuevo', !$('nMensajes').hidden && $('nMensajes').textContent === '1' && document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`).classList.contains('is-nuevo') && $('mensajesSub').textContent.includes('1 mensaje(s) nuevo(s)'));
             document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`).click(); await esperar(() => visible('tab-chat') && location.hash === `#p/${CLAVE}/chat`, 'chat desde la bandeja');
             R.ok('v0.10.0: el renglón abre el chat del frente y la insignia se apaga al leerlo', visible('tab-chat') && $('nMensajes').hidden);
+            R.ok('v0.29.1: una insignia del rail con .hidden NO se pinta (la piel le pone display: inline-grid y pisaba el [hidden]: se veía «0»)', ['nMensajes', 'nMis', 'nProyectos'].every(id => !$(id).hidden || getComputedStyle($(id)).display === 'none'), ['nMensajes', 'nMis', 'nProyectos'].map(id => `${id}:${$(id).hidden}/${getComputedStyle($(id)).display}`).join(' '));
             // ---- v0.15.0 (2026-09-13, auditoría como usuario): el mismo canal — marca compartida, ✓ visto, Nuevo para ti, Las que delegué.
             {
                 const mod = await import('../comun.js');
