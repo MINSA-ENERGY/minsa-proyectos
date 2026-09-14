@@ -31,7 +31,7 @@
   --red-700: #9c211c; --red-600: #c8322b; --red-100: #fdeceb;
   --amber-700: #a86400; --amber-600: #e08c00; --amber-100: #fff5e2;
 
-  --page: var(--slate-50); --card: #ffffff; --sunken: var(--slate-100);
+  --page: var(--slate-50); --card: #ffffff; --sunken: var(--slate-100); --banda: #f4f4f4;   /* v0.29.0: cebra de .dtabla, mas tenue que --sunken */
   --rail: #ffffff; --rail-on: var(--slate-100);
   --rail-tx: var(--slate-800); --rail-tx-strong: var(--slate-950); --rail-tx-mute: var(--slate-500); --rail-tx-faint: var(--slate-400);
   --rail-line: var(--slate-200); --rail-hover: var(--slate-50); --rail-chip: var(--slate-100);
@@ -73,7 +73,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --page: #131313; --card: #1f1f1f; --sunken: #181818;
+    --page: #131313; --card: #1f1f1f; --sunken: #181818; --banda: #1a1a1a;
     --rail: #0f0f0f; --rail-on: #2e3236;
     --rail-tx: var(--slate-300); --rail-tx-strong: #ffffff; --rail-tx-mute: var(--slate-500); --rail-tx-faint: var(--slate-600);
     --rail-line: rgba(255,255,255,.07); --rail-hover: rgba(255,255,255,.06); --rail-chip: rgba(255,255,255,.09);
@@ -92,7 +92,7 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --page: #131313; --card: #1f1f1f; --sunken: #181818;
+  --page: #131313; --card: #1f1f1f; --sunken: #181818; --banda: #1a1a1a;
   --rail: #0f0f0f; --rail-on: #2e3236;
   --rail-tx: var(--slate-300); --rail-tx-strong: #ffffff; --rail-tx-mute: var(--slate-500); --rail-tx-faint: var(--slate-600);
   --rail-line: rgba(255,255,255,.07); --rail-hover: rgba(255,255,255,.06); --rail-chip: rgba(255,255,255,.09);
@@ -269,22 +269,26 @@
 .dtabla th[data-sort]:focus-visible { outline: 2px solid var(--brand-primary, currentColor); outline-offset: -2px; }
 .dtabla th[aria-sort="ascending"]::after { content: " ↑"; }
 .dtabla th[aria-sort="descending"]::after { content: " ↓"; }
-.dtabla td { padding: var(--sp-2) var(--sp-3); border-bottom: 1px solid var(--border-hairline); vertical-align: middle; }
+.dtabla td { padding: var(--sp-1) var(--sp-3); border-bottom: 1px solid var(--border-hairline); vertical-align: middle; white-space: nowrap; }   /* v0.29.0 (Carlos, 14-sep; artifact c43ad139 T6+H2): COMPACTA (padding vertical a la mitad) y NADA envuelve: el sobrante es de Nombre y solo Nombre recorta */
 .dtabla tbody tr:last-child td { border-bottom: 0; }
 .dtabla tr.doc { display: table-row; border: 0; padding: 0; background: none; }
 .dtabla tr.doc:hover td { background: var(--surface-hover); }
+/* v0.29.0: CEBRA — la banda es un tono mas tenue que --surface-sunken para no competir con el encabezado; nth-of-type cuenta tambien los
+   renglones de grupo, asi que la paridad se corre tras cada grupo (Carlos lo vio asi en el artifact y lo eligio). El hover pisa a la banda. */
+.dtabla tbody tr.doc:nth-of-type(even) td { background: var(--banda); }
+.dtabla tbody tr.doc:nth-of-type(even):hover td { background: var(--surface-hover); }
 .dtabla .c-nombre { width: auto; min-width: 0; }   /* v0.19.0: la UNICA columna auto — el sobrante es de Nombre; las demas van a 1% (min-content). Con 100% aqui y 1% en las demas, Chrome repartia el sobrante a Tarjeta */
-.dtabla .c-tipo, .dtabla .c-fecha, .dtabla .c-acc { white-space: nowrap; }
-.dtabla .c-estado .mn-chip { white-space: nowrap; }   /* la celda sí parte: chip + «Buscar el archivado» en dos renglones */
+.dtabla .c-tipo, .dtabla .c-acc { white-space: nowrap; }
+.dtabla .c-estado .mn-chip { white-space: nowrap; }   /* v0.29.0: la celda ya no parte (nowrap en todo td): chip + «Buscar el archivado» van en un renglon */
 .dtabla .c-acc { width: 1%; text-align: right; }
 /* v0.19.0: todas las columnas menos Nombre a su min-content (width: 1%), para que el sobrante lo tome Nombre y no Tarjeta
    (a 1366 el titulo se recortaba con ~250 px vacios entre Tarjeta y «⋯»; revisor 13-sep). Estado sigue partiendo en dos renglones. */
-.dtabla .c-del, .dtabla .c-tipo, .dtabla .c-estado, .dtabla .c-tarjeta, .dtabla .c-quien, .dtabla .c-fecha { width: 1%; }
+.dtabla .c-del, .dtabla .c-tipo, .dtabla .c-estado, .dtabla .c-tarjeta { width: 1%; }   /* v0.29.0: Ligado por y Ligada ya no son columnas */
 /* v0.19.0: un solo renglon — [icono] [emisor] titulo [rev]; la ruta se fue al title y a «Copiar ruta». Es GRID con el titulo
    en minmax(0, 1fr) y no flex: en una tabla de layout automatico el flex aporta el ancho de su texto nowrap como minimo y la
    tabla desborda (99 px a 1366 en #archivos, medido); la pista de 0 minimo deja que el titulo se recorte. Columnas fijas por
    posicion (emisor y rev son opcionales: sin gap, cada pieza trae su margen). */
-.dtabla .nombre { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; min-width: 240px; align-items: center; }
+.dtabla .nombre { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; min-width: 200px; align-items: center; }   /* v0.29.0: 240 -> 200, que ahora todo lo demas es nowrap */
 .dtabla .nombre .fico { grid-column: 1; }
 .dtabla .nombre .emisor { grid-column: 2; margin-left: var(--sp-2); font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
 .dtabla .nombre .t { grid-column: 3; margin-left: var(--sp-2); }
@@ -293,17 +297,22 @@
 .dtabla td .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dtabla td .t a { color: inherit; text-decoration: none; } .dtabla td .t a:hover { text-decoration: underline; }
 .dtabla td .p { font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dtabla .fico { width: 28px; height: 32px; } .dtabla .fico svg { width: 26px; height: 26px; }
+.dtabla .fico { width: 24px; height: 26px; } .dtabla .fico svg { width: 22px; height: 22px; }   /* v0.29.0: compacta */
 .dtabla .quien { display: inline-flex; gap: var(--sp-1); align-items: center; white-space: nowrap; } .dtabla .quien .av { width: 22px; height: 22px; font-size: .58rem; } .dtabla .quien > span:last-child { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
 /* cuando el PANEL (no la ventana) se estrecha, la tabla cede columnas antes que desbordar: primero quien, luego la fecha */
 .docs > .lista { container-type: inline-size; }
 /* v0.19.0: con la columna Fecha (del documento) la tabla ya no cabe en el panel de Docs a 1366 (810 px) con «Ligado por» y
    «Ligada»: bajo 900 se ceden las dos (la fecha que importa es la del documento; la de la liga sigue en escritorio ancho). */
-@container (max-width: 900px) { .dtabla .c-quien, .dtabla .c-fecha, .dtabla .c-tipo { display: none; } }   /* y Tipo: el icono ya lo dice, y sus ~86 px van al titulo (medido: la tabla del panel de Docs a 1366 mide 808 y Nombre quedaba en 270) */
+@container (max-width: 900px) { .dtabla .c-tipo { display: none; } }   /* v0.29.0: quien y fecha ya no existen; Tipo sigue cediendo */   /* y Tipo: el icono ya lo dice, y sus ~86 px van al titulo (medido: la tabla del panel de Docs a 1366 mide 808 y Nombre quedaba en 270) */
 @container (max-width: 760px) { .dtabla .nombre { min-width: 170px; } .dtabla .c-tarjeta select { width: 150px; } }
-.dtabla td.c-fecha { font-family: var(--font-data); font-size: .78rem; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+/* v0.29.0: la nota «Ligado por X · fecha» del menu «⋯» (antes dos columnas) */
+.fila-menu .menu .menu-nota { display: inline-flex; gap: var(--sp-2); align-items: center; padding: var(--sp-1) var(--sp-2) var(--sp-2); margin-bottom: 2px; border-bottom: 1px solid var(--border-hairline); font-size: .78rem; color: var(--text-muted); white-space: nowrap; }
+.fila-menu .menu .menu-nota .av { width: 20px; height: 20px; font-size: .56rem; }
 .dtabla .c-tarjeta select { min-height: var(--control-h-sm); font: inherit; font-family: var(--font-ui); font-size: .82rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); width: 180px; max-width: 100%; }   /* v0.19.0: width fijo, no max-width: con max-width la tabla reservaba a la columna el ancho de la opcion mas larga del select (~400 px) y recortaba el Nombre */
-.dtabla .tarjeta-liga { border: 0; background: none; font: inherit; font-size: .82rem; color: var(--text-link); cursor: pointer; text-align: left; padding: 0; }
+/* v0.29.0: la tarjeta es una PILDORA de ancho fijo con «…» (boton en #archivos, texto en lectura); el select de Docs ya media 180 */
+.dtabla .tarjeta-liga { display: inline-block; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); font: inherit; font-size: .8rem; color: var(--text-body); text-align: left; padding: 2px 10px; }
+.dtabla button.tarjeta-liga { color: var(--text-link); cursor: pointer; } .dtabla button.tarjeta-liga:hover { border-color: var(--text-link); }
+.dtabla .tarjeta-liga.sin { color: var(--text-faint); border-style: dashed; }
 .dtabla td .estado { display: inline-flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; }
 /* chip del tipo de archivo, con el color del icono */
 /* v0.27.0 (Carlos, 14-sep, artifact 24ba421e «B6»): el chip de tipo es una ETIQUETA DE EXPEDIENTE —pestaña sólida con
@@ -344,12 +353,12 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
   .dtabla tr.doc td { display: block; padding: 0; border: 0 !important; background: none !important; }
   .dtabla tr.doc .c-nombre { grid-column: 1; grid-row: 1; width: auto; }
   .dtabla tr.doc .c-acc { grid-column: 2; grid-row: 1; }
-  .dtabla tr.doc .c-tipo, .dtabla tr.doc .c-estado, .dtabla tr.doc .c-del, .dtabla tr.doc .c-quien { display: inline-block; grid-column: 1 / -1; grid-row: auto; width: auto; margin-right: var(--sp-2); }
-  .dtabla tr.doc .c-fecha { display: none; }   /* v0.19.0: en ficha apilada la fecha que se ve es la del documento; «Ligada» queda para el escritorio */
+  .dtabla tr.doc .c-tipo, .dtabla tr.doc .c-estado, .dtabla tr.doc .c-del { display: inline-block; grid-column: 1 / -1; grid-row: auto; width: auto; margin-right: var(--sp-2); }
+  .dtabla tr.doc td { white-space: normal; }   /* v0.29.0: en ficha apilada si envuelve */
   /* v0.19.0: la fecha del documento va con el TIPO (renglon 2: «PDF … 01/07/2025» se lee como la fecha del archivo) y no junto a quien
      ligo, donde se leia como la fecha de la liga (revisor 13-sep); el estado baja al renglon 3 con quien. */
   .dtabla tr.doc .c-tipo { grid-row: 2; } .dtabla tr.doc .c-del { grid-row: 2; grid-column: 2; justify-self: end; }
-  .dtabla tr.doc .c-quien { grid-row: 3; } .dtabla tr.doc .c-estado { grid-row: 3; grid-column: 2; justify-self: end; }
+  .dtabla tr.doc .c-estado { grid-row: 3; grid-column: 2; justify-self: end; }
   .dtabla tr.doc .c-tarjeta { grid-column: 1 / -1; grid-row: 4; }
   .dtabla tr.doc .c-tarjeta select { max-width: 100%; width: 100%; }
   .dtabla tr.pest { display: block; } .dtabla tr.pest td { display: block; padding: var(--sp-2) 0 var(--sp-1); }
@@ -361,7 +370,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .doc .t .mn-chip { margin-right: var(--sp-1); vertical-align: middle; }
 /* U11: imprimir = lo que hay en pantalla, sin cromo. Ctrl+P o el boton «Imprimir». */
 @media print {
-  .mn-rail, .barra-movil, .sync, #avisos, #sinRed, .tabs, .filtros, .col-tabs, .proyecto-cab .acciones, .lateral, .col .mas, .ver-toda, .pie, .tema, .docs-acciones { display: none !important; }
+  .mn-rail, .barra-movil, .sync, #avisos, #sinRed, .tabs, .filtros, .col-tabs, .proyecto-cab .acciones, .cab-plegar, .sel-lista, .sel-proyecto > summary svg, .lateral, .col .mas, .ver-toda, .pie, .tema, .docs-acciones { display: none !important; }
   body { background: #fff; color: #000; }
   .contenido { padding: 0; }
   .mn-shell { display: block; }
@@ -409,6 +418,27 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .cabecera .sub { flex-basis: 100%; margin: 0; color: var(--text-muted); font-size: .9rem; }
 .proyecto-cab .titulo { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: nowrap; min-width: 0; }
 .proyecto-cab .titulo h1 { min-width: 0; }
+/* v0.29.0 (Carlos, 14-sep; artifact c43ad139, M5): el titulo es un SELECTOR de proyecto (<details>). El summary es el h1 con un
+   chevron tenue; la lista flota debajo (misma caja que .acc-menu .acciones) con un renglon por frente activo: icono del
+   equipo, titulo, «N abiertas · M vencidas»; el actual va marcado. Y la cabecera se CONTRAE con #btnCabecera. */
+.sel-proyecto { position: relative; min-width: 0; }
+.sel-proyecto > summary { display: inline-flex; align-items: center; gap: var(--sp-1); list-style: none; cursor: pointer; border-radius: var(--r-sm); padding: 0 var(--sp-1); margin: 0 calc(-1 * var(--sp-1)); max-width: 100%; }
+.sel-proyecto > summary::-webkit-details-marker { display: none; }
+.sel-proyecto > summary:hover, .sel-proyecto[open] > summary { background: var(--surface-hover); }
+.sel-proyecto > summary:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+.sel-proyecto > summary svg { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--text-muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--dur-fast); }
+.sel-proyecto[open] > summary svg { transform: rotate(180deg); }
+.sel-lista { position: absolute; left: 0; top: calc(100% + 4px); z-index: var(--z-pop); display: grid; gap: 2px; width: max-content; min-width: 260px; max-width: min(420px, 90vw); padding: var(--sp-2); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
+.sel-lista button { display: flex; align-items: center; gap: var(--sp-2); width: 100%; min-height: var(--control-h-sm); padding: var(--sp-1) var(--sp-2); border: 0; border-radius: var(--r-sm); background: none; color: var(--text-body); font: inherit; font-size: .9rem; text-align: left; cursor: pointer; }
+.sel-lista button:hover, .sel-lista button:focus-visible { background: var(--surface-hover); outline: none; }
+.sel-lista button.is-on { background: var(--surface-sunken); color: var(--text-strong); font-weight: 600; }
+.sel-lista button .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sel-lista button .n { flex: none; font-family: var(--font-data); font-size: .7rem; color: var(--text-muted); white-space: nowrap; }
+.sel-lista button .n.is-danger { color: var(--status-danger-fg); font-weight: 600; }
+.sel-lista .vacio { padding: var(--sp-2); font-size: .85rem; color: var(--text-muted); }
+.cab-plegar svg { transition: transform var(--dur-fast); }
+.proyecto-cab.contraida .cab-plegar svg { transform: rotate(180deg); }
+.proyecto-cab.contraida #pDesc, .proyecto-cab.contraida #pResumen { display: none; }
 /* Auditoria #9: un grupo de botones hermanos separa --sp-2 en toda la app (cabecera, pie de dialogo,
    acciones de Documentos, acciones de la tarjeta); --sp-1 queda para chips y para el pie del rail. */
 .proyecto-cab .acciones { display: flex; gap: var(--sp-2); margin-left: auto; }

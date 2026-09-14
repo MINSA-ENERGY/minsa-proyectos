@@ -105,8 +105,10 @@
 
     <!-- Proyecto -->
     <section id="p-proyecto" class="pantalla oculto">
-      <header class="cabecera proyecto-cab">
-        <div class="titulo"><span id="pEquipo"></span> <h1 id="pTitulo"></h1></div>
+      <header class="cabecera proyecto-cab" id="proyectoCab">
+        <!-- v0.29.0 (Carlos, 14-sep; artifact c43ad139, opcion M5): el TITULO es un selector — despliega los demas frentes
+             activos (equipo, abiertas, vencidas) y cambia de proyecto sin volver a la lista, en la misma pestaña. -->
+        <div class="titulo"><span id="pEquipo"></span> <details class="sel-proyecto" id="selProyecto"><summary title="Cambiar de proyecto"><h1 id="pTitulo"></h1><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary><div class="sel-lista" id="selLista" role="listbox" aria-label="Proyectos activos"></div></details></div>
         <span class="mn-chip is-ok estado" id="pEstado"></span>   <!-- v0.12.0: solo «Cerrado»; el «N/M hechas · %» salio (vive en Avance) -->
         <span class="reloj" id="pReloj"></span>
         <!-- B1: en celular las tres acciones del proyecto viven en un menu «···»; en escritorio el
@@ -116,6 +118,8 @@
         <details class="acc-menu" id="accMenu"><summary class="mn-btn is-sm is-icono" aria-label="Acciones del proyecto" title="Imprimir · Cubetas · Editar">⋮</summary>
         <div class="acciones"><button id="btnImprimir" class="mn-btn is-ghost is-sm" type="button" title="Imprimir o guardar como PDF lo que está en pantalla">Imprimir</button><button id="btnCubetas" class="mn-btn is-ghost is-sm" type="button" title="Renombrar, agregar o quitar las cubetas del tablero (solo gerencia)">Cubetas</button><details class="acc-sub" id="accEditar"><summary class="mn-btn is-ghost is-sm" title="Editar datos · Cerrar proyecto · Eliminar proyecto">Editar<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></summary><div class="acc-sub-caja"><button id="btnEditarProyecto" class="mn-btn is-ghost is-sm" type="button">Editar datos</button><button id="btnCerrarProyecto" class="mn-btn is-ghost is-sm" type="button">Cerrar proyecto</button><button id="btnReabrirProyecto" class="mn-btn is-ghost is-sm oculto" type="button">Reabrir</button><button id="btnEliminarProyecto" class="mn-btn is-danger is-sm oculto" type="button" title="Borra el proyecto con sus tarjetas y sus ligas (solo gerencia)">Eliminar proyecto</button></div></details></div>
         </details>
+        <!-- v0.29.0 (M5): la cabecera se CONTRAE a la linea del titulo (descripcion y resumen se ocultan); se recuerda en localStorage `cabecera`. -->
+        <button type="button" id="btnCabecera" class="mn-btn is-sm is-icono cab-plegar" aria-expanded="true" aria-controls="pDesc" title="Contraer la cabecera"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg></button>
         <!-- B2: la linea que resume el frente sin bajar a la lateral (que en celular queda a ~1,900 px). -->
         <p class="resumen-linea" id="pResumen"></p>
         <p class="sub" id="pDesc" title=""></p>

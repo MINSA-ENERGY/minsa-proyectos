@@ -114,7 +114,11 @@ const TRAZOS_PROYECTO = ['M3 7h7l2 2h9v10H3z'];
 // v0.18.0: el tercer valor es la llave de orden (ordenarLigas); «⋯» no ordena.
 // v0.19.0: «Fecha» es la del DOCUMENTO (el prefijo AAAA-MM-DD de la convencion, nombreHumano) y «Ligada» la de la liga
 // (_creado, la que antes se llamaba Fecha; conserva la llave `fecha` y sigue siendo el orden de arranque).
-export const COLUMNAS_DOCS = [['c-nombre', 'Nombre', 'nombre'], ['c-del', 'Fecha', 'del'], ['c-tipo', 'Tipo', 'tipo'], ['c-estado', 'Estado', 'estado'], ['c-tarjeta', 'Tarjeta', 'tarjeta'], ['c-quien', 'Ligado por', 'quien'], ['c-fecha', 'Ligada', 'fecha'], ['c-acc', '', null]];
+// v0.29.0 (Carlos, 14-sep; artifact c43ad139, opcion H2): «Ligado por» y «Ligada» SALEN de la tabla para que cada documento
+// quepa en UNA hilera; las dos viven ahora en el menu «⋯» (renglon de nota) y en el title del renglon. Sus llaves de orden
+// (`quien`, `fecha`) siguen en ordenarLigas por si un estado guardado las trae; tablaDocs las cae a `del`.
+export const COLUMNAS_DOCS = [['c-nombre', 'Nombre', 'nombre'], ['c-del', 'Fecha', 'del'], ['c-tipo', 'Tipo', 'tipo'], ['c-estado', 'Estado', 'estado'], ['c-tarjeta', 'Tarjeta', 'tarjeta'], ['c-acc', '', null]];
+const COLUMNAS_IDAS = new Set(['quien', 'fecha']);
 
 /** v0.18.0: las ligas en el orden `o` ({ col, dir }; nombre visible de quien ligo y titulo de la tarjeta, como se ven). */
 export function ordenarDocs(ligas, o = estado.ordenDocs) {
@@ -130,7 +134,7 @@ export function ordenarDocs(ligas, o = estado.ordenDocs) {
  */
 export function tablaDocs({ orden = null, alOrdenar = null } = {}) {
     const w = el('div', 'dtabla'); const t = el('table'); const th = el('thead'); const tr = el('tr');
-    const o = orden;
+    const o = orden && COLUMNAS_IDAS.has(orden.col) ? { col: 'del', dir: -1 } : orden;   // v0.29.0: una columna que ya no existe no puede quedar mandando
     for (const [cls, texto, clave] of COLUMNAS_DOCS) {
         const h = el('th', cls, texto); h.scope = 'col'; if (!texto) h.setAttribute('aria-label', 'Acciones');
         if (clave && o && alOrdenar) {
@@ -197,15 +201,17 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
         const sel = el('select'); sel.dataset.tarjetaDe = String(l.id); sel.setAttribute('aria-label', 'Tarjeta de la liga');
         opcionesTarjetas(sel, p); sel.value = l.TareaId ? String(l.TareaId) : '';
         sel.addEventListener('change', () => reasignarLiga(l, sel.value)); tdC.appendChild(sel);
-    } else if (l.TareaId && enArchivos) { tdC.appendChild(boton(tt ? tt.Title : `tarjeta #${l.TareaId}`, 'tarjeta-liga', tt && alTarjeta ? () => alTarjeta(tt) : null)); }
-    else tdC.appendChild(el('span', l.TareaId ? '' : 'p', tt ? tt.Title : l.TareaId ? `tarjeta #${l.TareaId}` : 'el proyecto entero'));
+    } else if (l.TareaId && enArchivos) { const b = boton(tt ? tt.Title : `tarjeta #${l.TareaId}`, 'tarjeta-liga', tt && alTarjeta ? () => alTarjeta(tt) : null); b.title = tt ? tt.Title : ''; tdC.appendChild(b); }
+    else { const s = el('span', 'tarjeta-liga' + (l.TareaId ? '' : ' sin'), tt ? tt.Title : l.TareaId ? `tarjeta #${l.TareaId}` : 'el proyecto entero'); if (tt) s.title = tt.Title; tdC.appendChild(s); }   // v0.29.0: pildora de ancho fijo con «…», como el boton
     tr.appendChild(tdC);
-    // Quien y cuando.
-    const tdQ = el('td', 'c-quien'); if (l.LigadoPor) { const q = el('span', 'quien'); q.appendChild(avatar(l.LigadoPor)); q.appendChild(el('span', '', nombreDe(l.LigadoPor, estado.roles))); tdQ.appendChild(q); } else tdQ.appendChild(el('span', 'p', '—')); tr.appendChild(tdQ);
-    const tdF = el('td', 'c-fecha'); const f = el('span', '', fechaCorta(l._creado)); if (l._creado) f.title = fechaHora(l._creado); tdF.appendChild(f); tr.appendChild(tdF);
+    // Quien y cuando (v0.29.0): ya no son columnas; van al title del renglon y como nota del menu «⋯».
+    const quien = l.LigadoPor ? nombreDe(l.LigadoPor, estado.roles) : '', cuando = l._creado ? fechaCorta(l._creado) : '';
+    const ligada = quien || cuando ? `Ligado por ${quien || '—'}${cuando ? ' · ' + cuando : ''}` : '';
+    if (ligada) tr.title = ligada;
     // Acciones «⋯»: Abrir · Quitar (si puede) · Documentos del proyecto (en #archivos).
     const tdA = el('td', 'c-acc');
     const acciones = [];
+    if (ligada) { const n = el('span', 'menu-nota quien'); if (l.LigadoPor) n.appendChild(avatar(l.LigadoPor)); const tx = el('span', '', ligada); if (l._creado) tx.title = fechaHora(l._creado); n.appendChild(tx); acciones.push(n); }
     if (href) { const a = el('a', 'mn-btn is-ghost is-sm', 'Abrir'); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; acciones.push(a); }
     if (ruta) acciones.push(boton(l.Tipo === 'enlace' ? 'Copiar dirección' : 'Copiar ruta', 'mn-btn is-ghost is-sm', () => copiarTexto(ruta), { copiar: String(l.id) }));   // v0.19.0: la ruta que salio de debajo del nombre
     if (enArchivos && p) acciones.push(boton('Documentos del proyecto', 'mn-btn is-ghost is-sm', () => irAHash(`#p/${p.Clave}/docs`)));

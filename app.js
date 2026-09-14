@@ -749,6 +749,8 @@ function pintarProyecto() {
     const eq = equipoDe(p); const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p));
     $('pEquipo').textContent = ''; $('pEquipo').appendChild(iconoEquipo(eq, 'lg'));   // v0.7.0: icono, no nombre
     $('pTitulo').textContent = p.Title; $('pDesc').textContent = p.Descripcion || '';
+    pintarSelectorProyecto(p);   // v0.29.0 (M5): los demas frentes activos, bajo el titulo
+    $('proyectoCab').classList.toggle('contraida', cabeceraContraida());
     $('pEstado').textContent = p.Estado === 'cerrado' ? 'Cerrado' : '';   // v0.12.0: el «N/M hechas · %» salio del titulo (Carlos, 12-sep); vive en Avance
     $('btnEditarProyecto').disabled = !PUEDE.proyecto(estado.rol) || p.Estado !== 'activo';
     $('btnCubetas').disabled = !PUEDE.proyecto(estado.rol) || p.Estado !== 'activo';   // v0.11.0
@@ -977,6 +979,34 @@ function fijarRail(plegado) {
 }
 $('btnMarca').addEventListener('click', () => fijarRail(true));
 $('btnPlegar').addEventListener('click', () => fijarRail(false));
+
+// ---- v0.29.0 (Carlos, 14-sep; artifact c43ad139, opcion M5): el titulo del proyecto es un SELECTOR y la cabecera se contrae.
+// El selector lista los frentes ACTIVOS en el orden de la lista (vence antes primero) —el abierto siempre, aunque este
+// cerrado— con icono del equipo y «N abiertas · M vencidas»; elegir uno cambia de proyecto en la MISMA pestaña (tablero,
+// docs, chat…), sin pasar por la lista. La contraccion oculta descripcion y resumen; se recuerda en localStorage `cabecera`.
+function pintarSelectorProyecto(p) {
+    const caja = $('selLista'); caja.textContent = '';
+    const lista = ordenarProyectos(activos()); if (!lista.some(x => x.id === p.id)) lista.unshift(p);
+    if (lista.length < 2) { caja.appendChild(el('p', 'vacio', 'No hay otro proyecto activo.')); }
+    for (const q of lista) {
+        const ts = tareasDe(q, estado.tareas); const abiertas = ts.filter(t => t.Columna !== 'hecho').length, vencidas = vencidasEn(ts);
+        const b = el('button', q.id === p.id ? 'is-on' : ''); b.type = 'button'; b.setAttribute('role', 'option'); b.setAttribute('aria-selected', q.id === p.id ? 'true' : 'false'); b.dataset.proyecto = String(q.id);
+        b.appendChild(iconoEquipo(equipoDe(q), 'sm')); b.appendChild(el('span', 't', q.Title));
+        const n = el('span', 'n' + (vencidas ? ' is-danger' : ''), q.Estado !== 'activo' ? 'cerrado' : `${abiertas} abierta${abiertas === 1 ? '' : 's'}${vencidas ? ` · ${vencidas} vencida${vencidas === 1 ? '' : 's'}` : ''}`); b.appendChild(n);
+        b.addEventListener('click', () => { $('selProyecto').open = false; if (q.id === p.id) return; fijarProyectoAbierto(q); irA('proyecto'); });
+        caja.appendChild(b);
+    }
+}
+document.addEventListener('click', e => { const m = $('selProyecto'); if (m.open && !m.contains(e.target)) m.open = false; });
+$('selProyecto').addEventListener('keydown', e => { if (e.key === 'Escape') { $('selProyecto').open = false; $('selProyecto').querySelector('summary').focus(); } });
+function cabeceraContraida() { try { return localStorage.getItem('cabecera') === 'contraida'; } catch (_) { return false; } }
+function fijarCabecera(contraida) {
+    try { if (contraida) localStorage.setItem('cabecera', 'contraida'); else localStorage.removeItem('cabecera'); } catch (_) {}
+    $('proyectoCab').classList.toggle('contraida', contraida);
+    $('btnCabecera').setAttribute('aria-expanded', contraida ? 'false' : 'true'); $('btnCabecera').title = contraida ? 'Desplegar la cabecera' : 'Contraer la cabecera';
+}
+$('btnCabecera').addEventListener('click', () => fijarCabecera(!cabeceraContraida()));
+fijarCabecera(cabeceraContraida());
 
 // ---------------------------------------------------------------- enganche
 
