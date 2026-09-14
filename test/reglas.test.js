@@ -116,6 +116,11 @@ ok('ordenarLista por columna con cubetas propias = su posicion', ordenarLista([{
 const t10 = [...del10, { id: 7, ProyectoId: 10, Title: 'Revisión del plano', Columna: 'por-hacer', Asignado: 'Ana@example.invalid', Descripcion: 'con Colega' }];
 ok('filtrarTareas vacio deja pasar todo', filtrarTareas(t10, {}, HOY).length === 6);
 ok('filtrarTareas por persona ignora mayusculas', filtrarTareas(t10, { quien: 'ana@example.invalid' }, HOY).map(t => t.id).join(',') === '7');
+// v0.30.0 (F3): varias personas a la vez (array); el array vacio deja pasar todo.
+const t11 = [...t10, { id: 8, ProyectoId: 10, Title: 'G', Columna: 'por-hacer', Asignado: 'bob@example.invalid' }, { id: 9, ProyectoId: 10, Title: 'H', Columna: 'por-hacer', Asignado: 'cy@example.invalid' }];
+ok('filtrarTareas con VARIAS personas (array) une sus tarjetas', filtrarTareas(t11, { quien: ['ana@example.invalid', 'BOB@example.invalid'] }, HOY).map(t => t.id).join(',') === '7,8' && filtrarTareas(t11, { quien: ['ana@example.invalid'] }, HOY).map(t => t.id).join(',') === '7');
+ok('filtrarTareas con quien: [] deja pasar todo', filtrarTareas(t10, { quien: [] }, HOY).length === 6);
+ok('filtrarTareas persona + sinDueno = UNION (las suyas mas las huerfanas abiertas)', filtrarTareas(t11, { quien: ['ana@example.invalid'], sinDueno: true }, HOY).map(t => t.id).join(',') === '2,3,4,6,7' && filtrarTareas(t11, { sinDueno: true }, HOY).map(t => t.id).join(',') === '2,3,4,6');
 ok('filtrarTareas solo alta', filtrarTareas(t10, { alta: true }, HOY).map(t => t.id).join(',') === '1,3');
 ok('filtrarTareas solo vencidas (hechas fuera)', filtrarTareas(t10, { vencidas: true }, HOY).map(t => t.id).join(',') === '2');
 ok('filtrarTareas texto sin acentos, en titulo o descripcion', filtrarTareas(t10, { texto: 'revision' }, HOY).map(t => t.id).join(',') === '7' && filtrarTareas(t10, { texto: 'COLEGA' }, HOY).length === 1 && filtrarTareas(t10, { texto: 'zzz' }, HOY).length === 0);

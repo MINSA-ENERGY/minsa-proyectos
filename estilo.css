@@ -226,7 +226,7 @@
   .menu-caja .tema { margin-left: 0; }
   .menu-caja .tema button { flex: 1; }
   /* U8: en celular «Nueva tarea» flota abajo a la derecha, encima de las pestanas; si no aplica, no estorba. */
-  #btnNuevaTarea { position: fixed; right: var(--sp-3); bottom: calc(var(--sp-7) + 20px + env(safe-area-inset-bottom)); z-index: var(--z-pop); border-radius: var(--r-pill); box-shadow: var(--shadow-pop); padding: 0 var(--sp-4); min-height: var(--control-h); }
+  #btnNuevaTarea { position: fixed; right: var(--sp-3); bottom: calc(var(--sp-7) + 20px + env(safe-area-inset-bottom)); z-index: var(--z-pop); border-radius: var(--r-pill); box-shadow: var(--shadow-pop); padding: 0 var(--sp-4); min-height: var(--control-h); background: var(--status-ok-solid); color: var(--text-on-brand); border-color: var(--status-ok-solid); }   /* v0.30.0 (B5): flotante LLENO de verde — un contorno transparente sobre el tablero deja leer las tarjetas a traves */
   #btnNuevaTarea:disabled { display: none; }
   /* B5: el FAB flota sobre la columna y tapaba el pie de la ultima tarjeta (205 x 60 px). */
   .tablero-caja, .docs, .tabla, .chat { padding-bottom: calc(var(--control-h) + var(--sp-3)); }
@@ -243,6 +243,21 @@
 .mn-help code { font-family: var(--font-data); font-size: .92em; }
 /* A4: «Copiar liga» como boton de icono: en la cabecera de la tarjeta se partia en dos lineas
    y empujaba el titulo a tres (220 px de cabecera antes del primer dato). */
+/* v0.30.0 (Carlos, 14-sep; artifact YLnjhT3a, opcion B5 «contorno que se llena + onda», con el primario en VERDE):
+   el boton responde al clic — se encoge un 3 % (:active) y suelta una ONDA desde el punto tocado (.onda, la pone
+   comun.js: ondaAlPulsar). El primario deja de ser un rectangulo azul plano: en reposo es contorno verde de 2 px
+   (el verde del avance y de «hecha»), al pasar el cursor se llena y toma sombra. Sobre la piel vendorizada
+   (minsa-ui.css no se edita: vendorizar.py --verificar lo caza), con la misma especificidad y despues. */
+.mn-btn { position: relative; overflow: hidden; transition: background var(--dur-fast), border-color var(--dur-fast), color var(--dur-fast), box-shadow var(--dur-fast), transform .08s; }
+.mn-btn:active:not(:disabled) { transform: scale(.97); }
+.mn-btn.is-primary { background: transparent; color: var(--status-ok-fg); border: 2px solid var(--status-ok-solid); padding-inline: calc(var(--sp-4) - 1px); }
+.mn-btn.is-primary.is-sm { padding-inline: calc(var(--sp-3) - 1px); }
+.mn-btn.is-primary:hover:not(:disabled), .mn-btn.is-primary:focus-visible { background: var(--status-ok-solid); color: var(--text-on-brand); filter: none; box-shadow: 0 3px 10px rgba(44, 138, 55, .28); }
+.mn-btn.is-primary:disabled { background: transparent; }
+.mn-btn.is-danger:hover:not(:disabled) { background: var(--status-danger-bg); }
+.mn-btn .onda { position: absolute; border-radius: 50%; background: currentColor; opacity: .28; transform: scale(0); pointer-events: none; animation: onda .5s ease-out forwards; }
+@keyframes onda { to { transform: scale(4); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .mn-btn { transition: none; } .mn-btn:active:not(:disabled) { transform: none; } .mn-btn .onda { display: none; } }
 .mn-btn.is-icono { padding: 0; min-width: var(--control-h-sm); justify-content: center; }
 .mn-btn.is-icono svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .mn-dialog-head h2 { min-width: 0; overflow-wrap: anywhere; }
@@ -376,6 +391,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
   .contenido { padding: 0; }
   .mn-shell { display: block; }
   .dos-columnas, .dos-columnas.ancha { grid-template-columns: 1fr; }
+  #p-proyecto.ver-resumen .lateral { display: grid !important; }   /* v0.30.0 (L6): imprimir desde Resumen imprime el resumen, no una hoja con solo la cabecera */
   .tablero { grid-template-columns: repeat(4, 1fr); overflow: visible; }
   .col, .tarjeta, .mn-card, .pficha, .doc { break-inside: avoid; box-shadow: none; }
   .tabla { overflow: visible; }
@@ -409,7 +425,8 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .entrada-titulo { margin: var(--sp-3) 0 0; font-family: var(--font-display); font-weight: 600; font-size: 2rem; line-height: 1.05; letter-spacing: -.02em; }
 .entrada-titulo em { font-style: normal; color: var(--green-500); }
 .entrada .lema { margin: 0 0 var(--sp-3); color: var(--slate-300); }
-.entrada .mn-btn.is-primary { background: var(--sky-400); color: var(--slate-950); }
+.entrada .mn-btn.is-primary, .entrada .mn-btn.is-primary:hover:not(:disabled), .entrada .mn-btn.is-primary:focus-visible { background: var(--sky-400); color: var(--slate-950); border-color: transparent; box-shadow: none; }   /* v0.30.0: la entrada conserva su boton lleno en reposo, hover y foco (el hover verde de .is-primary es (0,4,0) y le ganaba) */
+.entrada .mn-btn.is-primary:hover:not(:disabled) { filter: brightness(1.06); }
 .entrada .mn-label { color: var(--slate-400); min-height: 1.2em; }
 
 /* ---- cabeceras y pantallas */
@@ -465,9 +482,11 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .acc-sub .acc-sub-caja { display: grid; gap: 2px; margin-top: 2px; padding-left: var(--sp-3); border-left: 2px solid var(--border-hairline); }
 .acc-menu .acciones .mn-btn.is-danger { color: var(--status-danger-loud); border-color: transparent; }
 .acc-menu .acciones .mn-btn.is-danger:hover { background: var(--status-danger-bg); }
-/* La linea-resumen es para CELULAR: en escritorio la lateral ya dice «En curso 3 · En revisión 2 ·
-   Fin del frente», y pintar las dos es el mismo defecto que A6 («Al día» dos veces). */
-.resumen-linea { display: none; flex-basis: 100%; margin: 0; font-size: .82rem; color: var(--text-muted); }
+/* La linea-resumen era solo de CELULAR (en escritorio la lateral decia lo mismo); desde v0.30.0 (L6) la lateral
+   es la pestaña Resumen y ya no esta a la vista, asi que la linea se muestra en todo ancho (la cabecera
+   contraida de v0.29.0 la sigue ocultando). */
+.resumen-linea { display: block; flex-basis: 100%; margin: 0; font-size: .82rem; color: var(--text-muted); }
+.resumen-linea:empty { display: none; }
 .resumen-linea.is-danger { color: var(--status-danger-fg); font-weight: 600; }
 .solo-movil { display: none; }
 .t-corto { display: none; }
@@ -478,8 +497,15 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .dos-columnas { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--sp-4); min-width: 0; }
 .dos-columnas.ancha { grid-template-columns: minmax(0, 1fr) 260px; }
 .apilado { display: grid; gap: var(--sp-4); align-content: start; min-width: 0; }
-/* Con la lateral, las 4 columnas del tablero necesitan ~1100 px; por debajo la lateral baja. */
-@media (max-width: 1200px) { .dos-columnas.ancha { grid-template-columns: 1fr; } }
+/* v0.30.0 (L6): en el proyecto ya no hay columna lateral (la regla <=1200 que la bajaba se retiro: .ancha solo
+   existe en #p-proyecto) — el tablero toma todo el ancho y la lateral es la pestaña «Resumen»: oculta salvo
+   con .ver-resumen, y entonces las tres tarjetas cortas van en una fila de TRES y Actividad a todo lo ancho abajo
+   (auto-fit daba 4 pistas y una vacia a 1366); bajo 900 caen a una columna. */
+#p-proyecto .dos-columnas.ancha { grid-template-columns: 1fr; }
+#p-proyecto .lateral { display: none; }
+#p-proyecto.ver-resumen .lateral { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: start; }
+#p-proyecto.ver-resumen .lateral > .mn-card:last-child { grid-column: 1 / -1; }
+@media (max-width: 900px) { #p-proyecto.ver-resumen .lateral { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .dos-columnas, .dos-columnas.ancha { grid-template-columns: 1fr; } }
 
 /* ---- listas de proyectos */
@@ -531,7 +557,30 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .filtros button .av { margin: 0 var(--sp-1) 0 calc(-1 * var(--sp-2)); vertical-align: middle; }
 /* F9: filtro de tarjetas dentro del proyecto (chips + texto) */
 .tareas-filtros { align-items: center; }
-.tareas-filtros .chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
+.tareas-filtros .chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }
+/* v0.30.0 (F3): el menu plegable «Quién» — un details cuyo summary es un .mn-btn.is-sm (avatar de la primera
+   marcada · nombre o «Quién» · cuantas · chevron) y cuya caja flota debajo con una casilla por persona y su conteo. */
+.menu-quien { position: relative; }
+.menu-quien > summary { list-style: none; border-radius: var(--r-pill); gap: var(--sp-2); padding-inline: var(--sp-2) var(--sp-2); font-size: .8rem; color: var(--text-muted); }
+.menu-quien > summary::-webkit-details-marker { display: none; }
+.menu-quien > summary .av { margin-left: calc(-1 * var(--sp-1)); }
+.menu-quien > summary svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--dur-fast); }
+.menu-quien[open] > summary svg { transform: rotate(180deg); }
+.menu-quien > summary.is-on, .menu-quien[open] > summary { color: var(--brand-primary); border-color: var(--brand-primary); background: var(--surface-selected); }
+.menu-quien > summary .n { background: var(--brand-primary); color: var(--text-on-brand); border-radius: var(--r-pill); font-family: var(--font-data); font-size: .62rem; font-weight: 600; padding: 1px 6px; line-height: 1.4; }
+.menu-quien .caja { position: absolute; top: calc(100% + 4px); left: 0; z-index: var(--z-pop); min-width: 250px; max-width: min(92vw, 340px); background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-md); box-shadow: var(--shadow-pop); padding: var(--sp-2); display: grid; gap: 2px; }
+.menu-quien .caja .tit { padding: var(--sp-1) var(--sp-2) var(--sp-1); }
+.menu-quien .caja label { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) var(--sp-2); min-height: var(--control-h-sm); border-radius: var(--r-sm); cursor: pointer; font-size: .85rem; color: var(--text-body); }
+.menu-quien .caja label:hover { background: var(--surface-hover); }
+.menu-quien .caja label:has(input:checked) { color: var(--text-strong); font-weight: 600; }
+.menu-quien .caja label input { accent-color: var(--brand-primary); width: 16px; height: 16px; margin: 0; flex: none; }
+.menu-quien .caja label .av { width: 20px; height: 20px; font-size: .58rem; }
+.menu-quien .caja label .nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.menu-quien .caja label .n { margin-left: auto; font-size: .72rem; color: var(--text-faint); }
+.menu-quien .caja hr { border: 0; border-top: 1px solid var(--border-hairline); margin: var(--sp-1) 0; }
+.menu-quien .caja .vacio { padding: var(--sp-1) var(--sp-2); font-size: .82rem; color: var(--text-faint); }
+.menu-quien .caja .limp { background: none; border: 0; font: inherit; font-size: .8rem; font-weight: 600; color: var(--brand-primary); text-align: left; padding: var(--sp-1) var(--sp-2); min-height: var(--control-h-sm); border-radius: var(--r-sm); cursor: pointer; }
+.menu-quien .caja .limp:hover { background: var(--surface-hover); }
 /* Auditoria #7: es el mismo .buscador de Proyectos y Mis tareas; aqui solo cambia el acomodo. */
 .tareas-filtros .buscador { margin-left: auto; min-width: 0; width: min(13rem, 100%); }   /* v0.20.0: 13rem (era 16) para que el conmutador quepa en la fila a 1366 */
 /* C3 (v0.6.0): el mismo buscador en Proyectos y Mis tareas, a lo ancho del contenido. */
@@ -587,6 +636,19 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tab { background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px; padding: var(--sp-2) var(--sp-3); color: var(--text-muted); font: inherit; font-weight: 600; font-size: .9rem; cursor: pointer; min-height: var(--control-h); }
 .tab.is-on { color: var(--brand-primary); border-bottom-color: var(--brand-primary); }
 .tabs .mn-btn { margin-left: auto; }
+/* v0.30.0 (L6): con «Resumen» en escritorio la fila trae 6 pestañas + «Nueva tarea» y a 820 desbordaba 30 px el documento
+   (medido con capturas.mjs). En tableta (≤ 900) la fila rueda dentro de si misma, las pestañas no se encogen y
+   «Documentos» pasa a «Docs», como ya hacia el celular desde v0.5.0. */
+@media (max-width: 900px) {
+  .tabs { overflow-x: auto; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tabs .tab, .tabs .mn-btn { flex: none; }
+  .t-largo { display: none; }
+  .t-corto { display: inline; }
+  /* «Nueva tarea» se queda PEGADO al borde derecho mientras las pestañas ruedan debajo (el revisor lo vio cortado a 820);
+     lleva el fondo de la pagina porque el primario es contorno transparente. En celular (<=720) el boton es flotante y no aplica. */
+  .tabs .mn-btn.is-primary { position: sticky; right: 0; background: var(--surface-page); box-shadow: -10px 0 8px -2px var(--surface-page); }
+}
 
 /* ---- tablero de 4 columnas */
 .tablero { display: grid; grid-template-columns: repeat(4, minmax(170px, 1fr)); gap: var(--sp-3); overflow-x: auto; padding-bottom: var(--sp-1); }
@@ -769,15 +831,8 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .solo-movil { display: inline-flex; }
   .resumen-linea { display: block; }
   .resumen-linea:empty { display: none; }
-  /* Con «Resumen» y «Filtrar» la fila de pestanas ya no cabe en 390 px (desbordaba 14 px el
-     documento entero): rueda dentro de si misma, no arrastra la pagina. */
-  .tabs { overflow-x: auto; scrollbar-width: none; }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tabs .tab, .tabs .mn-btn { flex: none; }
+  /* La fila de pestanas rueda dentro de si misma y «Documentos» es «Docs»: desde v0.30.0 lo pone el bloque <=900 de arriba. */
   .tabs .tab { padding: var(--sp-2); }
-  .tab.solo-movil { align-items: center; justify-content: center; }   /* auditoria #4: .solo-movil = inline-flex y el texto subia */
-  .t-largo { display: none; }
-  .t-corto { display: inline; }
   .proyecto-cab { gap: var(--sp-1) var(--sp-2); }
   .proyecto-cab h1 { font-size: 1.15rem; }
   .proyecto-cab .titulo h1 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -792,13 +847,10 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   /* B1: filtros y buscador detras de «Filtrar» */
   #filtroTareas.plegado { display: none; }
   #btnFiltros.is-on { background: var(--surface-selected); color: var(--brand-primary); border-color: var(--brand-primary); }
-  /* B2: la lateral es la pestana «Resumen», no un scroll de cuatro pantallas */
-  #p-proyecto .lateral { display: none; }
-  #p-proyecto.ver-resumen .lateral { display: grid; }
-  /* B4: los chips de persona, solo avatar (el nombre va en el title); con 10 cuentas serian 4 renglones */
-  .tareas-filtros .chips button[data-quien] { padding: 0 var(--sp-1); }
-  .tareas-filtros .chips button[data-quien] .nom { display: none; }
-  .tareas-filtros .chips button[data-quien] .av { margin: 0; }
+  /* B2: la lateral es la pestana «Resumen» — desde v0.30.0 (L6) en todo ancho; las reglas viven arriba, fuera del @media. */
+  /* B4 (v0.5.0) ponia los chips de persona solo con avatar; desde v0.30.0 (F3) las personas viven en el menu
+     «Quién», que ya es un solo boton — en celular la caja se pega al borde izquierdo del panel. */
+  .menu-quien .caja { max-width: calc(100vw - 2 * var(--sp-4)); }
   /* En celular el renglon de Documentos baja su costado (estado + «tarjeta:») a su propia linea:
      con tres columnas, el select dejaba al nombre del archivo una palabra por renglon. */
   .doc { grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2); }

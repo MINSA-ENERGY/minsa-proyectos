@@ -132,7 +132,9 @@
             <button class="tab" data-tab="docs" role="tab" type="button"><span class="t-largo">Documentos</span><span class="t-corto">Docs</span><span class="n" id="nDocsTab" hidden></span></button>
             <!-- v0.8.0: chat por proyecto (una conversacion por frente, con @menciones) -->
             <button class="tab" data-tab="chat" role="tab" type="button">Chat<span class="n" id="nChatTab" hidden></span></button>
-            <button class="tab solo-movil" data-tab="resumen" role="tab" type="button">Resumen</button>
+            <!-- v0.30.0 (Carlos, 14-sep; artifact YLnjhT3a, opcion L6): «Resumen» es una pestaña en TODO ancho — la lateral
+                 (Avance · Quiénes · Próximos vencimientos · Actividad) deja de ocupar 260 px junto al tablero y se vuelve esta vista. -->
+            <button class="tab" data-tab="resumen" role="tab" type="button">Resumen</button>
             <button id="btnFiltros" class="mn-btn is-sm solo-movil" type="button" aria-expanded="false">Filtrar</button>
             <button id="btnNuevaTarea" class="mn-btn is-primary is-sm" type="button">Nueva tarea</button>
           </div>
@@ -160,7 +162,7 @@
             </form>
           </div>
         </div>
-        <div class="apilado lateral">
+        <div class="apilado lateral"><!-- v0.30.0: solo visible con #p-proyecto.ver-resumen (pestaña Resumen), en todo ancho -->
           <section class="mn-card avance"><h2>Avance</h2><div class="avance-anillo" id="pAnillo"></div><div class="barra"><i id="pBarra"></i></div><div class="kv" id="pAvance"></div></section>
           <section class="mn-card"><h2>Quiénes</h2><div class="mini" id="pQuienes"></div></section>
           <section class="mn-card"><h2>Próximos vencimientos</h2><div class="mini" id="pVence"></div></section>

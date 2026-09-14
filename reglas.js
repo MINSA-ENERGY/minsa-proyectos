@@ -267,13 +267,16 @@ export const sinAcentos = s => String(s || '').normalize('NFD').replace(/[\u0300
  * filtro vacio deja pasar todo.
  */
 export function filtrarTareas(tareas, f = {}, hoy = new Date()) {
-    const quien = String(f.quien || '').trim().toLowerCase();
+    // v0.30.0 (F3): «quien» acepta UNA persona (string) o VARIAS (array) — el menu «Quién» permite marcar varias.
+    const quienes = [].concat(f.quien || []).map(q => String(q || '').trim().toLowerCase()).filter(Boolean);
     const texto = sinAcentos(f.texto).trim();
+    // «Sin dueño» es una casilla mas del mismo menu que las personas, asi que con ellas hace UNION (mis tarjetas
+    // + las huerfanas), no interseccion — sola sigue dejando solo las huerfanas abiertas (C7).
+    const huerfana = t => t.Columna !== 'hecho' && !String(t.Asignado || '').trim();
     return (tareas || []).filter(t =>
-        (!quien || String(t.Asignado || '').toLowerCase() === quien)
+        ((!quienes.length && !f.sinDueno) || quienes.includes(String(t.Asignado || '').toLowerCase()) || (f.sinDueno && huerfana(t)))
         && (!f.alta || t.Prioridad === 'alta')
         && (!f.vencidas || estadoVence(t, 0, hoy) === 'danger')
-        && (!f.sinDueno || (t.Columna !== 'hecho' && !String(t.Asignado || '').trim()))
         && (!texto || sinAcentos(t.Title).includes(texto) || sinAcentos(t.Descripcion).includes(texto)));
 }
 

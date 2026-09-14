@@ -507,6 +507,24 @@ try {
         const N = gerencia ? 2 : 3;   // colaborador trae ademas la sembrada (alta, por-hacer, vencida)
         await abrirLau(); await esperar(() => document.querySelectorAll('#tableroCols .tarjeta').length === N, 'todas las tarjetas');
         R.ok('filtro: chip por persona (yo) y los dos fijos', !!document.querySelector(`#filtroChips [data-quien="${YO}"]`) && !!document.querySelector('#filtroChips [data-filtro="alta"]') && !!document.querySelector('#filtroChips [data-filtro="vencidas"]'));
+        // v0.30.0 (F3): las personas viven en el menu «Quién»: casilla por persona con conteo, varias a la vez, y se cierra al hacer clic fuera.
+        {
+            const mod = await import('../comun.js'); const yo = YO.toLowerCase(); const mias = mod.estado.tareas.filter(x => Number(x.ProyectoId) === mod.estado.proyectoAbierto.id && String(x.Asignado || '').toLowerCase() === yo).length;
+            const menu = document.querySelector('#filtroChips .menu-quien'); menu.querySelector('summary').click(); await dormir(20);
+            R.ok('F3: el menu «Quién» abre desde su summary y trae mi casilla con el conteo de mis tarjetas', menu.open && !!document.querySelector(`#filtroChips label[data-quien="${yo}"] .n`) && document.querySelector(`#filtroChips label[data-quien="${yo}"] .n`).textContent === String(mias), (document.querySelector(`#filtroChips label[data-quien="${yo}"]`) || {}).textContent);
+            document.querySelector(`#filtroChips label[data-quien="${yo}"]`).click(); await dormir(30);
+            const menu2 = document.querySelector('#filtroChips .menu-quien');
+            R.ok('F3: marcar una persona filtra el tablero, deja el menu ABIERTO tras el repintado y el summary lleva su avatar', menu2.open && document.querySelectorAll('#tableroCols .tarjeta').length < N && menu2.querySelector('summary').classList.contains('is-on') && !!menu2.querySelector('summary .av') && Array.isArray(mod.estado.filtroTareas.quien) && mod.estado.filtroTareas.quien[0] === yo);
+            document.querySelector('#filtroChips [data-filtro="sinDueno"]').click(); await dormir(30);
+            R.ok('F3: persona + sin dueño a la vez = la union (mis tarjetas + la huérfana), y el summary cuenta 2', document.querySelectorAll('#tableroCols .tarjeta').length === mias + 1 && document.querySelector('#filtroChips .menu-quien summary .n') && document.querySelector('#filtroChips .menu-quien summary .n').textContent === '2');
+            document.querySelector('#filtroChips [data-filtro="quitarQuien"]').click(); await dormir(30);
+            R.ok('F3: «Quitar el filtro de persona» vacia personas y sin dueño y DEJA el menu abierto (el clic burbujea con el boton ya desprendido)', mod.estado.filtroTareas.quien.length === 0 && !mod.estado.filtroTareas.sinDueno && document.querySelector('#filtroChips .menu-quien').open && document.querySelectorAll('#tableroCols .tarjeta').length === N);
+            document.querySelector(`#filtroChips label[data-quien="${yo}"]`).click(); await dormir(30);
+            document.body.click(); await dormir(20);
+            R.ok('F3: un clic fuera cierra el menu', !document.querySelector('#filtroChips .menu-quien').open);
+            document.querySelector('#filtroChips [data-filtro="limpiar"]').click(); await dormir(30);
+            R.ok('F3: × limpiar vacia el array de personas y sin dueño', mod.estado.filtroTareas.quien.length === 0 && !mod.estado.filtroTareas.sinDueno && document.querySelectorAll('#tableroCols .tarjeta').length === N);
+        }
         document.querySelector('#filtroChips [data-filtro="alta"]').click(); await dormir(30);
         R.ok('filtro «solo alta» quita la normal, marca el chip y ofrece limpiar', document.querySelectorAll('#tableroCols .tarjeta').length === N - 1 && document.querySelector('#filtroChips [data-filtro="alta"]').classList.contains('is-on') && !!document.querySelector('#filtroChips [data-filtro="limpiar"]'));
         poner('filtroTexto', 'NORMAL'); await dormir(30);
@@ -553,7 +571,7 @@ try {
         pestana('inicio'); await esperar(() => document.querySelector('#inicioHoy [data-kpi="sin-dueno"]'), 'grupo sin dueño');
         R.ok('C7 (v0.21.0 / v0.25.0): la cola trae el grupo «Sin dueño» = 1 con su renglón sin avatar (el renglón del proyecto ya no lleva el chip: v0.25.0)', document.querySelector('#inicioHoy [data-kpi="sin-dueno"] .n').textContent === '1' && document.querySelectorAll('#inicioHoy .hoy-r[data-sin-dueno]').length === 1 && !!document.querySelector('#inicioHoy .hoy-r[data-sin-dueno] .av.is-nadie') && !document.querySelector(`#inicioProyectos .pficha[data-open="${proyectoId}"] .mn-chip`) && !!document.querySelector(`#inicioProyectos .pficha[data-open="${proyectoId}"] .cal .mes`) && document.querySelectorAll(`#inicioProyectos .pficha[data-open="${proyectoId}"] .stats b`).length === 3);
         document.querySelector('#inicioHoy [data-kpi="sin-dueno"]').click(); await esperar(() => visible('p-proyecto') && document.querySelectorAll('#tableroCols .tarjeta').length === 1, 'proyecto filtrado');
-        R.ok('C7: el KPI aterriza en el proyecto con el filtro «sin dueño» puesto', document.querySelector('#filtroChips [data-filtro="sinDueno"]').classList.contains('is-on') && document.querySelector('#tableroCols .tarjeta').dataset.t === String(normal.id));
+        R.ok('C7: el KPI aterriza en el proyecto con el filtro «sin dueño» puesto', document.querySelector('#filtroChips [data-filtro="sinDueno"] input').checked && document.querySelector('#filtroChips .menu-quien > summary').classList.contains('is-on') && document.querySelector('#tableroCols .tarjeta').dataset.t === String(normal.id));
         document.querySelector('#filtroChips [data-filtro="limpiar"]').click(); await dormir(30);
         // D5: los contadores del rail tienen nombre accesible.
         R.ok('D5: los contadores del rail llevan aria-label («N vencidas» / «N activos»)', $('nProyectos').getAttribute('aria-label') === '1 activo' && /^\d+ vencidas?$/.test($('nMis').getAttribute('aria-label')) && $('nProyectos').title === '1 activo', $('nMis').getAttribute('aria-label'));
@@ -637,19 +655,14 @@ try {
         R.ok('clic en Tarea ordena alfabético', document.querySelector('#tab-lista th[data-sort="tarea"]').getAttribute('aria-sort') === 'ascending' && !document.querySelector('#tab-lista th[data-sort="vence"]').hasAttribute('aria-sort') && document.querySelector('#tab-lista tbody tr').textContent.startsWith('Lista de insumos'));
         document.querySelector('#tab-lista th[data-sort="tarea"]').click(); await dormir(30);
         R.ok('el segundo clic invierte', document.querySelector('#tab-lista th[data-sort="tarea"]').getAttribute('aria-sort') === 'descending' && document.querySelector('#tab-lista tbody tr').textContent.startsWith(gerencia ? 'Tarea normal' : 'Tarea sembrada'));
-        // B2 (v0.5.0): «Resumen» es una cuarta pestaña (solo se ve en celular) que trae la lateral, y viaja en el hash.
+        // B2 (v0.5.0): «Resumen» es una pestaña que trae la lateral y viaja en el hash. v0.30.0 (L6): en TODO ancho —
+        // antes en escritorio caia a Tablero porque la pestaña era .solo-movil; ahora la lateral solo se ve aqui.
         tab('resumen'); await dormir(40);
-        if (window.matchMedia('(max-width: 720px)').matches) {
-            R.ok('B2 (celular): la pestaña Resumen marca el proyecto, esconde las tres vistas y llega al hash',
-                $('p-proyecto').classList.contains('ver-resumen') && ['tablero', 'lista', 'docs'].every(x => $('tab-' + x).classList.contains('oculto')) && location.hash.endsWith('/resumen') && $('filtroTareas').classList.contains('oculto'),
-                location.hash);
-        } else {
-            // En escritorio «Resumen» no existe (la lateral siempre se ve): el estado cae a Tablero en vez de
-            // dejar el panel en blanco — el revisor lo vio con #p/<clave>/resumen abierto a 1366 px.
-            R.ok('B2 (escritorio): pedir Resumen cae a Tablero, sin pantalla en blanco',
-                !$('p-proyecto').classList.contains('ver-resumen') && !$('tab-tablero').classList.contains('oculto') && document.querySelector('.tab.is-on').dataset.tab === 'tablero',
-                location.hash);
-        }
+        R.ok('B2/L6: la pestaña Resumen marca el proyecto, esconde las vistas, muestra la lateral y llega al hash',
+            $('p-proyecto').classList.contains('ver-resumen') && ['tablero', 'lista', 'docs'].every(x => $('tab-' + x).classList.contains('oculto')) && location.hash.endsWith('/resumen') && $('filtroTareas').classList.contains('oculto') && getComputedStyle(document.querySelector('#p-proyecto .lateral')).display === 'grid' && document.querySelector('.tab.is-on').dataset.tab === 'resumen',
+            location.hash);
+        R.ok('L6: fuera de Resumen la lateral no se ve (el tablero toma todo el ancho)', (() => { tab('tablero'); return getComputedStyle(document.querySelector('#p-proyecto .lateral')).display === 'none'; })());
+        tab('resumen'); await dormir(20);
         // B1 (v0.5.0): el resumen de una línea con el estado del frente, sin bajar a la lateral.
         R.ok('B1: la línea de resumen dice en curso, en revisión y el reloj del frente', /en curso/.test($('pResumen').textContent) && /en revisión/.test($('pResumen').textContent), $('pResumen').textContent);
         tab('tablero'); await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tablero');

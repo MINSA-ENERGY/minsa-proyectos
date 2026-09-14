@@ -15,7 +15,7 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, serieKpis, gruposHoy, saludoDe, diaDe } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
+import { $, L, VERSION, estado, el, boton, ondaAlPulsar, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
@@ -68,6 +68,7 @@ async function entrar() {
 }
 async function arrancar() {
     if (window.self !== window.top) return;
+    ondaAlPulsar();   // v0.30.0 (B5): la onda de todo .mn-btn, antes de la entrada (el boton de entrar tambien la lleva)
     try {
         const respuesta = await prepararMsal();
         if (respuesta || pca.getAllAccounts().length > 0) {
@@ -266,7 +267,7 @@ window.addEventListener('hashchange', aplicarHash);   // una URL pegada o editad
 /** Deja `p` como proyecto abierto; si es OTRO proyecto, el filtro de tarjetas y la columna del celular vuelven al default. */
 function fijarProyectoAbierto(p) {
     if (!estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id) {
-        estado.filtroTareas = { quien: null, alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = '';
+        estado.filtroTareas = { quien: [], alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = '';
         estado.colMovil = null; estado.ordenLista = { col: 'vence', dir: 1 };   // v0.11.0: null = la primera cubeta del proyecto
         estado.hechoTodas = false; estado.filtroDocs = null; estado.buscaDocs = '';   // v0.17.0: el buscador de Docs tampoco viaja entre proyectos
         estado.ordenDocs = { col: 'del', dir: -1 };   // v0.18.0: ni su orden (una columna oculta en este panel no puede quedar mandando); v0.19.0: la del documento, que si se ve
@@ -603,7 +604,7 @@ function pintarCola(abiertas) {
             const [pid] = [...porProyecto.entries()].sort((a, b) => b[1] - a[1])[0];
             // El filtro se pone ENTERO: si ese proyecto ya estaba abierto, fijarProyectoAbierto no lo limpia
             // y un «quien» previo se combinaria con «sin dueño» dejando el tablero vacio (revisor, 2026-09-12).
-            abrirProyecto(Number(pid)); estado.filtroTareas = { quien: null, alta: false, vencidas: false, sinDueno: true, texto: '' }; $('filtroTexto').value = ''; pintarProyecto();
+            abrirProyecto(Number(pid)); estado.filtroTareas = { quien: [], alta: false, vencidas: false, sinDueno: true, texto: '' }; $('filtroTexto').value = ''; pintarProyecto();
         });
         lista.querySelector('[data-grupo="sin-dueno"]').dataset.kpi = 'sin-dueno';
         for (const t of huerfanas.slice(0, 6)) { const d = diasPara(t.Vence); lista.appendChild(renglon('warn', t.Title, `sin dueño${d === null ? '' : ' · ' + chipDias(t, d)} · ${tituloDe(t)}`, '', abrirTarea(t), { t: String(t.id), sinDueno: '1' })); }
@@ -742,10 +743,8 @@ function abrirProyecto(id) {
 }
 function pintarProyecto() {
     const p = estado.proyectoAbierto; if (!p) { irA('proyectos'); return; }
-    // B2: «Resumen» solo existe en celular (en escritorio la lateral se ve siempre). Sin esto, un
-    // hash #p/<clave>/resumen abierto en la laptop —o girar el telefono a horizontal— dejaba el
-    // panel en BLANCO y sin pestaña marcada, porque el boton para salir es .solo-movil.
-    if (estado.tab === 'resumen' && !enCelular.matches) estado.tab = 'tablero';
+    // B2 (v0.5.0) caia de «resumen» a «tablero» en escritorio porque la pestaña solo existia en celular;
+    // desde v0.30.0 (L6) «Resumen» es una pestaña en todo ancho y el hash #p/<clave>/resumen vale en la laptop.
     const eq = equipoDe(p); const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p));
     $('pEquipo').textContent = ''; $('pEquipo').appendChild(iconoEquipo(eq, 'lg'));   // v0.7.0: icono, no nombre
     $('pTitulo').textContent = p.Title; $('pDesc').textContent = p.Descripcion || '';
@@ -789,7 +788,7 @@ function pintarProyecto() {
     const nNuevos = estado.tab === 'chat' ? 0 : comentariosNuevos(p.id).length;
     $('nChatTab').classList.toggle('is-nuevo', nNuevos > 0);
     $('nChatTab').title = nNuevos ? `${nNuevos} nuevo${nNuevos === 1 ? '' : 's'} desde tu última visita` : '';
-    // B2: «Resumen» es una pestana mas, solo en celular (en escritorio la lateral siempre se ve).
+    // B2: «Resumen» es una pestana mas; v0.30.0 (L6): en todo ancho, ya no solo en celular.
     $('p-proyecto').classList.toggle('ver-resumen', estado.tab === 'resumen');
     const sinFiltros = ['docs', 'chat', 'resumen', 'roadmap'].includes(estado.tab);
     $('filtroTareas').classList.toggle('oculto', sinFiltros);

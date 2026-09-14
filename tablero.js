@@ -106,34 +106,72 @@ export function tarjeta(t, conProyecto = false) {
 
 // ---------------------------------------------------------------- filtro dentro del proyecto (F9)
 
-const CHIPS_FILTRO = [['alta', 'solo alta'], ['vencidas', 'solo vencidas'], ['sinDueno', 'sin dueño']];   // C7 (v0.6.0)
-/** Chips de filtro: una por persona con tarjetas en el proyecto, «solo alta» y «solo vencidas». El texto vive en #filtroTexto. */
+const CHIPS_FILTRO = [['alta', 'solo alta'], ['vencidas', 'solo vencidas']];   // C7 (v0.6.0); v0.30.0: «sin dueño» vive en el menu «Quién»
+/**
+ * Filtro de tarjetas dentro del proyecto. v0.30.0 (Carlos, 14-sep; artifact YLnjhT3a, opcion F3): las personas
+ * ya no son una pildora cada una — viven en un MENU PLEGABLE «Quién» (details) con casillas y el conteo de
+ * tarjetas de cada quien, que permite marcar VARIAS (f.quien es array) y trae abajo «Sin dueño» y «Quitar».
+ * El summary lleva el avatar de la primera marcada y cuantas hay. Fuera del menu quedan «solo alta»,
+ * «solo vencidas» y «× limpiar»; el texto vive en #filtroTexto. Como se repinta entero con cada cambio,
+ * el menu conserva su estado abierto/cerrado entre repintados.
+ */
 export function pintarFiltroTareas(proyecto) {
-    const f = estado.filtroTareas; const c = $('filtroChips'); c.textContent = '';
+    const f = estado.filtroTareas; const c = $('filtroChips');
+    const abierto = !!c.querySelector('.menu-quien[open]'); c.textContent = '';
+    if (!Array.isArray(f.quien)) f.quien = f.quien ? [String(f.quien).toLowerCase()] : [];
     const ts = tareasDe(proyecto, estado.tareas);
-    const quienes = [...new Set(ts.map(x => String(x.Asignado || '').toLowerCase()).filter(Boolean))].sort();
-    const chipBtn = (texto, on, alClic, datos, conAvatar) => {
-        const b = boton('', on ? 'is-on' : '', () => { alClic(); pintarFiltroTareas(proyecto); pintarSoloTareas(); }, datos);
-        b.setAttribute('aria-pressed', on ? 'true' : 'false');
-        if (conAvatar) b.appendChild(avatar(conAvatar));
-        // B4: en celular el nombre se oculta por CSS y queda el avatar; el nombre vive en el title.
-        b.appendChild(el('span', 'nom', texto)); if (conAvatar) b.title = texto; c.appendChild(b);
+    // Conteo por persona (todas sus tarjetas, hechas incluidas: es lo que su casilla deja pasar); el de «sin dueño» solo
+    // las huerfanas ABIERTAS, que es lo que filtra esa casilla (reglas.js: huerfana).
+    const conteo = {}; for (const t of ts) { const q = String(t.Asignado || '').toLowerCase(); if (q || t.Columna !== 'hecho') conteo[q] = (conteo[q] || 0) + 1; }
+    const quienes = Object.keys(conteo).filter(Boolean).sort();
+    const repintar = () => { pintarFiltroTareas(proyecto); pintarSoloTareas(); };
+    const chipBtn = (texto, on, alClic, datos) => {
+        const b = boton(texto, on ? 'is-on' : '', () => { alClic(); repintar(); }, datos);
+        b.setAttribute('aria-pressed', on ? 'true' : 'false'); c.appendChild(b);
     };
+    // ---- el menu «Quién»
+    const menu = el('details', 'menu-quien'); menu.open = abierto; menu.dataset.menu = 'quien';
+    const sum = el('summary'); sum.className = 'mn-btn is-sm' + (f.quien.length || f.sinDueno ? ' is-on' : '');
     const pilas = quienes.map(q => nombreDe(q, estado.roles).split(' ')[0]);
+    const etiqueta = q => { const i = quienes.indexOf(q); return i >= 0 && pilas.filter(x => x === pilas[i]).length > 1 ? nombreDe(q, estado.roles) : nombreDe(q, estado.roles).split(' ')[0]; };   // dos «Ana»: nombre completo
+    // Una sola persona (sin «sin dueño») → su avatar y su nombre; cualquier otra combinacion → «Quién» + cuantas marcas.
+    const marcas = f.quien.length + (f.sinDueno ? 1 : 0);
+    if (f.quien.length) sum.appendChild(avatar(f.quien[0]));
+    sum.appendChild(el('span', 'nom', marcas === 1 && f.quien.length === 1 ? etiqueta(f.quien[0]) : 'Quién'));
+    if (marcas && !(marcas === 1 && f.quien.length === 1)) sum.appendChild(el('span', 'n', String(marcas)));
+    sum.appendChild(iconoSvg(['M6 9l6 6 6-6']));
+    sum.title = 'Filtrar por persona'; menu.appendChild(sum);
+    const caja = el('div', 'caja'); caja.setAttribute('role', 'group'); caja.setAttribute('aria-label', 'Personas con tarjetas en este frente');
+    caja.appendChild(el('span', 'mn-label tit', 'Con tarjetas en este frente'));
+    // Cada cambio repinta la fila entera (el input enfocado se destruye): la casilla se vuelve a enfocar por su data-*
+    // para que el teclado no caiga al inicio del documento (revisor, 14-sep).
+    const casilla = (texto, on, alCambiar, datos, av) => {
+        const l = el('label'); for (const k in datos) l.dataset[k] = datos[k];
+        const sel = Object.keys(datos).map(k => '[data-' + k + '="' + datos[k] + '"]').join('');
+        const i = el('input'); i.type = 'checkbox'; i.checked = on; i.addEventListener('change', () => { alCambiar(i.checked); repintar(); const n = c.querySelector('.menu-quien label' + sel + ' input'); if (n) n.focus({ preventScroll: true }); });
+        l.appendChild(i); l.appendChild(av); l.appendChild(el('span', 'nom', texto)); return l;
+    };
     for (const [i, q] of quienes.entries()) {
-        const nombre = pilas.filter(x => x === pilas[i]).length > 1 ? nombreDe(q, estado.roles) : pilas[i];   // dos «Ana»: nombre completo
-        chipBtn(nombre, f.quien === q, () => { f.quien = f.quien === q ? null : q; }, { quien: q }, q);
+        const l = casilla(etiqueta(q), f.quien.includes(q), on => { f.quien = on ? [...f.quien, q] : f.quien.filter(x => x !== q); }, { quien: q }, avatar(q));
+        l.appendChild(el('span', 'n mn-mono', String(conteo[q]))); caja.appendChild(l);
     }
+    if (!quienes.length) caja.appendChild(el('span', 'vacio', 'Ninguna tarjeta asignada.'));
+    caja.appendChild(el('hr'));
+    const lsd = casilla('Sin dueño', !!f.sinDueno, on => { f.sinDueno = on; }, { filtro: 'sinDueno' }, avatar(''));
+    if (conteo['']) lsd.appendChild(el('span', 'n mn-mono', String(conteo['']))); caja.appendChild(lsd);
+    if (f.quien.length || f.sinDueno) caja.appendChild(boton('Quitar el filtro de persona', 'limp', () => { f.quien = []; f.sinDueno = false; repintar(); }, { filtro: 'quitarQuien' }));
+    menu.appendChild(caja); c.appendChild(menu);
+    // ---- los fijos
     for (const [k, texto] of CHIPS_FILTRO) chipBtn(texto, !!f[k], () => { f[k] = !f[k]; }, { filtro: k });
-    const activo = !!(f.quien || f.alta || f.vencidas || f.sinDueno || f.texto);
-    if (activo) chipBtn('× limpiar', false, () => { estado.filtroTareas = { quien: null, alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = ''; }, { filtro: 'limpiar' });
+    const activo = !!(f.quien.length || f.alta || f.vencidas || f.sinDueno || f.texto);
+    if (activo) chipBtn('× limpiar', false, () => { estado.filtroTareas = { quien: [], alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = ''; }, { filtro: 'limpiar' });
 }
 /** B1: «Filtrar» dice cuantos filtros hay puestos; sin eso, plegarlos los esconde en silencio.
  *  v0.6.0: vive aqui (no en app.js) para repintarse con CADA cambio de filtro — un chip pulsado
  *  dejaba el boton en «Filtrar» hasta el siguiente repintado de la pantalla (lo cazo la E2E de C7). */
 export function pintarBotonFiltros() {
     const f = estado.filtroTareas;
-    const n = [f.quien, f.alta, f.vencidas, f.sinDueno, f.texto].filter(Boolean).length;
+    const n = [f.quien && f.quien.length, f.alta, f.vencidas, f.sinDueno, f.texto].filter(Boolean).length;   // v0.30.0: quien es array
     const b = $('btnFiltros');
     b.textContent = n ? `Filtrar · ${n}` : 'Filtrar';
     b.classList.toggle('is-on', !!n || estado.filtrosAbiertos);
@@ -799,6 +837,11 @@ export function engancharTablero() {
     $('cbAgregar').addEventListener('click', agregarCubeta);
     $('cbCancelar').addEventListener('click', () => cerrarDialogo('dlgCubetas'));
     $('filtroTexto').addEventListener('input', () => { estado.filtroTareas.texto = $('filtroTexto').value; if (estado.proyectoAbierto) pintarFiltroTareas(estado.proyectoAbierto); pintarSoloTareas(); });
+    // v0.30.0 (F3): el menu «Quién» se cierra al hacer clic fuera o con Esc (un details abierto no se cierra solo).
+    // Se juzga por ANCESTRO del nodo pulsado (closest), no por contains: «Quitar el filtro» repinta en fase objetivo y cuando el
+    // evento llega aqui el boton ya esta desprendido — con contains el menu nuevo se cerraba (revisor, 14-sep).
+    document.addEventListener('click', e => { const m = document.querySelector('#filtroChips .menu-quien[open]'); if (m && !(e.target.closest && e.target.closest('.menu-quien'))) m.open = false; });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') { const m = document.querySelector('#filtroChips .menu-quien[open]'); if (m) { m.open = false; m.querySelector('summary').focus(); } } });
     $('tCerrar').addEventListener('click', () => cerrarDialogo('dlgTarea'));
     $('dlgTarea').addEventListener('close', () => { fijarHash(hashDe()); });   // al cerrar (boton, Esc o Atras) el hash vuelve a la pantalla
     $('tCompartir').addEventListener('click', compartirTarjeta);

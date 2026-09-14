@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, iniciales, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe } from './reglas.js';
 
-export const VERSION = '0.29.2';
+export const VERSION = '0.30.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -16,7 +16,7 @@ export const estado = {
     pestana: 'inicio', tab: 'tablero',
     filtroEquipo: null,
     // v0.3.0: filtro y orden dentro del proyecto (F9/F10), columna visible en celular (U5), filtro de Mis tareas (U3)
-    filtroTareas: { quien: null, alta: false, vencidas: false, sinDueno: false, texto: '' },
+    filtroTareas: { quien: [], alta: false, vencidas: false, sinDueno: false, texto: '' },   // v0.30.0: quien es ARRAY (varias personas)
     // v0.6.0 (C3): buscador fuera del proyecto — Proyectos (nombre, clave, descripcion) y Mis tareas (titulo).
     textoProyectos: '', textoMis: '',
     // v0.5.0 (B1): en celular los chips + buscador van plegados detras de «Filtrar»; en escritorio
@@ -64,6 +64,20 @@ export function boton(texto, clase, alClic, atributos = {}) {
     for (const k in atributos) b.dataset[k] = atributos[k];
     if (alClic) b.addEventListener('click', alClic);
     return b;
+}
+/**
+ * v0.30.0 (B5): la ONDA que sale desde el punto tocado en todo .mn-btn (tambien los summary.mn-btn de
+ * los menus). Un solo listener delegado en el documento; la animacion y el recorte viven en estilo.css
+ * (.mn-btn .onda). Sin coordenadas (clic por teclado o .click() de las pruebas) la onda nace en el centro.
+ */
+export function ondaAlPulsar() {
+    document.addEventListener('pointerdown', e => {
+        const b = e.target.closest('.mn-btn'); if (!b || b.disabled) return;
+        const r = b.getBoundingClientRect(); const d = Math.max(r.width, r.height);
+        const o = el('span', 'onda'); o.style.width = o.style.height = d + 'px';
+        o.style.left = ((e.clientX || r.left + r.width / 2) - r.left - d / 2) + 'px'; o.style.top = ((e.clientY || r.top + r.height / 2) - r.top - d / 2) + 'px';
+        b.appendChild(o); setTimeout(() => o.remove(), 600);
+    });
 }
 /**
  * v0.8.0: cada persona tiene SU color de avatar (Trello/Asana): el mismo correo da siempre el mismo
