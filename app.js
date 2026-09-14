@@ -553,13 +553,13 @@ function pintarCola(abiertas) {
     const abrirTarea = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; };
     const abrirEvento = a => { const p = porId(estado.proyectos, a.ProyectoId); return abridorDe(a) || (p ? () => irAHash(`#p/${p.Clave}/chat`) : null); };
     const tituloDe = t => porId(estado.proyectos, t.ProyectoId) ? porId(estado.proyectos, t.ProyectoId).Title : '';
-    // Un renglon: punto de estado · titulo (+ subtitulo) · avatar · verbo. Es un boton entero (C9), como los .it de las mini listas.
-    const renglon = (estadoCls, titulo, sub, quien, verbo, abrir, datos) => {
+    // Un renglon: punto de estado · titulo (+ subtitulo) · avatar. Es un boton entero (C9), como los .it de las mini listas;
+    // el verbo «Abrir»/«Ver» a la derecha se quito en v0.25.1 (Carlos, 14-sep): el renglon entero ya lleva al pendiente.
+    const renglon = (estadoCls, titulo, sub, quien, abrir, datos) => {
         const r = el(abrir ? 'button' : 'div', 'hoy-r'); if (abrir) { r.type = 'button'; r.addEventListener('click', abrir); }
         const st = el('i', 'st' + (estadoCls ? ' is-' + estadoCls : '')); st.setAttribute('aria-hidden', 'true'); r.appendChild(st);
         const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', titulo)); c.appendChild(el('span', 'p', sub)); c.querySelector('.t').title = titulo; r.appendChild(c);
         r.appendChild(quien ? avatar(quien) : el('span', 'av is-nadie', '?'));
-        if (abrir) r.appendChild(el('span', 'ir', verbo));   // sin a donde ir (proyecto borrado), sin verbo (revisor, 13-sep)
         for (const [k, v] of Object.entries(datos || {})) r.dataset[k] = v;
         return r;
     };
@@ -570,7 +570,7 @@ function pintarCola(abiertas) {
     const chipDias = (t, d) => d < 0 ? `venció ${fechaCorta(t.Vence)}` : d === 0 ? 'vence hoy' : d === 1 ? 'vence mañana' : `vence ${fechaCorta(t.Vence)}`;
     const extra = t => { const q = sinMovimiento([t], CONFIG.sinMovimientoDias, new Date(), columnasDeTarea).length ? ` · sin movimiento ${-diasPara(t.Desde)} d` : ''; const n = comentariosDe(t.id).length; return `${q}${n ? ` · 💬 ${n}` : ''}`; };
     // El dato va ANTES del frente: a 390 px el subtitulo se trunca y lo que se pierde es el nombre del proyecto, no la fecha (captura 13-sep).
-    const tarea = (t, d, cls) => renglon(cls, t.Title, `${chipDias(t, d)} · ${tituloDe(t)}${extra(t)}`, t.Asignado, 'Abrir', abrirTarea(t), { t: String(t.id) });
+    const tarea = (t, d, cls) => renglon(cls, t.Title, `${chipDias(t, d)} · ${tituloDe(t)}${extra(t)}`, t.Asignado, abrirTarea(t), { t: String(t.id) });
     // Los grupos por fecha se recortan a `TOPE` renglones con un «+N más» que lleva a donde estan todas (Mis tareas o Calendario).
     const TOPE = 6;
     const mas = (n, texto, ir) => { const b = el('button', 'hoy-mas'); b.type = 'button'; b.textContent = `+${n} más · ${texto} →`; b.addEventListener('click', ir); lista.appendChild(b); };
@@ -583,14 +583,14 @@ function pintarCola(abiertas) {
         for (const x of nuevos.slice(0, 8)) {
             const p = porId(estado.proyectos, x.a.ProyectoId || (x.tarea && x.tarea.ProyectoId));
             const que = x.tipo === 'mencion' || x.tipo === 'nota' ? x.a.Title : x.tarea ? x.tarea.Title : x.a.Title;
-            lista.appendChild(renglon('info', `${VERBO[x.tipo]}: «${que}»`, `${nombreDe(x.a.Quien, estado.roles).split(' ')[0]} · ${fechaHora(x.a.Cuando)}${p ? ' · ' + p.Title : ''}`, x.a.Quien, 'Ver', abrirEvento(x.a), { nuevo: x.tipo }));
+            lista.appendChild(renglon('info', `${VERBO[x.tipo]}: «${que}»`, `${nombreDe(x.a.Quien, estado.roles).split(' ')[0]} · ${fechaHora(x.a.Cuando)}${p ? ' · ' + p.Title : ''}`, x.a.Quien, abrirEvento(x.a), { nuevo: x.tipo }));
         }
         total += nuevos.length;
     }
     if (nuevos.length) marcarInicioVisto(nuevos[0].a.Cuando);
     if (menciones.length) {
         grupo('mencion', 'Te mencionaron', menciones.length, 'info');
-        for (const a of menciones.slice(0, 6)) { const p = porId(estado.proyectos, a.ProyectoId); lista.appendChild(renglon('info', `«${a.Title}»`, `${nombreDe(a.Quien, estado.roles).split(' ')[0]} · ${fechaHora(a.Cuando)}${p ? ' · ' + p.Title : ''}`, a.Quien, 'Ver', abrirEvento(a), { mencion: String(a.id) })); }
+        for (const a of menciones.slice(0, 6)) { const p = porId(estado.proyectos, a.ProyectoId); lista.appendChild(renglon('info', `«${a.Title}»`, `${nombreDe(a.Quien, estado.roles).split(' ')[0]} · ${fechaHora(a.Cuando)}${p ? ' · ' + p.Title : ''}`, a.Quien, abrirEvento(a), { mencion: String(a.id) })); }
         total += menciones.length;
     }
     if (g.semana.length) { grupo('semana', 'Esta semana', g.semana.length, null); pintarGrupo(g.semana, null, 'ver en el Calendario', () => irA('calendario')); total += g.semana.length; }
@@ -605,7 +605,7 @@ function pintarCola(abiertas) {
             abrirProyecto(Number(pid)); estado.filtroTareas = { quien: null, alta: false, vencidas: false, sinDueno: true, texto: '' }; $('filtroTexto').value = ''; pintarProyecto();
         });
         lista.querySelector('[data-grupo="sin-dueno"]').dataset.kpi = 'sin-dueno';
-        for (const t of huerfanas.slice(0, 6)) { const d = diasPara(t.Vence); lista.appendChild(renglon('warn', t.Title, `sin dueño${d === null ? '' : ' · ' + chipDias(t, d)} · ${tituloDe(t)}`, '', 'Abrir', abrirTarea(t), { t: String(t.id), sinDueno: '1' })); }
+        for (const t of huerfanas.slice(0, 6)) { const d = diasPara(t.Vence); lista.appendChild(renglon('warn', t.Title, `sin dueño${d === null ? '' : ' · ' + chipDias(t, d)} · ${tituloDe(t)}`, '', abrirTarea(t), { t: String(t.id), sinDueno: '1' })); }
         total += huerfanas.length;
     }
     $('nHoy').textContent = total ? String(total) : '';
