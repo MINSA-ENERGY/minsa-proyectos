@@ -776,6 +776,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .mn-dialog-foot:has(> [hidden]:only-child) { display: none; }
 .editar .forma .mn-dialog-foot { margin: var(--sp-3) 0 0; background: transparent; border: 0; padding: 0; }
 .progreso { font-size: .78rem; color: var(--text-muted); min-height: 1.2em; }
+.progreso:empty { display: none; }   /* v0.31.0: vacio dejaba ~110 px en blanco entre la ayuda y el pie de «Subir» */
 .mn-dialog .kv:empty { display: none; }
 .head-botones { display: flex; gap: var(--sp-2); flex: none; }
 /* A2: Equipo. La tabla de 5 columnas mide mas que el dialogo en celular (354 px) y se cortaba
@@ -810,7 +811,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .nota-forma .cont.is-danger { color: var(--status-danger-fg); font-weight: 600; }
 /* C6: con rol lectura, una linea gris en vez de cuatro botones apagados + banda roja */
 .solo-lectura { margin: 0 0 var(--sp-3); }
-.lg-acciones { display: flex; justify-content: flex-end; margin: var(--sp-3) 0; }
+/* v0.31.0: .lg-acciones se retiro — «Buscar» vive en .lg-fila */
 .lg-resultado { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-2); align-items: center; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); font-size: .85rem; }
 .lg-resultado .p { font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); word-break: break-all; }
 
@@ -1353,7 +1354,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .t-main { padding: var(--sp-4); min-width: 0; }
 .t-side { padding: var(--sp-4); min-width: 0; background: var(--surface-sunken); border-left: 1px solid var(--border-hairline); align-self: stretch; }
 #dlgTarea .editar { grid-column: 1 / -1; margin: 0; padding: var(--sp-3) var(--sp-4) var(--sp-4); border-top: 1px solid var(--border-hairline); }
-#dlgTarea .editar .forma { max-width: 36rem; }   /* a 860 px el campo de fecha a todo el ancho se veia como una barra; el formulario conserva el ancho de siempre */
+/* v0.31.0: el formulario de Editar es una rejilla de dos columnas (bloque v0.31.0 al final); antes iba a 36 rem */
 /* Chips bajo el titulo: quien (con avatar) · cubeta · vence · prioridad. El chip que se puede cambiar es un boton sin
    caja que abre «Editar la tarjeta» en su campo; el foco lo dibuja el anillo de la casa. */
 .t-chips { display: flex; flex-wrap: wrap; gap: 0 var(--sp-2); align-items: center; margin-bottom: var(--sp-2); }
@@ -1380,3 +1381,33 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
   #dlgTarea .t-cuerpo { grid-template-columns: minmax(0, 1fr); }
   .t-side { border-left: 0; border-top: 1px solid var(--border-hairline); align-self: auto; }
 }
+
+/* ==== v0.31.0 (2026-09-14): auditoria de dialogos (Carlos: consistencia y aprovechar el espacio) ==== */
+/* Tarjeta: «Editar la tarjeta» sigue cruzando las dos columnas abajo, pero el formulario ya USA ese ancho: rejilla de
+   dos columnas (Tarea y Asignado·Prioridad a todo lo ancho; Color | Vence; Descripción | Proyecto; el pie a todo lo ancho).
+   Antes iba a 36 rem y dejaba ~300 px vacíos a la derecha y el diálogo medía 1,094 px de scroll; con la rejilla mide menos
+   y no hay hueco. La primera pasada (mover Editar bajo la izquierda y estirar la lateral gris) solo cambiaba el color del
+   hueco — lo cazó el revisor. Bajo 900 px, una columna. */
+#dlgTarea .editar .forma { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-4); align-items: start; }
+#dlgTarea .editar .forma > .mn-field:has(#ftTitulo), #dlgTarea .editar .forma > .mn-row, #dlgTarea .editar .forma > .mn-dialog-foot { grid-column: 1 / -1; }
+#dlgTarea .editar .forma > .mn-field + .mn-field { margin-top: var(--sp-3); }   /* en la rejilla el margen es por item; el vecino de la derecha lo lleva igual */
+@media (max-width: 900px) { #dlgTarea .editar .forma { grid-template-columns: minmax(0, 1fr); } }
+/* Todo diálogo largo rueda por su CUERPO, con cabecera y pie fijos (antes solo Actividad lo tenía y Tarjeta —el más largo y
+   más usado— perdía «Cerrar» arriba: scrollH 1094 del <dialog> a 1366 con Editar abierto, medido). Los formularios llevan
+   head/body/foot dentro del <form>: el form es el que se vuelve columna flex. Solo con [open]: un display en el diálogo
+   cerrado lo mostraría. */
+.mn-dialog[open] { display: flex; flex-direction: column; max-height: calc(100vh - var(--sp-5)); }
+.mn-dialog[open] > .forma { display: flex; flex-direction: column; min-height: 0; }
+.mn-dialog .mn-dialog-body { overflow-y: auto; min-height: 0; flex: 1 1 auto; }
+.mn-dialog .mn-dialog-head, .mn-dialog .mn-dialog-foot { flex: none; }
+/* Ligar: el boton en la fila de los campos, centrado sobre el input, no en un renglon aparte alineado a la derecha. */
+.lg-fila { grid-template-columns: 1fr 1fr auto; align-items: end; margin-bottom: var(--sp-3); }
+.lg-fila .mn-btn { margin-bottom: 6px; }   /* .is-sm (32) centrado sobre el input de 44: (44-32)/2 */
+@media (max-width: 480px) { .lg-fila { grid-template-columns: 1fr; } }
+/* Subir: el input de archivos nativo salia sin piel («Choose Files» en gris del navegador). El boton toma la caja de un
+   .mn-btn.is-sm; el texto lo pone el navegador en SU idioma (no se controla desde CSS). */
+.mn-field input[type="file"] { padding: 5px var(--sp-2); cursor: pointer; font-size: .85rem; color: var(--text-muted); }
+.mn-field input[type="file"]::file-selector-button { font: inherit; font-size: .82rem; font-weight: 500; min-height: var(--control-h-sm); padding: 0 var(--sp-3); margin-right: var(--sp-2); border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); cursor: pointer; }
+.mn-field input[type="file"]::file-selector-button:hover { background: var(--surface-hover); }
+/* Documentos en la tarjeta: las tres acciones (Ligar · Subir · Pegar un enlace) con la misma caja; en 280 px envuelven. */
+.t-side .tdoc-acciones { gap: var(--sp-1); }

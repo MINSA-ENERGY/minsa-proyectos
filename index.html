@@ -240,7 +240,8 @@
   <div class="mn-dialog-head"><h2 id="tTitulo"></h2><div class="head-botones"><button class="mn-btn is-ghost is-sm is-icono" id="tCompartir" type="button" title="Copiar la liga de esta tarjeta para mandarla por chat" aria-label="Copiar la liga de esta tarjeta"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1"/></svg></button><button class="mn-btn is-ghost is-sm" id="tCerrar" type="button">Cerrar</button></div></div>
   <!-- v0.24.0 (iteracion 6): dos columnas en escritorio. Izquierda (.t-main) lo que se lee y se escribe: chips, descripcion,
        Mover a…, notas. Derecha (.t-side) lo que se consulta: el frente (Proyecto · Creada · Ultimo cambio) y los documentos.
-       «Editar la tarjeta» cruza las dos columnas abajo: su formulario no cabe en 280 px. Bajo 900 px se apila en este orden. -->
+       «Editar la tarjeta» cruza las dos columnas abajo: su formulario no cabe en 280 px y desde v0.31.0 usa ese ancho en dos
+       columnas (Color | Vence · Descripción | Proyecto). Bajo 900 px se apila en este orden. -->
   <div class="mn-dialog-body t-cuerpo">
     <div class="dlg-avisos"></div>
     <div class="t-main">
@@ -295,10 +296,9 @@
         <div class="mn-field"><label for="ntPrioridad">Prioridad</label><select id="ntPrioridad"><option value="alta">alta</option><option value="normal" selected>normal</option><option value="baja">baja</option></select></div>
       </div>
       <div class="mn-field"><label id="ntColorEtiqueta">Color (opcional)</label><div class="tonos" id="ntColor" aria-labelledby="ntColorEtiqueta"></div></div>
-      <div class="mn-row">
-        <div class="mn-field"><label for="ntVence">Vence</label><input id="ntVence" type="date"><div class="atajos-fecha" id="ntAtajos"></div></div>
-        <div class="mn-field"><label for="ntColumna">Cubeta</label><select id="ntColumna"></select></div>
-      </div>
+      <!-- v0.31.0: Vence a todo el ancho, como en «Editar la tarjeta» — a media anchura los atajos se partian en dos lineas. -->
+      <div class="mn-field"><label for="ntVence">Vence</label><input id="ntVence" type="date"><div class="atajos-fecha" id="ntAtajos"></div></div>
+      <div class="mn-field"><label for="ntColumna">Cubeta</label><select id="ntColumna"></select></div>
       <div class="mn-field"><label for="ntDesc">Descripción (opcional)</label><textarea id="ntDesc" rows="3"></textarea></div>
     </div>
     <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="ntCancelar" type="button">Cancelar</button><button class="mn-btn is-sm" id="ntGuardarYOtra" type="button" title="Guarda y deja el diálogo abierto con asignado, prioridad, columna y vence">Crear y otra</button><button class="mn-btn is-primary is-sm" id="ntGuardar" type="submit">Crear tarea</button></div>
@@ -349,11 +349,11 @@
     <div class="dlg-avisos"></div>
     <p class="mn-help" id="lgBiblioteca"></p>
     <p class="mn-label reemplazo oculto" id="lgNota"></p>
-    <div class="mn-row">
+    <div class="mn-row lg-fila"><!-- v0.31.0: el boton va en la fila, a la altura de los campos, no en un renglon propio -->
       <div class="mn-field"><label for="lgTexto">Buscar por nombre</label><input id="lgTexto" placeholder="plan de contingencia"></div>
       <div class="mn-field"><label for="lgTarea">Tarjeta (opcional)</label><select id="lgTarea"></select></div>
+      <button class="mn-btn is-sm" id="lgBuscar" type="button">Buscar</button>
     </div>
-    <div class="lg-acciones"><button class="mn-btn is-sm" id="lgBuscar" type="button">Buscar</button></div>
     <div class="lista" id="lgResultados"></div>
   </div>
 </dialog>

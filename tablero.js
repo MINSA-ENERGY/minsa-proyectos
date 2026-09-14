@@ -473,7 +473,7 @@ function pintarDocsDeTarjeta(t, p) {
     // F4: un enlace no necesita biblioteca; se ofrece aunque el equipo no tenga una en el piloto.
     if (puedeEnlazarEn(p)) {
         const acc = c.querySelector('.tdoc-acciones') || c.appendChild(el('div', 'tdoc-acciones'));
-        acc.appendChild(boton('Pegar un enlace', 'mn-btn is-ghost is-sm', () => { cerrarDialogo('dlgTarea'); abrirEnlace({ proyecto: p, tareaId: t.id, alTerminar: () => abrirTarjeta(t.id) }); }, { enlace: String(t.id) }));
+        acc.appendChild(boton('Pegar un enlace', 'mn-btn is-sm', () => { cerrarDialogo('dlgTarea'); abrirEnlace({ proyecto: p, tareaId: t.id, alTerminar: () => abrirTarjeta(t.id) }); }, { enlace: String(t.id) }));
     }
 }
 
