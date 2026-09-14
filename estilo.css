@@ -409,44 +409,34 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 
 /* ---- listas de proyectos */
 .lista { display: grid; gap: var(--sp-2); }
-/* v0.23.0 «fichas por unidad» (iteracion 5 del artifact ed5130eb): un encabezado por equipo con su color y «N frentes»,
-   y debajo una rejilla de fichas (auto-fill, 300 px de piso; a 390 px va a una columna). Cada ficha lleva el color del
-   equipo en el borde superior (--c la pone app.js), el reloj grande, la barra segmentada por cubeta con su fila de
-   conteos, «sigue:» y el pie con chips y avatares. Sustituye al renglon «reloj primero» de v0.7.0. */
-.uni { display: grid; gap: var(--sp-4); }
-.uni-h { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-2); font-family: var(--font-data); font-size: .68rem; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
-.uni-h i { width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
-.uni-h .ln { flex: 1; height: 1px; background: var(--border-default); }
-/* auto-FIT, no auto-fill: un grupo de 1 o 2 frentes llena el ancho en vez de dejar una tercera columna vacia a 1366 (revisor 13-sep); la ficha topa en 640 px. */
-.fichas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: var(--sp-3); }
-.pficha { display: grid; gap: var(--sp-2); align-content: start; padding: var(--sp-3); background: var(--surface-card); border: 1px solid var(--border-default); border-top: 3px solid var(--c, var(--border-default)); border-radius: var(--r-md); text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0; width: 100%; max-width: 640px; }
+/* v0.25.0 «calendario de mes» (opcion B5 del artifact 5276f348, Carlos 2026-09-14): un renglon por frente, plano (sin
+   encabezado por equipo) y por lo que vence antes. Hoja de calendario (mes con el color del semaforo + dia grande) ·
+   icono · titulo · «Rama · Unidad» · tres cifras a la derecha. Sustituye a las fichas por unidad de v0.23.0; Carlos
+   pidio que no lleve nada debajo del titulo (ni anillo, ni barra, ni «sigue:», ni chips, ni avatares). */
+.fichas { display: grid; gap: var(--sp-2); }
+.pficha { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-2); background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-md); text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0; width: 100%; }
 .pficha:hover { background: var(--surface-hover); }
-.pficha .cab { display: flex; gap: var(--sp-2); align-items: flex-start; }
-.pficha .t { flex: 1; min-width: 0; font-weight: 600; color: var(--text-strong); font-size: .95rem; line-height: 1.25; overflow-wrap: anywhere; }
-.pficha .dias { flex: none; display: grid; justify-items: center; line-height: 1; }
-.pficha .dias b { font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--brand-primary); }
-.pficha .dias small { font-family: var(--font-data); font-size: .56rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); margin-top: 2px; }
-.pficha.is-danger .dias b { color: var(--status-danger-fg); }
-.pficha.is-warn .dias b { color: var(--status-warn-fg); }
-.pficha.is-idle .dias b { color: var(--text-faint); font-size: 1.15rem; }
-.pficha.is-cerrado .dias b { color: var(--status-ok-fg); font-size: 1.15rem; }
-.pficha .seg { display: flex; gap: 2px; height: 10px; border-radius: 5px; overflow: hidden; background: var(--surface-sunken); }
-.pficha .seg i { display: block; flex: 0; min-width: 0; }
-.pficha :is(.seg, .sl) i.h { background: var(--status-ok-solid); } .pficha :is(.seg, .sl) i.r { background: var(--status-info-solid); } .pficha :is(.seg, .sl) i.c { background: var(--brand-primary); } .pficha :is(.seg, .sl) i.p { background: var(--border-default); }
-.pficha :is(.seg, .sl) i[data-tono] { background: var(--tono); }
-.pficha .sl { display: flex; gap: var(--sp-1) var(--sp-2); flex-wrap: wrap; font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); }
-.pficha .sl span { display: inline-flex; align-items: center; gap: 4px; }
-.pficha .sl i { width: 8px; height: 8px; border-radius: 2px; flex: none; }
-.pficha .sl i.p { box-shadow: inset 0 0 0 1px var(--text-faint); }   /* en oscuro --border-default se funde con la ficha (revisor 13-sep) */
-.pficha .sl b { color: var(--text-strong); font-weight: 500; }
-.pficha .sig { display: block; font-size: .82rem; color: var(--text-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.pficha .sig span { color: var(--text-faint); }
-.pficha .ft { display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; min-height: 20px; }
-.pficha .ft .avs { margin-left: auto; display: inline-flex; }
+.pficha .cal { display: grid; grid-template-rows: 16px 1fr; width: 56px; height: 56px; border: 1px solid var(--border-default); border-radius: var(--r-md); overflow: hidden; text-align: center; }
+.pficha .cal .mes { font-family: var(--font-data); font-size: .56rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; line-height: 16px; color: var(--text-on-brand); background: var(--brand-primary); }
+.pficha .cal .dia { display: grid; place-items: center; font-family: var(--font-display); font-size: 1.45rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text-strong); background: var(--surface-card); }
+.pficha.is-danger .cal .mes { background: var(--status-danger-solid); }
+.pficha.is-warn .cal .mes { background: var(--status-warn-solid); }
+.pficha.is-cerrado .cal .mes { background: var(--status-ok-solid); }
+.pficha .cal.sin .mes { background: var(--surface-sunken); color: var(--text-faint); }
+.pficha .cal.sin .dia { color: var(--text-faint); font-size: 1.1rem; }
+.pficha .cab { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2); align-items: center; min-width: 0; }
+/* .tt es un bloque de texto: el titulo y la etiqueta corren en linea, y la etiqueta cae a la siguiente cuando no cabe (a 820 px con la
+   etiqueta en su propia columna nowrap el titulo se estrangulaba a 75 px — revisor 14-sep). */
+.pficha .tt { min-width: 0; line-height: 1.25; }
+.pficha .t { font-weight: 600; color: var(--text-strong); font-size: .98rem; overflow-wrap: anywhere; }
+.pficha .uni { display: inline-block; margin-left: var(--sp-2); vertical-align: 1px; font-family: var(--font-data); font-size: .62rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--c, var(--text-muted)); white-space: nowrap; }
+.pficha .stats { display: flex; gap: var(--sp-3); }
+.pficha .stats span { display: grid; justify-items: end; min-width: 3.6rem; }
+.pficha .stats b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text-strong); }
+.pficha .stats b.bad { color: var(--status-danger-fg); }
+.pficha .stats small { font-family: var(--font-data); font-size: .56rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); margin-top: 3px; }
 /* Auditoria #12: el avatar tiene DOS tamanos, 26 (.av) y 20 (.av.is-sm); antes habia 26/22/20/18. */
-.av.is-sm, .pficha .avs .av, .tarjeta .f .av, .filtros button .av { width: 20px; height: 20px; font-size: .58rem; }
-.pficha .avs .av { border: 2px solid var(--surface-card); margin-left: -6px; }
-.pficha .avs .av:first-child { margin-left: 0; }
+.av.is-sm, .tarjeta .f .av, .filtros button .av { width: 20px; height: 20px; font-size: .58rem; }
 .segbar { display: flex; gap: 2px; height: 5px; width: 100%; }
 .segbar i { display: block; flex: 0; border-radius: 2px; }
 .segbar i.h { background: var(--status-ok-solid); } .segbar i.r { background: var(--status-info-solid); } .segbar i.c { background: var(--brand-primary); } .segbar i.p { background: var(--border-default); }
@@ -750,8 +740,12 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .nota-forma .mn-btn { width: 100%; }
   /* C3: el buscador a todo el ancho */
   .buscador { width: 100%; }
-  /* v0.23.0: las fichas de proyecto a 390 px van a una columna (auto-fill) con menos aire */
-  .pficha { padding: var(--sp-3) var(--sp-2); }
+  /* v0.25.0: a 390 px la hoja de calendario se encoge y las tres cifras bajan a su propia linea, bajo el titulo */
+  .pficha { grid-template-columns: 48px minmax(0, 1fr); gap: var(--sp-1) var(--sp-2); padding: var(--sp-2); }
+  .pficha .cal { width: 48px; height: 48px; grid-row: span 2; }
+  .pficha .stats { grid-column: 2; justify-content: flex-start; }
+  .pficha .stats span { justify-items: start; min-width: 0; }
+  .pficha .uni { display: block; margin-left: 0; margin-top: 2px; }
 }
 /* B6: objetivos tactiles. Medido a 390 px: todos los .is-sm, chips y pestanas median 32 px, y
    «→ siguiente» 24. El corte va en 900 px, no en 720: A3 acaba de declarar que 721-900 es tableta

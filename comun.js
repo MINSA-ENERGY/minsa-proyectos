@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, iniciales, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe } from './reglas.js';
 
-export const VERSION = '0.24.0';
+export const VERSION = '0.25.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -256,6 +256,8 @@ const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'o
 /** D1: «jue 18 sep» — el input type=date se pinta en el idioma del DISPOSITIVO (mm/dd/yyyy en una
  *  laptop en ingles) y <html lang="es"> no lo cambia; esta linea dice en el formato de la casa lo
  *  que quedo escrito. */
+/** v0.25.0: la fecha como hoja de calendario —{ mes: 'oct', dia: 31 }— en el dia de Mexico (diaDe); null sin fecha. */
+export function mesDia(iso) { const s = diaInput(diaDe(iso) || iso); if (!s) return null; return { mes: MESES[+s.slice(5, 7) - 1], dia: +s.slice(8, 10) }; }
 export function fechaLegible(iso) {
     const s = diaInput(iso); if (!s) return '';
     const d = new Date(Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10), 12));
