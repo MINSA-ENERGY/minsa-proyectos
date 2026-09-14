@@ -14,7 +14,7 @@
 
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
-import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, tituloSegmentos, partesEnProceso, desdeHaceDias, nuevoParaMi, serieKpis, gruposHoy, saludoDe, diaDe } from './reglas.js';
+import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, agruparPorEquipo, columnasDe, segmentosDe, tituloSegmentos, vencidasEn, desdeHaceDias, nuevoParaMi, serieKpis, gruposHoy, saludoDe, diaDe } from './reglas.js';
 import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
@@ -353,51 +353,88 @@ function chipReloj(p, ts) {
     return c;
 }
 /**
- * v0.7.0 — «reloj primero» (opcion C del artifact c52cb229, Carlos 2026-09-12): el dato grande es cuantos dias
- * faltan para el fin del frente (rojo vencido · ambar <= vencePronto · gris lejos o sin fecha), luego el icono del
- * equipo, el titulo y una linea con lo que hay adentro (hechas/total · en curso · en revision · que tarjeta sigue)
- * y a la derecha quienes estan y la barra por columna. La lista ya viene ordenada por fecha (C10), asi que se
- * lee como agenda. El nombre del equipo NO se escribe: va en el title del icono. `.renglon` y `.t` se conservan
- * porque la E2E y el driver de capturas los usan.
+ * v0.23.0 — «fichas por unidad» (iteracion 5 del artifact ed5130eb, Carlos 2026-09-13; sustituye al renglon «reloj
+ * primero» de v0.7.0): cada proyecto es una FICHA con el color de su equipo en el borde superior, el icono, el titulo y
+ * los dias al fin del frente (rojo vencido · ambar <= vencePronto · marca lejos · gris sin fecha), la barra de avance
+ * SEGMENTADA por cubeta —en el orden de las cubetas de ese frente, de Hecho a la primera, con su conteo debajo (los
+ * ceros tambien: la fila dice que cubetas hay)—, «sigue:» con la tarjeta abierta mas urgente, y abajo lo que pide
+ * atencion (vencidas · sin dueño · o el proximo vencimiento) y quienes estan. El nombre del equipo NO se escribe en
+ * la ficha: lo dice el encabezado del grupo (pintarFichas) y el title del icono. `.pficha`, `.t`, `.dias b`,
+ * `is-warn` y `[data-open]` los usan la E2E y el driver de capturas.
  */
-function renglonProyecto(p) {
+function fichaProyecto(p) {
     const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p)); const eq = equipoDe(p);
     const d = p.Estado === 'activo' ? diasPara(p.Vence) : null;
     const k = p.Estado !== 'activo' ? 'cerrado' : d === null ? 'idle' : d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : 'info';
-    const r = el('button', 'renglon is-' + k); r.type = 'button'; r.dataset.open = String(p.id);
-    // reloj
+    const r = el('button', 'pficha is-' + k); r.type = 'button'; r.dataset.open = String(p.id); r.style.setProperty('--c', eq.color);
+    // cabecera: icono del equipo, titulo y el reloj del frente
+    const cab = el('span', 'cab'); cab.appendChild(iconoEquipo(eq, 'sm')); cab.appendChild(el('span', 't', p.Title));
     const dias = el('span', 'dias');
     if (p.Estado !== 'activo') { dias.appendChild(el('b', '', '✓')); dias.appendChild(el('small', '', 'cerrado')); }
     else if (d === null) { dias.appendChild(el('b', '', '—')); dias.appendChild(el('small', '', 'sin fecha')); }
     else { dias.appendChild(el('b', '', d < 0 ? `−${-d}` : String(d))); dias.appendChild(el('small', '', d < 0 ? 'vencido' : d === 0 ? 'hoy' : d === 1 ? 'día' : 'días')); }
     dias.title = p.Vence ? `Fin del frente: ${fechaCorta(p.Vence)}` : 'Sin fin del frente';
-    r.appendChild(dias);
-    r.appendChild(iconoEquipo(eq));
-    // cuerpo
-    const cuerpo = el('span', 'cuerpo');
-    cuerpo.appendChild(el('span', 't', p.Title));
-    const partes = [`${a.hechas}/${a.total} hechas`, ...partesEnProceso(a)];   // v0.11.0: una parte por cubeta de en medio con tarjetas
+    cab.appendChild(dias); r.appendChild(cab);
+    // barra segmentada por cubeta + la fila de conteos, en el mismo orden y con el mismo color (v0.12.0: el color elegido manda)
+    const segs = segmentosDe(a);
+    // Una tarjeta cuya cubeta ya no existe no cuenta en ningun segmento (avance: porColumna solo suma claves vivas); sin
+    // este tramo la barra y la fila la esconderian (revisor 13-sep). El tablero la ensena aparte; aqui es «sin cubeta».
+    const sinCubeta = a.total - segs.reduce((s, [, n]) => s + n, 0);
+    if (sinCubeta > 0) segs.push([{ nombre: 'sin cubeta' }, sinCubeta, 'p', '']);
+    const barra = el('span', 'seg'); barra.title = tituloSegmentos(segs);
+    const fila = el('span', 'sl');
+    for (const [c, n, cls, tono] of segs) {
+        // El tramo en cero no se pinta (conservaria su gap de 2 px); su conteo si, con la muestra de color.
+        if (n) { const i = el('i', cls); if (tono) i.dataset.tono = tono; i.style.flex = String(n); i.title = `${c.nombre}: ${n}`; barra.appendChild(i); }
+        const s = el('span'); const sw = el('i', cls); if (tono) sw.dataset.tono = tono;
+        // «hechas» como la frase de v0.7.0 mientras la cubeta que cierra conserve su nombre default; renombrada, manda su nombre.
+        const nombre = c.clave === 'hecho' && c.nombre === 'Hecho' ? 'hechas' : c.nombre.toLowerCase();
+        s.appendChild(sw); s.appendChild(el('b', '', String(n))); s.appendChild(document.createTextNode(' ' + nombre)); fila.appendChild(s);
+    }
+    r.appendChild(barra); r.appendChild(fila);
+    // «sigue:» la tarjeta abierta mas urgente; su fecha va en el title (el chip de abajo ya la resume)
     const [sig] = proximos(ts, 1);
-    if (sig && p.Estado === 'activo') partes.push(`sigue: ${sig.tarea.Title}${sig.dias < 0 ? ` · ${-sig.dias} d tarde` : ` · ${sig.dias} d`}`);
-    if (p.Estado === 'cerrado') partes.push(`cerrado ${fechaCorta(p.CerradoEl)}`);
-    const m = el('span', 'm', partes.join(' · ')); m.title = partes.join(' · '); cuerpo.appendChild(m);
-    r.appendChild(cuerpo);
-    // lado: el chip «sin dueño» (C7), quienes, y la barra por columna. El chip C8 «vence en N d · faltan M» NO va
-    // aqui: repetia el numero grande (revisor 12-sep); sigue en la cabecera del proyecto, y «faltan» lo dice hechas/total.
-    const lado = el('span', 'lado');
-    const chips = el('span', 'chips');
-    const huerfanas = sinDueno(ts).length;
-    if (huerfanas && p.Estado === 'activo') { const h = chip(`sin dueño · ${huerfanas}`, 'warn'); h.dataset.sinDueno = String(p.id); chips.appendChild(h); }
+    if (p.Estado === 'activo') {
+        const sg = el('span', 'sig'); sg.appendChild(el('span', '', 'sigue: ')); sg.appendChild(document.createTextNode(sig ? sig.tarea.Title : '—'));
+        sg.title = sig ? `${sig.tarea.Title} · ${sig.dias < 0 ? `${-sig.dias} d tarde` : sig.dias === 0 ? 'vence hoy' : `en ${sig.dias} d`} (${fechaCorta(sig.tarea.Vence)})` : 'Ninguna tarjeta abierta con fecha';
+        r.appendChild(sg);
+    }
+    // pie: lo que pide atencion y quienes estan. El reloj del frente NO se repite como chip (revisor 12-sep): ya es el numero grande.
+    const ft = el('span', 'ft');
+    if (p.Estado === 'cerrado') ft.appendChild(chip(`cerrado ${fechaCorta(p.CerradoEl)}`, 'idle'));
+    else {
+        const venc = vencidasEn(ts);
+        if (venc) { const v = chip(`${venc} vencida${venc === 1 ? '' : 's'}`, 'danger'); v.dataset.vencidas = String(p.id); ft.appendChild(v); }
+        else if (sig) ft.appendChild(chip(`próx. ${fechaCorta(sig.tarea.Vence).slice(0, 5)}`, 'idle'));
+        const huerfanas = sinDueno(ts).length;
+        if (huerfanas) { const h = chip(`sin dueño · ${huerfanas}`, 'warn'); h.dataset.sinDueno = String(p.id); ft.appendChild(h); }
+    }
     const quienes = [...new Set(ts.map(x => String(x.Asignado || '').toLowerCase()).filter(Boolean))];
-    const avs = el('span', 'avs'); for (const q of quienes.slice(0, 6)) avs.appendChild(avatar(q)); chips.appendChild(avs);
-    lado.appendChild(chips);
-    const barra = el('span', 'segbar'); barra.title = tituloSegmentos(segmentosDe(a));
-    for (const [c, n, cls, tono] of segmentosDe(a)) { const i = el('i', cls); if (tono) i.dataset.tono = tono; i.style.flex = String(n); i.title = `${c.nombre}: ${n}`; barra.appendChild(i); }   // v0.12.0: el color elegido manda sobre la clase
-    if (!a.total) { const i = el('i', 'p'); i.style.flex = '1'; barra.appendChild(i); }
-    lado.appendChild(barra);
-    r.appendChild(lado);
+    const avs = el('span', 'avs'); for (const q of quienes.slice(0, 6)) avs.appendChild(avatar(q)); ft.appendChild(avs);
+    r.appendChild(ft);
     r.addEventListener('click', () => abrirProyecto(p.id));
     return r;
+}
+/**
+ * Pinta `proyectos` (ya ordenados, C10) en `cont` como fichas. Con `agrupar`, bajo un encabezado por equipo en el orden
+ * del rail (reglas.js: agruparPorEquipo) —«Ambiental · CALYTEK ——— 2 frentes»—, la misma historia que cuenta el menu;
+ * sin agrupar (los cerrados, que van por fecha de cierre), una sola rejilla. Deja `cont` vacio si no hay proyectos.
+ */
+function pintarFichas(cont, proyectos, agrupar) {
+    cont.textContent = '';
+    if (!proyectos.length) return;
+    if (!agrupar) { const g = el('div', 'fichas'); for (const p of proyectos) g.appendChild(fichaProyecto(p)); cont.appendChild(g); return; }
+    const uni = el('div', 'uni');
+    for (const { clave, proyectos: ps } of agruparPorEquipo(proyectos, CONFIG.equipos)) {
+        const eq = equipoDe({ Equipo: clave }); const bloque = el('div', 'uni-b'); bloque.dataset.equipo = clave || '';
+        const h = el('div', 'uni-h'); h.style.setProperty('--c', eq.color);
+        h.appendChild(el('i')); h.appendChild(el('span', 'nom', clave ? `${eq.rama} · ${eq.nombre}` : 'Sin equipo')); h.appendChild(el('span', 'ln'));
+        h.appendChild(el('span', 'n', `${ps.length} frente${ps.length === 1 ? '' : 's'}`));
+        bloque.appendChild(h);
+        const g = el('div', 'fichas'); for (const p of ps) g.appendChild(fichaProyecto(p)); bloque.appendChild(g);
+        uni.appendChild(bloque);
+    }
+    cont.appendChild(uni);
 }
 /** Un renglon de mini lista (2026-09-12): cabecera = quien + cuando; debajo la frase a todo el ancho;
  *  debajo el proyecto en una linea. `texto` NO trae el nombre (lo pone la cabecera); si `texto` ES el
@@ -486,8 +523,8 @@ function pintarInicio() {
     kpi(ven, 'vencidas', ven ? 'danger' : 'ok', { kpi: 'vencidas', a: 'mis', mis: 'vencidas' }, 'vencidas', true);
     pintarAccionesRapidas();   // v0.18.0
     pintarCola(abiertas);
-    const lp = $('inicioProyectos'); lp.textContent = '';
-    for (const p of ordenarProyectos(activos())) lp.appendChild(renglonProyecto(p));   // C10
+    const lp = $('inicioProyectos');
+    pintarFichas(lp, ordenarProyectos(activos()), true);   // C10 · v0.23.0: fichas por unidad, las mismas que en Proyectos
     if (!activos().length) lp.appendChild(el('p', 'vacio', PUEDE.proyecto(estado.rol) ? 'Sin proyectos activos: crea el primero en Proyectos.' : 'Sin proyectos activos todavía.'));
     // C9: tambien estos renglones abren su tarjeta (el revisor vio la inconsistencia con la actividad).
     const abrirT = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; };
@@ -734,13 +771,13 @@ function pintarProyectos() {
     $('filtroEquipoMovil').value = estado.filtroEquipo || '';
     // C3 (v0.6.0): el mismo buscador sin acentos del tablero, sobre nombre, clave y descripcion.
     const filtro = ps => filtrarProyectos(ps.filter(p => !estado.filtroEquipo || p.Equipo === estado.filtroEquipo), estado.textoProyectos);
-    const l = $('listaProyectos'); l.textContent = '';
+    const l = $('listaProyectos');
     const act = ordenarProyectos(filtro(activos()));   // C10: vence antes primero, sin fecha al final, empate por nombre
-    for (const p of act) l.appendChild(renglonProyecto(p));
+    pintarFichas(l, act, true);   // v0.23.0: fichas agrupadas por equipo; con filtro de equipo queda un solo grupo
     if (!act.length) l.appendChild(el('p', 'vacio', estado.textoProyectos ? 'Ningún proyecto con ese texto.' : estado.filtroEquipo ? `Sin proyectos activos de ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}.` : 'Sin proyectos activos.'));
-    const c = $('listaCerrados'); c.textContent = '';
+    const c = $('listaCerrados');
     const cer = filtro(estado.proyectos.filter(p => p.Estado === 'cerrado')).sort((a, b) => String(b.CerradoEl || '').localeCompare(String(a.CerradoEl || '')));
-    for (const p of cer) c.appendChild(renglonProyecto(p));
+    pintarFichas(c, cer, false);   // sin agrupar: van por fecha de cierre, y el equipo lo dice el icono y el borde
     if (!cer.length) c.appendChild(el('p', 'vacio', 'Ninguno cerrado.'));
 }
 

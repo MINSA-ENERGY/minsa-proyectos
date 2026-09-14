@@ -297,6 +297,20 @@ export function ordenarProyectos(proyectos) {
     });
 }
 
+/**
+ * v0.23.0 (fichas por unidad): los proyectos AGRUPADOS por equipo —la unidad que los lleva— en el orden de `equipos`
+ * (el del rail: por rama) y, adentro, en el orden en que llegan (ordenarProyectos, C10). Un equipo sin proyectos no
+ * sale; un proyecto sin equipo o con uno que no esta en el catalogo cae en un grupo final con clave null.
+ * Devuelve [{clave, proyectos}].
+ */
+export function agruparPorEquipo(proyectos, equipos) {
+    const grupos = new Map((equipos || []).map(e => [e.clave, []])); const otros = [];
+    for (const p of proyectos || []) { const g = grupos.get(p.Equipo); if (g) g.push(p); else otros.push(p); }
+    const salida = [...grupos].filter(([, ps]) => ps.length).map(([clave, ps]) => ({ clave, proyectos: ps }));
+    if (otros.length) salida.push({ clave: null, proyectos: otros });
+    return salida;
+}
+
 /** Busqueda de proyectos por nombre, clave o descripcion (C3), sin acentos ni mayusculas. */
 export function filtrarProyectos(proyectos, texto) {
     const q = sinAcentos(texto).trim();

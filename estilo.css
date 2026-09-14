@@ -331,7 +331,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
   .mn-shell { display: block; }
   .dos-columnas, .dos-columnas.ancha { grid-template-columns: 1fr; }
   .tablero { grid-template-columns: repeat(4, 1fr); overflow: visible; }
-  .col, .tarjeta, .mn-card, .renglon, .doc { break-inside: avoid; box-shadow: none; }
+  .col, .tarjeta, .mn-card, .pficha, .doc { break-inside: avoid; box-shadow: none; }
   .tabla { overflow: visible; }
   a[href]::after { content: none; }
 }
@@ -409,31 +409,44 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 
 /* ---- listas de proyectos */
 .lista { display: grid; gap: var(--sp-2); }
-/* v0.7.0 «reloj primero» (como «Relojes y pelota» del tablero): dias grandes · icono · titulo + linea de contenido ·
-   quienes y barra por columna. Los renglones van en UNA tarjeta separados por filete, no una tarjeta cada uno. */
-#inicioProyectos { gap: 0; }
-#listaProyectos, #listaCerrados { gap: 0; background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-md); padding: 0 var(--sp-3); }
-.renglon { display: grid; grid-template-columns: 58px auto minmax(0, 1fr) auto; gap: 0 var(--sp-3); align-items: center; padding: var(--sp-3) 0; border: 0; border-top: 1px solid var(--border-hairline); background: transparent; text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0; width: 100%; }
-.renglon:first-child { border-top: 0; }
-.renglon:hover { background: var(--surface-hover); }
-.renglon .dias { font-family: var(--font-display); font-size: 1.6rem; font-weight: 600; line-height: 1; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-strong); display: grid; justify-items: end; }
-.renglon .dias small { font-family: var(--font-data); font-size: .62rem; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--text-faint); margin-top: 3px; }
-.renglon.is-danger .dias b { color: var(--status-danger-fg); }
-.renglon.is-warn .dias b { color: var(--status-warn-fg); }
-.renglon.is-info .dias b { color: var(--status-info-fg); }
-.renglon.is-idle .dias b, .renglon.is-cerrado .dias b { color: var(--text-faint); }
-.renglon.is-cerrado .dias b { color: var(--status-ok-fg); font-size: 1.3rem; }
-.renglon .cuerpo { display: grid; gap: 2px; min-width: 0; }
-.renglon .t { font-weight: 600; color: var(--text-strong); font-size: .95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.renglon .m { font-size: .8rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-/* Ancho FIJO para que la barra segmentada mida lo mismo en todos los renglones (revisor 12-sep: con min-width la escala dependia de los chips de cada renglon). */
-.renglon .lado { display: grid; gap: var(--sp-1); justify-items: end; width: 200px; }
-.renglon .lado .chips { display: flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; justify-content: flex-end; }
-.renglon .lado .avs { display: inline-flex; }
+/* v0.23.0 «fichas por unidad» (iteracion 5 del artifact ed5130eb): un encabezado por equipo con su color y «N frentes»,
+   y debajo una rejilla de fichas (auto-fill, 300 px de piso; a 390 px va a una columna). Cada ficha lleva el color del
+   equipo en el borde superior (--c la pone app.js), el reloj grande, la barra segmentada por cubeta con su fila de
+   conteos, «sigue:» y el pie con chips y avatares. Sustituye al renglon «reloj primero» de v0.7.0. */
+.uni { display: grid; gap: var(--sp-4); }
+.uni-h { display: flex; align-items: center; gap: var(--sp-2); margin-bottom: var(--sp-2); font-family: var(--font-data); font-size: .68rem; font-weight: 500; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.uni-h i { width: 10px; height: 10px; border-radius: 3px; background: var(--c); flex: none; }
+.uni-h .ln { flex: 1; height: 1px; background: var(--border-default); }
+/* auto-FIT, no auto-fill: un grupo de 1 o 2 frentes llena el ancho en vez de dejar una tercera columna vacia a 1366 (revisor 13-sep); la ficha topa en 640 px. */
+.fichas { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); gap: var(--sp-3); }
+.pficha { display: grid; gap: var(--sp-2); align-content: start; padding: var(--sp-3); background: var(--surface-card); border: 1px solid var(--border-default); border-top: 3px solid var(--c, var(--border-default)); border-radius: var(--r-md); text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0; width: 100%; max-width: 640px; }
+.pficha:hover { background: var(--surface-hover); }
+.pficha .cab { display: flex; gap: var(--sp-2); align-items: flex-start; }
+.pficha .t { flex: 1; min-width: 0; font-weight: 600; color: var(--text-strong); font-size: .95rem; line-height: 1.25; overflow-wrap: anywhere; }
+.pficha .dias { flex: none; display: grid; justify-items: center; line-height: 1; }
+.pficha .dias b { font-family: var(--font-display); font-size: 1.4rem; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--brand-primary); }
+.pficha .dias small { font-family: var(--font-data); font-size: .56rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); margin-top: 2px; }
+.pficha.is-danger .dias b { color: var(--status-danger-fg); }
+.pficha.is-warn .dias b { color: var(--status-warn-fg); }
+.pficha.is-idle .dias b { color: var(--text-faint); font-size: 1.15rem; }
+.pficha.is-cerrado .dias b { color: var(--status-ok-fg); font-size: 1.15rem; }
+.pficha .seg { display: flex; gap: 2px; height: 10px; border-radius: 5px; overflow: hidden; background: var(--surface-sunken); }
+.pficha .seg i { display: block; flex: 0; min-width: 0; }
+.pficha :is(.seg, .sl) i.h { background: var(--status-ok-solid); } .pficha :is(.seg, .sl) i.r { background: var(--status-info-solid); } .pficha :is(.seg, .sl) i.c { background: var(--brand-primary); } .pficha :is(.seg, .sl) i.p { background: var(--border-default); }
+.pficha :is(.seg, .sl) i[data-tono] { background: var(--tono); }
+.pficha .sl { display: flex; gap: var(--sp-1) var(--sp-2); flex-wrap: wrap; font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); }
+.pficha .sl span { display: inline-flex; align-items: center; gap: 4px; }
+.pficha .sl i { width: 8px; height: 8px; border-radius: 2px; flex: none; }
+.pficha .sl i.p { box-shadow: inset 0 0 0 1px var(--text-faint); }   /* en oscuro --border-default se funde con la ficha (revisor 13-sep) */
+.pficha .sl b { color: var(--text-strong); font-weight: 500; }
+.pficha .sig { display: block; font-size: .82rem; color: var(--text-body); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pficha .sig span { color: var(--text-faint); }
+.pficha .ft { display: flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; min-height: 20px; }
+.pficha .ft .avs { margin-left: auto; display: inline-flex; }
 /* Auditoria #12: el avatar tiene DOS tamanos, 26 (.av) y 20 (.av.is-sm); antes habia 26/22/20/18. */
-.av.is-sm, .renglon .lado .avs .av, .tarjeta .f .av, .filtros button .av { width: 20px; height: 20px; font-size: .58rem; }
-.renglon .lado .avs .av { border: 2px solid var(--surface-card); margin-left: -6px; }
-.renglon .lado .avs .av:first-child { margin-left: 0; }
+.av.is-sm, .pficha .avs .av, .tarjeta .f .av, .filtros button .av { width: 20px; height: 20px; font-size: .58rem; }
+.pficha .avs .av { border: 2px solid var(--surface-card); margin-left: -6px; }
+.pficha .avs .av:first-child { margin-left: 0; }
 .segbar { display: flex; gap: 2px; height: 5px; width: 100%; }
 .segbar i { display: block; flex: 0; border-radius: 2px; }
 .segbar i.h { background: var(--status-ok-solid); } .segbar i.r { background: var(--status-info-solid); } .segbar i.c { background: var(--brand-primary); } .segbar i.p { background: var(--border-default); }
@@ -737,14 +750,8 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .nota-forma .mn-btn { width: 100%; }
   /* C3: el buscador a todo el ancho */
   .buscador { width: 100%; }
-  /* v0.7.0: reloj primero a 390 px: sin la columna derecha (los chips bajan debajo del texto), dias mas chicos */
-  .renglon { grid-template-columns: 46px auto minmax(0, 1fr); }
-  .renglon .dias { font-size: 1.3rem; }
-  .renglon .lado { grid-column: 2 / -1; justify-items: start; width: auto; }
-  .renglon .lado .chips { justify-content: flex-start; }
-  .renglon .lado .segbar { display: none; }
-  .renglon .t, .renglon .m { white-space: normal; }
-  .renglon .m { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  /* v0.23.0: las fichas de proyecto a 390 px van a una columna (auto-fill) con menos aire */
+  .pficha { padding: var(--sp-3) var(--sp-2); }
 }
 /* B6: objetivos tactiles. Medido a 390 px: todos los .is-sm, chips y pestanas median 32 px, y
    «→ siguiente» 24. El corte va en 900 px, no en 720: A3 acaba de declarar que 721-900 es tableta

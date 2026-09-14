@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, iniciales, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe } from './reglas.js';
 
-export const VERSION = '0.22.0';
+export const VERSION = '0.23.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -395,7 +395,7 @@ export function notasDe(tareaId) {
 }
 
 /** Equipo (config) de un proyecto. */
-export function equipoDe(p) { return CONFIG.equipos.find(e => e.clave === (p && p.Equipo)) || { clave: p && p.Equipo, nombre: p && p.Equipo, unidad: null, rama: null, color: 'var(--status-idle-solid)', icono: ['M12 8v4M12 16h.01', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z'] }; }
+export function equipoDe(p) { return CONFIG.equipos.find(e => e.clave === (p && p.Equipo)) || { clave: p && p.Equipo, nombre: (p && p.Equipo) || 'Sin equipo', unidad: null, rama: null, color: 'var(--status-idle-solid)', icono: ['M12 8v4M12 16h.01', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z'] }; }
 /**
  * v0.7.0: el equipo se ve por su ICONO + COLOR, no por su nombre (Carlos, 2026-09-12). Un <span class="eqi">
  * con el SVG armado por DOM (createElementNS: la CSP prohibe innerHTML y aqui no se usa en ningun lado), el

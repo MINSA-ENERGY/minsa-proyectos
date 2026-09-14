@@ -335,7 +335,7 @@ try {
         $('btnNuevoProyecto').disabled = false; clic('btnNuevoProyecto'); await dormir(80);
         R.ok('rol sin gerencia: crear proyecto se niega aunque se fuerce el botón', !$('dlgProyecto').open && !!avisoCon('Solo gerencia'));
     }
-    const abrirLau = async () => { pestana('proyectos'); await esperar(() => document.querySelector('#listaProyectos .renglon'), 'renglón'); document.querySelector('#listaProyectos .renglon').click(); await esperar(() => visible('p-proyecto'), 'proyecto abierto'); };
+    const abrirLau = async () => { pestana('proyectos'); await esperar(() => document.querySelector('#listaProyectos .pficha'), 'renglón'); document.querySelector('#listaProyectos .pficha').click(); await esperar(() => visible('p-proyecto'), 'proyecto abierto'); };
     await abrirLau();
     R.ok('el proyecto aparece en la lista y abre; el equipo va por icono (title), no por nombre (v0.7.0)', visible('p-proyecto') && $('pEquipo').querySelector('.eqi').title === 'CALYTEK' && $('pEquipo').textContent === '');
     R.ok('Cerrar/Editar proyecto según rol', $('btnCerrarProyecto').disabled === !gerencia && $('btnEditarProyecto').disabled === !gerencia);
@@ -494,7 +494,7 @@ try {
         document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
         R.ok('rail: el equipo elegido queda marcado y filtra Proyectos', document.querySelector('#railEquipos button.is-on').dataset.equipo === 'PITEPEC' && !!document.querySelector('#listaProyectos .vacio'));
         document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
-        R.ok('rail: el segundo clic quita el filtro', !document.querySelector('#railEquipos button.is-on') && !!document.querySelector('#listaProyectos .renglon'));
+        R.ok('rail: el segundo clic quita el filtro', !document.querySelector('#railEquipos button.is-on') && !!document.querySelector('#listaProyectos .pficha'));
         // v0.7.0: el select de celular es el mismo filtro en las dos direcciones (select -> rail -> select).
         $('filtroEquipoMovil').value = 'PITEPEC'; $('filtroEquipoMovil').dispatchEvent(new Event('change')); await dormir(30);
         R.ok('v0.7.0: el select móvil pone el filtro y el rail lo refleja', document.querySelector('#railEquipos button.is-on')?.dataset.equipo === 'PITEPEC' && !!document.querySelector('#listaProyectos .vacio'));
@@ -576,18 +576,22 @@ try {
           p0.Vence = new Date(Date.now() + 3 * 864e5).toISOString(); await abrirLau();
           R.ok('C8: la cabecera trae «vence en 3 d · faltan N» en ámbar', /^vence en 3 d · faltan \d+$/.test($('pReloj').textContent) && $('pReloj').querySelector('.mn-chip').classList.contains('is-warn'), $('pReloj').textContent);
           pestana('proyectos'); await dormir(30);
-          { const r = document.querySelector(`#listaProyectos .renglon[data-open="${proyectoId}"]`); R.ok('C8 / v0.7.0: el renglón de Proyectos lleva el reloj como número grande y clase ámbar (ya sin el chip repetido)', !!r && r.classList.contains('is-warn') && r.querySelector('.dias b').textContent === '3' && !r.querySelector('[data-reloj]'), r ? r.className : 'sin renglón'); }
+          { const r = document.querySelector(`#listaProyectos .pficha[data-open="${proyectoId}"]`); R.ok('C8 / v0.7.0: el renglón de Proyectos lleva el reloj como número grande y clase ámbar (ya sin el chip repetido)', !!r && r.classList.contains('is-warn') && r.querySelector('.dias b').textContent === '3' && !r.querySelector('[data-reloj]'), r ? r.className : 'sin renglón'); }
           p0.Vence = venceAntes; }
         // C10: la lista de proyectos se ordena por fin del frente (sin fecha al final) y luego por nombre.
         { const idsC10 = []; for (const [nombre, vence] of [['Zeta sin fecha', undefined], ['Alfa mismo día', '2026-10-31T18:00:00Z'], ['Antes que todos', '2026-09-20T18:00:00Z']]) { const id = DB.siguienteId++; idsC10.push(id); filas('proyectos').push({ id, fields: { Title: nombre, Clave: 'c10-' + id, Equipo: 'CALYTEK', Estado: 'activo', Vence: vence } }); }
-          await recargarYEsperar(); pestana('proyectos'); await esperar(() => document.querySelectorAll('#listaProyectos .renglon').length === 4, '4 proyectos');
-          const ordenC10 = [...document.querySelectorAll('#listaProyectos .renglon .t')].map(x => x.textContent);
+          await recargarYEsperar(); pestana('proyectos'); await esperar(() => document.querySelectorAll('#listaProyectos .pficha').length === 4, '4 proyectos');
+          const ordenC10 = [...document.querySelectorAll('#listaProyectos .pficha .t')].map(x => x.textContent);
           R.ok('C10: Proyectos ordena por fin del frente y desempata por nombre, sin fecha al final', ordenC10[0] === 'Antes que todos' && ordenC10[1] === 'Alfa mismo día' && ordenC10[2].startsWith('LAU') && ordenC10[3] === 'Zeta sin fecha', ordenC10.join(' | '));
+          // v0.23.0 (iteración 5): fichas agrupadas por equipo. Los 4 activos son CALYTEK → un solo grupo con «4 frentes».
+          { const hs = [...document.querySelectorAll('#listaProyectos .uni-h')]; const f = document.querySelector(`#listaProyectos .pficha[data-open="${proyectoId}"]`); const nSeg = f ? f.querySelectorAll('.sl span').length : 0; const nBarra = f ? f.querySelectorAll('.seg i').length : -1;
+            R.ok('v0.23.0: Proyectos pinta FICHAS bajo un encabezado por equipo (color del equipo, «Ambiental · CALYTEK», «4 frentes»), y cada ficha lleva el color, el icono, la barra segmentada (solo los tramos con tarjetas) y un conteo por cubeta, «sigue:» y el reloj grande', hs.length === 1 && hs[0].textContent.includes('Ambiental · CALYTEK') && hs[0].textContent.includes('4 frentes') && hs[0].style.getPropertyValue('--c') !== '' && !!f && f.style.getPropertyValue('--c') !== '' && !!f.querySelector('.eqi[data-equipo="CALYTEK"]') && nSeg === 4 && nBarra === [...f.querySelectorAll('.sl b')].filter(b => Number(b.textContent) > 0).length && f.querySelector('.sl').textContent.includes('hechas') && f.querySelector('.sig').textContent.startsWith('sigue: ') && !!f.querySelector('.dias b') && !!f.querySelector('.ft .avs'), `${hs.length} grupos · ${nSeg} segmentos · ${hs[0] ? hs[0].textContent : ''}`);
+            R.ok('v0.23.0: la barra y la fila de conteos cuadran con las tarjetas del frente (la suma de los conteos = total)', !!f && [...f.querySelectorAll('.sl b')].reduce((s, b) => s + Number(b.textContent), 0) === filas('tareas').filter(t => Number(t.fields.ProyectoId) === proyectoId).length, f ? f.querySelector('.sl').textContent : 'sin ficha'); }
           // C3: buscador en Proyectos (nombre / clave / descripción, sin acentos) y en Mis tareas (título).
           poner('textoProyectos', 'ALFA'); await dormir(30);
-          R.ok('C3: el buscador de Proyectos filtra por nombre sin acentos ni mayúsculas', document.querySelectorAll('#listaProyectos .renglon').length === 1 && document.querySelector('#listaProyectos .renglon .t').textContent === 'Alfa mismo día');
+          R.ok('C3: el buscador de Proyectos filtra por nombre sin acentos ni mayúsculas', document.querySelectorAll('#listaProyectos .pficha').length === 1 && document.querySelector('#listaProyectos .pficha .t').textContent === 'Alfa mismo día');
           poner('textoProyectos', 'c10-' + idsC10[0]); await dormir(30);
-          R.ok('C3: también por clave', document.querySelectorAll('#listaProyectos .renglon').length === 1 && document.querySelector('#listaProyectos .renglon .t').textContent === 'Zeta sin fecha');
+          R.ok('C3: también por clave', document.querySelectorAll('#listaProyectos .pficha').length === 1 && document.querySelector('#listaProyectos .pficha .t').textContent === 'Zeta sin fecha');
           poner('textoProyectos', 'zzz'); await dormir(30);
           R.ok('C3: sin resultado lo dice', !!document.querySelector('#listaProyectos .vacio') && $('listaProyectos').textContent.includes('ese texto'));
           poner('textoProyectos', ''); await dormir(30);
@@ -985,7 +989,7 @@ try {
             pestana('proyectos'); await esperar(() => $('listaCerrados').textContent.includes('LAU ASEA'), 'en cerrados');
             R.ok('Proyectos: el cerrado aparece en «cerrados» y no en activos', !$('listaProyectos').textContent.includes('LAU ASEA'));
             // F6 (v0.3.0): reabrir.
-            document.querySelector('#listaCerrados .renglon').click(); await esperar(() => visible('p-proyecto') && !$('btnReabrirProyecto').classList.contains('oculto'), 'cerrado abierto con Reabrir');
+            document.querySelector('#listaCerrados .pficha').click(); await esperar(() => visible('p-proyecto') && !$('btnReabrirProyecto').classList.contains('oculto'), 'cerrado abierto con Reabrir');
             R.ok('proyecto cerrado: aparece Reabrir y Cerrar dice Cerrado', $('btnCerrarProyecto').textContent === 'Cerrado');
             clic('btnReabrirProyecto'); await confirmar(); await esperar(() => pc.fields.Estado === 'activo', 'reabierto');
             R.ok('Reabrir: activo, sin sello, «reabrió» en la bitácora, Reabrir se esconde y Nueva tarea vuelve', !pc.fields.CerradoPor && !pc.fields.CerradoEl && actividad('reabrir-proyecto').length === 1 && $('btnReabrirProyecto').classList.contains('oculto') && !$('btnNuevaTarea').disabled, JSON.stringify(pc.fields));
@@ -1405,10 +1409,10 @@ try {
     if (params.get('vista')) {
         $('resultados').hidden = true; const v = params.get('vista');
         if (['proyecto', 'docs', 'tarjeta'].includes(v)) {
-            pestana('proyectos'); document.querySelector('#listaProyectos .renglon, #listaCerrados .renglon')?.click();
+            pestana('proyectos'); document.querySelector('#listaProyectos .pficha, #listaCerrados .pficha')?.click();
             if (v === 'docs') tab('docs');
             if (v === 'tarjeta') document.querySelector('#tab-tablero .tarjeta')?.click();
-        } else if (v === 'roadmap-proyecto') { pestana('proyectos'); document.querySelector('#listaProyectos .renglon')?.click(); tab('roadmap'); }
+        } else if (v === 'roadmap-proyecto') { pestana('proyectos'); document.querySelector('#listaProyectos .pficha')?.click(); tab('roadmap'); }
         else pestana(v);
     }
 }
