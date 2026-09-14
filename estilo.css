@@ -455,7 +455,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .tareas-filtros { align-items: center; }
 .tareas-filtros .chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 /* Auditoria #7: es el mismo .buscador de Proyectos y Mis tareas; aqui solo cambia el acomodo. */
-.tareas-filtros .buscador { margin-left: auto; min-width: 0; width: min(16rem, 100%); }
+.tareas-filtros .buscador { margin-left: auto; min-width: 0; width: min(13rem, 100%); }   /* v0.20.0: 13rem (era 16) para que el conmutador quepa en la fila a 1366 */
 /* C3 (v0.6.0): el mismo buscador en Proyectos y Mis tareas, a lo ancho del contenido. */
 .buscador { min-height: var(--control-h-sm); font: inherit; font-size: .85rem; padding: 0 var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); width: min(24rem, 100%); }
 .buscador:focus { outline: 2px solid var(--brand-primary); outline-offset: 1px; }
@@ -530,12 +530,41 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .col h3 { margin: 0; font-family: var(--font-display); font-size: .82rem; font-weight: 600; color: var(--text-strong); display: flex; gap: var(--sp-2); align-items: center; padding: var(--sp-1) var(--sp-1) 0; }
 .col h3 .n { margin-left: auto; font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); font-weight: 500; }
 .col .vacio { color: var(--text-faint); font-size: .78rem; padding: var(--sp-1); }
-.tarjeta { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-3); display: grid; gap: var(--sp-1); text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0; }   /* auditoria #10: sin sombra, como .mn-card, .doc y .urgente; la piel lo dice */
+.tarjeta { background: var(--surface-card); border: 1px solid var(--border-hairline); border-left-width: 3px; border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-3); display: grid; gap: var(--sp-1); text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0; }   /* auditoria #10: sin sombra, como .mn-card, .doc y .urgente; la piel lo dice */
 .tarjeta:hover { border-color: var(--border-default); }
-/* D4 (v0.6.0): prioridad alta = borde izquierdo de 3 px (atributo estable); el rojo queda para «venció» (alarma). */
-.tarjeta.alta { border-left: 3px solid var(--brand-primary); }
+/* D4 (v0.6.0): la prioridad alta era el borde izquierdo. v0.20.0 (iteracion 2): el borde izquierdo (3 px en TODAS)
+   es semaforo de FECHA — gris en tiempo, rojo vencida, ambar hoy o en CONFIG.semaforoDias, verde hecha — y la
+   prioridad alta pasa a un PUNTO de marca delante del titulo (tarjeta) y en la columna «P» (Lista). Las reglas de
+   color van despues del bloque [data-tono], que pinta border-color entero y las pisaria. */
+.p-alta { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--brand-primary); flex: none; }
+.tarjeta .t .p-alta { margin-right: 6px; vertical-align: 1px; }
 .tabla .col-p { width: 14px; padding-left: var(--sp-1); padding-right: 0; }
-.tabla td.col-p .p-alta { display: block; width: 3px; height: 1.2em; border-radius: 2px; background: var(--brand-primary); }
+.tabla td.col-p .p-alta { display: block; margin-top: .3em; }
+.col { container-type: inline-size; }
+.col h3 .n { white-space: nowrap; }
+.col h3 .n .largo { display: none; }   /* «· 1 vencida» solo en cubetas de 240 px o mas (a 1366 con lateral miden 195): abajo queda el rojo y el title */
+@container (min-width: 240px) { .col h3 .n .largo { display: inline; } }
+.col h3 .n.is-hot, .col-tabs button .n.is-hot { color: var(--status-danger-fg); font-weight: 600; }
+/* Leyenda del filete, bajo las columnas: la misma barrita de 3 px que llevan las tarjetas. */
+.leyenda-sem { display: flex; flex-wrap: wrap; gap: var(--sp-1) var(--sp-3); font-size: .72rem; color: var(--text-muted); padding: 0 var(--sp-1); }
+.leyenda-sem span { display: inline-flex; align-items: center; gap: 6px; }
+.leyenda-sem i { display: inline-block; width: 3px; height: 12px; border-radius: 2px; background: var(--border-hairline); }
+.leyenda-sem .is-vencida i { background: var(--status-danger-solid); } .leyenda-sem .is-pronto i { background: var(--status-warn-solid); } .leyenda-sem .is-hecha i { background: var(--status-ok-solid); }
+.leyenda-sem .alta i { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-primary); }
+/* Conmutador Cómodo / Compacto: en la fila de FILTROS, tras el buscador (en la de pestañas desbordaba 84 px a 820);
+   solo se ve en el tablero. En celular vive, como los filtros, detrás de «Filtrar». */
+.densidad { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); flex: none; }
+.densidad button { border: 0; background: none; font: inherit; font-size: .74rem; font-weight: 600; padding: 0 var(--sp-2); min-height: calc(var(--control-h-sm) - 4px); border-radius: var(--r-pill); color: var(--text-muted); cursor: pointer; }   /* 28 px dentro de 32: el mismo alto que los chips de al lado */
+.densidad button[aria-pressed="true"] { background: var(--brand-primary); color: var(--text-on-brand); }
+.densidad button:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 1px; }
+/* Compacto: una linea por tarjeta — titulo con puntos suspensivos · avatar · chip de fecha. El nombre, las
+   insignias, «en el buzon» y «sin movimiento» se esconden (siguen en el title y en la ficha). */
+.tablero.is-compacto .col { gap: 4px; }
+.tablero.is-compacto .tarjeta { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--sp-2); padding: 4px var(--sp-2); min-height: 36px; }   /* 36 px: el umbral tactil que mide driver.js (revisor: a 32 salian «chicos») */
+.tablero.is-compacto .tarjeta .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; font-size: .84rem; }
+.tablero.is-compacto .tarjeta .f { flex-wrap: nowrap; }
+.tablero.is-compacto .tarjeta .f > :not(.av):not(.vence) { display: none; }
+.tablero.is-compacto .tarjeta .f .mn-chip { padding: 0 6px; font-size: .68rem; }
 .tarjeta .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; line-height: 1.3; }
 .tarjeta .f { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; font-size: .75rem; color: var(--text-muted); }
 .tarjeta .stale { color: var(--status-warn-fg); font-weight: 600; }
@@ -1056,8 +1085,11 @@ button.g-barra { cursor: pointer; } button.g-barra:hover { filter: brightness(.9
 .anillo .seg[data-tono] { stroke: var(--tono); }
 .tarjeta[data-tono] { background: color-mix(in srgb, var(--tono) 13%, var(--surface-card)); border-color: color-mix(in srgb, var(--tono) 38%, var(--border-hairline)); }
 .tarjeta[data-tono]:hover { border-color: color-mix(in srgb, var(--tono) 60%, var(--border-default)); }
-.tarjeta.alta[data-tono] { border-left-color: var(--brand-primary); }
 .urgente .tarjeta[data-tono] { border: 0; background: transparent; }   /* la lista «Urgentes» de Inicio no lleva tinte (revisor 12-sep) */
+/* v0.20.0: semaforo de fecha en el filete izquierdo — despues del tinte, que escribe border-color entero. */
+.tarjeta.is-vencida, .tarjeta.is-vencida:hover { border-left-color: var(--status-danger-solid); }
+.tarjeta.is-pronto, .tarjeta.is-pronto:hover { border-left-color: var(--status-warn-solid); }
+.tarjeta.is-hecha, .tarjeta.is-hecha:hover { border-left-color: var(--status-ok-solid); }
 /* Selector de color: una fila de circulos, el elegido con anillo; «sin color» es el primero (un circulo hueco). */
 .tonos { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }
 .tonos button { width: 24px; height: 24px; min-height: 0; padding: 0; border-radius: 50%; border: 2px solid transparent; background: var(--tono, transparent); cursor: pointer; box-shadow: 0 0 0 1px var(--border-default); }

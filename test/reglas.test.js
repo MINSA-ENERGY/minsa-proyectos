@@ -1,6 +1,6 @@
 // node test/reglas.test.js — reglas puras de MINSA Proyectos (decisiones del plan 2026-09-11).
 import assert from 'node:assert/strict';
-import { ordenarLigas, direccionInicial, nombreHumano, nombreDeLiga, rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, vistosDe, leerVisto, fundirVisto } from '../reglas.js';
+import { ordenarLigas, direccionInicial, nombreHumano, nombreDeLiga, rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, semaforo, vencidasEn, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, vistosDe, leerVisto, fundirVisto } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -56,6 +56,13 @@ ok('proximos: vencida primero, luego por fecha, hechas fuera', px.map(x => x.tar
 ok('estadoVence: vencida / pronto / lejos / hecha / sin fecha',
     estadoVence(tareas[1], 7, HOY) === 'danger' && estadoVence(tareas[2], 7, HOY) === 'warn'
     && estadoVence(tareas[5], 7, HOY) === 'idle' && estadoVence(tareas[0], 7, HOY) === null && estadoVence(tareas[3], 7, HOY) === null);
+// v0.20.0 (iteracion 2): el filete izquierdo es semaforo de fecha, con ventana propia (3) mas corta que la del chip (7).
+ok('semaforo: vencida / pronto (2 dias) / hoy = pronto / 5 dias = en tiempo con ventana 3 / hecha / sin fecha / lejos',
+    semaforo(tareas[1], 3, HOY) === 'vencida' && semaforo(tareas[4], 3, HOY) === 'pronto'
+    && semaforo({ Columna: 'por-hacer', Vence: '2026-09-11T23:00:00Z' }, 3, HOY) === 'pronto'
+    && semaforo(tareas[2], 3, HOY) === '' && semaforo(tareas[2], 7, HOY) === 'pronto'
+    && semaforo(tareas[0], 3, HOY) === 'hecha' && semaforo(tareas[3], 3, HOY) === '' && semaforo(tareas[5], 3, HOY) === '' && semaforo(null) === '');
+ok('vencidasEn cuenta solo las vencidas abiertas (la hecha con fecha pasada no)', vencidasEn(tareas, HOY) === 1 && vencidasEn([], HOY) === 0 && vencidasEn([tareas[0]], HOY) === 0);
 ok('sinMovimiento: 12 dias en curso se senala, 1 dia no, sin Desde no', sinMovimiento(tareas, 10, HOY).map(t => t.id).join(',') === '2');
 ok('ordenar: Orden manda, luego prioridad, luego vence', ordenar(del10.filter(t => t.Columna === 'por-hacer')).map(t => t.id).join(',') === '4,3');
 ok('ordenar sin Orden: alta antes que normal', ordenar([{ id: 9, Prioridad: 'normal' }, { id: 8, Prioridad: 'alta' }]).map(t => t.id).join(',') === '8,9');

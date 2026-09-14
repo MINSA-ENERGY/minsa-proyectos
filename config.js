@@ -85,6 +85,8 @@ export const CONFIG = {
     sinMovimientoDias: 10,
     // Ventana de «vence pronto» en Inicio y en Mis tareas.
     vencePronto: 7,
+    // v0.20.0: el filete izquierdo de la tarjeta se pone ambar si vence hoy o en estos dias (rojo si ya vencio).
+    semaforoDias: 3,
     // «Te mencionaron» en Inicio: comentarios del chat que nombran a la persona en estos ultimos dias (v0.8.0). No hay
     // «leido»: la lista se vacia sola con el tiempo.
     mencionesDias: 14,

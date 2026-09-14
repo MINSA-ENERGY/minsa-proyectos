@@ -511,6 +511,30 @@ try {
         tab('lista'); await esperar(() => document.querySelector('#tab-lista th.col-p'), 'lista con P');
         R.ok('D4: la Lista trae «P» (sin ordenar) y solo la alta lleva la marca', !document.querySelector('#tab-lista th.col-p').dataset.sort && document.querySelectorAll('#tab-lista td.col-p .p-alta').length === (gerencia ? 1 : 2) && !!document.querySelector(`#tab-lista tr[data-t="${t.id}"] td.col-p .p-alta`));
         tab('tablero'); await dormir(30);
+        // ---- v0.20.0 (iteracion 2): el filete izquierdo es semaforo de FECHA, la prioridad alta un punto, y Cómodo/Compacto por dispositivo ----
+        { const d = k => new Date(Date.now() + k * 86400000).toISOString();
+          const sem = [['Semáforo vencida', d(-2), 'por-hacer'], ['Semáforo pronto', d(2), 'en-curso'], ['Semáforo en tiempo', d(30), 'en-curso'], ['Semáforo hecha', d(-9), 'hecho']]
+              .map(([Title, Vence, Columna]) => { const id = DB.siguienteId++; filas('tareas').push({ id, fields: { Title, ProyectoId: proyectoId, Columna, Asignado: YO, Prioridad: Title.endsWith('pronto') ? 'alta' : 'normal', Vence, Desde: d(-1), HechoEl: Columna === 'hecho' ? d(-1) : undefined } }); return id; });
+          await recargarYEsperar(); await abrirLau(); await esperar(() => document.querySelector(`.tarjeta[data-t="${sem[3]}"]`), 'sembradas del semáforo');
+          const tj = i => document.querySelector(`.tarjeta[data-t="${sem[i]}"]`), cl = i => tj(i).classList;
+          R.ok('v0.20.0: el filete es semáforo de fecha — vencida / pronto / en tiempo (sin clase) / hecha', cl(0).contains('is-vencida') && cl(1).contains('is-pronto') && !cl(2).contains('is-vencida') && !cl(2).contains('is-pronto') && !cl(2).contains('is-hecha') && cl(3).contains('is-hecha'));
+          R.ok('v0.20.0: la prioridad alta es un punto junto al título (i.p-alta), ya no el borde; todas llevan filete de 3 px', !!tj(1).querySelector('.t .p-alta') && !tj(0).querySelector('.t .p-alta') && getComputedStyle(tj(0)).borderLeftWidth === '3px' && getComputedStyle(tj(2)).borderLeftWidth === '3px');
+          const nPH = document.querySelector('.col[data-col="por-hacer"] h3 .n');
+          R.ok('v0.20.0: el contador de la cubeta con vencidas se pone rojo y las cuenta; el de una cubeta sin vencidas no', nPH.classList.contains('is-hot') && /· \d+ vencidas?$/.test(nPH.textContent) && !document.querySelector('.col[data-col="en-curso"] h3 .n').classList.contains('is-hot'), nPH.textContent);
+          // Se parte de Cómodo a propósito (el harness y el dev manual comparten localhost:8080 y su localStorage — revisor).
+          document.querySelector('#densidad [data-densidad="comodo"]').click(); await dormir(30);
+          R.ok('v0.20.0: en Cómodo el conmutador se ve en el tablero, sin clase en el tablero, y la leyenda dice la ventana de CONFIG', !$('densidad').classList.contains('oculto') && document.querySelector('#densidad [data-densidad="comodo"]').getAttribute('aria-pressed') === 'true' && !$('tableroCols').classList.contains('is-compacto') && $('leyendaPronto').textContent === 'hoy o en 3 días');
+          document.querySelector('#densidad [data-densidad="compacto"]').click(); await dormir(30);
+          R.ok('v0.20.0: Compacto pone la clase en el tablero, marca el botón, lo guarda en localStorage y el title trae el título, quién, la fecha entera y la prioridad', $('tableroCols').classList.contains('is-compacto') && document.querySelector('#densidad [data-densidad="compacto"]').getAttribute('aria-pressed') === 'true' && localStorage.getItem('densidad') === 'compacto' && /^Semáforo vencida · Persona · venció \d\d\/\d\d\/\d{4}$/.test(tj(0).title) && /^Semáforo pronto · Prioridad alta · Persona · vence \d\d\/\d\d\/\d{4}$/.test(tj(1).title), tj(1).title);
+          R.ok('v0.20.0: en Compacto el chip de fecha pierde año y verbo; todo lo demás de la línea de abajo se esconde salvo el avatar', /^\d\d\/\d\d$/.test(tj(0).querySelector('.vence').textContent) && /^\d\d\/\d\d$/.test(tj(1).querySelector('.vence').textContent) && [...document.querySelectorAll('#tableroCols .tarjeta .f > *')].every(x => (x.classList.contains('av') || x.classList.contains('vence')) ? getComputedStyle(x).display !== 'none' : getComputedStyle(x).display === 'none') && document.querySelectorAll('#tableroCols .tarjeta .f > .nom').length >= 4, tj(0).querySelector('.vence').textContent);
+          R.ok('v0.20.0: en Compacto la tarjeta mide al menos 36 px (objetivo táctil)', [...document.querySelectorAll('#tableroCols .tarjeta')].every(x => x.getBoundingClientRect().height >= 36 || x.offsetParent === null));
+          tab('lista'); await dormir(30);
+          R.ok('v0.20.0: el conmutador solo se ve en el tablero', $('densidad').classList.contains('oculto'));
+          tab('tablero'); await dormir(30);
+          document.querySelector('#densidad [data-densidad="comodo"]').click(); await dormir(30);
+          R.ok('v0.20.0: Cómodo de vuelta: sin clase, sin title y localStorage lo recuerda', !$('tableroCols').classList.contains('is-compacto') && localStorage.getItem('densidad') === 'comodo' && tj(0).title === '');
+          for (const id of sem) filas('tareas').splice(filas('tareas').findIndex(x => x.id === id), 1);   // se retiran: lo de abajo cuenta tarjetas con números fijos
+          await recargarYEsperar(); await abrirLau(); await esperar(() => document.querySelectorAll('#tableroCols .tarjeta').length === N, 'semáforo retirado'); }
         pestana('inicio'); await esperar(() => document.querySelector('#inicioKpis [data-kpi="sin-dueno"]'), 'KPI sin dueño');
         R.ok('C7: Inicio trae el KPI «sin dueño» = 1 y el renglón del proyecto lo dice', document.querySelector('#inicioKpis [data-kpi="sin-dueno"] .mn-kpi-val').textContent === '1' && !!document.querySelector(`#inicioProyectos [data-sin-dueno="${proyectoId}"]`) && document.querySelector(`#inicioProyectos [data-sin-dueno="${proyectoId}"]`).textContent === 'sin dueño · 1');
         document.querySelector('#inicioKpis [data-kpi="sin-dueno"]').click(); await esperar(() => visible('p-proyecto') && document.querySelectorAll('#tableroCols .tarjeta').length === 1, 'proyecto filtrado');

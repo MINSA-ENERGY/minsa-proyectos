@@ -129,8 +129,10 @@
             <button id="btnFiltros" class="mn-btn is-sm solo-movil" type="button" aria-expanded="false">Filtrar</button>
             <button id="btnNuevaTarea" class="mn-btn is-primary is-sm" type="button">Nueva tarea</button>
           </div>
-          <div class="filtros tareas-filtros oculto" id="filtroTareas"><div class="chips" id="filtroChips"></div><input id="filtroTexto" class="buscador" type="search" placeholder="Buscar en las tarjetas" aria-label="Buscar en las tarjetas" autocomplete="off"></div>
-          <div id="tab-tablero" class="tablero-caja"><div class="col-tabs" id="colTabs" role="tablist" aria-label="Columna"></div><div class="tablero" id="tableroCols"></div></div>
+          <div class="filtros tareas-filtros oculto" id="filtroTareas"><div class="chips" id="filtroChips"></div><input id="filtroTexto" class="buscador" type="search" placeholder="Buscar en las tarjetas" aria-label="Buscar en las tarjetas" autocomplete="off"><!-- v0.20.0 (iteracion 2): densidad del tablero, junto a los filtros; se recuerda por dispositivo --><div class="densidad" id="densidad" role="group" aria-label="Densidad del tablero"><button type="button" data-densidad="comodo" aria-pressed="true" title="Tarjeta completa: título, quién, fecha y avisos">Cómodo</button><button type="button" data-densidad="compacto" aria-pressed="false" title="Una línea por tarjeta: título, quién y fecha">Compacto</button></div></div>
+          <div id="tab-tablero" class="tablero-caja"><div class="col-tabs" id="colTabs" role="tablist" aria-label="Columna"></div><div class="tablero" id="tableroCols"></div>
+            <!-- v0.20.0: el filete izquierdo de cada tarjeta es semaforo de FECHA; la prioridad alta es el punto azul -->
+            <div class="leyenda-sem" aria-label="Leyenda del filete"><span class="is-vencida"><i></i>vencida</span><span class="is-pronto"><i></i><span id="leyendaPronto">hoy o en 3 días</span></span><span><i></i>en tiempo</span><span class="is-hecha"><i></i>hecha</span><span class="alta"><i class="p-alta"></i>prioridad alta</span></div></div>
           <div id="tab-lista" class="tabla oculto"></div>
           <div id="tab-roadmap" class="roadmap oculto"></div>
           <div id="tab-docs" class="docs oculto">

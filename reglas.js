@@ -221,6 +221,22 @@ export function estadoVence(tarea, pronto = 7, hoy = new Date()) {
 }
 
 /**
+ * v0.20.0 (iteracion 2): el filete izquierdo de la tarjeta es un SEMAFORO de fecha, no de prioridad.
+ * 'vencida' · 'pronto' (vence hoy o en `dias` dias) · 'hecha' · '' (en tiempo o sin fecha: filete gris).
+ * `dias` es CONFIG.semaforoDias (3), mas corto que el «vence pronto» del chip (7) a proposito: el
+ * borde grita solo lo inminente; el chip sigue avisando la semana entera.
+ */
+export function semaforo(tarea, dias = 3, hoy = new Date()) {
+    if (!tarea) return '';
+    if (tarea.Columna === 'hecho') return 'hecha';
+    const e = estadoVence(tarea, dias, hoy);
+    return e === 'danger' ? 'vencida' : e === 'warn' ? 'pronto' : '';
+}
+
+/** Cuantas de estas tarjetas estan vencidas (para el contador rojo de la cubeta). */
+export function vencidasEn(tareas, hoy = new Date()) { return (tareas || []).filter(t => estadoVence(t, 0, hoy) === 'danger').length; }
+
+/**
  * Tarjetas EN PROCESO (ni en la primera cubeta ni hechas; hasta v0.10.0, solo «en-curso») que llevan
  * `dias` o mas sin moverse (columna Desde). Es el aviso contra el muerto de `tareas-delegadas`: una
  * tarjeta que nadie mueve se ve en Inicio. Sin `Desde` no se puede saber y no se senala (hacia el «no»,

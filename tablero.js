@@ -7,7 +7,7 @@
 // «→ siguiente» de la cara de la tarjeta se quito, y «Origen en la KB» ya no se ensena ni se pide.
 
 import { CONFIG } from './config.js';
-import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas } from './reglas.js';
+import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas } from './reglas.js';
 import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
@@ -59,26 +59,44 @@ export function selectorTonos(cont, actual, alElegir, rotulo = 'Color') {
 }
 
 export function tarjeta(t, conProyecto = false) {
-    // D4 (v0.6.0): la prioridad alta es un atributo estable y va como BORDE izquierdo; el chip rojo
-    // se queda solo para «venció» — dos rojos lado a lado se leian como dos vencimientos.
-    const b = el('button', 'tarjeta' + (t.Prioridad === 'alta' ? ' alta' : '')); b.type = 'button'; b.dataset.t = String(t.id);
-    if (t.Prioridad === 'alta') b.title = 'Prioridad alta';
+    // D4 (v0.6.0): la prioridad alta es un atributo estable (clase .alta); el chip rojo se queda solo
+    // para «venció». v0.20.0 (iteracion 2): el filete izquierdo pasa a ser SEMAFORO de fecha
+    // (.is-vencida / .is-pronto / .is-hecha; gris en tiempo) y la prioridad alta se pinta como un
+    // PUNTO de marca junto al titulo — el borde ya no puede decir dos cosas.
+    const sem = semaforo(t, CONFIG.semaforoDias);
+    const b = el('button', 'tarjeta' + (t.Prioridad === 'alta' ? ' alta' : '') + (sem ? ' is-' + sem : '')); b.type = 'button'; b.dataset.t = String(t.id);
     if (colorValido(t.Color)) b.dataset.tono = colorValido(t.Color);   // v0.12.0: el color elegido tiñe la tarjeta
-    b.appendChild(el('span', 't', t.Title));
+    // En compacto el titulo va a una linea con puntos suspensivos: el completo vive en el title.
+    const compacto = !conProyecto && estado.densidad === 'compacto';
+    const enTitle = [t.Prioridad === 'alta' ? 'Prioridad alta' : ''];   // lo que el compacto esconde se suma abajo y va al hover
+    const tt = el('span', 't');
+    if (t.Prioridad === 'alta') { const p = el('i', 'p-alta'); p.setAttribute('role', 'img'); p.setAttribute('aria-label', 'Prioridad alta'); tt.appendChild(p); }
+    tt.appendChild(document.createTextNode(t.Title));
+    b.appendChild(tt);
     const f = el('span', 'f');
     f.appendChild(avatar(t.Asignado));
-    f.appendChild(el('span', '', t.Asignado ? nombreDe(t.Asignado, estado.roles).split(' ')[0] : 'sin asignar'));
+    const quien = t.Asignado ? nombreDe(t.Asignado, estado.roles).split(' ')[0] : 'sin asignar';
+    f.appendChild(el('span', 'nom', quien)); enTitle.push(quien);
     if (conProyecto) { const p = porId(estado.proyectos, t.ProyectoId); if (p) f.appendChild(chip(p.Clave)); }
     if (conProyecto) f.appendChild(chipColumna(t));
-    const v = chipVence(t); if (v) f.appendChild(v);
+    const v = chipVence(t);
+    if (v) {
+        v.classList.add('vence');   // .vence: lo unico que el compacto no esconde
+        // Compacto: el chip pierde el año y el verbo («12/09», «hoy»): el color del chip y el filete ya dicen si
+        // venció — con «venció 12/09/2026» entero el titulo quedaba en cuatro letras a 1366 (medido, revisor).
+        if (compacto) { enTitle.push(v.textContent); v.textContent = v.textContent.replace(/\/\d{4}$/, '').replace(/^venci[oó] |^vence /, ''); }
+        f.appendChild(v);
+    }
     // v0.13.1: indices por tarjeta calculados una vez por pintada (antes cada tarjeta recorria toda la actividad y todas las ligas).
-    if (buzonPorTarea().get(t.id)) f.appendChild(chip('en el buzón', 'info'));
-    if (sinMovimiento([t], CONFIG.sinMovimientoDias, new Date(), columnasDeTarea).length) f.appendChild(el('span', 'stale', `· sin movimiento ${-diasPara(t.Desde)} días`));
+    if (buzonPorTarea().get(t.id)) { f.appendChild(chip('en el buzón', 'info')); enTitle.push('en el buzón'); }
+    if (sinMovimiento([t], CONFIG.sinMovimientoDias, new Date(), columnasDeTarea).length) { const s = `sin movimiento ${-diasPara(t.Desde)} días`; f.appendChild(el('span', 'stale', '· ' + s)); enTitle.push(s); }
     // v0.8.0: insignias de la cara (Trello): cuantas notas y cuantos documentos trae, sin abrirla.
     const nNotas = notasPorTarea().get(t.id) || 0, nDocs = ligasPorTarea().get(t.id) || 0;
-    if (nNotas) f.appendChild(insignia(TRAZOS.burbuja, nNotas, `${nNotas} nota${nNotas === 1 ? '' : 's'}`, 'is-notas'));
-    if (nDocs) f.appendChild(insignia(TRAZOS.clip, nDocs, `${nDocs} documento${nDocs === 1 ? '' : 's'}`, 'is-docs'));
+    if (nNotas) { const s = `${nNotas} nota${nNotas === 1 ? '' : 's'}`; f.appendChild(insignia(TRAZOS.burbuja, nNotas, s, 'is-notas')); enTitle.push(s); }
+    if (nDocs) { const s = `${nDocs} documento${nDocs === 1 ? '' : 's'}`; f.appendChild(insignia(TRAZOS.clip, nDocs, s, 'is-docs')); enTitle.push(s); }
     b.appendChild(f);
+    // Compacto: el hover trae el titulo completo y todo lo que la linea esconde (spec: «quedan en el hover y en la ficha»).
+    b.title = (compacto ? [t.Title, ...enTitle] : enTitle.slice(0, 1)).filter(Boolean).join(' · ');
     b.addEventListener('click', () => abrirTarjeta(t.id));
     // La caja se conserva (la rejilla de Mis tareas y la E2E la conocen); desde v0.11.0 solo trae la
     // tarjeta: el atajo «→ siguiente» (U7) se quito a pedido de Carlos — mover es abrir y «Mover a…».
@@ -121,6 +139,25 @@ export function pintarBotonFiltros() {
     b.classList.toggle('is-on', !!n || estado.filtrosAbiertos);
     b.setAttribute('aria-expanded', estado.filtrosAbiertos ? 'true' : 'false');
     b.classList.toggle('oculto', ['docs', 'chat', 'resumen'].includes(estado.tab));
+    $('densidad').classList.toggle('oculto', estado.tab !== 'tablero');   // v0.20.0: el conmutador solo tiene sentido en el tablero
+}
+
+// ---------------------------------------------------------------- densidad del tablero (v0.20.0, iteracion 2)
+
+const LLAVE_DENSIDAD = 'densidad';
+/** Cómodo / Compacto: se lee del dispositivo al arrancar (localStorage; sin él, cómodo) y se guarda al cambiar. */
+function leerDensidad() {
+    let v = ''; try { v = localStorage.getItem(LLAVE_DENSIDAD) || ''; } catch (_) {}
+    estado.densidad = v === 'compacto' ? 'compacto' : 'comodo';
+}
+function fijarDensidad(d) {
+    estado.densidad = d === 'compacto' ? 'compacto' : 'comodo';
+    try { localStorage.setItem(LLAVE_DENSIDAD, estado.densidad); } catch (_) {}
+    pintarSoloTareas();
+}
+/** Marca el botón activo del conmutador (aria-pressed); la clase del tablero la pone pintarTablero. */
+function pintarDensidad() {
+    for (const b of document.querySelectorAll('#densidad button')) b.setAttribute('aria-pressed', b.dataset.densidad === estado.densidad ? 'true' : 'false');
 }
 /** Repinta solo el tablero o la lista (no la pantalla entera: el foco del cuadro de texto se queda). */
 function pintarSoloTareas() {
@@ -143,14 +180,16 @@ export function pintarTablero(proyecto) {
     const tabs = $('colTabs'); tabs.textContent = '';
     if (!columnas.some(c => c.clave === estado.colMovil)) estado.colMovil = columnas[0].clave;
     for (const c of columnas) {
-        const n = ts.filter(t => t.Columna === c.clave).length;
+        const enCubeta = ts.filter(t => t.Columna === c.clave);
         const b = boton('', estado.colMovil === c.clave ? 'is-on' : '', () => { estado.colMovil = c.clave; pintarTablero(proyecto); }, { colTab: c.clave });
         b.setAttribute('role', 'tab'); b.setAttribute('aria-selected', estado.colMovil === c.clave ? 'true' : 'false');
-        b.appendChild(el('span', '', c.nombre)); b.appendChild(el('span', 'n', String(n)));
+        b.appendChild(el('span', '', c.nombre)); b.appendChild(el('span', 'n' + (vencidasEn(enCubeta) ? ' is-hot' : ''), String(enCubeta.length)));   // v0.20.0: rojo si trae vencidas
         tabs.appendChild(b);
     }
     // Mas de 4 cubetas: la rejilla las reparte (el CSS lee data-n); en celular sigue siendo una a la vez.
     $('tableroCols').dataset.n = String(columnas.length);
+    cont.classList.toggle('is-compacto', estado.densidad === 'compacto');   // v0.20.0: una linea por tarjeta
+    pintarDensidad();
     for (const [i, c] of columnas.entries()) {
         const col = el('div', 'col' + (estado.colMovil === c.clave ? ' is-activa' : '') + (c.huerfana ? ' is-huerfana' : '')); col.dataset.col = c.clave;
         col.dataset.cls = claseDeColumna(c.clave, columnas);   // v0.11.0: el color del punto va por POSICION, no por nombre
@@ -158,7 +197,12 @@ export function pintarTablero(proyecto) {
         const h = el('h3'); h.appendChild(el('i', 'punto')); h.appendChild(el('span', '', c.nombre));   // v0.8.0: el punto lleva el color de la barra segmentada
         if (c.huerfana) h.title = 'Esta cubeta ya no existe en el proyecto: mueve sus tarjetas a otra.';
         let cs = ordenar(ts.filter(t => t.Columna === c.clave));
-        h.appendChild(el('span', 'n', String(cs.length)));
+        // v0.20.0: el contador se pone rojo y dice cuantas vencidas trae la cubeta (mockup de la iteracion 2).
+        // El detalle «· 1 vencida» solo cabe en cubetas anchas (container query): a 1366 con lateral miden 195 px.
+        const nv = vencidasEn(cs);
+        const cnt = el('span', 'n' + (nv ? ' is-hot' : ''), String(cs.length));
+        if (nv) { cnt.appendChild(el('span', 'largo', ` · ${nv} vencida${nv === 1 ? '' : 's'}`)); cnt.title = `${nv} tarjeta${nv === 1 ? '' : 's'} con la fecha vencida`; }
+        h.appendChild(cnt);
         col.appendChild(h);
         if (!cs.length) col.appendChild(el('div', 'vacio', filtrado ? 'Nada con ese filtro.' : i === 0 ? 'Nada por hacer.' : '—'));
         // U6: Hecho enseña las ultimas HECHO_VISIBLES (por HechoEl) y un boton para el resto; la cuenta de arriba es la real.
@@ -194,7 +238,7 @@ export function pintarLista(proyecto) {
     const tbody = el('tbody');
     for (const t of ts) {
         const r = el('tr', 'clic' + (t.Prioridad === 'alta' ? ' alta' : '')); r.dataset.t = String(t.id);
-        const tdp = el('td', 'col-p'); if (t.Prioridad === 'alta') { tdp.appendChild(el('i', 'p-alta')); tdp.title = 'Prioridad alta'; } r.appendChild(tdp);
+        const tdp = el('td', 'col-p'); if (t.Prioridad === 'alta') { const p = el('i', 'p-alta'); p.setAttribute('role', 'img'); p.setAttribute('aria-label', 'Prioridad alta'); tdp.appendChild(p); tdp.title = 'Prioridad alta'; } r.appendChild(tdp);
         r.appendChild(el('td', '', t.Title));
         r.appendChild(el('td', '', t.Asignado ? nombreDe(t.Asignado, estado.roles) : '—'));
         const tdc = el('td'); tdc.appendChild(chipColumna(t)); r.appendChild(tdc);
@@ -726,6 +770,9 @@ async function guardarCubetas(ev) {
 // ---------------------------------------------------------------- enganche
 
 export function engancharTablero() {
+    leerDensidad();   // v0.20.0: lo que este dispositivo eligió la última vez
+    for (const b of document.querySelectorAll('#densidad button')) b.addEventListener('click', () => fijarDensidad(b.dataset.densidad));
+    $('leyendaPronto').textContent = `hoy o en ${CONFIG.semaforoDias} días`;   // la leyenda dice lo que CONFIG manda
     $('btnCubetas').addEventListener('click', abrirCubetas);   // v0.11.0
     $('formCubetas').addEventListener('submit', guardarCubetas);
     $('cbAgregar').addEventListener('click', agregarCubeta);
