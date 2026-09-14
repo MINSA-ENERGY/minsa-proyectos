@@ -417,13 +417,21 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .cabecera { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-3); }
 .cabecera h1 { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 1.5rem; letter-spacing: -.01em; color: var(--text-strong); }
 .cabecera .sub { flex-basis: 100%; margin: 0; color: var(--text-muted); font-size: .9rem; }
-.proyecto-cab .titulo { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: nowrap; min-width: 0; }
+/* v0.29.2 (Carlos, 14-sep): el titulo va en UN renglon mientras quepa y solo entonces envuelve; los botones de la derecha
+   («⋮», plegar) se quedan SIEMPRE en la fila del titulo. .titulo es el unico item que crece (flex: 1 1 0) y adentro el
+   <details> es el unico que cede (min-width: 0); icono, chip y reloj no se encogen. */
+.proyecto-cab .titulo { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: nowrap; flex: 1 1 0; min-width: 0; }
+.proyecto-cab .titulo > * { flex: none; }
+.proyecto-cab .titulo > .sel-proyecto { flex: 0 1 auto; }
 .proyecto-cab .titulo h1 { min-width: 0; }
+.proyecto-cab .reloj, .proyecto-cab .estado { white-space: nowrap; }
 /* v0.29.0 (Carlos, 14-sep; artifact c43ad139, M5): el titulo es un SELECTOR de proyecto (<details>). El summary es el h1 con un
    chevron tenue; la lista flota debajo (misma caja que .acc-menu .acciones) con un renglon por frente activo: icono del
    equipo, titulo, «N abiertas · M vencidas»; el actual va marcado. Y la cabecera se CONTRAE con #btnCabecera. */
 .sel-proyecto { position: relative; min-width: 0; }
-.sel-proyecto > summary { display: inline-flex; align-items: center; gap: var(--sp-1); list-style: none; cursor: pointer; border-radius: var(--r-sm); padding: 0 var(--sp-1); margin: 0 calc(-1 * var(--sp-1)); max-width: 100%; }
+/* Sin `max-width: 100%` en el summary: un porcentaje contra un <details> de ancho intrinseco hacia que Chrome partiera el h1 a
+   ~490 px con 1,000 libres, y el chevron quedaba lejos del texto (medido 2026-09-14: 487x72 -> 495x36 al quitarlo). */
+.sel-proyecto > summary { display: flex; align-items: center; gap: var(--sp-1); list-style: none; cursor: pointer; border-radius: var(--r-sm); padding: 0 var(--sp-1); margin: 0 calc(-1 * var(--sp-1)); min-width: 0; }
 .sel-proyecto > summary::-webkit-details-marker { display: none; }
 .sel-proyecto > summary:hover, .sel-proyecto[open] > summary { background: var(--surface-hover); }
 .sel-proyecto > summary:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
@@ -445,7 +453,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .proyecto-cab .acciones { display: flex; gap: var(--sp-2); margin-left: auto; }
 /* B1 → v0.13.0 (Carlos, 12-sep): el menu «⋮» existe en todos los anchos (antes solo en celular). Dentro, cada accion es un
    renglon a todo el ancho; «Editar» es un <details> anidado con Editar datos · Cerrar/Reabrir · Eliminar (rojo). */
-.acc-menu { display: block; margin-left: auto; position: relative; }
+.acc-menu { display: block; position: relative; }   /* v0.29.2: ya no necesita margin-left:auto, .titulo toma el sobrante */
 .acc-menu > summary { display: inline-flex; list-style: none; cursor: pointer; color: var(--text-muted); }   /* el tamano y el borde los pone .mn-btn.is-sm.is-icono */
 .acc-menu > summary::-webkit-details-marker { display: none; }
 .acc-menu .acciones { position: absolute; right: 0; top: calc(100% + 4px); z-index: var(--z-pop); display: grid; gap: 2px; min-width: 200px; margin: 0; padding: var(--sp-2); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
@@ -773,6 +781,10 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .proyecto-cab { gap: var(--sp-1) var(--sp-2); }
   .proyecto-cab h1 { font-size: 1.15rem; }
   .proyecto-cab .titulo h1 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  /* v0.29.2: en celular el chip/reloj no compite con el titulo (lo dejaba en 65 px a 390): baja a su propio renglon dentro de .titulo. */
+  .proyecto-cab .titulo { flex-wrap: wrap; }   /* el <details> con base 0 para que no se lleve al icono a otro renglon */
+  .proyecto-cab .titulo > .sel-proyecto { flex: 1 1 0; }
+  .proyecto-cab .titulo > .reloj, .proyecto-cab .titulo > .estado { flex-basis: 100%; }
   /* B1: el menu «⋮» ya es global desde v0.13.0; aqui no queda nada propio del celular. */
   /* B1: la descripcion, a una linea con «más» (clic en el propio parrafo) */
   #pDesc { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; cursor: pointer; }

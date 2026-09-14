@@ -108,9 +108,7 @@
       <header class="cabecera proyecto-cab" id="proyectoCab">
         <!-- v0.29.0 (Carlos, 14-sep; artifact c43ad139, opcion M5): el TITULO es un selector — despliega los demas frentes
              activos (equipo, abiertas, vencidas) y cambia de proyecto sin volver a la lista, en la misma pestaña. -->
-        <div class="titulo"><span id="pEquipo"></span> <details class="sel-proyecto" id="selProyecto"><summary title="Cambiar de proyecto"><h1 id="pTitulo"></h1><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary><div class="sel-lista" id="selLista" role="listbox" aria-label="Proyectos activos"></div></details></div>
-        <span class="mn-chip is-ok estado" id="pEstado"></span>   <!-- v0.12.0: solo «Cerrado»; el «N/M hechas · %» salio (vive en Avance) -->
-        <span class="reloj" id="pReloj"></span>
+        <div class="titulo"><span id="pEquipo"></span> <details class="sel-proyecto" id="selProyecto"><summary title="Cambiar de proyecto"><h1 id="pTitulo"></h1><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></summary><div class="sel-lista" id="selLista" role="listbox" aria-label="Proyectos activos"></div></details><span class="mn-chip is-ok estado" id="pEstado"></span><span class="reloj" id="pReloj"></span></div>   <!-- v0.12.0: el chip solo dice «Cerrado» (el «N/M hechas · %» vive en Avance). v0.29.2: chip y reloj viven dentro de .titulo -->
         <!-- B1: en celular las tres acciones del proyecto viven en un menu «···»; en escritorio el
              <details> es display:contents y se ven los tres botones de siempre. -->
         <!-- v0.13.0 (Carlos, 12-sep): el menu «⋮» vive tambien en escritorio; Imprimir · Cubetas · Editar, y Editar abre
