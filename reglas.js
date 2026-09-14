@@ -126,23 +126,21 @@ export const PUEDE = {
     proyecto: rol => rol === 'gerencia'                          // crear, editar, cerrar
 };
 
-/** Dias entre hoy y una fecha ISO (negativo si ya paso). null si no hay fecha o no es fecha. */
+/**
+ * Dias entre hoy y una fecha ISO (negativo si ya paso). null si no hay fecha o no es fecha.
+ * v0.21.0: el dia se corta en HORA DE MEXICO (diaDe), no en UTC. Hasta v0.20.0 comparaba getUTC*: desde las
+ * 18:00 de Mexico «hoy» ya era manana, asi que lo que vencia hoy se pintaba vencido seis horas al dia, una
+ * tarjeta creada «para hoy» a las 18:30 nacia vencida, y Reportes abria una semana vacia (revisor, 13-sep).
+ * `Vence` se guarda a las 18:00Z (mediodia de Mexico) y no cambia de dia con este corte.
+ */
 export function diasPara(fechaIso, hoy = new Date()) {
-    if (!fechaIso) return null;
-    const f = new Date(fechaIso);
-    if (Number.isNaN(f.getTime())) return null;
-    const dia = 24 * 60 * 60 * 1000;
-    const a = Date.UTC(f.getUTCFullYear(), f.getUTCMonth(), f.getUTCDate());
-    const b = Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth(), hoy.getUTCDate());
-    return Math.round((a - b) / dia);
+    const a = diaDe(fechaIso); if (!a) return null;
+    return diasEntre(diaDe(hoy), a);
 }
 
+const FORMATO_MX = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' });   // en-CA = YYYY-MM-DD
 /** YYYY-MM-DD en hora de Mexico (la fecha del lote en el buzon; heredada de captura). */
-export function fechaMexico(ahora = new Date()) {
-    const partes = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(ahora);
-    const v = k => partes.find(p => p.type === k).value;
-    return `${v('year')}-${v('month')}-${v('day')}`;
-}
+export function fechaMexico(ahora = new Date()) { return FORMATO_MX.format(ahora); }
 
 /** Texto a slug: minusculas, sin acentos, guiones. Para claves y nombres de carpeta. */
 export function slug(texto) {
@@ -598,11 +596,11 @@ export function mencionEnCurso(texto, cursor) {
 
 // ---------------------------------------------------------------- v0.10.0: roadmap, calendario, reportes (reglas puras)
 
-/** Dia UTC de un ISO como YYYY-MM-DD (el mismo dia que usa diasPara); null si no es fecha. */
+/** Dia de un ISO como YYYY-MM-DD en HORA DE MEXICO (el mismo dia que usa diasPara; hasta v0.20.0 era UTC); null si no es fecha. */
 export function diaDe(iso) {
     if (!iso) return null;
     const f = iso instanceof Date ? iso : new Date(iso);
-    return Number.isNaN(f.getTime()) ? null : f.toISOString().slice(0, 10);
+    return Number.isNaN(f.getTime()) ? null : fechaMexico(f);
 }
 /** Suma `n` dias a un YYYY-MM-DD. */
 export function sumarDias(dia, n) { const f = new Date(dia + 'T00:00:00Z'); f.setUTCDate(f.getUTCDate() + n); return f.toISOString().slice(0, 10); }
@@ -819,4 +817,55 @@ export function fundirVisto(a, b) {
     const chat = { ...x.chat };
     for (const [k, iso] of Object.entries(y.chat)) if (String(iso) > String(chat[k] || '')) chat[k] = iso;
     return { inicio: x.inicio > y.inicio ? x.inicio : y.inicio, chat };
+}
+
+// ---------------------------------------------------------------- v0.21.0: Inicio «Hoy» (iteracion 3 del artifact del 13-sep)
+
+/**
+ * Los tres KPI de Inicio en un dia dado (YYYY-MM-DD): las tarjetas MIAS abiertas, las que vencen en `pronto` dias
+ * contados desde ese dia (hoy incluido) y las vencidas. Sirve para hoy y para RECONSTRUIR ayer, que es lo que la
+ * tendencia compara: una tarjeta cuenta como abierta ese dia si ya existia (`_creado`, el createdDateTime de
+ * SharePoint) y no estaba hecha (sigue abierta, o su `HechoEl` es posterior al dia). Lo que la reconstruccion NO ve,
+ * a proposito y declarado: un cambio de asignado (se toma el de hoy) y una hecha que se reabrio (al reabrir se limpia
+ * HechoEl y cuenta como abierta todo el tiempo). Sin `_creado` la tarjeta cuenta desde siempre.
+ */
+export function kpisEn(tareas, correo, dia, pronto = 7) {
+    const yo = String(correo || '').toLowerCase();
+    const r = { abiertas: 0, pronto: 0, vencidas: 0 };
+    for (const t of tareas || []) {
+        if (String(t.Asignado || '').toLowerCase() !== yo) continue;
+        const creada = diaDe(t._creado); if (creada && creada > dia) continue;
+        if (t.Columna === 'hecho') { const h = diaDe(t.HechoEl); if (!h || h <= dia) continue; }
+        r.abiertas++;
+        const v = diaDe(t.Vence); if (!v) continue;
+        const d = diasEntre(dia, v);
+        if (d < 0) r.vencidas++; else if (d <= pronto) r.pronto++;
+    }
+    return r;
+}
+
+/** La serie de `n` dias de kpisEn, la mas vieja primero y hoy al final: la tendencia es [n-1] contra [n-2]; el sparkline, toda. */
+export function serieKpis(tareas, correo, hoy = new Date(), n = 8, pronto = 7) {
+    const h = diaDe(hoy);
+    return Array.from({ length: n }, (_, i) => kpisEn(tareas, correo, sumarDias(h, -(n - 1 - i)), pronto));
+}
+
+/**
+ * Los grupos por FECHA de la cola «Hoy»: las tarjetas abiertas con vencimiento repartidas en `vencidas` (d < 0),
+ * `hoy` (hoy o manana, d <= 1) y `semana` (2..`semana` dias), cada una en UN solo grupo y ordenadas de la mas urgente
+ * a la menos (luego por titulo). Cada renglon es { tarea, dias }. Lo que vence mas alla de `semana` no entra: para eso
+ * estan el tablero y el calendario.
+ */
+export function gruposHoy(tareas, hoy = new Date(), semana = 7) {
+    const g = { vencidas: [], hoy: [], semana: [] };
+    for (const x of proximos(tareas, Infinity, hoy)) {
+        if (x.dias < 0) g.vencidas.push(x); else if (x.dias <= 1) g.hoy.push(x); else if (x.dias <= semana) g.semana.push(x);
+    }
+    return g;
+}
+
+/** «Buenos dias» hasta las 12, «Buenas tardes» hasta las 19, «Buenas noches» despues — por la hora de Mexico. */
+export function saludoDe(hoy = new Date()) {
+    const h = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Mexico_City', hour: 'numeric', hour12: false }).format(hoy).replace(/\D/g, '')) % 24;
+    return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
 }

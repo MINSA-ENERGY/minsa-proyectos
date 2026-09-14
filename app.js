@@ -14,7 +14,7 @@
 
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
-import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, tituloSegmentos, partesEnProceso, desdeHaceDias, nuevoParaMi } from './reglas.js';
+import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, tituloSegmentos, partesEnProceso, desdeHaceDias, nuevoParaMi, serieKpis, gruposHoy, saludoDe, diaDe } from './reglas.js';
 import { $, L, VERSION, estado, el, boton, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
@@ -439,84 +439,72 @@ function fraseMarcada(texto) {
     if (resto) f.appendChild(el('span', 'sino', resto.replace(/^de (.+) a (.+)$/, '$1 → $2')));
     return f;
 }
+/**
+ * v0.21.0 — Inicio «Hoy» (iteracion 3 del artifact «Seis iteraciones para ver mas facil», 13-sep). Antes Inicio media
+ * 1,959 px a 1366 y repartia lo urgente en cuatro tarjetas con cuatro formatos (KPI · Nuevo para ti · Te mencionaron ·
+ * Proximos vencimientos). Ahora: el titulo es el SALUDO con nombre (y la fecha, los frentes activos y el rol debajo);
+ * los 5 KPI bajan a 3 de lo MIO —abiertas · vencen en 7 d · vencidas— con TENDENCIA contra ayer (reglas.js: serieKpis,
+ * reconstruida por _creado/HechoEl) y un sparkline de 8 dias; y UNA COLA por urgencia (reglas.js: gruposHoy) con el mismo
+ * esqueleto por renglon —punto de estado · titulo · frente y dato · avatar · Abrir/Ver—: vencidas · hoy y manana · nuevo
+ * para ti · te mencionaron · esta semana · sin dueño. «Proyectos activos» ya lo dice el saludo y «sin dueño» es un grupo
+ * de la cola (solo si hay). Proyectos activos y Actividad reciente siguen debajo; la lateral trae Acciones rapidas, Fines
+ * de frente y Sin movimiento.
+ */
 function pintarInicio() {
+    const ahora = new Date();
     const yo = nombreDe(estado.cuenta.username, estado.roles);
-    $('inicioSub').textContent = `${yo} · ${estado.rol} · ${activos().length} proyecto(s) activo(s)`;
+    const nAct = activos().length;
+    $('inicioSaludo').textContent = `${saludoDe(ahora)}, ${yo.split(' ')[0]}`;
+    $('inicioSub').textContent = `${fechaLarga(ahora)} · ${nAct} frente${nAct === 1 ? '' : 's'} activo${nAct === 1 ? '' : 's'} · ${estado.rol}`;
     const idsActivos = new Set(activos().map(p => p.id));   // v0.13.1: una vez, no por cada tarjeta
     const abiertas = estado.tareas.filter(t => t.Columna !== 'hecho' && idsActivos.has(Number(t.ProyectoId)));
     const mias = misAbiertas();
-    // U3: los dos KPI de vencimiento cuentan lo MIO, porque el boton aterriza en Mis tareas con ese
-    // filtro y el numero tiene que ser el que se ve al llegar (revision 2026-09-11). Lo global sigue
-    // en «Proximos vencimientos» y «Sin movimiento», al lado.
+    // U3: los KPI cuentan lo MIO, porque el boton aterriza en Mis tareas con ese filtro y el numero tiene que ser el
+    // que se ve al llegar (revision 2026-09-11). Lo global va en la cola (con «todo el frente») y en «Sin movimiento».
+    // v0.21.0: la cifra de hoy se cuenta igual que antes (estadoVence sobre lo que hay); la tendencia y el sparkline
+    // salen de serieKpis, que reconstruye los 7 dias anteriores por fecha de creacion y de cierre.
     const s7 = mias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn').length;
     const ven = mias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger').length;
+    const serie = serieKpis(estado.tareas, estado.cuenta.username, ahora, 8, CONFIG.vencePronto);
+    const ayer = serie[serie.length - 2];
     const k = $('inicioKpis'); k.textContent = '';
-    // U3: cada KPI es un boton que lleva a donde se ve el detalle (Mis tareas con ese filtro, o Proyectos).
-    const kpi = (v, l, cls, ir) => {
+    // U3: cada KPI es un boton que lleva a Mis tareas con ese filtro. `malo` dice si subir es mala noticia (vencidas, pronto).
+    const kpi = (v, l, cls, ir, llave, malo) => {
         const d = el('button', 'mn-kpi is-clickable' + (cls ? ' is-' + cls : '')); d.type = 'button'; d.dataset.kpi = ir.kpi;
         d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v)));
-        d.addEventListener('click', () => { if (ir.mis !== undefined) estado.filtroMis = ir.mis; irA(ir.a); });
+        const delta = v - ayer[llave];
+        const tend = el('span', 'mn-kpi-tend' + (delta === 0 ? '' : (delta > 0) === malo ? ' is-peor' : ' is-mejor'));
+        tend.appendChild(el('b', '', delta === 0 ? '=' : delta > 0 ? `▲ ${delta}` : `▼ ${-delta}`));
+        tend.appendChild(document.createTextNode(delta === 0 ? ' igual que ayer' : ' desde ayer'));
+        tend.title = `Ayer: ${ayer[llave]}`; tend.dataset.delta = String(delta); d.appendChild(tend);
+        d.appendChild(sparkline(serie.slice(0, -1).map(x => x[llave]).concat(v)));
+        d.addEventListener('click', () => { estado.filtroMis = ir.mis; irA(ir.a); });
         k.appendChild(d);
     };
-    kpi(activos().length, 'proyectos activos', 'info', { kpi: 'proyectos', a: 'proyectos' });
-    kpi(mias.length, 'mis tareas abiertas', null, { kpi: 'mis', a: 'mis', mis: null });
-    kpi(s7, 'mías que vencen en 7 d', s7 ? 'warn' : null, { kpi: 'pronto', a: 'mis', mis: 'pronto' });
-    kpi(ven, 'mías vencidas', ven ? 'danger' : 'ok', { kpi: 'vencidas', a: 'mis', mis: 'vencidas' });
-    // C7 (v0.6.0): las tarjetas sin dueño no salen en Mis tareas de NADIE. El KPI solo existe si hay
-    // alguna, y aterriza en el proyecto que mas tiene con el filtro «sin dueño» puesto.
-    const huerfanas = sinDueno(abiertas);
-    if (huerfanas.length) {
-        const d = el('button', 'mn-kpi is-clickable is-warn'); d.type = 'button'; d.dataset.kpi = 'sin-dueno';
-        d.appendChild(el('span', 'mn-kpi-label', 'sin dueño')); d.appendChild(el('span', 'mn-kpi-val', String(huerfanas.length)));
-        d.addEventListener('click', () => {
-            const porProyecto = new Map(); for (const t of huerfanas) porProyecto.set(t.ProyectoId, (porProyecto.get(t.ProyectoId) || 0) + 1);
-            const [pid] = [...porProyecto.entries()].sort((a, b) => b[1] - a[1])[0];
-            // El filtro se pone ENTERO: si ese proyecto ya estaba abierto, fijarProyectoAbierto no lo limpia
-            // y un «quien» previo se combinaria con «sin dueño» dejando el tablero vacio (revisor, 2026-09-12).
-            abrirProyecto(Number(pid)); estado.filtroTareas = { quien: null, alta: false, vencidas: false, sinDueno: true, texto: '' }; $('filtroTexto').value = ''; pintarProyecto();
-        });
-        k.appendChild(d);
-    }
+    kpi(mias.length, 'mías abiertas', 'info', { kpi: 'mis', a: 'mis', mis: null }, 'abiertas', false);
+    kpi(s7, 'vencen en 7 d', s7 ? 'warn' : null, { kpi: 'pronto', a: 'mis', mis: 'pronto' }, 'pronto', true);
+    kpi(ven, 'vencidas', ven ? 'danger' : 'ok', { kpi: 'vencidas', a: 'mis', mis: 'vencidas' }, 'vencidas', true);
     pintarAccionesRapidas();   // v0.18.0
+    pintarCola(abiertas);
     const lp = $('inicioProyectos'); lp.textContent = '';
     for (const p of ordenarProyectos(activos())) lp.appendChild(renglonProyecto(p));   // C10
     if (!activos().length) lp.appendChild(el('p', 'vacio', PUEDE.proyecto(estado.rol) ? 'Sin proyectos activos: crea el primero en Proyectos.' : 'Sin proyectos activos todavía.'));
-    const v = $('inicioVence'); v.textContent = '';
     // C9: tambien estos renglones abren su tarjeta (el revisor vio la inconsistencia con la actividad).
     const abrirT = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; };
-    // v0.8.0: «Te mencionaron» — los comentarios del chat (o notas) que nombran a esta persona, lo mas nuevo arriba;
-    // el renglon abre la tarjeta si la nota es de una, o el chat del proyecto. La tarjeta solo existe si hay alguna.
-    // v0.15.0: «Nuevo para ti» — lo que OTROS hicieron sobre lo tuyo (te asignaron o cambiaron una tarjeta, anotaron en
-    // ella, te mencionaron) desde tu ultima visita a Inicio. La marca es compartida entre tus dispositivos
-    // (PROY_Roles.Visto); el piso se fija al ENTRAR (la marca sube al pintar sin vaciar la lista) y sale al cambiar de pantalla.
-    // Sin marca (primera vez) son los ultimos 3 dias. Las menciones siguen ademas en «Te mencionaron» (14 d).
-    // El piso se congela al entrar: la marca sube al pintar sin vaciar la lista, y lo que llegue con el refresco SE SUMA.
-    if (!estado.nuevosInicio) estado.nuevosInicio = { desde: inicioVistoHasta() };
-    const nuevos = nuevoParaMi(estado.actividad, estado.tareas, estado.roles, estado.cuenta.username, estado.nuevosInicio.desde);
-    const fijos = nuevos;
-    const nv = $('inicioNuevo'); nv.textContent = '';
-    const VERBO = { asignada: 'te asignó', cambio: 'cambió tu tarjeta', nota: 'anotó en tu tarjeta', mencion: 'te mencionó' };
-    for (const x of fijos.slice(0, 8)) {
-        const p = porId(estado.proyectos, x.a.ProyectoId || (x.tarea && x.tarea.ProyectoId));
-        const abrir = abridorDe(x.a) || (p ? () => irAHash(`#p/${p.Clave}/chat`) : null);
-        const que = x.tipo === 'mencion' || x.tipo === 'nota' ? x.a.Title : x.tarea ? x.tarea.Title : x.a.Title;
-        nv.appendChild(itemMini(x.a.Quien, `${VERBO[x.tipo]}: «${que}»`, p ? p.Title : '', fechaHora(x.a.Cuando), x.tipo === 'asignada' ? 'warn' : null, abrir));
+    // v0.21.0: fines de frente — los activos CON fecha, del mas proximo al mas lejano (4); el renglon abre el proyecto.
+    const fi = $('inicioFines'); fi.textContent = '';
+    const conFin = ordenarProyectos(activos()).filter(p => diasPara(p.Vence) !== null).slice(0, 4);
+    for (const p of conFin) {
+        const d = diasPara(p.Vence), a = avance(tareasDe(p, estado.tareas), columnasDe(p));
+        const it = el('button', 'it clic'); it.type = 'button'; it.dataset.fin = String(p.id); it.title = 'Abrir el proyecto'; it.addEventListener('click', () => abrirProyecto(p.id));
+        it.appendChild(chip(d < 0 ? `${-d} d tarde` : d === 0 ? 'hoy' : `${d} d`, d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : null));
+        const c = el('div'); c.appendChild(el('span', 'q', p.Title));
+        c.appendChild(el('div', 'w', `${fechaCorta(p.Vence)} · ${a.hechas}/${a.total} hechas${a.total ? ` · ${a.pct} %` : ''}`)); it.appendChild(c);
+        fi.appendChild(it);
     }
-    $('cardNuevo').classList.toggle('oculto', fijos.length === 0);
-    $('nNuevoInicio').textContent = String(fijos.length); $('nNuevoInicio').hidden = !fijos.length;
-    if (nuevos.length) marcarInicioVisto(nuevos[0].a.Cuando);
-    const mn = $('inicioMenciones'); mn.textContent = '';
-    const menciones = mencionesA(estado.cuenta.username);
-    for (const a of menciones.slice(0, 6)) {
-        const p = porId(estado.proyectos, a.ProyectoId);
-        const abrir = abridorDe(a) || (p ? () => irAHash(`#p/${p.Clave}/chat`) : null);
-        mn.appendChild(itemMini(a.Quien, `${verboComentario(a)}: «${a.Title}»`, p ? p.Title : '', fechaHora(a.Cuando), null, abrir));
-    }
-    $('cardMenciones').classList.toggle('oculto', menciones.length === 0);
-    for (const { tarea: t, dias } of proximos(abiertas, 6)) { const p = porId(estado.proyectos, t.ProyectoId); v.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', fechaCorta(t.Vence), dias < 0 ? 'danger' : dias <= CONFIG.vencePronto ? 'warn' : null, abrirT(t))); }
-    if (!v.childNodes.length) v.appendChild(el('p', 'vacio', 'Nada por vencer.'));
+    $('cardFines').classList.toggle('oculto', conFin.length === 0);
     const sm = $('inicioSinMov'); sm.textContent = '';
-    const quietas = sinMovimiento(abiertas, CONFIG.sinMovimientoDias, new Date(), columnasDeTarea);
+    const quietas = sinMovimiento(abiertas, CONFIG.sinMovimientoDias, ahora, columnasDeTarea);
     for (const t of quietas.slice(0, 6)) { const p = porId(estado.proyectos, t.ProyectoId); sm.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', `${-diasPara(t.Desde)} d`, 'warn', abrirT(t))); }
     $('cardSinMov').classList.toggle('oculto', quietas.length === 0);
     const act = $('inicioActividad'); act.textContent = '';
@@ -527,6 +515,111 @@ function pintarInicio() {
     for (const a of visible.slice(0, tope)) act.appendChild(itemActividad(a, true));   // C9
     if (!visible.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
     $('btnActividadInicio').hidden = visible.length <= tope;
+}
+
+const DIAS_LARGOS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+const MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+/** «domingo 13 de septiembre», por el dia de Mexico (diaDe). */
+function fechaLarga(ahora) { const d = diaDe(ahora); const x = new Date(d + 'T12:00:00Z'); return `${DIAS_LARGOS[x.getUTCDay()]} ${x.getUTCDate()} de ${MESES_LARGOS[x.getUTCMonth()]}`; }
+
+/** Sparkline de la serie (8 puntos) en un SVG de 100×22, sin eje: la forma, no el numero. Todo en cero = linea plana abajo. */
+function sparkline(vals) {
+    const NS = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'spark'); svg.setAttribute('viewBox', '0 0 100 22'); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');
+    const max = Math.max(1, ...vals), paso = 100 / (vals.length - 1);
+    const pts = vals.map((v, i) => `${(i * paso).toFixed(1)},${(20 - (v / max) * 16).toFixed(1)}`);
+    const pl = document.createElementNS(NS, 'polyline'); pl.setAttribute('points', pts.join(' ')); pl.setAttribute('fill', 'none'); pl.setAttribute('stroke', 'currentColor'); pl.setAttribute('stroke-width', '1.5'); pl.setAttribute('vector-effect', 'non-scaling-stroke'); svg.appendChild(pl);
+    const c = document.createElementNS(NS, 'circle'); const [cx, cy] = pts[pts.length - 1].split(','); c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', '2'); c.setAttribute('fill', 'currentColor'); svg.appendChild(c);
+    return svg;
+}
+
+/**
+ * v0.21.0: la cola «Hoy». Seis grupos en orden de urgencia; cada tarjeta con fecha entra UNA vez (en el mas urgente).
+ * «Nuevo para ti» (lo que OTROS hicieron sobre lo tuyo desde tu ultima visita; marca compartida en PROY_Roles.Visto,
+ * v0.15.0) y «Te mencionaron» (14 d) siguen siendo eventos, no tarjetas: una mencion que ya salio como nueva NO se repite
+ * abajo (antes eran dos tarjetas y salia en las dos, a proposito; en una sola cola seria un renglon duplicado). El piso de
+ * «Nuevo para ti» se congela al ENTRAR (la marca sube al pintar sin vaciar la lista) y sale al cambiar de pantalla.
+ * Los grupos por fecha obedecen al conmutador «todo el frente / solo mías» (estado.hoySoloMias, la sesion); «sin dueño»
+ * es de nadie y sale siempre; «nuevo para ti» y «te mencionaron» son mios por definicion.
+ */
+function pintarCola(abiertas) {
+    const lista = $('inicioHoy'); lista.textContent = '';
+    const yoCorreo = estado.cuenta.username.toLowerCase();
+    const fil = $('hoyFiltro'); fil.textContent = '';
+    for (const [texto, mias] of [['todo el frente', false], ['solo mías', true]]) {
+        const b = boton(texto, !!estado.hoySoloMias === mias ? 'is-on' : '', () => { estado.hoySoloMias = mias; pintarCola(abiertas); }, { hoy: mias ? 'mias' : 'todo' });
+        b.setAttribute('aria-pressed', String(!!estado.hoySoloMias === mias)); fil.appendChild(b);
+    }
+    // Las sin dueño NO entran a los grupos por fecha (tienen el suyo): cada tarjeta sale UNA vez y el total la cuenta una vez (revisor, 13-sep).
+    const conDueno = abiertas.filter(t => String(t.Asignado || '').trim());
+    const base = estado.hoySoloMias ? conDueno.filter(t => String(t.Asignado || '').toLowerCase() === yoCorreo) : conDueno;
+    const g = gruposHoy(base, new Date(), CONFIG.vencePronto);
+    if (!estado.nuevosInicio) estado.nuevosInicio = { desde: inicioVistoHasta() };
+    const nuevos = nuevoParaMi(estado.actividad, estado.tareas, estado.roles, estado.cuenta.username, estado.nuevosInicio.desde);
+    const yaNuevos = new Set(nuevos.map(x => Number(x.a.id)));
+    const menciones = mencionesA(estado.cuenta.username).filter(a => !yaNuevos.has(Number(a.id)));
+    const huerfanas = sinDueno(abiertas);
+    const VERBO = { asignada: 'te asignó', cambio: 'cambió tu tarjeta', nota: 'anotó en tu tarjeta', mencion: 'te mencionó' };
+    const abrirTarea = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; };
+    const abrirEvento = a => { const p = porId(estado.proyectos, a.ProyectoId); return abridorDe(a) || (p ? () => irAHash(`#p/${p.Clave}/chat`) : null); };
+    const tituloDe = t => porId(estado.proyectos, t.ProyectoId) ? porId(estado.proyectos, t.ProyectoId).Title : '';
+    // Un renglon: punto de estado · titulo (+ subtitulo) · avatar · verbo. Es un boton entero (C9), como los .it de las mini listas.
+    const renglon = (estadoCls, titulo, sub, quien, verbo, abrir, datos) => {
+        const r = el(abrir ? 'button' : 'div', 'hoy-r'); if (abrir) { r.type = 'button'; r.addEventListener('click', abrir); }
+        const st = el('i', 'st' + (estadoCls ? ' is-' + estadoCls : '')); st.setAttribute('aria-hidden', 'true'); r.appendChild(st);
+        const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', titulo)); c.appendChild(el('span', 'p', sub)); c.querySelector('.t').title = titulo; r.appendChild(c);
+        r.appendChild(quien ? avatar(quien) : el('span', 'av is-nadie', '?'));
+        if (abrir) r.appendChild(el('span', 'ir', verbo));   // sin a donde ir (proyecto borrado), sin verbo (revisor, 13-sep)
+        for (const [k, v] of Object.entries(datos || {})) r.dataset[k] = v;
+        return r;
+    };
+    const grupo = (clave, texto, n, cls, alClic) => {
+        const h = el(alClic ? 'button' : 'div', 'hoy-g' + (cls ? ' is-' + cls : '')); if (alClic) { h.type = 'button'; h.addEventListener('click', alClic); }
+        h.dataset.grupo = clave; h.appendChild(el('span', '', texto)); h.appendChild(el('b', 'n', String(n))); lista.appendChild(h);
+    };
+    const chipDias = (t, d) => d < 0 ? `venció ${fechaCorta(t.Vence)}` : d === 0 ? 'vence hoy' : d === 1 ? 'vence mañana' : `vence ${fechaCorta(t.Vence)}`;
+    const extra = t => { const q = sinMovimiento([t], CONFIG.sinMovimientoDias, new Date(), columnasDeTarea).length ? ` · sin movimiento ${-diasPara(t.Desde)} d` : ''; const n = comentariosDe(t.id).length; return `${q}${n ? ` · 💬 ${n}` : ''}`; };
+    // El dato va ANTES del frente: a 390 px el subtitulo se trunca y lo que se pierde es el nombre del proyecto, no la fecha (captura 13-sep).
+    const tarea = (t, d, cls) => renglon(cls, t.Title, `${chipDias(t, d)} · ${tituloDe(t)}${extra(t)}`, t.Asignado, 'Abrir', abrirTarea(t), { t: String(t.id) });
+    // Los grupos por fecha se recortan a `TOPE` renglones con un «+N más» que lleva a donde estan todas (Mis tareas o Calendario).
+    const TOPE = 6;
+    const mas = (n, texto, ir) => { const b = el('button', 'hoy-mas'); b.type = 'button'; b.textContent = `+${n} más · ${texto} →`; b.addEventListener('click', ir); lista.appendChild(b); };
+    const pintarGrupo = (arr, cls, texto, ir) => { for (const { tarea: t, dias } of arr.slice(0, TOPE)) lista.appendChild(tarea(t, dias, cls)); if (arr.length > TOPE) mas(arr.length - TOPE, texto, ir); };
+    let total = 0;
+    if (g.vencidas.length) { grupo('vencidas', 'Vencidas', g.vencidas.length, 'danger'); pintarGrupo(g.vencidas, 'danger', estado.hoySoloMias ? 'ver en Mis tareas' : 'ver en Reportes', () => { if (estado.hoySoloMias) { estado.filtroMis = 'vencidas'; irA('mis'); } else irA('reportes'); }); total += g.vencidas.length; }
+    if (g.hoy.length) { grupo('hoy', 'Hoy y mañana', g.hoy.length, 'warn'); pintarGrupo(g.hoy, 'warn', 'ver en el Calendario', () => irA('calendario')); total += g.hoy.length; }
+    if (nuevos.length) {
+        grupo('nuevo', 'Nuevo para ti', nuevos.length, 'info');
+        for (const x of nuevos.slice(0, 8)) {
+            const p = porId(estado.proyectos, x.a.ProyectoId || (x.tarea && x.tarea.ProyectoId));
+            const que = x.tipo === 'mencion' || x.tipo === 'nota' ? x.a.Title : x.tarea ? x.tarea.Title : x.a.Title;
+            lista.appendChild(renglon('info', `${VERBO[x.tipo]}: «${que}»`, `${nombreDe(x.a.Quien, estado.roles).split(' ')[0]} · ${fechaHora(x.a.Cuando)}${p ? ' · ' + p.Title : ''}`, x.a.Quien, 'Ver', abrirEvento(x.a), { nuevo: x.tipo }));
+        }
+        total += nuevos.length;
+    }
+    if (nuevos.length) marcarInicioVisto(nuevos[0].a.Cuando);
+    if (menciones.length) {
+        grupo('mencion', 'Te mencionaron', menciones.length, 'info');
+        for (const a of menciones.slice(0, 6)) { const p = porId(estado.proyectos, a.ProyectoId); lista.appendChild(renglon('info', `«${a.Title}»`, `${nombreDe(a.Quien, estado.roles).split(' ')[0]} · ${fechaHora(a.Cuando)}${p ? ' · ' + p.Title : ''}`, a.Quien, 'Ver', abrirEvento(a), { mencion: String(a.id) })); }
+        total += menciones.length;
+    }
+    if (g.semana.length) { grupo('semana', 'Esta semana', g.semana.length, null); pintarGrupo(g.semana, null, 'ver en el Calendario', () => irA('calendario')); total += g.semana.length; }
+    // C7 (v0.6.0): las tarjetas sin dueño no salen en Mis tareas de NADIE. El grupo solo existe si hay alguna; su encabezado
+    // aterriza en el proyecto que mas tiene con el filtro «sin dueño» puesto (el mismo salto que tenia el KPI).
+    if (huerfanas.length) {
+        grupo('sin-dueno', 'Sin dueño', huerfanas.length, 'warn', () => {
+            const porProyecto = new Map(); for (const t of huerfanas) porProyecto.set(t.ProyectoId, (porProyecto.get(t.ProyectoId) || 0) + 1);
+            const [pid] = [...porProyecto.entries()].sort((a, b) => b[1] - a[1])[0];
+            // El filtro se pone ENTERO: si ese proyecto ya estaba abierto, fijarProyectoAbierto no lo limpia
+            // y un «quien» previo se combinaria con «sin dueño» dejando el tablero vacio (revisor, 2026-09-12).
+            abrirProyecto(Number(pid)); estado.filtroTareas = { quien: null, alta: false, vencidas: false, sinDueno: true, texto: '' }; $('filtroTexto').value = ''; pintarProyecto();
+        });
+        lista.querySelector('[data-grupo="sin-dueno"]').dataset.kpi = 'sin-dueno';
+        for (const t of huerfanas.slice(0, 6)) { const d = diasPara(t.Vence); lista.appendChild(renglon('warn', t.Title, `sin dueño${d === null ? '' : ' · ' + chipDias(t, d)} · ${tituloDe(t)}`, '', 'Abrir', abrirTarea(t), { t: String(t.id), sinDueno: '1' })); }
+        total += huerfanas.length;
+    }
+    $('nHoy').textContent = total ? String(total) : '';
+    if (!total) lista.appendChild(el('p', 'vacio', estado.hoySoloMias ? 'Nada urgente de lo tuyo: ni vencidas ni por vencer esta semana.' : 'Nada urgente: ni vencidas ni por vencer esta semana.'));
 }
 
 /**

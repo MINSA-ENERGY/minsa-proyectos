@@ -1,6 +1,6 @@
 // node test/reglas.test.js — reglas puras de MINSA Proyectos (decisiones del plan 2026-09-11).
 import assert from 'node:assert/strict';
-import { ordenarLigas, direccionInicial, nombreHumano, nombreDeLiga, rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, semaforo, vencidasEn, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, vistosDe, leerVisto, fundirVisto } from '../reglas.js';
+import { ordenarLigas, direccionInicial, nombreHumano, nombreDeLiga, rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, semaforo, vencidasEn, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, vistosDe, leerVisto, fundirVisto, kpisEn, serieKpis, gruposHoy, saludoDe } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -23,8 +23,13 @@ ok('colaborador NO borra ni cierra proyectos', !PUEDE.borrar('colaborador') && !
 ok('lectura solo ve', PUEDE.ver('lectura') && ['tarea', 'mover', 'ligar', 'borrar', 'proyecto'].every(a => !PUEDE[a]('lectura')));
 
 // --- fechas
-ok('diasPara: manana = 1', diasPara('2026-09-12T00:00:00Z', HOY) === 1);
+ok('diasPara: manana = 1', diasPara('2026-09-12T18:00:00Z', HOY) === 1);
 ok('diasPara: ayer = -1', diasPara('2026-09-10T23:59:00Z', HOY) === -1);
+// v0.21.0: el dia se corta en hora de Mexico (UTC-6), no en UTC. Hasta v0.20.0 estas cuatro daban -1 / 1 / 2026-09-12 / la semana que viene.
+ok('diasPara: a las 20:00 de Mexico (02:00Z del dia siguiente) lo que vence hoy sigue siendo HOY, no vencido', diasPara('2026-09-11T18:00:00Z', new Date('2026-09-12T02:00:00Z')) === 0);
+ok('diasPara: las 00:00Z de manana son las 18:00 de HOY en Mexico: 0 dias, no 1', diasPara('2026-09-12T00:00:00Z', HOY) === 0);
+ok('diaDe: un ISO de las 23:30Z es el dia siguiente en UTC pero el MISMO en Mexico (17:30)', diaDe('2026-09-13T04:30:00Z') === '2026-09-12' && diaDe('2026-09-12T23:30:00Z') === '2026-09-12');
+ok('hechasPorSemana: una hecha el domingo a las 20:00 de Mexico cae en ESA semana, no en la siguiente', hechasPorSemana([{ Columna: 'hecho', HechoEl: '2026-09-14T02:00:00Z' }], 2, new Date('2026-09-14T02:00:00Z')).map(x => `${x.desde}:${x.n}`).join(',') === '2026-08-31:0,2026-09-07:1');
 ok('diasPara: sin fecha = null', diasPara('', HOY) === null && diasPara('no-fecha', HOY) === null);
 
 // --- slug y clave
@@ -39,12 +44,12 @@ ok('clave vacia se rechaza', validarClave('').motivo === 'la clave es obligatori
 
 // --- avance, proximos, sin movimiento, orden
 const tareas = [
-    { id: 1, ProyectoId: 10, Title: 'A', Columna: 'hecho', Vence: '2026-09-01T00:00:00Z', Prioridad: 'alta' },
-    { id: 2, ProyectoId: 10, Title: 'B', Columna: 'en-curso', Vence: '2026-09-09T00:00:00Z', Prioridad: 'normal', Desde: '2026-08-30T00:00:00Z' },
-    { id: 3, ProyectoId: 10, Title: 'C', Columna: 'por-hacer', Vence: '2026-09-16T00:00:00Z', Prioridad: 'alta', Orden: 2 },
+    { id: 1, ProyectoId: 10, Title: 'A', Columna: 'hecho', Vence: '2026-09-01T18:00:00Z', Prioridad: 'alta' },
+    { id: 2, ProyectoId: 10, Title: 'B', Columna: 'en-curso', Vence: '2026-09-09T18:00:00Z', Prioridad: 'normal', Desde: '2026-08-30T18:00:00Z' },
+    { id: 3, ProyectoId: 10, Title: 'C', Columna: 'por-hacer', Vence: '2026-09-16T18:00:00Z', Prioridad: 'alta', Orden: 2 },
     { id: 4, ProyectoId: 10, Title: 'D', Columna: 'por-hacer', Prioridad: 'baja', Orden: 1 },
-    { id: 5, ProyectoId: 11, Title: 'E', Columna: 'en-curso', Vence: '2026-09-13T00:00:00Z', Desde: '2026-09-10T00:00:00Z' },
-    { id: 6, ProyectoId: 10, Title: 'F', Columna: 'en-revision', Vence: '2026-10-30T00:00:00Z' }
+    { id: 5, ProyectoId: 11, Title: 'E', Columna: 'en-curso', Vence: '2026-09-13T18:00:00Z', Desde: '2026-09-10T18:00:00Z' },
+    { id: 6, ProyectoId: 10, Title: 'F', Columna: 'en-revision', Vence: '2026-10-30T18:00:00Z' }
 ];
 const del10 = tareasDe({ id: 10 }, tareas);
 ok('tareasDe filtra por proyecto', del10.length === 5 && tareasDe(11, tareas).length === 1);
@@ -103,7 +108,7 @@ ok('avanceGlobal: categorias con las cubetas de cada proyecto', aG.total === tar
 ok('segmentosDe: de hecho a la primera, con clase; tituloSegmentos en minusculas', segmentosDe(a).map(s => s[2]).join('') === 'hrcp' && tituloSegmentos(segmentosDe(a)) === '1 hecho · 1 en revisión · 1 en curso · 2 por hacer', tituloSegmentos(segmentosDe(a)));
 ok('segmentosGlobales: tres categorias', segmentosGlobales(aG).map(s => s[2]).join('') === 'hcp');
 ok('partesEnProceso: solo las de en medio con tarjetas', partesEnProceso(a).join(' · ') === '1 en curso · 1 en revisión' && partesEnProceso(aP).length === 0);
-ok('sinMovimiento con cubetas propias: en «haciendo» 12 dias se senala; en la primera no', sinMovimiento([{ id: 1, Columna: 'haciendo', Desde: '2026-08-30T00:00:00Z' }, { id: 2, Columna: 'ideas', Desde: '2026-08-30T00:00:00Z' }], 10, HOY, () => propias).map(t => t.id).join(',') === '1');
+ok('sinMovimiento con cubetas propias: en «haciendo» 12 dias se senala; en la primera no', sinMovimiento([{ id: 1, Columna: 'haciendo', Desde: '2026-08-30T18:00:00Z' }, { id: 2, Columna: 'ideas', Desde: '2026-08-30T18:00:00Z' }], 10, HOY, () => propias).map(t => t.id).join(',') === '1');
 ok('camposDeMovimiento con cubetas propias: acepta las suyas y rechaza las del default', camposDeMovimiento('haciendo', 'x', HOY, propias).Columna === 'haciendo' && (() => { try { camposDeMovimiento('en-curso', 'x', HOY, propias); return false; } catch (e) { return /desconocida/.test(e.message); } })());
 ok('ordenarLista por columna con cubetas propias = su posicion', ordenarLista([{ id: 1, Columna: 'hecho' }, { id: 2, Columna: 'haciendo' }, { id: 3, Columna: 'ideas' }], 'columna', 1, x => x, propias).map(t => t.id).join(',') === '3,2,1');
 
@@ -174,12 +179,12 @@ ok('mencionEnCurso: alias a medio escribir donde esta el cursor, y la palabra en
 // --- v0.10.0: roadmap, calendario, reportes
 ok('diaDe: dia UTC del ISO; basura = null', diaDe('2026-09-12T23:30:00Z') === '2026-09-12' && diaDe('') === null && diaDe('x') === null);
 ok('sumarDias / diasEntre / lunesDe / mesSumar', sumarDias('2026-09-30', 1) === '2026-10-01' && diasEntre('2026-09-01', '2026-09-11') === 10 && lunesDe('2026-09-12') === '2026-09-07' && lunesDe('2026-09-07') === '2026-09-07' && mesSumar('2026-12', 1) === '2027-01' && mesSumar('2026-01', -1) === '2025-12');
-const tA = { Columna: 'en-curso', Desde: '2026-09-05T12:00:00Z', Vence: '2026-09-20T18:00:00Z', _creado: '2026-09-01T00:00:00Z' };
-const tH = { Columna: 'hecho', Vence: '2026-09-20T18:00:00Z', HechoEl: '2026-09-10T18:00:00Z', _creado: '2026-09-01T00:00:00Z' };
-const tS = { Columna: 'por-hacer', _creado: '2026-09-01T00:00:00Z' };
+const tA = { Columna: 'en-curso', Desde: '2026-09-05T12:00:00Z', Vence: '2026-09-20T18:00:00Z', _creado: '2026-09-01T18:00:00Z' };
+const tH = { Columna: 'hecho', Vence: '2026-09-20T18:00:00Z', HechoEl: '2026-09-10T18:00:00Z', _creado: '2026-09-01T18:00:00Z' };
+const tS = { Columna: 'por-hacer', _creado: '2026-09-01T18:00:00Z' };
 ok('lapsoTarea: Desde -> Vence; hecha termina en HechoEl; sin Desde usa la creacion; sin fin no hay barra', JSON.stringify(lapsoTarea(tA)) === '{"inicio":"2026-09-05","fin":"2026-09-20"}' && lapsoTarea(tH).fin === '2026-09-10' && lapsoTarea(tH).inicio === '2026-09-01' && lapsoTarea(tS).fin === null);
-ok('lapsoTarea: un Desde posterior al fin se recorta al fin', lapsoTarea({ Columna: 'en-curso', Desde: '2026-09-25T00:00:00Z', Vence: '2026-09-20T00:00:00Z' }).inicio === '2026-09-20');
-const pr = { id: 7, Vence: '2026-10-31T18:00:00Z', _creado: '2026-09-01T00:00:00Z' };
+ok('lapsoTarea: un Desde posterior al fin se recorta al fin', lapsoTarea({ Columna: 'en-curso', Desde: '2026-09-25T18:00:00Z', Vence: '2026-09-20T18:00:00Z' }).inicio === '2026-09-20');
+const pr = { id: 7, Vence: '2026-10-31T18:00:00Z', _creado: '2026-09-01T18:00:00Z' };
 ok('lapsoProyecto: de su creacion a su fin de frente; sin fin, la tarjeta que vence al ultimo', lapsoProyecto(pr, [{ ProyectoId: 7, ...tA }]).fin === '2026-10-31' && lapsoProyecto({ id: 7 }, [{ ProyectoId: 7, ...tA }]).fin === '2026-09-20');
 const R = rangoRoadmap([{ inicio: '2026-09-01', fin: '2026-10-31' }], HOY);
 ok('rangoRoadmap: lunes antes del primero, domingo despues del ultimo, contiene hoy', R.desde === '2026-08-31' && R.hasta === '2026-11-01' && R.dias === 63);
@@ -190,12 +195,12 @@ const celdas = celdasDelMes('2026-09');
 ok('celdasDelMes: 42 celdas desde el lunes anterior, 30 en el mes', celdas.length === 42 && celdas[0].dia === '2026-08-31' && !celdas[0].enMes && celdas.filter(c => c.enMes).length === 30);
 const ag = agendaPorDia([{ Title: 'b', Vence: '2026-09-20T18:00:00Z', Columna: 'hecho' }, { Title: 'a', Vence: '2026-09-20T18:00:00Z', Columna: 'por-hacer' }, { Title: 'sin', Columna: 'por-hacer' }], [{ Title: 'P', Estado: 'activo', Vence: '2026-09-20T18:00:00Z' }, { Title: 'C', Estado: 'cerrado', Vence: '2026-09-21T18:00:00Z' }]);
 ok('agendaPorDia: tarjetas por Vence (abiertas antes que hechas) y fines de frente solo de activos', ag.get('2026-09-20').tareas.map(t => t.Title).join(',') === 'a,b' && ag.get('2026-09-20').fines.length === 1 && !ag.has('2026-09-21') && ag.size === 1);
-const hs = hechasPorSemana([{ Columna: 'hecho', HechoEl: '2026-09-10T00:00:00Z' }, { Columna: 'hecho', HechoEl: '2026-09-01T00:00:00Z' }, { Columna: 'hecho' }, { Columna: 'en-curso', HechoEl: '2026-09-10T00:00:00Z' }], 3, HOY);
+const hs = hechasPorSemana([{ Columna: 'hecho', HechoEl: '2026-09-10T18:00:00Z' }, { Columna: 'hecho', HechoEl: '2026-09-01T18:00:00Z' }, { Columna: 'hecho' }, { Columna: 'en-curso', HechoEl: '2026-09-10T18:00:00Z' }], 3, HOY);
 ok('hechasPorSemana: 3 semanas terminando en la de hoy, solo hechas con HechoEl', hs.map(x => x.desde).join(',') === '2026-08-24,2026-08-31,2026-09-07' && hs.map(x => x.n).join(',') === '0,1,1');
-const cp = cargaPorPersona([{ Asignado: 'A@x', Columna: 'por-hacer', Vence: '2026-09-01T00:00:00Z' }, { Asignado: 'a@x', Columna: 'hecho' }, { Asignado: 'b@x', Columna: 'en-curso' }, { Asignado: 'b@x', Columna: 'en-curso' }, { Columna: 'por-hacer' }], 7, HOY);
+const cp = cargaPorPersona([{ Asignado: 'A@x', Columna: 'por-hacer', Vence: '2026-09-01T18:00:00Z' }, { Asignado: 'a@x', Columna: 'hecho' }, { Asignado: 'b@x', Columna: 'en-curso' }, { Asignado: 'b@x', Columna: 'en-curso' }, { Columna: 'por-hacer' }], 7, HOY);
 ok('cargaPorPersona: abiertas/vencidas/hechas por correo (sin mayusculas), mas abiertas primero, sin dueño al final', cp.map(x => `${x.quien}:${x.abiertas}/${x.vencidas}/${x.hechas}`).join(' ') === 'b@x:2/0/0 a@x:1/1/1 :1/0/0');
-ok('actividadPorPersona: solo los ultimos N dias', actividadPorPersona([{ Quien: 'a', Cuando: '2026-09-10T00:00:00Z' }, { Quien: 'a', Cuando: '2026-09-11T00:00:00Z' }, { Quien: 'b', Cuando: '2026-07-01T00:00:00Z' }], 30, HOY).map(x => `${x.quien}:${x.n}`).join(',') === 'a:2');
-ok('ultimoComentarioPorProyecto: el mas reciente de cada frente, frentes del mas reciente al mas viejo', ultimoComentarioPorProyecto([{ Accion: 'comentar', ProyectoId: 1, Cuando: '2026-09-01T00:00:00Z', Title: 'v' }, { Accion: 'comentar', ProyectoId: 1, Cuando: '2026-09-05T00:00:00Z', Title: 'n' }, { Accion: 'comentar', ProyectoId: 2, Cuando: '2026-09-09T00:00:00Z', Title: 'o' }, { Accion: 'mover-tarea', ProyectoId: 3, Cuando: '2026-09-10T00:00:00Z' }]).map(x => `${x.proyectoId}:${x.ultimo.Title}`).join(',') === '2:o,1:n');
+ok('actividadPorPersona: solo los ultimos N dias', actividadPorPersona([{ Quien: 'a', Cuando: '2026-09-10T18:00:00Z' }, { Quien: 'a', Cuando: '2026-09-11T18:00:00Z' }, { Quien: 'b', Cuando: '2026-07-01T18:00:00Z' }], 30, HOY).map(x => `${x.quien}:${x.n}`).join(',') === 'a:2');
+ok('ultimoComentarioPorProyecto: el mas reciente de cada frente, frentes del mas reciente al mas viejo', ultimoComentarioPorProyecto([{ Accion: 'comentar', ProyectoId: 1, Cuando: '2026-09-01T18:00:00Z', Title: 'v' }, { Accion: 'comentar', ProyectoId: 1, Cuando: '2026-09-05T18:00:00Z', Title: 'n' }, { Accion: 'comentar', ProyectoId: 2, Cuando: '2026-09-09T18:00:00Z', Title: 'o' }, { Accion: 'mover-tarea', ProyectoId: 3, Cuando: '2026-09-10T18:00:00Z' }]).map(x => `${x.proyectoId}:${x.ultimo.Title}`).join(',') === '2:o,1:n');
 const ligas = [{ Title: 'Plan de contingencia', ProyectoId: 1, Tipo: 'archivado', Ruta: '04_SGI/plan.pdf' }, { Title: 'Oficio', ProyectoId: 2, Tipo: 'enlace', Url: 'https://x/ofício' }];
 ok('filtrarLigas: por proyecto, tipo y texto sin acentos sobre nombre/ruta/url', filtrarLigas(ligas, { proyectoId: 1 }).length === 1 && filtrarLigas(ligas, { tipo: 'enlace' })[0].Title === 'Oficio' && filtrarLigas(ligas, { texto: 'oficio' }).length === 1 && filtrarLigas(ligas, { texto: '04_sgi' }).length === 1 && filtrarLigas(ligas, {}).length === 2);
 
@@ -221,8 +226,8 @@ const actV = [
 ];
 const nv = nuevoParaMi(actV, tareasV, rolesV, 'yo@x', '2026-09-12T09:00:00Z');
 ok('nuevoParaMi: asignada/cambio/nota/mencion ajenas sobre lo mio, mas nuevo arriba; ni lo propio ni lo ajeno ni lo anterior a la marca', nv.map(x => `${x.tipo}:${x.a.id}`).join(' ') === 'mencion:13 nota:12 cambio:11 asignada:10');
-ok('nuevoParaMi: sin marca toma los ultimos 3 dias', nuevoParaMi(actV, tareasV, rolesV, 'yo@x', '', new Date('2026-09-13T00:00:00Z')).length === 4 && nuevoParaMi(actV, tareasV, rolesV, 'yo@x', '', new Date('2026-09-20T00:00:00Z')).length === 0);
-ok('nuevoParaMi: «asignó …» ajeno cuenta como asignada', nuevoParaMi(actV, tareasV, rolesV, 'yo@x', '2026-08-01T00:00:00Z').find(x => x.a.id === 16).tipo === 'asignada');
+ok('nuevoParaMi: sin marca toma los ultimos 3 dias', nuevoParaMi(actV, tareasV, rolesV, 'yo@x', '', new Date('2026-09-13T18:00:00Z')).length === 4 && nuevoParaMi(actV, tareasV, rolesV, 'yo@x', '', new Date('2026-09-20T18:00:00Z')).length === 0);
+ok('nuevoParaMi: «asignó …» ajeno cuenta como asignada', nuevoParaMi(actV, tareasV, rolesV, 'yo@x', '2026-08-01T18:00:00Z').find(x => x.a.id === 16).tipo === 'asignada');
 ok('delegadas: abiertas de otro que yo cree (createdBy) o asigne (bitacora); no las hechas ni las mias', delegadas(tareasV, actV, 'yo@x').map(t => t.id).join(',') === '2,4');
 ok('vistosDe: una vez por persona, en orden de marca', vistosDe(actV, 13).map(a => a.Quien).join(',') === 'yo@x,ana@x' && vistosDe(actV, 99).length === 0);
 ok('leerVisto: tolera vacio, basura y tipos raros', leerVisto('').inicio === '' && leerVisto('{no').inicio === '' && leerVisto('{"inicio":5,"chat":"x"}').inicio === '' && leerVisto('{"inicio":"2026-09-01","chat":{"1":"2026-09-02"}}').chat['1'] === '2026-09-02');
@@ -259,10 +264,29 @@ ok('nombreHumano: prefijo de solo año o año-mes cuenta como fecha (se pinta ta
   ok('nombreHumano: fuera de la convencion nada se inventa: titulo = nombre sin extension, sin fecha ni emisor', h.fecha === null && h.emisor === null && h.rev === null && h.titulo === 'PODER EJEMPLO NUM. 1,234'); }
 ok('nombreHumano: vacio y sin extension no revientan; un nombre libre no se retoca (ni la mayuscula)', nombreHumano('').titulo === '' && nombreHumano('gamma').titulo === 'gamma' && nombreHumano(null).original === '');
 ok('nombreDeLiga: un enlace se lee tal cual aunque su titulo parezca de la convencion; un archivado se parte', nombreDeLiga({ Tipo: 'enlace', Title: '2026-09-01_Portal de LATINA' }).titulo === '2026-09-01_Portal de LATINA' && nombreDeLiga({ Tipo: 'enlace', Title: '2026-09-01_Portal' }).fecha === null && nombreDeLiga({ Tipo: 'archivado', Title: '2026-09-01_X_Portal.pdf' }).fecha === '2026-09-01');
-{ const lg2 = [{ id: 1, Title: '2026-01-05_X_b.pdf', Tipo: 'archivado', _creado: '2026-09-01T00:00:00Z' }, { id: 2, Title: 'sin-fecha.pdf', Tipo: 'archivado', _creado: '2026-09-02T00:00:00Z' }, { id: 3, Title: '2026-03-01_X_a.pdf', Tipo: 'archivado', _creado: '2026-09-03T00:00:00Z' }, { id: 4, Title: '2026-09-01_Portal', Url: 'https://x', Tipo: 'enlace', _creado: '2026-09-04T00:00:00Z' }];
+{ const lg2 = [{ id: 1, Title: '2026-01-05_X_b.pdf', Tipo: 'archivado', _creado: '2026-09-01T18:00:00Z' }, { id: 2, Title: 'sin-fecha.pdf', Tipo: 'archivado', _creado: '2026-09-02T18:00:00Z' }, { id: 3, Title: '2026-03-01_X_a.pdf', Tipo: 'archivado', _creado: '2026-09-03T18:00:00Z' }, { id: 4, Title: '2026-09-01_Portal', Url: 'https://x', Tipo: 'enlace', _creado: '2026-09-04T18:00:00Z' }];
   const o = (c, d) => ordenarLigas(lg2, c, d).map(l => l.id).join(',');
   ok('ordenarLigas por del: la fecha del documento, sin fecha y enlaces al final (aunque el titulo del enlace empiece por fecha), arranca descendente', o('del', -1) === '3,1,4,2' && o('del', 1) === '1,3,4,2' && direccionInicial('del') === -1);
   ok('ordenarLigas por nombre usa lo que se ve — [emisor] titulo — no el nombre del archivo: «2026-09-01_Portal» (enlace) < «sin fecha» < «X A» < «X B»', o('nombre', 1) === '4,2,3,1'); }
 ok('filtrarLigas: busca tambien por el titulo humano que se ve («propuesta tecnica» con espacio), ademas de nombre, ruta y url', filtrarLigas([{ Title: '2026-08-19_MINSA_Propuesta-tecnica_x.pdf', Ruta: 'a/b', Tipo: 'archivado' }], { texto: 'propuesta tecnica' }).length === 1 && filtrarLigas([{ Title: '2026-08-19_MINSA_Propuesta-tecnica_x.pdf', Ruta: 'a/b', Tipo: 'archivado' }], { texto: 'propuesta-tecnica' }).length === 1);
+
+// --- v0.21.0 (iteracion 3): Inicio «Hoy» — KPI de un dia (reconstruido), serie para la tendencia, grupos de la cola, saludo
+{ const tk = [
+    { id: 1, Asignado: 'yo@x', Columna: 'por-hacer', Vence: '2026-09-10T18:00:00Z', _creado: '2026-09-01T18:00:00Z' },   // vencida hoy (11), «pronto» ayer (10)
+    { id: 2, Asignado: 'yo@x', Columna: 'en-curso', Vence: '2026-09-15T18:00:00Z', _creado: '2026-09-11T15:00:00Z' },   // creada HOY: ayer no existia
+    { id: 3, Asignado: 'yo@x', Columna: 'hecho', Vence: '2026-09-12T18:00:00Z', HechoEl: '2026-09-11T16:00:00Z', _creado: '2026-09-01T18:00:00Z' },   // hecha hoy: ayer abierta y pronto
+    { id: 4, Asignado: 'yo@x', Columna: 'hecho', HechoEl: '2026-09-05T18:00:00Z', _creado: '2026-09-01T18:00:00Z' },   // hecha hace dias: ni hoy ni ayer
+    { id: 5, Asignado: 'ana@x', Columna: 'por-hacer', Vence: '2026-09-10T18:00:00Z' },   // de otra
+    { id: 6, Asignado: 'YO@X', Columna: 'por-hacer' }   // sin fecha ni _creado: abierta siempre
+  ];
+  const hoy = kpisEn(tk, 'yo@x', '2026-09-11'), ayer = kpisEn(tk, 'yo@x', '2026-09-10');
+  ok('kpisEn hoy: 3 abiertas (1, 2, 6), 1 pronto (2), 1 vencida (1)', hoy.abiertas === 3 && hoy.pronto === 1 && hoy.vencidas === 1);
+  ok('kpisEn ayer reconstruido: 3 abiertas (1, 3, 6: la 2 no existia y la 3 aun no estaba hecha), 2 pronto (1 vencia ese dia, 3), 0 vencidas', ayer.abiertas === 3 && ayer.pronto === 2 && ayer.vencidas === 0);
+  ok('kpisEn: correo sin mayusculas; sin tareas = ceros', kpisEn(tk, 'ANA@x', '2026-09-11').vencidas === 1 && kpisEn([], 'yo@x', '2026-09-11').abiertas === 0);
+  const serie = serieKpis(tk, 'yo@x', HOY, 8);
+  ok('serieKpis: 8 dias, hoy al final, ayer penultimo, y hace 7 dias la 4 seguia abierta', serie.length === 8 && serie[7].vencidas === 1 && serie[6].vencidas === 0 && serie[0].abiertas === 4);
+  const g = gruposHoy([...tk, { id: 7, Columna: 'por-hacer', Vence: '2026-09-12T18:00:00Z' }, { id: 8, Columna: 'por-hacer', Vence: '2026-09-25T18:00:00Z' }], HOY, 7);
+  ok('gruposHoy: vencidas (1, 5) · hoy y manana (7) · esta semana (2); la de 14 dias y las hechas fuera; cada una en un solo grupo', g.vencidas.map(x => x.tarea.id).join(',') === '1,5' && g.hoy.map(x => x.tarea.id).join(',') === '7' && g.semana.map(x => x.tarea.id).join(',') === '2' && g.hoy[0].dias === 1);
+  ok('saludoDe por hora de Mexico: 12:00 = tardes, 08:00 = dias, 20:00 = noches', saludoDe(HOY) === 'Buenas tardes' && saludoDe(new Date('2026-09-11T14:00:00Z')) === 'Buenos días' && saludoDe(new Date('2026-09-12T02:00:00Z')) === 'Buenas noches'); }
 
 console.log(`reglas: ok (${n} comprobaciones)`);

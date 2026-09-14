@@ -448,7 +448,14 @@ try {
         // 4c. v0.3.0 — tanda 2: KPI (U3), rail (U2), filtros (F9), pestañas de columna (U5), orden (F10),
         // subir/bajar (F11), «→ siguiente» con Deshacer (U7), 412 (T1), sin red (T2).
         R.ok('T4: el contador rojo del rail es solo vencidas (gerencia: nada; colaborador: 1)', $('nMis').hidden === gerencia && (gerencia || $('nMis').textContent === '1'), `${$('nMis').hidden}/${$('nMis').textContent}`);
-        R.ok('Inicio: los 4 KPI son botones', document.querySelectorAll('#inicioKpis button.mn-kpi').length === 4);
+        // v0.21.0 (iteracion 3): 3 KPI de lo mio con tendencia contra ayer; el saludo lleva el nombre y la cuenta de frentes.
+        R.ok('v0.21.0: Inicio trae 3 KPI (mías · vencen en 7 d · vencidas), cada uno con tendencia contra ayer y sparkline', document.querySelectorAll('#inicioKpis button.mn-kpi').length === 3 && [...document.querySelectorAll('#inicioKpis .mn-kpi')].every(k => k.querySelector('.mn-kpi-tend') && /^(=|▲ \d+|▼ \d+)$/.test(k.querySelector('.mn-kpi-tend b').textContent) && k.querySelector('svg.spark polyline')) && !document.querySelector('#inicioKpis [data-kpi="proyectos"]'), [...document.querySelectorAll('#inicioKpis .mn-kpi-tend b')].map(b => b.textContent).join('|'));
+        R.ok('v0.21.0: el saludo lleva el nombre de pila y la fecha de hoy con los frentes activos y el rol', /^Buen[oa]s (días|tardes|noches), Persona$/.test($('inicioSaludo').textContent) && /^(domingo|lunes|martes|miércoles|jueves|viernes|sábado) \d{1,2} de [a-z]+ · \d+ frentes? activos? · (gerencia|colaborador|lectura)$/.test($('inicioSub').textContent), `${$('inicioSaludo').textContent} / ${$('inicioSub').textContent}`);
+        R.ok('v0.21.0: la cola «Hoy» es una sola lista con encabezados de grupo en orden de urgencia y renglones del mismo esqueleto (punto · título · sub · avatar · verbo)', (() => { const gs = [...document.querySelectorAll('#inicioHoy .hoy-g')].map(g => g.dataset.grupo); const orden = ['vencidas', 'hoy', 'nuevo', 'mencion', 'semana', 'sin-dueno']; const idx = gs.map(g => orden.indexOf(g)); return gs.length >= 1 && idx.every((v, i) => v >= 0 && (i === 0 || v > idx[i - 1])) && [...document.querySelectorAll('#inicioHoy .hoy-r')].every(r => r.querySelector('.st') && r.querySelector('.t') && r.querySelector('.p') && r.querySelector('.av') && r.querySelector('.ir')) && $('nHoy').textContent === String([...document.querySelectorAll('#inicioHoy .hoy-g .n')].reduce((s, b) => s + Number(b.textContent), 0)) && [...document.querySelectorAll('#inicioHoy .hoy-g')].every(g => { let n = 0, mas = false, e = g.nextElementSibling; while (e && !e.classList.contains('hoy-g')) { if (e.classList.contains('hoy-r')) n++; if (e.classList.contains('hoy-mas')) mas = true; e = e.nextElementSibling; } const total = Number(g.querySelector('.n').textContent); return n <= 8 && (n === total || mas || ['nuevo', 'mencion', 'sin-dueno'].includes(g.dataset.grupo)); }); })(), [...document.querySelectorAll('#inicioHoy .hoy-g')].map(g => g.dataset.grupo).join(','));
+        { const antes = document.querySelectorAll('#inicioHoy .hoy-r').length; document.querySelector('#hoyFiltro [data-hoy="mias"]').click(); await dormir(30);
+          R.ok('v0.21.0: «solo mías» deja en la cola solo mis tarjetas (los grupos por fecha) y se marca; «todo el frente» las devuelve', document.querySelector('#hoyFiltro [data-hoy="mias"]').classList.contains('is-on') && [...document.querySelectorAll('#inicioHoy .hoy-r[data-t]:not([data-sin-dueno])')].every(r => r.querySelector('.av').title === 'Persona de Prueba') && document.querySelectorAll('#inicioHoy .hoy-r').length <= antes, `${document.querySelectorAll('#inicioHoy .hoy-r').length}/${antes}`);
+          document.querySelector('#hoyFiltro [data-hoy="todo"]').click(); await dormir(30);
+          R.ok('v0.21.0: «todo el frente» vuelve a la cola completa', document.querySelectorAll('#inicioHoy .hoy-r').length === antes && document.querySelector('#hoyFiltro [data-hoy="todo"]').classList.contains('is-on')); }
         // v0.18.0: acciones rapidas — 3 botones y el select con los activos; cada una abre el dialogo de su pantalla.
         { const nAct = filas('proyectos').filter(p => p.fields.Estado === 'activo').length;
           R.ok('v0.18.0: Inicio trae 3 acciones rápidas y el select con los proyectos activos', document.querySelectorAll('#inicioAcciones [data-accion]').length === 3 && $('inicioAccProyecto').options.length === nAct && nAct >= 1, `${$('inicioAccProyecto').options.length}/${nAct}`);
@@ -473,8 +480,9 @@ try {
         document.querySelector('#filtroMis [data-mis="todas"]').click(); await dormir(30);
         R.ok('el chip Todas quita el filtro de Mis tareas', document.querySelector('#filtroMis button.is-on').dataset.mis === 'todas' && document.querySelectorAll('#misLista .tarjeta').length === (gerencia ? 1 : 2), String(document.querySelectorAll('#misLista .tarjeta').length));
         pestana('inicio'); await esperar(() => document.querySelector('#inicioKpis .mn-kpi'), 'kpis');
-        document.querySelector('#inicioKpis [data-kpi="proyectos"]').click(); await esperar(() => visible('p-proyectos'), 'proyectos por kpi');
-        R.ok('KPI «proyectos activos» abre Proyectos', visible('p-proyectos'));
+        document.querySelector('#inicioKpis [data-kpi="mis"]').click(); await esperar(() => visible('p-mis'), 'mis por kpi');
+        R.ok('v0.21.0: KPI «mías abiertas» abre Mis tareas sin filtro (el KPI de proyectos activos se fue al saludo)', visible('p-mis') && document.querySelector('#filtroMis button.is-on').dataset.mis === 'todas');
+        pestana('proyectos'); await esperar(() => visible('p-proyectos'), 'proyectos');
         R.ok('rail: CALYTEK trae su contador y ningún equipo está marcado', document.querySelector('#railEquipos [data-equipo="CALYTEK"] .n').textContent === '1' && !document.querySelector('#railEquipos button.is-on'));
         document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
         R.ok('rail: el equipo elegido queda marcado y filtra Proyectos', document.querySelector('#railEquipos button.is-on').dataset.equipo === 'PITEPEC' && !!document.querySelector('#listaProyectos .vacio'));
@@ -535,9 +543,9 @@ try {
           R.ok('v0.20.0: Cómodo de vuelta: sin clase, sin title y localStorage lo recuerda', !$('tableroCols').classList.contains('is-compacto') && localStorage.getItem('densidad') === 'comodo' && tj(0).title === '');
           for (const id of sem) filas('tareas').splice(filas('tareas').findIndex(x => x.id === id), 1);   // se retiran: lo de abajo cuenta tarjetas con números fijos
           await recargarYEsperar(); await abrirLau(); await esperar(() => document.querySelectorAll('#tableroCols .tarjeta').length === N, 'semáforo retirado'); }
-        pestana('inicio'); await esperar(() => document.querySelector('#inicioKpis [data-kpi="sin-dueno"]'), 'KPI sin dueño');
-        R.ok('C7: Inicio trae el KPI «sin dueño» = 1 y el renglón del proyecto lo dice', document.querySelector('#inicioKpis [data-kpi="sin-dueno"] .mn-kpi-val').textContent === '1' && !!document.querySelector(`#inicioProyectos [data-sin-dueno="${proyectoId}"]`) && document.querySelector(`#inicioProyectos [data-sin-dueno="${proyectoId}"]`).textContent === 'sin dueño · 1');
-        document.querySelector('#inicioKpis [data-kpi="sin-dueno"]').click(); await esperar(() => visible('p-proyecto') && document.querySelectorAll('#tableroCols .tarjeta').length === 1, 'proyecto filtrado');
+        pestana('inicio'); await esperar(() => document.querySelector('#inicioHoy [data-kpi="sin-dueno"]'), 'grupo sin dueño');
+        R.ok('C7 (v0.21.0): la cola trae el grupo «Sin dueño» = 1 con su renglón sin avatar, y el renglón del proyecto lo dice', document.querySelector('#inicioHoy [data-kpi="sin-dueno"] .n').textContent === '1' && document.querySelectorAll('#inicioHoy .hoy-r[data-sin-dueno]').length === 1 && !!document.querySelector('#inicioHoy .hoy-r[data-sin-dueno] .av.is-nadie') && !!document.querySelector(`#inicioProyectos [data-sin-dueno="${proyectoId}"]`) && document.querySelector(`#inicioProyectos [data-sin-dueno="${proyectoId}"]`).textContent === 'sin dueño · 1');
+        document.querySelector('#inicioHoy [data-kpi="sin-dueno"]').click(); await esperar(() => visible('p-proyecto') && document.querySelectorAll('#tableroCols .tarjeta').length === 1, 'proyecto filtrado');
         R.ok('C7: el KPI aterriza en el proyecto con el filtro «sin dueño» puesto', document.querySelector('#filtroChips [data-filtro="sinDueno"]').classList.contains('is-on') && document.querySelector('#tableroCols .tarjeta').dataset.t === String(normal.id));
         document.querySelector('#filtroChips [data-filtro="limpiar"]').click(); await dormir(30);
         // D5: los contadores del rail tienen nombre accesible.
@@ -733,8 +741,10 @@ try {
         R.ok('Mis tareas trae solo lo mío', [...document.querySelectorAll('#misLista .tarjeta')].length === (gerencia ? 1 : 2) && !!document.querySelector(`#misLista .tarjeta[data-t="${t.id}"]`), String(document.querySelectorAll('#misLista .tarjeta').length));
         // Inicio: KPI y próximos.
         pestana('inicio'); await esperar(() => document.querySelector('#inicioKpis .mn-kpi'), 'kpis');
-        R.ok('Inicio: KPI de proyectos activos = 1', document.querySelector('#inicioKpis .mn-kpi .mn-kpi-val').textContent === '1');
-        R.ok('Inicio: próximos vencimientos lista la tarea', $('inicioVence').textContent.includes('Lista de insumos'));
+        R.ok('v0.21.0: el saludo cuenta 1 frente activo', $('inicioSub').textContent.includes('1 frente activo ·'), $('inicioSub').textContent);
+        R.ok('v0.21.0: la cola «Hoy» lista la tarea (vence en menos de 7 d; reasignada a mí arriba) con su frente, su fecha y mi avatar', (() => { const r = document.querySelector(`#inicioHoy .hoy-r[data-t="${t.id}"]`); return !!r && r.querySelector('.t').textContent.startsWith('Lista de insumos') && r.querySelector('.p').textContent.includes('LAU') && /venc/.test(r.querySelector('.p').textContent) && r.querySelector('.av').title === 'Persona de Prueba'; })(), (document.querySelector(`#inicioHoy .hoy-r[data-t="${t.id}"]`) || {}).textContent || 'sin renglón');
+        document.querySelector(`#inicioHoy .hoy-r[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde la cola');
+        R.ok('v0.21.0: el renglón de la cola abre su tarjeta', $('tTitulo').textContent.startsWith('Lista de insumos')); clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
 
         // 5. Docs: buscar, ligar, subir, 404 del buzon, 403 fuera del piloto.
         await abrirLau(); tab('docs'); await esperar(() => !$('tab-docs').classList.contains('oculto'), 'docs');
@@ -1106,9 +1116,11 @@ try {
             // Una mención vieja (fuera de mencionesDias) no aparece: la lista se vacía sola con el tiempo.
             filas('actividad').push({ id: DB.siguienteId++, fields: { Title: '@persona esto es de hace un mes', Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date(Date.now() - 40 * 86400000).toISOString(), ProyectoId: proyectoId } });
             await recargarYEsperar(); pestana('inicio'); await dormir(30);
-            R.ok('v0.8.0: Inicio enseña «Te mencionaron» con el comentario ajeno reciente (no los míos, no el de hace un mes)', !$('cardMenciones').classList.contains('oculto') && $('inicioMenciones').textContent.includes('ya viste el oficio') && !$('inicioMenciones').textContent.includes('favor de checar') && !$('inicioMenciones').textContent.includes('hace un mes'));
+            // v0.21.0: «Te mencionaron» es un grupo de la cola «Hoy»; la mencion que ya salio en «Nuevo para ti» no se repite (un solo renglon).
+            { const enCola = [...document.querySelectorAll('#inicioHoy .hoy-r[data-mencion], #inicioHoy .hoy-r[data-nuevo="mencion"]')].map(r => r.textContent).join(' | ');
+              R.ok('v0.8.0 → v0.21.0: la cola enseña la mención ajena reciente UNA vez (como nueva o en «Te mencionaron»; no las mías, no la de hace un mes)', enCola.includes('ya viste el oficio') && !enCola.includes('favor de checar') && !enCola.includes('hace un mes') && document.querySelectorAll('#inicioHoy .hoy-r[data-mencion], #inicioHoy .hoy-r[data-nuevo="mencion"]').length === [...new Set([...document.querySelectorAll('#inicioHoy .hoy-r[data-mencion], #inicioHoy .hoy-r[data-nuevo="mencion"]')].map(r => r.querySelector('.t').textContent))].length, enCola); }
             R.ok('v0.8.0: la actividad dice «comentó» para el chat y «anotó» para la nota de tarjeta', $('inicioActividad').textContent.includes('comentó: «segundo mensaje') && $('inicioActividad').textContent.includes('anotó: «lo reviso'));
-            document.querySelector('#inicioMenciones button.it').click(); await esperar(() => visible('p-proyecto') && location.hash === `#p/${CLAVE}/chat`, 'chat desde la mención');
+            [...document.querySelectorAll('#inicioHoy .hoy-r[data-mencion], #inicioHoy .hoy-r[data-nuevo="mencion"]')].find(r => r.textContent.includes('ya viste el oficio')).click(); await esperar(() => visible('p-proyecto') && location.hash === `#p/${CLAVE}/chat`, 'chat desde la mención');
             R.ok('v0.8.0: el renglón de la mención abre el chat del proyecto', visible('tab-chat') && location.hash === `#p/${CLAVE}/chat`);
             pestana('inicio'); await dormir(30);
         }
@@ -1120,7 +1132,7 @@ try {
             // una tarjeta que vence HOY y una hecha hace 2 dias, para el calendario, el roadmap y «hechas por semana»
             const tHoy = { id: DB.siguienteId++, fields: { Title: 'Vence hoy para el calendario', ProyectoId: proyectoId, Columna: 'en-curso', Asignado: YO, Prioridad: 'normal', Vence: hoyIso, Desde: new Date(Date.now() - 5 * 86400000).toISOString() } };
             filas('tareas').push(tHoy);
-            filas('tareas').push({ id: DB.siguienteId++, fields: { Title: 'Hecha esta semana', ProyectoId: proyectoId, Columna: 'hecho', Asignado: YO, Prioridad: 'normal', Vence: hoyIso, HechoEl: new Date(Date.now() - 2 * 86400000).toISOString(), HechoPor: YO } });
+            filas('tareas').push({ id: DB.siguienteId++, fields: { Title: 'Hecha esta semana', ProyectoId: proyectoId, Columna: 'hecho', Asignado: YO, Prioridad: 'normal', Vence: hoyIso, HechoEl: new Date().toISOString(), HechoPor: YO } });
             await recargarYEsperar();
             // Roadmap global
             irHash('#roadmap'); await esperar(() => visible('p-roadmap'), 'roadmap');
@@ -1190,13 +1202,14 @@ try {
                 const tMia = filas('tareas').find(t => t.fields.Asignado === YO && t.fields.Columna !== 'hecho' && Number(t.fields.ProyectoId) === proyectoId);
                 filas('actividad').push({ id: DB.siguienteId++, fields: { Title: `asignó «${tMia.fields.Title}» a Persona de Prueba`, Accion: 'editar-tarea', Quien: 'jefa@example.invalid', Cuando: new Date(Date.now() + 3000).toISOString(), ProyectoId: proyectoId, TareaId: tMia.id } });
                 irHash('#inicio'); await esperar(() => visible('p-inicio'), 'inicio'); await recargarYEsperar(); await dormir(30);
-                R.ok('v0.15.0: «Nuevo para ti» en Inicio trae la tarjeta que otro me asignó, con quién y «te asignó», y la cuenta', !$('cardNuevo').classList.contains('oculto') && $('inicioNuevo').textContent.includes('te asignó') && $('inicioNuevo').textContent.includes('Jefa') && $('nNuevoInicio').textContent === String(document.querySelectorAll('#inicioNuevo .it').length));
-                document.querySelector('#inicioNuevo button.it').click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde Nuevo para ti');
+                // v0.21.0: «Nuevo para ti» es un grupo de la cola «Hoy» (decision de Carlos, 13-sep), con su conteo en el encabezado.
+                R.ok('v0.15.0 → v0.21.0: el grupo «Nuevo para ti» de la cola trae la tarjeta que otro me asignó, con quién y «te asignó», y la cuenta', !!document.querySelector('#inicioHoy [data-grupo="nuevo"]') && [...document.querySelectorAll('#inicioHoy .hoy-r[data-nuevo="asignada"]')].some(r => r.textContent.includes('te asignó') && r.textContent.includes('Jefa')) && document.querySelector('#inicioHoy [data-grupo="nuevo"] .n').textContent === String(document.querySelectorAll('#inicioHoy .hoy-r[data-nuevo]').length));
+                [...document.querySelectorAll('#inicioHoy .hoy-r[data-nuevo="asignada"]')].find(r => r.textContent.includes('Jefa')).click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde Nuevo para ti');
                 R.ok('v0.15.0: el renglón abre la tarjeta', $('dlgTarea').open && $('tTitulo').textContent === tMia.fields.Title);
                 clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
                 await esperar(() => { try { return !!JSON.parse(miRol().fields.Visto || '{}').inicio; } catch (_) { return false; } }, 'Visto.inicio compartido');
                 irHash('#inicio'); await esperar(() => visible('p-inicio'), 'inicio'); await dormir(40);
-                R.ok('v0.15.0: la marca de Inicio sube (compartida en PROY_Roles) y al volver ya no hay nada nuevo', !!JSON.parse(miRol().fields.Visto).inicio && $('cardNuevo').classList.contains('oculto'));
+                R.ok('v0.15.0: la marca de Inicio sube (compartida en PROY_Roles) y al volver ya no hay nada nuevo', !!JSON.parse(miRol().fields.Visto).inicio && !document.querySelector('#inicioHoy [data-grupo="nuevo"]'));
                 // Las que delegué: una tarjeta de OTRO que yo asigné sale en Mis tareas con ese filtro; sin el filtro no.
                 const tAjena = { id: DB.siguienteId++, fields: { Title: 'Tarjeta delegada a Colega', ProyectoId: proyectoId, Columna: 'por-hacer', Asignado: 'colega@example.invalid', Prioridad: 'normal' } }; filas('tareas').push(tAjena);
                 filas('actividad').push({ id: DB.siguienteId++, fields: { Title: `asignó «${tAjena.fields.Title}» a Colega Demo`, Accion: 'editar-tarea', Quien: YO, Cuando: new Date().toISOString(), ProyectoId: Number(tAjena.fields.ProyectoId), TareaId: tAjena.id } });

@@ -1111,9 +1111,63 @@ button.g-barra { cursor: pointer; } button.g-barra:hover { filter: brightness(.9
 .visto-btn.is-on { background: var(--status-ok-bg); color: var(--status-ok-fg); border-color: transparent; font-weight: 600; }
 .visto-btn:hover, .visto-btn:focus-visible { color: var(--text-strong); border-color: var(--text-muted); }
 @media (hover: none) { .visto-btn { min-height: 36px; min-width: 40px; padding: 0 12px; } }
-#cardNuevo h2 .n { margin-left: var(--sp-2); vertical-align: middle; }
-#cardNuevo { margin-bottom: var(--sp-3); }
-@media (min-width: 721px) { #inicioNuevo { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 0 var(--sp-4); } }
+/* ---- v0.21.0 (iteracion 3): Inicio «Hoy» — KPI con tendencia y sparkline, y la cola por urgencia
+   (sustituye a #cardNuevo / #inicioNuevo / #inicioMenciones / #inicioVence, que se fueron con sus tarjetas). */
+.kpis-hoy { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.kpis-hoy .mn-kpi { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem; grid-template-areas: "l l" "v s" "t t"; align-items: end; gap: 0 var(--sp-2); }
+.kpis-hoy .mn-kpi-label { grid-area: l; }
+.kpis-hoy .mn-kpi-val { grid-area: v; }
+.kpis-hoy .mn-kpi-tend { grid-area: t; font-size: .72rem; color: var(--text-muted); margin-top: var(--sp-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kpis-hoy .mn-kpi-tend b { font-family: var(--font-data); font-weight: 600; color: var(--text-body); }
+.kpis-hoy .mn-kpi-tend.is-peor b { color: var(--status-danger-fg); }
+.kpis-hoy .mn-kpi-tend.is-mejor b { color: var(--status-ok-fg); }
+/* El sparkline hereda el color del filete (currentColor por estado); sin estado va gris. */
+.kpis-hoy .spark { grid-area: s; width: 100%; height: 22px; display: block; color: var(--status-idle-solid); justify-self: end; }
+.kpis-hoy .mn-kpi.is-info .spark { color: var(--status-info-solid); }
+.kpis-hoy .mn-kpi.is-warn .spark { color: var(--status-warn-solid); }
+.kpis-hoy .mn-kpi.is-danger .spark { color: var(--status-danger-solid); }
+.kpis-hoy .mn-kpi.is-ok .spark { color: var(--status-ok-solid); }
+.cola-cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-2); }
+.cola-cab h2 { margin: 0; }
+.cola-cab h2 .n:not(:empty)::before { content: "· "; }
+.cola-lista { display: grid; }
+/* El encabezado de grupo: texto en mayusculas chicas, conteo mono; el color dice la urgencia. */
+.hoy-g { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3); padding: 0 0 var(--sp-1); border-bottom: 1px solid var(--border-hairline); font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--text-muted); }
+.hoy-g:first-child { margin-top: 0; }
+.hoy-g .n { font-family: var(--font-data); font-weight: 600; letter-spacing: 0; }
+.hoy-g.is-danger { color: var(--status-danger-fg); } .hoy-g.is-warn { color: var(--status-warn-fg); } .hoy-g.is-info { color: var(--status-info-fg); }
+button.hoy-g { width: 100%; min-height: 36px; background: none; border: 0; border-bottom: 1px solid var(--border-hairline); font: inherit; font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; text-align: left; cursor: pointer; border-radius: 0; }
+/* «+N más · ver en …»: cierra un grupo recortado a 6; boton de texto a la derecha, 36 px de alto (tactil). */
+.hoy-mas { justify-self: end; min-height: 36px; padding: 0 var(--sp-2); border: 0; background: none; font: inherit; font-size: .75rem; font-weight: 600; color: var(--brand-primary); cursor: pointer; border-radius: var(--r-sm); }
+.hoy-mas:hover, .hoy-mas:focus-visible { background: var(--surface-hover); }
+button.hoy-g::after { content: "ver en su tablero →"; margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-faint); }
+button.hoy-g:hover::after, button.hoy-g:focus-visible::after { color: var(--brand-primary); }
+/* Un renglon: punto · cuerpo (titulo + subtitulo) · avatar · verbo. Boton entero, 40 px minimo (tactil). */
+.hoy-r { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: var(--sp-3); align-items: center; width: 100%; min-height: 40px; padding: var(--sp-2) 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; font: inherit; color: inherit; text-align: left; border-radius: var(--r-sm); }
+.hoy-g + .hoy-r { border-top: 0; }
+button.hoy-r { cursor: pointer; }
+button.hoy-r:hover { background: var(--surface-hover); }
+button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: -2px; }
+.hoy-r .st { width: 8px; height: 8px; border-radius: 50%; background: var(--status-idle-solid); margin-left: 2px; }
+.hoy-r .st.is-danger { background: var(--status-danger-solid); } .hoy-r .st.is-warn { background: var(--status-warn-solid); } .hoy-r .st.is-info { background: var(--status-info-solid); }
+.hoy-r .cuerpo { display: grid; min-width: 0; gap: 1px; }
+.hoy-r .t { font-size: .85rem; font-weight: 600; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
+.hoy-r .p { font-size: .75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hoy-r .av.is-nadie { background: var(--surface-hover); color: var(--text-faint); }
+.hoy-r .ir { font-size: .75rem; font-weight: 600; color: var(--brand-primary); white-space: nowrap; }
+.cola-lista .vacio { color: var(--text-faint); font-size: .85rem; margin: 0; }
+/* Fines de frente (lateral): chip de dias · titulo · fecha y avance, boton entero como los .it */
+.fines .it { grid-template-columns: auto minmax(0, 1fr); align-items: center; }
+.fines .it .mn-chip { font-family: var(--font-data); min-width: 3.6rem; justify-content: center; }
+.fines .it .q { font-weight: 600; color: var(--text-strong); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+@media (max-width: 720px) {
+  /* En celular los 3 KPI van en una fila sin sparkline (el ancho de 390 no da para la curva) y el titulo de la cola parte en 2 lineas. */
+  .kpis-hoy { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .kpis-hoy .mn-kpi { grid-template-columns: minmax(0, 1fr); grid-template-areas: "l" "v" "t"; }
+  .kpis-hoy .spark { display: none; }
+  .hoy-r .ir { display: none; }
+  .hoy-r .t { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+}
 /* Equipo: la tabla de 5 columnas se cortaba en «Abiertas» a 1366 (auditoria 13-sep): el dialogo crece y el correo parte. */
 #dlgEquipo { width: min(96vw, 760px); }
 .eq-tabla td, .eq-tabla th { overflow-wrap: anywhere; }

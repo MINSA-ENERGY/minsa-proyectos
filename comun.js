@@ -3,9 +3,9 @@
 // la bitacora PROY_Actividad.
 
 import { CONFIG } from './config.js';
-import { PUEDE, iniciales, nombreDe, diasPara, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe } from './reglas.js';
+import { PUEDE, iniciales, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe } from './reglas.js';
 
-export const VERSION = '0.20.0';
+export const VERSION = '0.21.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -31,6 +31,7 @@ export const estado = {
     ordenDocs: { col: 'del', dir: -1 },         // v0.19.0: por la fecha del DOCUMENTO (la unica de las dos que se ve en el panel de Docs a 1366); v0.18.0: orden de la tabla de Docs del proyecto (se reinicia al cambiar de proyecto, como ordenLista)
     ordenArchivos: { col: 'del', dir: -1 },     // v0.19.0: idem; v0.18.0: orden de #archivos (vive la sesion, como su filtro); separado del de Docs (revisor, 13-sep)
     accionProyectoId: null,                 // v0.18.0: proyecto elegido en las acciones rapidas de Inicio
+    hoySoloMias: false,                     // v0.21.0: la cola «Hoy» de Inicio filtra a lo mio (la sesion; el default es todo el frente)
     densidad: 'comodo',                     // v0.20.0: 'comodo' | 'compacto' — tablero a una linea por tarjeta; se recuerda por dispositivo (localStorage)
     // v0.10.0: mes del calendario (YYYY-MM) y dia elegido; filtro de Archivos
     mesCal: null, calDia: null,
@@ -220,10 +221,15 @@ export function ligaDeTarjeta(t) {
 
 // ---------------------------------------------------------------- fechas (dd/mm/aaaa en pantalla, ISO en SharePoint)
 
+/** dd/mm/aaaa. v0.21.0: un ISO con hora se lee en el dia de MEXICO (diaDe), el mismo reloj que diasPara; hasta v0.20.0 tomaba
+ *  la fecha UTC del string y desde las 18:00 «Hecho el» / «cerrado el» / «ligada» imprimian MAÑANA (revisor, 13-sep). Un dia
+ *  suelto (YYYY-MM-DD) se imprime tal cual. */
 export function fechaCorta(iso) {
     if (!iso) return '—';
     const s = String(iso);
-    return /^\d{4}-\d{2}-\d{2}/.test(s) ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}` : s;
+    if (!/^\d{4}-\d{2}-\d{2}/.test(s)) return s;
+    const d = /T/.test(s) ? (diaDe(s) || s) : s;
+    return `${d.slice(8, 10)}/${d.slice(5, 7)}/${d.slice(0, 4)}`;
 }
 export function fechaHora(iso) {
     if (!iso) return '—';

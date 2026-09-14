@@ -66,12 +66,18 @@
 
     <!-- Inicio -->
     <section id="p-inicio" class="pantalla oculto">
-      <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8v10H3z"/><path d="M9 21v-6h6v6"/></svg></span><h1>Inicio</h1><p class="sub" id="inicioSub"></p></header>
-      <div class="mn-kpis" id="inicioKpis"></div>
-      <!-- v0.15.0: lo que OTROS hicieron sobre lo tuyo desde tu ultima visita (marca compartida entre dispositivos), solo si hay; a lo ancho, arriba de todo -->
-      <section class="mn-card oculto" id="cardNuevo"><h2>Nuevo para ti <span class="mn-rail-hot n" id="nNuevoInicio" hidden></span></h2><div class="mini" id="inicioNuevo"></div></section>
+      <!-- v0.21.0 (iteracion 3, «Inicio Hoy»): el titulo es el saludo con nombre; la fecha, los frentes activos y el rol van debajo -->
+      <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8v10H3z"/><path d="M9 21v-6h6v6"/></svg></span><h1 id="inicioSaludo">Inicio</h1><p class="sub" id="inicioSub"></p></header>
       <div class="dos-columnas">
         <div class="apilado">
+          <!-- v0.21.0: 3 KPI de lo MIO con tendencia contra ayer (antes 5 sin tendencia, a lo ancho) -->
+          <div class="mn-kpis kpis-hoy" id="inicioKpis"></div>
+          <!-- v0.21.0: UNA cola por urgencia — vencidas · hoy y manana · nuevo para ti · te mencionaron · esta semana · sin dueño —
+               que sustituye a «Nuevo para ti», «Te mencionaron» y «Proximos vencimientos» (tres tarjetas con tres formatos) -->
+          <section class="mn-card cola" id="cardHoy">
+            <div class="cola-cab"><h2>Hoy <span class="n" id="nHoy"></span></h2><div class="filtros" id="hoyFiltro" role="group" aria-label="Qué tarjetas entran a la cola"></div></div>
+            <div class="cola-lista" id="inicioHoy"></div>
+          </section>
           <section class="mn-card"><h2>Proyectos activos</h2><div class="lista" id="inicioProyectos"></div></section>
           <!-- v0.14.0: la actividad vive en la columna ancha (bajo los proyectos), no apretada en la lateral de 340 px -->
           <section class="mn-card"><h2>Actividad reciente <button class="mn-btn is-ghost is-sm ver-toda" id="btnActividadInicio" type="button">ver toda</button></h2><div class="mini" id="inicioActividad"></div></section>
@@ -79,9 +85,8 @@
         <div class="apilado">
           <!-- v0.18.0: acciones rapidas (recomendacion 3 de las capturas del 13-sep); las dos primeras van al proyecto del select -->
           <section class="mn-card" id="cardAcciones"><h2>Acciones rápidas</h2><div class="acciones-rapidas" id="inicioAcciones"></div></section>
-          <!-- v0.8.0: lo que el chat le dijo a esta persona (@mencion), solo si hay -->
-          <section class="mn-card oculto" id="cardMenciones"><h2>Te mencionaron</h2><div class="mini" id="inicioMenciones"></div></section>
-          <section class="mn-card"><h2>Próximos vencimientos</h2><div class="mini" id="inicioVence"></div></section>
+          <!-- v0.21.0: los fines de frente mas proximos (dias · titulo · fecha y avance), solo si algun activo tiene fecha -->
+          <section class="mn-card oculto" id="cardFines"><h2>Fines de frente</h2><div class="mini fines" id="inicioFines"></div></section>
           <section class="mn-card" id="cardSinMov"><h2>Sin movimiento</h2><div class="mini" id="inicioSinMov"></div></section>
         </div>
       </div>
