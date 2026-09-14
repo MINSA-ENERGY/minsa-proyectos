@@ -6,7 +6,7 @@
 // graficos son SVG por DOM o cajas con ancho en %.
 
 import { CONFIG } from './config.js';
-import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, sinDueno, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, enProceso, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro } from './reglas.js';
+import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, sinDueno, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, enProceso, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos } from './reglas.js';
 import { $, estado, el, boton, avatar, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, mencionesA, columnasDeTarea } from './comun.js';
 import { tablaDocs, filaGrupo, filaDoc, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden
 
@@ -28,21 +28,32 @@ const svgEl = (tag, attrs = {}) => { const e = document.createElementNS(SVG_NS, 
 /**
  * El eje de tiempo compartido por el roadmap global y el del proyecto: cabecera con los meses, una
  * linea por semana y la raya de HOY. `filas` = [{ etiqueta: Node, lapso, clase, texto, abrir, pct }].
+ * v0.22.0 (iteracion 4): los meses alternan fondo (un gradiente por pista, calculado del rango), la raya
+ * de hoy lleva etiqueta «hoy · 13 sep» en la cabecera, y una fila puede traer `hitos` (rombos ya acomodados
+ * por acomodarHitos, con `abrirHito(a)`) y `fin` ({ left, texto, titulo }: la raya del fin de frente).
+ * `opts.umbralTxt` es el % minimo de espacio libre para que un rombo lleve su titulo debajo.
  */
 function gantt(cont, filas, rango, opts = {}) {
     cont.textContent = '';
-    const g = el('div', 'gantt'); g.style.setProperty('--dias', String(rango.dias));
+    const conHitos = filas.some(f => f.hitos || f.fin);
+    const g = el('div', 'gantt' + (conHitos ? ' is-hitos' : '')); g.style.setProperty('--dias', String(rango.dias));
     // cabecera: meses arriba, semanas abajo
     const cab = el('div', 'g-cab'); cab.appendChild(el('span', 'g-eti', opts.rotulo || ''));
     const eje = el('div', 'g-eje');
-    const meses = el('div', 'g-meses');
-    for (const m of mesesDelRango(rango)) { const s = el('span', '', m.width >= 18 ? nombreMes(m.mes) : `${MESES_CORTOS[+m.mes.slice(5, 7) - 1]} ${m.mes.slice(2, 4)}`); s.style.left = m.left + '%'; s.style.width = m.width + '%'; s.title = nombreMes(m.mes); meses.appendChild(s); }
+    const meses = el('div', 'g-meses'); const bandas = [];
+    for (const [i, m] of mesesDelRango(rango).entries()) {
+        const s = el('span', '', m.width >= 18 ? nombreMes(m.mes) : `${MESES_CORTOS[+m.mes.slice(5, 7) - 1]} ${m.mes.slice(2, 4)}`); s.style.left = m.left + '%'; s.style.width = m.width + '%'; s.title = nombreMes(m.mes); meses.appendChild(s);
+        bandas.push(`${i % 2 ? 'color-mix(in srgb, var(--text-body) 6%, transparent)' : 'transparent'} ${m.left}% ${m.left + m.width}%`);   // tinte del texto, no surface-sunken: en oscuro no se veia y las filas de grupo ya lo traian
+    }
+    g.style.setProperty('--bandas', `linear-gradient(90deg, ${bandas.join(', ')})`);
     eje.appendChild(meses);
     const semanas = el('div', 'g-semanas');
     for (let d = rango.desde; d <= rango.hasta; d = sumarDias(d, 7)) { const s = el('span', '', String(+d.slice(8, 10))); s.style.left = (diasEntre(rango.desde, d) * 100 / rango.dias) + '%'; s.style.width = (7 * 100 / rango.dias) + '%'; semanas.appendChild(s); }
     eje.appendChild(semanas);
-    cab.appendChild(eje); g.appendChild(cab);
     const hoy = hoyDia(); const hoyPct = (diasEntre(rango.desde, hoy) + 0.5) * 100 / rango.dias;
+    // la etiqueta de hoy va en la cabecera (fija al hacer scroll); cerca del borde derecho se lee hacia la izquierda
+    if (hoyPct >= 0 && hoyPct <= 100) { const h = el('i', 'g-hoy' + (hoyPct > 85 ? ' is-der' : '')); h.style.left = hoyPct + '%'; h.appendChild(el('b', '', `hoy · ${+hoy.slice(8, 10)} ${MESES_CORTOS[+hoy.slice(5, 7) - 1]}`)); eje.appendChild(h); }
+    cab.appendChild(eje); g.appendChild(cab);
     for (const f of filas) {
         const fila = el('div', 'g-fila' + (f.grupo ? ' is-grupo' : ''));
         const eti = el('div', 'g-eti'); eti.appendChild(f.etiqueta); fila.appendChild(eti);
@@ -59,9 +70,20 @@ function gantt(cont, filas, rango, opts = {}) {
                 if (f.dataset) for (const k in f.dataset) barra.dataset[k] = f.dataset[k];
                 pista.appendChild(barra);
                 // Una barra de pocos dias no tiene donde escribir: el texto va afuera, a su derecha (o a la izquierda si toca el borde).
-                if (b.width < 14 && !f.hito) { barra.classList.add('is-corta'); barra.setAttribute('aria-label', f.titulo || f.texto || ''); const t = el('span', 'g-txt g-fuera', f.texto || ''); if (b.left + b.width > 80) { t.classList.add('is-izq'); t.style.right = (100 - b.left) + '%'; } else t.style.left = (b.left + b.width) + '%'; pista.appendChild(t); }
+                if (b.width < 14 && !f.hito) { barra.classList.add('is-corta'); barra.setAttribute('aria-label', f.titulo || f.texto || ''); const t = el('span', 'g-txt g-fuera', f.texto || ''); if (b.left + b.width > 80) { t.classList.add('is-izq'); t.style.right = (100 - b.left) + '%'; } else t.style.left = (b.left + b.width) + '%'; if (!conHitos) pista.appendChild(t); }   // v0.22.0: con rombos el texto de afuera chocaria con ellos; la etiqueta y el title ya lo dicen
                 else barra.appendChild(el('span', 'g-txt', f.texto || ''));
-            } else pista.appendChild(el('span', 'g-sinfecha', f.sinFecha || 'sin fecha'));
+            } else if (!f.hitos || !f.hitos.length) pista.appendChild(el('span', 'g-sinfecha', f.sinFecha || 'sin fecha'));   // v0.22.0: un frente sin fin pero con hitos pinta solo sus rombos
+            // v0.22.0: la raya del fin de frente (se ve aunque la barra vaya en 0 %) y los rombos de las tarjetas con fecha
+            if (f.fin) { const r = el('i', 'g-fin'); r.style.left = f.fin.left + '%'; r.title = f.fin.titulo || ''; r.appendChild(el('b', '', f.fin.texto || '')); pista.appendChild(r); }
+            for (const a of f.hitos || []) {
+                const grupo = a.hitos.length > 1;
+                const r = el('button', 'g-rombo' + (a.clase ? ' is-' + a.clase : '') + (grupo ? ' is-grupo' : '')); r.type = 'button'; r.style.left = a.left + '%';
+                r.title = a.titulo || ''; r.setAttribute('aria-label', a.titulo || ''); r.dataset.hito = a.hitos.map(h => h.tarea.id).join(',');
+                if (f.abrirHito) r.addEventListener('click', e => { e.stopPropagation(); f.abrirHito(a); });
+                pista.appendChild(r);
+                // el titulo cabe si hay espacio hasta el siguiente rombo o la raya del fin; un grupo siempre dice «+N»
+                if (grupo || a.espacio >= (opts.umbralTxt ?? 6)) { const t = el('span', 'g-rombo-txt' + (grupo ? ' is-grupo' : ''), grupo ? `+${a.hitos.length}` : a.hitos[0].tarea.Title); t.style.left = a.left + '%'; if (!grupo) t.style.maxWidth = `calc(${a.espacio}% - ${a.topado ? 44 : 8}px)`; pista.appendChild(t); }   // topado: la fecha del fin (dd/mm, ~36 px) vive a la izquierda de su raya
+            }
         }
         fila.appendChild(pista); g.appendChild(fila);
     }
@@ -77,6 +99,12 @@ function etiquetaTarea(t) {
 }
 const CLASE_BARRA = { h: 'ok', r: 'info', c: 'brand', p: 'idle' };
 const claseVence = t => t.Columna === 'hecho' ? 'ok' : estadoVence(t, CONFIG.vencePronto) === 'danger' ? 'danger' : CLASE_BARRA[claseDeColumna(t.Columna, columnasDeTarea(t))];
+/** v0.22.0: el title (y aria-label) de un rombo: titulo · estado con fecha · quien. */
+function tituloHito(h) {
+    const t = h.tarea; const d = diasPara(t.Vence);
+    const estado_ = h.clase === 'hecha' ? `hecha ${fechaCorta(t.HechoEl || t.Vence)}` : d < 0 ? `venció hace ${-d} d (${fechaCorta(t.Vence)})` : d === 0 ? 'vence hoy' : `vence ${fechaCorta(t.Vence)} (en ${d} d)`;
+    return `${t.Title} · ${estado_}${t.Asignado ? ' · ' + nombreDe(t.Asignado, estado.roles) : ''}`;
+}
 
 /**
  * Roadmap del proyecto (pestana «Roadmap», #p/<clave>/roadmap): un carril por columna con sus
@@ -130,20 +158,37 @@ export function pintarRoadmap() {
     kpi(todas.length, 'tarjetas en total', 'info'); kpi(abiertas.filter(t => enProceso(t, columnasDeTarea(t))).length, 'en proceso', null); kpi(todas.length - abiertas.length, 'hechas', 'ok'); kpi(venc, 'vencidas', venc ? 'danger' : null);   // v0.11.0: «en proceso» = fuera de la primera cubeta
     $('roadmapSub').textContent = estado.filtroEquipo ? `${ps.length} frente(s) de ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}; quita el filtro en el rail para ver todos.` : `${ps.length} frente(s) activo(s), del que vence antes al que vence después. La barra va de la creación del proyecto a su fin de frente; el relleno es el avance.`;
     const caja = $('roadmapCaja'); caja.textContent = '';
+    const ley = $('roadmapLeyenda'); ley.textContent = ''; ley.classList.toggle('oculto', !ps.length);
     if (!ps.length) { caja.appendChild(el('p', 'vacio', 'Sin proyectos activos.')); }
     else {
-        // Un frente sin ninguna fecha (ni fin ni tarjetas con vencimiento) se dibuja de su creacion a hoy, en gris.
+        // v0.22.0 (iteracion 4): cada tarjeta con Vence es un HITO (rombo) sobre la barra de su frente. Los rombos que
+        // caerian encima se agrupan («+N»); el umbral sale del ancho real de la pista (14 px de rombo + aire), y si la
+        // caja aun no mide (pantalla oculta) se toma 2 % del eje. El titulo del rombo se pinta si hay ~56 px libres.
+        const anchoPista = caja.clientWidth ? Math.max(caja.clientWidth, window.innerWidth <= 720 ? 520 : 640) - (window.innerWidth <= 720 ? 150 : 230) : 0;
+        const umbral = anchoPista ? 18 * 100 / anchoPista : 2, umbralTxt = anchoPista ? 56 * 100 / anchoPista : 6;
+        const hitosPs = ps.map(p => hitosDe(tareasDe(p, estado.tareas), CONFIG.vencePronto));
+        // Un frente sin ninguna fecha (ni fin ni tarjetas con vencimiento) se dibuja de su creacion a hoy, en gris; uno sin
+        // fin de frente pero con tarjetas con fecha lleva la barra gris hasta su ultima tarjeta con fecha (lapsoProyecto), con
+        // los rombos encima — el mockup los pintaba sin barra, pero la barra es lo que abre el frente y lo que la E2E cuenta.
         const lapsos = ps.map(p => { const l = lapsoProyecto(p, estado.tareas); return l.fin ? l : { inicio: l.inicio || hoyDia(), fin: hoyDia() }; });
-        const rango = rangoRoadmap(lapsos, new Date(), 84);
+        const rango = rangoRoadmap([...lapsos, ...hitosPs.flat().map(h => ({ inicio: h.dia, fin: h.dia }))], new Date(), 84);
         const filas = ps.map((p, i) => {
             const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p)); const d = diasPara(p.Vence);
             const eti = el('button', 'g-proy'); eti.type = 'button'; eti.dataset.roadmapP = String(p.id); eti.title = p.Title;
-            eti.appendChild(iconoEquipo(equipoDe(p), 'sm')); const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', p.Title)); c.appendChild(el('span', 'm', `${a.hechas}/${a.total} hechas · ${a.pct}%`)); eti.appendChild(c);
+            eti.appendChild(iconoEquipo(equipoDe(p), 'sm')); const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', p.Title)); c.appendChild(el('span', 'm', `${a.hechas}/${a.total} hechas · ${a.pct}%${p.Vence ? ` · fin ${fechaCorta(p.Vence).slice(0, 5)}` : ' · sin fin de frente'}`)); eti.appendChild(c);
             eti.addEventListener('click', () => irAHash(`#p/${p.Clave}`));
-            const texto = !p.Vence ? `${a.pct}% · sin fin de frente` : d < 0 ? `venció hace ${-d} d · ${a.pct}%` : d === 0 ? `vence hoy · ${a.pct}%` : `vence ${fechaCorta(p.Vence)} · ${a.pct}%`;
-            return { etiqueta: eti, lapso: lapsos[i], clase: !p.Vence ? 'idle' : d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : 'brand', pct: a.pct, texto, titulo: `${p.Title} · ${texto}`, abrir: () => irAHash(`#p/${p.Clave}`), dataset: { roadmapBarra: String(p.id) }, sinFecha: 'sin fechas' };
+            const textoFin = !p.Vence ? 'sin fin de frente' : d < 0 ? `venció hace ${-d} d` : d === 0 ? 'vence hoy' : `vence ${fechaCorta(p.Vence)}`;
+            // la fecha del fin ya la dice su raya: adentro de la barra queda solo el avance (el title trae todo)
+            const fin = p.Vence && lapsos[i].fin ? { left: (diasEntre(rango.desde, lapsos[i].fin) + 1) * 100 / rango.dias, texto: fechaCorta(p.Vence).slice(0, 5), titulo: `Fin del frente: ${fechaCorta(p.Vence)}` } : null;
+            const hitos = acomodarHitos(hitosPs[i], rango, umbral, fin ? fin.left : 100);
+            for (const h of hitos) h.titulo = h.hitos.length > 1 ? `${h.hitos.length} tarjetas del ${fechaCorta(h.dia)} al ${fechaCorta(h.hasta)}: ${h.hitos.map(x => x.tarea.Title).join(' · ')} — abre el roadmap del frente` : tituloHito(h.hitos[0]);
+            return { etiqueta: eti, lapso: lapsos[i], clase: !p.Vence ? 'idle' : d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : 'brand', pct: a.pct, texto: p.Vence ? `${a.pct}%` : `${a.pct}% · sin fin de frente`, titulo: `${p.Title} · ${textoFin} · ${a.pct}% · ${hitos.reduce((n, h) => n + h.hitos.length, 0)} hito(s)`, abrir: () => irAHash(`#p/${p.Clave}`), dataset: { roadmapBarra: String(p.id) }, sinFecha: 'sin fechas', fin, hitos, abrirHito: h => h.hitos.length > 1 ? irAHash(`#p/${p.Clave}/roadmap`) : irTarjeta(h.hitos[0].tarea) };
         });
-        gantt(caja, filas, rango, { rotulo: 'Frente' });
+        gantt(caja, filas, rango, { rotulo: 'Frente', umbralTxt });
+        // leyenda: las cuatro clases del rombo y que es cada cosa (la N de «pronto» sale de CONFIG, como en el tablero)
+        const item = (cls, texto) => { const s = el('span'); s.appendChild(el('i', 'g-rombo-mini' + (cls ? ' is-' + cls : ''))); s.appendChild(el('span', '', texto)); return s; };
+        ley.appendChild(item('', 'hito pendiente')); ley.appendChild(item('pronto', `vence hoy o en ${CONFIG.vencePronto} días`)); ley.appendChild(item('vencida', 'vencido')); ley.appendChild(item('hecha', 'hecho'));
+        ley.appendChild(el('span', 'fin', 'rombo = tarjeta con fecha · barra = creación → fin del frente · relleno = avance · raya = fin del frente'));
     }
     // hitos: fines de frente en los proximos 60 dias (y los ya vencidos), como «Upcoming milestones» de la foto
     const h = $('roadmapHitos'); h.textContent = '';

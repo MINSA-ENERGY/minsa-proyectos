@@ -869,3 +869,50 @@ export function saludoDe(hoy = new Date()) {
     const h = Number(new Intl.DateTimeFormat('en-US', { timeZone: 'America/Mexico_City', hour: 'numeric', hour12: false }).format(hoy).replace(/\D/g, '')) % 24;
     return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
 }
+
+// ---------------------------------------------------------------- v0.22.0 (iteracion 4): hitos del roadmap global
+
+/**
+ * Los HITOS de un frente: sus tarjetas con fecha de vencimiento, que el roadmap global pinta como rombos
+ * sobre la barra del frente. Un hito es una tarjeta con `Vence` (sin cambio de esquema) y su dia es el
+ * Vence —la fecha del PLAN, no la de hecho: el rombo dice donde estaba el hito y el title cuando se hizo—.
+ * La clase es la de semaforo() con la ventana del chip (`pronto`, 7): 'hecha' · 'vencida' · 'pronto' ·
+ * '' (pendiente, rombo hueco). Ordenados por dia y luego por id.
+ */
+export function hitosDe(tareas, pronto = 7, hoy = new Date()) {
+    return (tareas || []).filter(t => t.Vence && diaDe(t.Vence))
+        .map(t => ({ tarea: t, dia: diaDe(t.Vence), clase: semaforo(t, pronto, hoy) }))
+        .sort((a, b) => a.dia.localeCompare(b.dia) || Number(a.tarea.id) - Number(b.tarea.id));
+}
+const PESO_HITO = { vencida: 3, pronto: 2, '': 1, hecha: 0 };
+/**
+ * Acomoda los hitos sobre el eje: posicion en % (centro del dia) y AGRUPA los que caerian uno encima
+ * del otro —un rombo a menos de `umbral` % del ANCLA del anterior (su primer miembro) se funde con el en
+ * un grupo «+N» con la clase mas urgente (vencida > pronto > pendiente > hecha)—, para que nunca se
+ * encimen. El grupo se DIBUJA en su primer miembro: un dia en que si vence algo, y a `umbral` o mas del
+ * siguiente rombo (el revisor cazo que el promedio caia en dias vacios y el encadenado por el ultimo
+ * miembro tragaba frentes enteros). El artifact decia «mas de ~8 se agrupan»; la causa real es la DISTANCIA, no la cuenta: ocho
+ * hitos repartidos en tres meses caben, dos el mismo dia no. Los que caen fuera del rango no salen.
+ * Devuelve [{ left, dia, hasta, clase, hitos: [...], espacio }] ordenados; `hitos.length > 1` es un grupo
+ * y `espacio` es el % libre hasta el siguiente (o hasta `tope`, la raya del fin de frente o el 100;
+ * `topado` dice que fue la raya la que recorto, para descontar ademas su fecha).
+ */
+export function acomodarHitos(hitos, rango, umbral = 2, tope = 100) {
+    const pos = dia => (diasEntre(rango.desde, dia) + 0.5) * 100 / rango.dias;
+    const out = [];
+    for (const h of hitos) {
+        const left = pos(h.dia);
+        if (left < 0 || left > 100) continue;
+        const ult = out[out.length - 1];
+        if (ult && left - ult.left < umbral) {
+            ult.hitos.push(h); ult.hasta = h.dia;
+            if (PESO_HITO[h.clase] > PESO_HITO[ult.clase]) ult.clase = h.clase;
+        } else out.push({ left, dia: h.dia, hasta: h.dia, clase: h.clase, hitos: [h] });
+    }
+    for (let i = 0; i < out.length; i++) {
+        const sig = i + 1 < out.length ? out[i + 1].left : 100;
+        const t = tope > out[i].left ? Math.min(tope, sig) : sig;
+        out[i].espacio = Math.max(0, t - out[i].left); out[i].topado = t === tope && tope < sig;   // topado: lo que recorta es la raya del fin, no otro rombo
+    }
+    return out;
+}

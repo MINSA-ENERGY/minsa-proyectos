@@ -228,7 +228,14 @@ const ROL = params.get('rol') || 'gerencia';
 const YO = window.__CUENTA.username;
 const $ = id => document.getElementById(id);
 const dormir = ms => new Promise(r => setTimeout(r, ms));
+// TRAMPA del throttle de pushState (medida 2026-09-13, v0.22.0): Chromium IGNORA en silencio los pushState/replaceState
+// que pasan de ~100 en 10 s (crbug 1038223), y con tiempo virtual toda la corrida cabe en esos 10 s. Cada irA() de la
+// app y cada irHash() del arnes suman uno; al cruzar el tope, `history.pushState('#p/borrable')` no cambiaba el hash y
+// aplicarHash leia el anterior (#proyectos): la E2E fallaba en un paso que no tenia nada que ver con el ultimo cambio.
+// Remedio: contar y, desde el siguiente esperar(), dormir 10.5 s virtuales cada 90 (un dormir(11000) lo probo).
+let pushes = 0; { const ps = history.pushState.bind(history); history.pushState = (...a) => { pushes++; return ps(...a); }; }
 async function esperar(fn, que, ms = 8000) {
+    if (pushes >= 90) { pushes = 0; await dormir(10500); }
     const t0 = Date.now();
     while (Date.now() - t0 < ms) { try { const v = fn(); if (v) return v; } catch (_) {} await dormir(25); }
     throw new Error('tiempo agotado esperando: ' + que);
@@ -1133,11 +1140,33 @@ try {
             const tHoy = { id: DB.siguienteId++, fields: { Title: 'Vence hoy para el calendario', ProyectoId: proyectoId, Columna: 'en-curso', Asignado: YO, Prioridad: 'normal', Vence: hoyIso, Desde: new Date(Date.now() - 5 * 86400000).toISOString() } };
             filas('tareas').push(tHoy);
             filas('tareas').push({ id: DB.siguienteId++, fields: { Title: 'Hecha esta semana', ProyectoId: proyectoId, Columna: 'hecho', Asignado: YO, Prioridad: 'normal', Vence: hoyIso, HechoEl: new Date().toISOString(), HechoPor: YO } });
+            // v0.22.0: una hecha con Vence hace 20 dias, sola en su dia, para ver el rombo verde (la de arriba comparte dia con la que vence hoy y se agrupa)
+            const tHechaVieja = { id: DB.siguienteId++, fields: { Title: 'Hito hecho hace 20 días', ProyectoId: proyectoId, Columna: 'hecho', Asignado: YO, Prioridad: 'normal', Vence: new Date(Date.now() - 20 * 86400000).toISOString(), HechoEl: new Date(Date.now() - 20 * 86400000).toISOString(), HechoPor: YO } };
+            filas('tareas').push(tHechaVieja);
             await recargarYEsperar();
             // Roadmap global
             irHash('#roadmap'); await esperar(() => visible('p-roadmap'), 'roadmap');
             R.ok('v0.10.0: #roadmap abre la línea de tiempo con 4 KPI, una barra por frente activo, la raya de hoy y el eje de meses', visible('p-roadmap') && document.querySelectorAll('#roadmapKpis .mn-kpi').length === 4 && document.querySelectorAll('#roadmapCaja .g-barra[data-roadmap-barra]').length === filas('proyectos').filter(p => p.fields.Estado === 'activo').length && !!document.querySelector('#roadmapCaja .g-hoy') && document.querySelectorAll('#roadmapCaja .g-meses span').length >= 2);
             R.ok('v0.10.0: la barra del frente lleva su avance adentro y el texto dice cuándo vence', !!document.querySelector(`#roadmapCaja [data-roadmap-barra="${proyectoId}"] .g-pct`) && /vence|venció|sin fin/.test(document.querySelector(`#roadmapCaja [data-roadmap-barra="${proyectoId}"]`).title));   // el texto va adentro o, si la barra es corta, afuera: el title lo trae siempre
+            // v0.22.0 (iteracion 4): rombos por tarjeta con fecha, agrupados si se enciman; raya de fin; hoy con etiqueta; meses alternos; leyenda
+            {
+                const conVence = filas('tareas').filter(t => String(t.fields.ProyectoId) === String(proyectoId) && t.fields.Vence);
+                const rombos = [...document.querySelectorAll(`#roadmapCaja .g-fila:has([data-roadmap-barra="${proyectoId}"]) .g-rombo`)];
+                const idsEnRombos = rombos.flatMap(r => r.dataset.hito.split(',').map(Number));
+                R.ok('v0.22.0: cada tarjeta con Vence del frente es un rombo (o parte de un grupo «+N»), ninguna se pierde ni se repite', idsEnRombos.length === conVence.length && conVence.every(t => idsEnRombos.includes(t.id)) && rombos.every(r => (r.dataset.hito.split(',').length > 1) === r.classList.contains('is-grupo') && r.getAttribute('aria-label').length > 0), `${idsEnRombos.length} ids en ${rombos.length} rombos / ${conVence.length} con Vence`);
+                R.ok('v0.22.0: la que vence hoy y la hecha de hoy comparten día y se funden en UN grupo ámbar (pronto gana a hecha); la hecha de hace 20 días es un rombo verde solo', (() => { const rH = rombos.find(r => r.dataset.hito.split(',').includes(String(tHoy.id))); const rV = rombos.find(r => r.dataset.hito === String(tHechaVieja.id)); return !!rH && rH.classList.contains('is-grupo') && rH.dataset.hito.split(',').includes(String(filas('tareas').find(t => t.fields.Title === 'Hecha esta semana').id)) && rH.classList.contains('is-pronto') && !rH.classList.contains('is-hecha') && !!rV && rV.classList.contains('is-hecha') && !rV.classList.contains('is-grupo'); })(), `hoy=${rombos.find(r => r.dataset.hito.split(',').includes(String(tHoy.id)))?.className} vieja=${rombos.find(r => r.dataset.hito === String(tHechaVieja.id))?.className}`);
+                const fila = document.querySelector(`#roadmapCaja .g-fila:has([data-roadmap-barra="${proyectoId}"])`);
+                R.ok('v0.22.0: el frente con fecha lleva la raya de fin con su dd/mm, y la barra dice solo el avance', (!!filas('proyectos').find(p => p.id === proyectoId).fields.Vence) === !!fila.querySelector('.g-fin') && (!fila.querySelector('.g-fin') || /^\d\d\/\d\d$/.test(fila.querySelector('.g-fin b').textContent)) && (fila.querySelector('.g-barra').classList.contains('is-corta') ? !fila.querySelector('.g-txt') : /^\d+%$/.test(fila.querySelector('.g-barra .g-txt').textContent)) && / \d+% · \d+ hito/.test(fila.querySelector('.g-barra').title), `fin=${fila.querySelector('.g-fin b')?.textContent} txt=${fila.querySelector('.g-txt')?.textContent} title=${fila.querySelector('.g-barra').title}`);
+                R.ok('v0.22.0: la raya de hoy lleva etiqueta «hoy · d mes» en la cabecera, los meses alternan fondo y la leyenda dice las 4 clases con la N de CONFIG', /^hoy · \d{1,2} [a-z]{3}$/.test(document.querySelector('#roadmapCaja .g-cab .g-hoy b')?.textContent || '') && /linear-gradient/.test(document.querySelector('#roadmapCaja .gantt').style.getPropertyValue('--bandas')) && document.querySelectorAll('#roadmapLeyenda .g-rombo-mini').length === 4 && $('roadmapLeyenda').textContent.includes('en 7 días') && !$('roadmapLeyenda').classList.contains('oculto'));
+                const rV = rombos.find(r => r.dataset.hito === String(tHechaVieja.id));
+                rV.click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde el rombo');
+                R.ok('v0.22.0: el rombo suelto abre SU tarjeta', $('tTitulo').textContent === 'Hito hecho hace 20 días' && location.hash.endsWith(`/t/${tHechaVieja.id}`));
+                clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+                irHash('#roadmap'); await esperar(() => visible('p-roadmap') && document.querySelector('#roadmapCaja .g-rombo.is-grupo'), 'roadmap');
+                document.querySelector(`#roadmapCaja .g-fila:has([data-roadmap-barra="${proyectoId}"]) .g-rombo.is-grupo`).click(); await esperar(() => visible('tab-roadmap') && location.hash === `#p/${CLAVE}/roadmap`, 'roadmap del frente desde el grupo');
+                R.ok('v0.22.0: el grupo «+N» abre la pestaña Roadmap del frente, donde cada tarjeta tiene su carril', location.hash === `#p/${CLAVE}/roadmap` && visible('tab-roadmap'));
+                irHash('#roadmap'); await esperar(() => visible('p-roadmap') && document.querySelector('#roadmapCaja .g-rombo'), 'roadmap');
+            }
             document.querySelector(`#roadmapCaja [data-roadmap-barra="${proyectoId}"]`).click(); await esperar(() => visible('p-proyecto') && location.hash === `#p/${CLAVE}`, 'proyecto desde la barra');
             R.ok('v0.10.0: la barra abre su proyecto', visible('p-proyecto'));
             // Roadmap del proyecto
