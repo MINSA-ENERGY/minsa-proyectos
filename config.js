@@ -41,9 +41,10 @@ export const CONFIG = {
     // Las rutas de sitio estan VERIFICADAS contra el tenant (minsa-captura-app/app/config.js,
     // 2026-08-16); Finanzas es 'Administracion-Documentos' en la URL aunque OneDrive la
     // muestre como 'Administracion-Finanzas' — no es un error de dedo.
-    // PILOTO (2026-09-11): Sites.Selected write solo sobre Administracion y Ambiental-CALYTEK.
-    // Las demas bibliotecas quedan declaradas pero contestan 403 hasta que se autoricen
-    // (docs/otorgar-permiso-sitio.ps1); la app lo dice en pantalla nombrando el sitio.
+    // PILOTO (2026-09-11): Sites.Selected write sobre Administracion y Ambiental-CALYTEK; el
+    // 2026-09-15 (OK de Carlos) se suman Quimicos-PITEPEC y Quimicos-RABASA. Las demas quedan
+    // declaradas pero contestan 403 hasta que se autoricen (docs/otorgar-permiso-sitio-dispositivo.ps1);
+    // la app lo dice en pantalla nombrando el sitio. `piloto` aqui debe ir de la mano del script.
     // v0.7.0 (2026-09-12): el equipo se reconoce por ICONO + COLOR, nunca por su nombre escrito (Carlos,
     // 12-sep). `icono` son los trazos del SVG del rail del Tablero de escritorio (minsa-tablero-app/index.html:
     // hoja CALYTEK, matraz PITEPEC, gota RABASA); los tres que el tablero no tiene son propuesta aceptada en
@@ -69,8 +70,8 @@ export const CONFIG = {
         // `destinoLotes`: a donde PROPONE el _lote.json que vaya lo subido si el proyecto no declara
         // su Carpeta. Zonas que existen hoy en cada biblioteca (archivar-*/taxonomia); la skill valida.
         CALYTEK: { nombre: 'Ambiental-CALYTEK', sitio: '/sites/Ambiental-CALYTEK', piloto: true, destinoLotes: '08_Otros-Varios' },
-        PITEPEC: { nombre: 'Quimicos-PITEPEC', sitio: '/sites/Quimicos-PITEPEC', piloto: false, destinoLotes: '01_Servicios' },
-        RABASA: { nombre: 'Quimicos-RABASA', sitio: '/sites/Quimicos-RABASA', piloto: false, destinoLotes: '10_Interno' },
+        PITEPEC: { nombre: 'Quimicos-PITEPEC', sitio: '/sites/Quimicos-PITEPEC', piloto: true, destinoLotes: '01_Servicios' },
+        RABASA: { nombre: 'Quimicos-RABASA', sitio: '/sites/Quimicos-RABASA', piloto: true, destinoLotes: '10_Interno' },
         LEGAL: { nombre: 'Administracion-Legal', sitio: '/sites/Administracion-Legal', piloto: false, destinoLotes: '05_Contratos' },
         FINANZAS: { nombre: 'Administracion-Finanzas', sitio: '/sites/Administracion-Documentos', piloto: false, destinoLotes: '06_Soporte-Fiscal' }
     },

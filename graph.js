@@ -257,8 +257,8 @@ export function crearCliente(graph, token) {
 
         /**
          * Como `sitio`, pero un 403/404 NO revienta: devuelve `{ id: null, motivo }` para que Docs
-         * diga «sin permiso sobre Quimicos-PITEPEC» en vez de tirar la pantalla. En el piloto solo
-         * dos sitios estan autorizados (config.js `bibliotecas[].piloto`).
+         * diga «sin permiso sobre Quimicos-PITEPEC» en vez de tirar la pantalla. Solo estan autorizados
+         * los sitios con `piloto: true` en config.js `bibliotecas` (CALYTEK, PITEPEC, RABASA desde 2026-09-15).
          */
         async sitioOpcional(host, ruta) {
             const r = await pedir(`${graph}/sites/${host}:${ruta}`);

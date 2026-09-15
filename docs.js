@@ -415,7 +415,7 @@ async function buscarDocumento() {
         // A1: la ruta del script solo le sirve a gerencia; a los demas les toca pedirlo, no correrlo.
         if (!s.id) {
             avisar(PUEDE.proyecto(estado.rol)
-                ? `Sin acceso a ${bib.nombre}: ${s.motivo}. En el piloto solo está autorizada Ambiental-CALYTEK; para las demás hay que otorgar el permiso (docs/otorgar-permiso-sitio.ps1).`
+                ? `Sin acceso a ${bib.nombre}: ${s.motivo}. Esta biblioteca no tiene el permiso de la app; se otorga con docs/otorgar-permiso-sitio-dispositivo.ps1 (y \`piloto: true\` en config.js).`
                 : `Todavía no hay permiso sobre ${bib.nombre}. Pídelo a gerencia; mientras tanto puedes pegar un enlace.`, 'error');
             return;
         }
