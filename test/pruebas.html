@@ -831,7 +831,12 @@ try {
         const ligaArch = filas('ligas').find(l => l.fields.Tipo === 'archivado');
         const selLiga = document.querySelector(`#docsLista [data-tarjeta-de="${ligaArch.id}"]`);
         R.ok('cada liga trae su select de tarjeta con la actual', !!selLiga && selLiga.value === String(t.id));
-        selLiga.value = ''; selLiga.dispatchEvent(new Event('change', { bubbles: true }));
+        // v0.34.0 (Carlos, 14-sep): cambiar la tarjeta desde el select pide CONFIRMACION; Cancelar devuelve el select y no escribe.
+        selLiga.value = ''; selLiga.dispatchEvent(new Event('change', { bubbles: true })); await esperar(() => $('dlg').open, 'confirmación de mover');
+        const dlgMover = $('dlgTitulo').textContent.includes('Mover') && $('dlgTexto').textContent.includes(ligaArch.fields.Title) && $('dlgTexto').textContent.includes(t.fields.Title) && $('dlgOk').textContent === 'Mover';
+        clic('dlgCancelar'); await dormir(30);
+        R.ok('v0.34.0: cambiar la tarjeta de una liga pide confirmación (nombra el documento, de dónde y a dónde) y Cancelar devuelve el select a la tarjeta actual sin PATCH', dlgMover && !$('dlg').open && selLiga.value === String(t.id) && Number(ligaArch.fields.TareaId) === t.id && !actividad('ligar').some(a => a.fields.Title.includes('proyecto entero')), `${$('dlgTitulo').textContent} | ${$('dlgTexto').textContent} | sel=${selLiga.value}`);
+        selLiga.value = ''; selLiga.dispatchEvent(new Event('change', { bubbles: true })); await confirmar();
         await esperar(() => ligaArch.fields.TareaId === undefined, 'liga sin tarjeta');
         R.ok('cambiar la tarjeta de una liga: PATCH TareaId y bitácora', actividad('ligar').some(a => a.fields.Title.includes('proyecto entero')));
         const loteViejo = filas('ligas').find(l => l.fields.Tipo === 'buzon');
@@ -888,6 +893,18 @@ try {
           R.ok('v0.33.0: clic en el nodo pliega la carpeta: su doc queda hidden, el nodo marca is-plegada / aria-expanded=false, y el otro grupo sigue abierto', document.querySelector(`#docsLista tr.pest[data-tarjeta="${idT}"]`).classList.contains('is-plegada') && document.querySelector(`#docsLista tr.pest[data-tarjeta="${idT}"] .cab`).getAttribute('aria-expanded') === 'false' && document.querySelector(`#docsLista tr.pest[data-tarjeta="${idT}"]`).nextElementSibling.hidden === true && document.querySelector('#docsLista tr.pest.is-proyecto').nextElementSibling.hidden === false);
           document.querySelector(`#docsLista tr.pest[data-tarjeta="${idT}"] .cab.nodo`).click(); await dormir(30);
           R.ok('v0.33.0: el segundo clic la despliega', !document.querySelector(`#docsLista tr.pest[data-tarjeta="${idT}"]`).classList.contains('is-plegada') && document.querySelector(`#docsLista tr.pest[data-tarjeta="${idT}"]`).nextElementSibling.hidden === false);
+          // v0.34.0 (Carlos, 14-sep): «Abrir todo» / «Plegar todo» sobre todas las carpetas (incluido el nodo de vacias), y la
+          // cebra del arbol contada sobre las hojas VISIBLES de corrido (is-par en la 2a, 4a…; una carpeta plegada no la rompe).
+          { const visibles = () => [...document.querySelectorAll('#docsLista tr.doc')].filter(r => !r.hidden); const cebraOk = () => visibles().every((r, i) => r.classList.contains('is-par') === (i % 2 === 1));
+            R.ok('v0.34.0: con el arbol pintado se ven «Abrir todo» y «Plegar todo»; todo abierto salvo vacias → Abrir vivo, Plegar vivo; y la cebra alterna sobre las hojas visibles', !$('docsTodo').hidden && !$('docsPlegarTodo').disabled && cebraOk() && visibles().length >= 2 && visibles()[1].classList.contains('is-par') && !visibles()[0].classList.contains('is-par'), `visibles=${visibles().length} · par=${visibles().map(r => r.classList.contains('is-par') ? 1 : 0).join('')}`);
+            clic('docsPlegarTodo'); await dormir(30);
+            const nodos = () => [...document.querySelectorAll('#docsLista tr.pest, #docsLista tr.vacias')];
+            R.ok('v0.34.0: «Plegar todo» pliega cada carpeta (todas is-plegada, ninguna hoja visible, el nodo de vacias cerrado) y se apaga; «Abrir todo» se enciende', nodos().length >= 2 && nodos().every(n => n.classList.contains('is-plegada')) && visibles().length === 0 && $('docsPlegarTodo').disabled && !$('docsAbrirTodo').disabled, nodos().map(n => n.className).join('|'));
+            clic('docsAbrirTodo'); await dormir(30);
+            R.ok('v0.34.0: «Abrir todo» despliega cada carpeta —tambien el nodo de vacias, con sus hojas— y se apaga; la cebra vuelve a alternar de corrido', nodos().every(n => !n.classList.contains('is-plegada')) && visibles().length >= 2 && (nVacias === 0 || document.querySelectorAll('#docsLista tr.doc.vacia').length === nVacias) && $('docsAbrirTodo').disabled && !$('docsPlegarTodo').disabled && cebraOk(), `visibles=${visibles().length} · vacias=${document.querySelectorAll('#docsLista tr.doc.vacia').length}/${nVacias}`);
+            document.querySelector('#docsLista tr.pest[data-tarjeta] .cab.nodo').click(); await dormir(30);
+            R.ok('v0.34.0: plegar UNA carpeta re-cuenta la cebra sobre lo que queda visible', cebraOk() && visibles().length >= 1, visibles().map(r => r.classList.contains('is-par') ? 1 : 0).join(''));
+            document.querySelector('#docsLista tr.pest[data-tarjeta] .cab.nodo').click(); if (document.querySelector('#docsLista tr.vacias')) document.querySelector('#docsLista tr.vacias .cab').click(); await dormir(30); }
           poner('docsBusca', 'oficio'); R.ok('v0.33.0: con filtro o busqueda el nodo «sin documentos» no aparece y la raiz dice «N de M»', !document.querySelector('#docsLista tr.vacias') && document.querySelector('#docsLista tr.raiz').textContent.includes('1 de 2')); poner('docsBusca', ''); }
         // v0.19.0: nombre humano + fecha del documento; la ruta ya no va debajo del nombre.
         { const pdf = [...document.querySelectorAll('#docsLista tr.doc')].find(tr => tr.querySelector('.c-tipo [data-tipo="pdf"]')); const enl = [...document.querySelectorAll('#docsLista tr.doc')].find(tr => tr.querySelector('.c-tipo [data-tipo="enlace"]'));

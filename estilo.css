@@ -1465,8 +1465,10 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .is-arbol tr.doc td.c-nombre::before { content: ""; position: absolute; left: calc(var(--sp-3) + var(--sangria) + 6px); top: 0; bottom: 0; width: 14px; border-left: 1px solid var(--border-default); }
 .is-arbol tr.doc td.c-nombre::after { content: ""; position: absolute; left: calc(var(--sp-3) + var(--sangria) + 6px); top: 50%; width: 12px; border-top: 1px solid var(--border-default); }
 .is-arbol tr.doc:last-child td.c-nombre::before, .is-arbol tr.doc:has(+ tr.pest) td.c-nombre::before, .is-arbol tr.doc:has(+ tr.vacias) td.c-nombre::before { bottom: 50%; }   /* la ultima hoja cierra la rama */
-.is-arbol tbody tr.doc:nth-of-type(even) td { background: none; }   /* sin cebra: la rama ya separa, y la banda cortaria la linea */
+.is-arbol tbody tr.doc:nth-of-type(even) td { background: none; }   /* la cebra generica cuenta nodos y hojas ocultas: aqui la pone docs.js */
+.is-arbol tbody tr.doc.is-par td { background: var(--banda); }   /* v0.34.0 (Carlos, 14-sep): hileras alternas, contadas sobre las hojas VISIBLES de corrido; la linea de conexion (::before/::after) se pinta encima del fondo */
 .is-arbol tr.doc:hover td { background: var(--surface-hover); }
+.arbol-todo { display: inline-flex; gap: 2px; }   /* v0.34.0: «Abrir todo» / «Plegar todo» junto a los filtros de Docs */
 /* la hoja VACIA (tarjeta sin expediente): carpeta punteada + titulo + cubeta + vence + «Ligar aqui» en una celda ancha */
 .is-arbol tr.doc.vacia td { padding-left: calc(var(--sp-3) + var(--sangria) * 2); position: relative; }
 .is-arbol tr.doc.vacia td::before { content: ""; position: absolute; left: calc(var(--sp-3) + var(--sangria) + 6px); top: 0; bottom: 0; width: 14px; border-left: 1px solid var(--border-default); }

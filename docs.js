@@ -75,6 +75,7 @@ export async function pintarDocs(p) {
     $('docsBusca').hidden = todas.length < 2; if (todas.length < 2) estado.buscaDocs = '';
     const ligas = ordenarDocs(filtrarLigas(todas, { tipo: estado.filtroDocs, texto: estado.buscaDocs }));   // v0.18.0: por la columna elegida, dentro de cada grupo
     $('docsResumen').textContent = todas.length ? `${ligas.length} de ${todas.length}` : '';
+    $('docsTodo').hidden = true;   // v0.34.0: «Abrir todo / Plegar todo» solo con arbol pintado
     if (!ligas.length) { cont.appendChild(el('p', 'vacio', todas.length ? 'Nada con ese filtro.' : 'Sin documentos ligados todavía.')); return; }
     const puedeDe = l => puede || (l.Tipo === 'enlace' && puedeEnlazarEn(p));
     // v0.33.0 (Carlos, 14-sep; artifact HMVvZx2L, opcion E de ocho): Docs es un ARBOL DE EXPEDIENTE. La misma tabla
@@ -95,11 +96,25 @@ export async function pintarDocs(p) {
     for (const k of tarjetas) { const tt = porId(estado.tareas, k); tb.appendChild(filaGrupo(k, tt ? tt.Title : `Tarjeta #${k}`, porTarjeta.get(k).length, { tarea: tt, columnas, plegada: plegada(k), alPlegar: () => alPlegar(k) })); for (const l of porTarjeta.get(k)) tb.appendChild(filaDoc(l, { p, puede: puedeDe(l), oculta: plegada(k) })); }
     // Las tarjetas abiertas (no hechas) sin ningun documento: UN nodo, plegado por default, para que un frente de 30
     // tarjetas no llene el arbol de carpetas vacias y aun asi se vea cuantas van sin expediente. Solo sin filtro ni busqueda.
+    let hayVacias = false;
     if (!estado.filtroDocs && !estado.buscaDocs) {
         const conDocs = new Set(todas.map(l => Number(l.TareaId)).filter(Boolean));
         const vacias = tareasDe(p, estado.tareas).filter(t => t.Columna !== HECHO && !conDocs.has(t.id)).sort((a, b) => String(a.Title).localeCompare(String(b.Title)));
-        if (vacias.length) { const ab = estado.plegadasDocs.has(-1); tb.appendChild(filaVacias(vacias.length, ab, () => alPlegar(-1))); if (ab) for (const t of vacias) tb.appendChild(filaVacia(t, columnas, puede ? () => abrirLigar({ proyecto: p, tareaId: t.id }) : null)); }
+        if (vacias.length) { hayVacias = true; const ab = estado.plegadasDocs.has(-1); tb.appendChild(filaVacias(vacias.length, ab, () => alPlegar(-1))); if (ab) for (const t of vacias) tb.appendChild(filaVacia(t, columnas, puede ? () => abrirLigar({ proyecto: p, tareaId: t.id }) : null)); }
     }
+    // v0.34.0 (Carlos, 14-sep): hileras alternas grises y blancas para seguir la vista. Se cuentan SOLO las hojas visibles
+    // (una carpeta plegada no rompe la alternancia) y de corrido por todo el arbol, no por carpeta; nth-of-type no sirve
+    // porque cuenta tambien los nodos y las hojas ocultas.
+    let i = 0; for (const tr of tb.querySelectorAll('tr.doc')) if (!tr.hidden) tr.classList.toggle('is-par', i++ % 2 === 1);
+    // v0.34.0: «Abrir todo» / «Plegar todo». Las llaves del arbol: 0 = Del proyecto, id de cada tarjeta con expediente, y
+    // -1 = el nodo de vacias, que va al reves (presente = ABIERTO). Cada boton se apaga cuando ya no tiene nada que hacer.
+    const llaves = [...(delProyecto.length ? [0] : []), ...tarjetas];
+    const todoPlegado = llaves.every(k => plegada(k)) && (!hayVacias || !estado.plegadasDocs.has(-1));
+    const todoAbierto = llaves.every(k => !plegada(k)) && (!hayVacias || estado.plegadasDocs.has(-1));
+    $('docsTodo').hidden = false;
+    $('docsAbrirTodo').disabled = todoAbierto; $('docsPlegarTodo').disabled = todoPlegado;
+    $('docsAbrirTodo').onclick = () => { estado.plegadasDocs = new Set(hayVacias ? [-1] : []); pintarDocs(p); };
+    $('docsPlegarTodo').onclick = () => { estado.plegadasDocs = new Set(llaves); pintarDocs(p); };
     cont.appendChild(tabla);
     // «En el buzon» en vivo: una consulta por liga de tipo buzon, cacheada por carga.
     if (bib) {
@@ -251,7 +266,7 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
     if (puede && p) {
         const sel = el('select'); sel.dataset.tarjetaDe = String(l.id); sel.setAttribute('aria-label', 'Tarjeta de la liga');
         opcionesTarjetas(sel, p); sel.value = l.TareaId ? String(l.TareaId) : '';
-        sel.addEventListener('change', () => reasignarLiga(l, sel.value)); tdC.appendChild(sel);
+        sel.addEventListener('change', () => reasignarLiga(l, sel.value, sel)); tdC.appendChild(sel);
     } else if (l.TareaId && enArchivos) { const b = boton(tt ? tt.Title : `tarjeta #${l.TareaId}`, 'tarjeta-liga', tt && alTarjeta ? () => alTarjeta(tt) : null); b.title = tt ? tt.Title : ''; tdC.appendChild(b); }
     else { const s = el('span', 'tarjeta-liga' + (l.TareaId ? '' : ' sin'), tt ? tt.Title : l.TareaId ? `tarjeta #${l.TareaId}` : 'el proyecto entero'); if (tt) s.title = tt.Title; tdC.appendChild(s); }   // v0.29.0: pildora de ancho fijo con «…», como el boton
     tr.appendChild(tdC);
@@ -307,15 +322,22 @@ export async function quitarLiga(l, reemplazadaPor = null) {
 }
 
 /** Cambia la tarjeta de una liga; vacio = del proyecto entero. */
-async function reasignarLiga(liga, tareaId) {
+async function reasignarLiga(liga, tareaId, sel = null) {
     const l = porId(estado.ligas, liga.id) || liga;   // resolver por id AL CLIC: un refresco reemplaza los objetos de estado
     if (!PUEDE.ligar(estado.rol)) { avisar('Tu rol es de lectura: no puedes cambiar ligas.', 'error'); return; }
     const nuevo = tareaId ? Number(tareaId) : null;
-    if ((l.TareaId ? Number(l.TareaId) : null) === nuevo) return;
+    const actual = l.TareaId ? Number(l.TareaId) : null;
+    if (actual === nuevo) return;
+    // v0.34.0 (Carlos, 14-sep): el select cambia con una rueda o un dedo de mas — antes de escribir se CONFIRMA, nombrando
+    // de donde a donde; al cancelar el select vuelve a la tarjeta actual y nada sale hacia Graph.
+    const t = nuevo ? porId(estado.tareas, nuevo) : null, de = actual ? porId(estado.tareas, actual) : null;
+    const desde = de ? `de la tarjeta «${de.Title}»` : actual ? `de la tarjeta #${actual}` : 'del proyecto entero';
+    const hacia = t ? `a la tarjeta «${t.Title}»` : 'al proyecto entero';
+    const { ok } = await confirmar({ titulo: 'Mover el documento', ok: 'Mover', texto: `¿Mover «${l.Title}» ${desde} ${hacia}? El archivo no se toca: solo cambia a qué tarjeta está ligado.` });
+    if (!ok) { if (sel) sel.value = actual ? String(actual) : ''; return; }
     try {
         await estado.cliente.actualizarRenglon(estado.siteId, L.ligas, l.id, { TareaId: nuevo }, m => avisar(m, 'ojo'), l._etag);
         aplicar(l, { TareaId: nuevo });
-        const t = nuevo ? porId(estado.tareas, nuevo) : null;
         avisar(t ? `«${l.Title}» ahora es de la tarjeta «${t.Title}».` : `«${l.Title}» ahora es del proyecto entero.`, 'ok');
         alCambiar();
         await registrarActividad('ligar', t ? `pasó la liga «${l.Title.slice(0, 60)}» a «${t.Title.slice(0, 60)}»` : `dejó la liga «${l.Title.slice(0, 60)}» para el proyecto entero`, l.ProyectoId, nuevo);
