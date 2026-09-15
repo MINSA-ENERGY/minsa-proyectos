@@ -463,25 +463,6 @@ try {
           R.ok('v0.21.0: «solo mías» deja en la cola solo mis tarjetas (los grupos por fecha) y se marca; «todo el frente» las devuelve', document.querySelector('#hoyFiltro [data-hoy="mias"]').classList.contains('is-on') && [...document.querySelectorAll('#inicioHoy .hoy-r[data-t]:not([data-sin-dueno])')].every(r => r.querySelector('.av').title === 'Persona de Prueba') && document.querySelectorAll('#inicioHoy .hoy-r').length <= antes, `${document.querySelectorAll('#inicioHoy .hoy-r').length}/${antes}`);
           document.querySelector('#hoyFiltro [data-hoy="todo"]').click(); await dormir(30);
           R.ok('v0.21.0: «todo el frente» vuelve a la cola completa', document.querySelectorAll('#inicioHoy .hoy-r').length === antes && document.querySelector('#hoyFiltro [data-hoy="todo"]').classList.contains('is-on')); }
-        // v0.18.0: acciones rapidas — 3 botones y el select con los activos; cada una abre el dialogo de su pantalla.
-        { const nAct = filas('proyectos').filter(p => p.fields.Estado === 'activo').length;
-          R.ok('v0.18.0: Inicio trae 3 acciones rápidas y el select con los proyectos activos', document.querySelectorAll('#inicioAcciones [data-accion]').length === 3 && $('inicioAccProyecto').options.length === nAct && nAct >= 1, `${$('inicioAccProyecto').options.length}/${nAct}`);
-          R.ok('v0.18.0: «Nuevo proyecto» solo para gerencia; las otras dos para quien puede', document.querySelector('#inicioAcciones [data-accion="proyecto"]').disabled === !gerencia && !document.querySelector('#inicioAcciones [data-accion="tarea"]').disabled && !document.querySelector('#inicioAcciones [data-accion="ligar"]').disabled);
-          document.querySelector('#inicioAcciones [data-accion="tarea"]').click(); await esperar(() => $('dlgNuevaTarea').open, 'nueva tarea desde Inicio');
-          R.ok('v0.18.0: «Nueva tarea» abre el proyecto del select y su diálogo', visible('p-proyecto') && $('pTitulo').textContent === $('inicioAccProyecto').selectedOptions[0].textContent, $('pTitulo').textContent);
-          clic('ntCancelar'); pestana('inicio'); await esperar(() => document.querySelector('#inicioAcciones [data-accion]'), 'inicio');
-          // La rama AUTORIZADA (CALYTEK es piloto): el select se pone en un activo de CALYTEK y tiene que abrir dlgLigar, no dlgEnlace.
-          const calytek = filas('proyectos').find(p => p.fields.Estado === 'activo' && p.fields.Equipo === 'CALYTEK');
-          poner('inicioAccProyecto', String(calytek.id));
-          document.querySelector('#inicioAcciones [data-accion="ligar"]').click(); await esperar(() => $('dlgLigar').open || $('dlgEnlace').open, 'ligar desde Inicio');
-          R.ok('v0.18.0: «Ligar documento» sobre un proyecto con biblioteca autorizada cae en Documentos con el diálogo de LIGAR', visible('p-proyecto') && visible('tab-docs') && $('dlgLigar').open && !$('dlgEnlace').open && $('pTitulo').textContent === calytek.fields.Title);
-          clic('lgCerrar'); pestana('inicio'); await esperar(() => document.querySelector('#inicioAcciones [data-accion]'), 'inicio');
-          R.ok('v0.18.0: el proyecto elegido se recuerda al volver a Inicio', $('inicioAccProyecto').value === String(calytek.id));
-          const sinPiloto = filas('proyectos').find(p => p.fields.Estado === 'activo' && ['PITEPEC', 'RABASA'].includes(p.fields.Equipo));
-          if (sinPiloto) { poner('inicioAccProyecto', String(sinPiloto.id)); document.querySelector('#inicioAcciones [data-accion="ligar"]').click(); await esperar(() => $('dlgEnlace').open, 'enlace desde Inicio');
-            R.ok('v0.18.0: sin biblioteca autorizada cae a «Pegar un enlace» y lo avisa', !$('dlgLigar').open && !!avisoCon('aún no está autorizada')); clic('enCancelar'); pestana('inicio'); await esperar(() => document.querySelector('#inicioAcciones [data-accion]'), 'inicio'); }
-          if (gerencia) { document.querySelector('#inicioAcciones [data-accion="proyecto"]').click(); await esperar(() => $('dlgProyecto').open, 'nuevo proyecto desde Inicio');
-            R.ok('v0.18.0: «Nuevo proyecto» abre el formulario vacío', $('npTituloDlg').textContent === 'Nuevo proyecto' && $('npTitulo').value === ''); clic('npCancelar'); } }
         document.querySelector('#inicioKpis [data-kpi="vencidas"]').click(); await esperar(() => visible('p-mis'), 'mis por kpi');
         R.ok('KPI «vencidas» abre Mis tareas con el filtro Vencidas puesto', location.hash === '#mis' && document.querySelector('#filtroMis button.is-on').dataset.mis === 'vencidas', location.hash);
         document.querySelector('#filtroMis [data-mis="todas"]').click(); await dormir(30);
@@ -1496,7 +1477,6 @@ try {
         R.ok('lectura: Mis tareas trae la sembrada, vencida arriba en «Urgentes» con los días grandes', document.querySelectorAll('#misLista .tarjeta').length === 1 && !!document.querySelector('#misLista .urgentes .urgente.is-danger .tarjeta') && $('misLista').textContent.includes('venció') && $('misLista').querySelector('.urgente .k b').textContent === String(-diasPara('2026-09-01T18:00:00Z')));
         pestana('inicio'); await dormir(50);
         R.ok('lectura: Inicio muestra 1 vencida', [...document.querySelectorAll('#inicioKpis .mn-kpi')].some(k => k.textContent.includes('vencidas') && k.querySelector('.mn-kpi-val').textContent === '1'));
-        R.ok('v0.18.0 (lectura): las 3 acciones rápidas se ven apagadas y con su porqué', [...document.querySelectorAll('#inicioAcciones [data-accion]')].length === 3 && [...document.querySelectorAll('#inicioAcciones [data-accion]')].every(b => b.disabled && b.title));
         clic('btnEquipo'); await esperar(() => $('dlgEquipo').open, 'equipo');
         R.ok('A2 (lectura): Equipo trae tabla y fichas con la misma gente', document.querySelectorAll('#eqFichas .eq-ficha').length === document.querySelectorAll('#eqLista tr').length);
         clic('eqCerrar');

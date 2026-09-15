@@ -747,12 +747,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tabla th[aria-sort="descending"]::after { content: " ↓"; }
 .tabla .vacio { color: var(--text-faint); }
 
-/* v0.18.0: acciones rapidas de Inicio (Nueva tarea · Ligar documento · Nuevo proyecto), con el proyecto al que van las dos primeras */
-.acciones-rapidas { display: grid; gap: var(--sp-2); }
-.acciones-rapidas .botones { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
-.acciones-rapidas .en { display: flex; flex: 1 1 160px; min-width: 0; align-items: center; gap: var(--sp-2); font-family: var(--font-data); font-size: .72rem; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
-.acciones-rapidas .en select { flex: 1; min-width: 0; min-height: var(--control-h-sm); font: inherit; font-family: var(--font-ui); font-size: .85rem; text-transform: none; letter-spacing: 0; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); }
-
 /* ---- documentos */
 .docs { display: grid; gap: var(--sp-3); }
 .docs-acciones { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
