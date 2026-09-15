@@ -59,7 +59,7 @@ export function selectorTonos(cont, actual, alElegir, rotulo = 'Color') {
 }
 
 /* v0.50.0 (Carlos, 15-sep; artifact 1mTr2BGa, opcion 3A): la prioridad se elige en un SEGMENTADO con barras de senal —una
-   (baja) · dos (normal) · tres (alta, en azul de marca, el mismo punto azul del tablero)— en vez del <select>, que no admite
+   (baja) · dos (normal) · tres (alta)— en vez del <select>, que no admite
    icono ni color por opcion. El valor vive en un <input type="hidden"> con el id de siempre (ftPrioridad / ntPrioridad): quien
    lee $(id).value no cambia, y `poner()` de la E2E (value + change) tambien lo mueve, porque el segmento escucha 'change'. */
 const PRIORIDADES = [['baja', 'Baja', 'Puede esperar'], ['normal', 'Normal', 'Lo de siempre'], ['alta', 'Alta', 'Va primero']];
@@ -67,6 +67,14 @@ export function barrasPrioridad(v) {
     const n = v === 'alta' ? 3 : v === 'baja' ? 1 : 2;
     const s = el('span', 'barras is-' + (v === 'alta' ? 'alta' : v === 'baja' ? 'baja' : 'normal')); s.setAttribute('aria-hidden', 'true');
     for (let i = 1; i <= 3; i++) s.appendChild(el('i', i <= n ? 'on' : ''));
+    return s;
+}
+/* v0.60.0 (Carlos, 15-sep; artifact 2dJkkWxg): la prioridad va en TODAS las tarjetas —tablero, Lista («P») y Mis tareas— como las
+   mismas barras del segmentado, en SEMAFORO (rojo alta · ambar normal · verde baja) y a la DERECHA del titulo. Sustituye al punto
+   azul de v0.20.0, que solo marcaba la alta. Con rol img: la E2E y el lector de pantalla leen «Prioridad alta/normal/baja». */
+export function marcaPrioridad(v) {
+    const s = barrasPrioridad(v); s.removeAttribute('aria-hidden'); s.setAttribute('role', 'img');
+    s.setAttribute('aria-label', 'Prioridad ' + (v === 'alta' ? 'alta' : v === 'baja' ? 'baja' : 'normal'));
     return s;
 }
 export function selectorPrioridad(seg) {
@@ -108,7 +116,7 @@ export function tarjeta(t, conProyecto = false) {
     const compacto = !conProyecto && estado.densidad === 'compacto';
     const enTitle = [t.Prioridad === 'alta' ? 'Prioridad alta' : ''];   // lo que el compacto esconde se suma abajo y va al hover
     const tt = el('span', 't');
-    if (t.Prioridad === 'alta') { const p = el('i', 'p-alta'); p.setAttribute('role', 'img'); p.setAttribute('aria-label', 'Prioridad alta'); tt.appendChild(p); }
+    tt.appendChild(marcaPrioridad(t.Prioridad));   // v0.60.0: flotan a la derecha del titulo (estilo.css)
     tt.appendChild(document.createTextNode(t.Title));
     b.appendChild(tt);
     const f = el('span', 'f');
@@ -314,7 +322,7 @@ export function pintarLista(proyecto) {
     const tbody = el('tbody');
     for (const t of ts) {
         const r = el('tr', 'clic' + (t.Prioridad === 'alta' ? ' alta' : '')); r.dataset.t = String(t.id);
-        const tdp = el('td', 'col-p'); if (t.Prioridad === 'alta') { const p = el('i', 'p-alta'); p.setAttribute('role', 'img'); p.setAttribute('aria-label', 'Prioridad alta'); tdp.appendChild(p); tdp.title = 'Prioridad alta'; } r.appendChild(tdp);
+        const tdp = el('td', 'col-p'); tdp.appendChild(marcaPrioridad(t.Prioridad)); tdp.title = 'Prioridad ' + (t.Prioridad || 'normal'); r.appendChild(tdp);   // v0.60.0: barras en las tres
         r.appendChild(el('td', '', t.Title));
         r.appendChild(el('td', '', t.Asignado ? nombreDe(t.Asignado, estado.roles) : '—'));
         r.appendChild(el('td', '', nombreColumna(t)));   // v0.59.0: texto plano, sin chip (Carlos, 15-sep) — el chip sigue en tarjeta y Mis tareas
@@ -391,8 +399,8 @@ function renglonDenso(t, conQuien) {
     if (colorValido(t.Color)) b.dataset.tono = colorValido(t.Color);
     b.appendChild(el('span', 'sem'));
     const tt = el('span', 't');
-    if (t.Prioridad === 'alta') { const p = el('i', 'p-alta'); p.setAttribute('role', 'img'); p.setAttribute('aria-label', 'Prioridad alta'); tt.appendChild(p); }
     tt.appendChild(el('span', 'tit', t.Title));
+    tt.appendChild(marcaPrioridad(t.Prioridad));   // v0.60.0: a la derecha del titulo
     if (conQuien) { const q = el('span', 'quien'); q.appendChild(avatar(t.Asignado)); q.appendChild(document.createTextNode(t.Asignado ? nombreDe(t.Asignado, estado.roles).split(' ')[0] : 'sin asignar')); tt.appendChild(q); }
     const nNotas = notasPorTarea().get(t.id) || 0, nDocs = ligasPorTarea().get(t.id) || 0;
     if (nNotas) tt.appendChild(insignia(TRAZOS.burbuja, nNotas, `${nNotas} nota${nNotas === 1 ? '' : 's'}`, 'is-notas'));

@@ -713,13 +713,14 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tarjeta { background: var(--surface-card); border: 1px solid var(--border-hairline); border-left-width: 3px; border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-3); display: grid; gap: var(--sp-1); text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0; }   /* auditoria #10: sin sombra, como .mn-card y .doc; la piel lo dice */
 .tarjeta:hover { border-color: var(--border-default); }
 /* D4 (v0.6.0): la prioridad alta era el borde izquierdo. v0.20.0 (iteracion 2): el borde izquierdo (3 px en TODAS)
-   es semaforo de FECHA — gris en tiempo, rojo vencida, ambar hoy o en CONFIG.semaforoDias, verde hecha — y la
-   prioridad alta pasa a un PUNTO de marca delante del titulo (tarjeta) y en la columna «P» (Lista). Las reglas de
-   color van despues del bloque [data-tono], que pinta border-color entero y las pisaria. */
-.p-alta { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--brand-primary); flex: none; }
-.tarjeta .t .p-alta { margin-right: 6px; vertical-align: 1px; }
-.tabla .col-p { width: 14px; padding-left: var(--sp-1); padding-right: 0; }
-.tabla td.col-p .p-alta { display: block; margin-top: .3em; }
+   es semaforo de FECHA — gris en tiempo, rojo vencida, ambar hoy o en CONFIG.semaforoDias, verde hecha. v0.60.0 (Carlos,
+   15-sep; artifact 2dJkkWxg): el punto azul de la alta se fue; la prioridad de TODAS las tarjetas son las barras de senal
+   del segmentado (.barras, mas abajo), en semaforo, FLOTANDO a la derecha del titulo — en compacto el titulo sigue en una
+   linea con puntos suspensivos y las barras se quedan a la derecha. En la Lista viven en la columna «P». Las reglas de
+   color del filete van despues del bloque [data-tono], que pinta border-color entero y las pisaria. */
+.tarjeta .t .barras { float: right; margin: 3px 0 0 8px; }
+.tabla .col-p { width: 16px; padding-left: var(--sp-1); padding-right: 0; }
+.tabla td.col-p .barras { margin-top: .3em; }
 .col { container-type: inline-size; }
 .col h3 .n { white-space: nowrap; }
 .col h3 .n .largo { display: none; }   /* «· 1 vencida» solo en cubetas de 240 px o mas (a 1366 con lateral miden 195): abajo queda el rojo y el title */
@@ -730,7 +731,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .leyenda-sem span { display: inline-flex; align-items: center; gap: 6px; }
 .leyenda-sem i { display: inline-block; width: 3px; height: 12px; border-radius: 2px; background: var(--border-hairline); }
 .leyenda-sem .is-vencida i { background: var(--status-danger-solid); } .leyenda-sem .is-pronto i { background: var(--status-warn-solid); } .leyenda-sem .is-hecha i { background: var(--status-ok-solid); }
-.leyenda-sem .alta i { width: 8px; height: 8px; border-radius: 50%; background: var(--brand-primary); }
+.leyenda-sem .prio-l i { width: 3px; }   /* v0.60.0: la leyenda trae las tres barras; el ancho lo pone .barras i:nth-child */
 /* Conmutador Cómodo / Compacto: en la fila de FILTROS, tras el buscador (en la de pestañas desbordaba 84 px a 820);
    solo se ve en el tablero. En celular vive, como los filtros, detrás de «Filtrar». */
 .densidad { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); flex: none; }
@@ -1607,9 +1608,10 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 #dlgTarea .orden > span { margin-right: var(--sp-1); }
 #dlgTarea .orden .mn-btn { min-width: 26px; padding-inline: var(--sp-1); }
 #dlgTarea .orden:empty { display: none; }
-/* 3A — la prioridad es un SEGMENTADO con barras de senal: baja (1, gris) · normal (2, gris medio) · alta (3, azul de marca —
-   el mismo punto azul que la tarjeta lleva en el tablero; Carlos descarto el rojo). Sustituye al <select> (que no admite icono
-   por opcion). Las mismas barras van en el renglon Prioridad de la ficha. Descartadas: 3B chevrones · 3C tres tarjetas · 3D select con glifo. */
+/* 3A — la prioridad es un SEGMENTADO con barras de senal: baja (1) · normal (2) · alta (3). Sustituye al <select> (que no admite icono
+   por opcion). Las mismas barras van en el renglon Prioridad de la ficha y, desde v0.60.0, en TODAS las tarjetas del tablero, la Lista
+   y Mis tareas. Colores v0.50.0: gris · gris medio · azul de marca (Carlos descarto el rojo); v0.60.0 (Carlos, 15-sep, artifact 2dJkkWxg):
+   SEMAFORO — rojo alta · ambar normal · verde baja. Descartadas: 3B chevrones · 3C tres tarjetas · 3D select con glifo. */
 .prio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border-default); border-radius: var(--r-sm); overflow: hidden; min-height: var(--control-h); background: var(--surface-card); }
 .prio button { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); border: 0; border-right: 1px solid var(--border-default); background: none; font: inherit; font-size: .86rem; color: var(--text-body); cursor: pointer; padding: 0 var(--sp-2); min-height: 0; border-radius: 0; }
 .prio button:last-child { border-right: 0; }
@@ -1619,9 +1621,10 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .barras { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 12px; flex: none; }
 .barras i { display: block; width: 3px; border-radius: 1px; background: var(--border-default); }
 .barras i:nth-child(1) { height: 4px; } .barras i:nth-child(2) { height: 8px; } .barras i:nth-child(3) { height: 12px; }
-.barras.is-baja i.on { background: var(--status-idle-solid); }
-.barras.is-normal i.on { background: var(--text-muted); }
-.barras.is-alta i.on { background: var(--brand-primary); }
+.barras.is-baja i.on { background: var(--status-ok-solid); }
+.barras.is-normal i.on { background: var(--status-warn-solid); }
+.barras.is-alta i.on { background: var(--status-danger-solid); }
+.densa .tr .t .barras { flex: none; }
 .t-props .barras { margin-right: 2px; }
 /* 4 — «Proyecto (moverla a otro frente)» salio del editor: Descripcion toma las dos columnas de la rejilla de v0.31.0. */
 @media (max-width: 720px) { .t-props { grid-template-columns: 72px minmax(0, 1fr); } .prio button { font-size: .82rem; gap: var(--sp-1); } }
