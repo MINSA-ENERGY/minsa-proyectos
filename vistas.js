@@ -6,8 +6,8 @@
 // graficos son SVG por DOM o cajas con ancho en %.
 
 import { CONFIG } from './config.js';
-import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, sinDueno, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, enProceso, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos, aliasParaMencion } from './reglas.js';
-import { $, estado, el, boton, avatar, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, mencionesA, columnasDeTarea, avisar } from './comun.js';
+import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, sinDueno, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, enProceso, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
+import { $, estado, el, boton, avatar, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, columnasDeTarea, avisar } from './comun.js';
 import { pintarChat } from './chat.js';   // v0.42.0: Mensajes pinta el hilo del frente elegido en su propia columna
 import { tablaDocs, filaRaiz, filasDeExpediente, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden; v0.36.0: y el mismo arbol
 
@@ -295,14 +295,13 @@ export function engancharCalendario() {
 // ---------------------------------------------------------------- mensajes
 
 /**
- * Mensajes (v0.42.0, Carlos 14-sep, artifact 17j5wESZ «bandeja + hilo solamente»): a la izquierda la bandeja en tres
- * secciones —Personas (el equipo de PROY_Roles), Frentes (los que tienen chat, el mas reciente arriba) y Sin conversacion
- * (plegada)— y a la derecha lo elegido: el hilo del frente, que es el MISMO #tab-chat de la pestana del proyecto alojado
- * aqui (alojarChat), o la ficha de la persona. Una persona NO abre un chat en la app: su mensaje directo va por Teams,
- * porque la bitacora (PROY_Actividad) la lee todo el equipo y un «privado» guardado ahi no lo seria (decidido 14-sep;
- * la columna Para y la lista aparte quedaron descartadas en el artifact G6F3aceS). La ficha lista donde te menciono.
- * El estado vive en estado.mensajesSel = {t:'f'|'d', k: clave | correo}; el hash lo refleja (#mensajes/f/<clave>,
- * #mensajes/d/<alias>). En celular (≤ 900) se ve una columna a la vez y «← Bandeja» regresa.
+ * Mensajes (v0.42.0, Carlos 14-sep, artifact 17j5wESZ «bandeja + hilo solamente»): a la izquierda la bandeja en dos
+ * secciones —Frentes (los que tienen chat, el mas reciente arriba) y Sin conversacion (plegada)— y a la derecha el hilo
+ * del frente elegido, que es el MISMO #tab-chat de la pestana del proyecto alojado aqui (alojarChat).
+ * v0.43.0 (Carlos, 15-sep): SOLO chat por frente. La seccion Personas y la ficha con la liga a Teams (v0.42.0) salieron:
+ * casi no se usaban, y un chat 1:1 en la app no seria privado (la bitacora PROY_Actividad la lee todo el equipo).
+ * El estado vive en estado.mensajesSel = {t:'f', k: clave}; el hash lo refleja (#mensajes/f/<clave>).
+ * En celular (≤ 900) se ve una columna a la vez y «← Bandeja» regresa.
  */
 let casaChat = null;   // donde vive #tab-chat en index.html (la pestana del proyecto), para devolverlo
 function alojarChat(host) {
@@ -314,20 +313,6 @@ function alojarChat(host) {
 /** app.js lo llama al repintar cualquier pantalla que no sea Mensajes: el hilo vuelve a la pestana del proyecto. */
 export function devolverChat() { alojarChat(null); }
 
-const personasDelEquipo = () => estado.roles.filter(r => r.Activo !== false && r.Title).map(r => String(r.Title).toLowerCase());
-/** «hoy» · «esta semana» · '' segun lo ultimo que esa persona escribio o movio en la bitacora (presencia derivada, sin servidor). */
-export function actividadDe(correo, hoy = new Date()) {
-    const c = String(correo || '').toLowerCase();
-    let ult = ''; for (const a of estado.actividad) if (String(a.Quien || '').toLowerCase() === c && String(a.Cuando || '') > ult) ult = String(a.Cuando);
-    if (!ult) return '';
-    const d = (hoy - new Date(ult)) / 86400000;
-    return d < 1 ? 'hoy' : d < 7 ? 'esta semana' : '';
-}
-/** La liga de Teams al chat 1:1 con esa persona (abre la app si esta instalada; si no, Teams web). */
-export const ligaTeams = correo => `https://teams.microsoft.com/l/chat/0/0?users=${encodeURIComponent(String(correo || '').toLowerCase())}`;
-/** El alias del hash de una persona (el mismo que la @mencion) y su inversa. */
-export const aliasHash = correo => aliasParaMencion(correo, estado.roles) || String(correo || '').toLowerCase().split('@')[0];
-export const correoDeAlias = alias => personasDelEquipo().find(c => aliasHash(c) === String(alias || '').toLowerCase()) || null;
 const coincide = (q, ...textos) => !q || textos.some(t => sinAcentos(String(t || '')).includes(q));
 
 export function pintarMensajes() {
@@ -343,21 +328,6 @@ export function pintarMensajes() {
         for (const h of hijos) d.appendChild(h);
         if (!hijos.length) d.appendChild(el('p', 'vacio', q ? 'Nada coincide.' : '—'));
         return d;
-    };
-    // Personas: el equipo, con «hoy / esta semana» y cuantas menciones tuyas sin ✓ trae cada quien.
-    const filaPersona = c => {
-        const on = sel && sel.t === 'd' && sel.k === c;
-        const b = el('button', 'msg-proy msg-pers' + (on ? ' is-on' : '')); b.type = 'button'; b.dataset.persona = c;
-        b.setAttribute('aria-current', on ? 'true' : 'false');
-        const av = el('span', 'avw'); av.appendChild(avatar(c)); const act = actividadDe(c); if (act) av.appendChild(el('i', 'punto is-' + (act === 'hoy' ? 'hoy' : 'semana'))); b.appendChild(av);
-        const cu = el('span', 'cuerpo'); const cab = el('span', 'cab'); cab.appendChild(el('span', 't', nombreDe(c, estado.roles))); cab.appendChild(el('span', 'd', act)); cu.appendChild(cab);
-        const r = estado.roles.find(x => String(x.Title || '').toLowerCase() === c);
-        cu.appendChild(el('span', 'm', r && r.Rol ? r.Rol[0].toUpperCase() + r.Rol.slice(1) : '')); b.appendChild(cu);
-        const lado = el('span', 'lado'); const men = mencionesA(yo, 90).filter(a => String(a.Quien || '').toLowerCase() === c).length;
-        if (men) { const ch = el('span', 'mn-chip is-warn', `@${men}`); ch.title = `${men} mención${men === 1 ? '' : 'es'} tuya${men === 1 ? '' : 's'} en 90 días`; lado.appendChild(ch); }
-        lado.appendChild(el('span', 'mn-chip is-info', 'Teams')); b.appendChild(lado);
-        b.addEventListener('click', () => irAHash(`#mensajes/d/${aliasHash(c)}`));
-        return b;
     };
     const renglon = (p, ultimo) => {
         const nuevos = comentariosNuevos(p.id).length; nuevosTotal += nuevos;
@@ -379,55 +349,20 @@ export function pintarMensajes() {
         b.addEventListener('click', () => irAHash(`#mensajes/f/${p.Clave}`));
         return b;
     };
-    const personas = personasDelEquipo().filter(c => c !== yo).filter(c => coincide(q, nombreDe(c, estado.roles), c));
     const con = ult.map(x => ({ p: porId(estado.proyectos, x.proyectoId), ultimo: x.ultimo })).filter(x => x.p && coincide(q, x.p.Title, x.p.Clave, x.ultimo.Title, nombreDe(x.ultimo.Quien, estado.roles)));
     const sin = ordenarProyectos(activos().filter(p => !ult.some(x => x.proyectoId === p.id))).filter(p => coincide(q, p.Title, p.Clave));
     // el conteo de nuevos es de TODOS los frentes con chat, no solo los que pasan el buscador
     for (const x of ult) if (!con.some(y => y.p.id === x.proyectoId) && porId(estado.proyectos, x.proyectoId)) nuevosTotal += comentariosNuevos(x.proyectoId).length;
-    lista.appendChild(seccion('Personas', personas.length, true, personas.map(filaPersona), 'personas'));
     lista.appendChild(seccion('Frentes', con.length, true, con.map(x => renglon(x.p, x.ultimo)), 'frentes'));
     lista.appendChild(seccion('Sin conversación', sin.length, !!q, sin.map(p => renglon(p, null)), 'sin'));
     $('mensajesSub').textContent = `${con.length} conversación(es) · ${nuevosTotal ? `${nuevosTotal} mensaje(s) nuevo(s) desde tu última visita` : 'nada nuevo desde tu última visita'}. Un chat por frente; escribe @nombre para avisarle a alguien.`;
-    // ---- derecha: hilo del frente, ficha de la persona, o el aviso de elegir
+    // ---- derecha: hilo del frente o el aviso de elegir
     const p = sel && sel.t === 'f' ? estado.proyectos.find(x => String(x.Clave || '') === sel.k) : null;
-    const c = sel && sel.t === 'd' ? sel.k : null;
-    $('msj').classList.toggle('is-hilo', !!(p || c));
-    $('mensajesVacio').classList.toggle('oculto', !!(p || c));
-    $('mensajesFicha').classList.toggle('oculto', !c);
+    $('msj').classList.toggle('is-hilo', !!p);
+    $('mensajesVacio').classList.toggle('oculto', !!p);
     $('mensajesHilo').classList.toggle('oculto', !p);
     if (p) { alojarChat($('mensajesHilo')); pintarChat(p); }
     else alojarChat(null);
-    if (c) pintarFicha(c, yo);
-}
-/** La ficha de una persona: quien es, si anda activa, el boton de Teams (lo directo) y donde te menciono. */
-function pintarFicha(c, yo) {
-    const f = $('mensajesFicha'); f.textContent = '';
-    const r = estado.roles.find(x => String(x.Title || '').toLowerCase() === c) || {};
-    const act = actividadDe(c);
-    const top = el('div', 'top'); top.appendChild(avatar(c));
-    const tx = el('div', ''); tx.appendChild(el('h2', 'n', nombreDe(c, estado.roles)));
-    tx.appendChild(el('p', 'r', [r.Rol ? r.Rol[0].toUpperCase() + r.Rol.slice(1) : '', act ? `escribió ${act}` : 'sin actividad reciente'].filter(Boolean).join(' · ')));
-    tx.appendChild(el('p', 'c mn-mono', c)); top.appendChild(tx); f.appendChild(top);
-    const teams = el('section', 'mn-card teams'); teams.appendChild(el('h3', '', 'Mensaje directo'));
-    teams.appendChild(el('p', 'mn-help', 'Lo directo va por Teams, no por la app: la bitácora del frente la lee todo el equipo.'));
-    const acc = el('div', 'acciones');
-    const a = el('a', 'mn-btn is-primary is-sm', 'Abrir chat en Teams ↗'); a.href = ligaTeams(c); a.target = '_blank'; a.rel = 'noopener noreferrer'; a.dataset.teams = c; acc.appendChild(a);
-    acc.appendChild(boton('Copiar correo', 'mn-btn is-sm', async () => { try { await navigator.clipboard.writeText(c); avisar('Correo copiado.'); } catch (e) { avisar('No se pudo copiar: ' + c, 'ojo'); } }, { copiar: c }));
-    teams.appendChild(acc); f.appendChild(teams);
-    const men = mencionesA(yo, 90).filter(a => String(a.Quien || '').toLowerCase() === c);
-    const card = el('section', 'mn-card'); card.appendChild(el('h3', '', `Te mencionó en frentes · ${men.length}`));
-    const mini = el('div', 'mini');
-    for (const a of men.slice(0, 12)) {
-        const p = porId(estado.proyectos, a.ProyectoId); if (!p) continue;
-        const b = el('button', 'msg-men'); b.type = 'button'; b.dataset.mencion = String(a.id);
-        b.appendChild(iconoEquipo(equipoDe(p), 'sm')); const cu = el('span', 'cuerpo');
-        const cab = el('span', 'cab'); cab.appendChild(el('span', 'q', p.Title)); cab.appendChild(el('span', 'd', fechaHora(a.Cuando))); cu.appendChild(cab);
-        const m = el('span', 'm'); m.appendChild(textoConMenciones(a.Title, undefined, false)); cu.appendChild(m); b.appendChild(cu);
-        b.addEventListener('click', () => irAHash(a.TareaId && porId(estado.tareas, a.TareaId) ? `#p/${p.Clave}/t/${a.TareaId}` : `#mensajes/f/${p.Clave}`));
-        mini.appendChild(b);
-    }
-    if (!men.length) mini.appendChild(el('p', 'vacio', 'No te ha mencionado en 90 días.'));
-    card.appendChild(mini); f.appendChild(card);
 }
 export function engancharMensajes() {
     $('mensajesBusca').addEventListener('input', () => { estado.buscaMensajes = $('mensajesBusca').value; pintarMensajes(); });

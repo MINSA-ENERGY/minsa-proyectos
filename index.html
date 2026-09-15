@@ -191,22 +191,21 @@
     </section>
 
     <!-- v0.10.0: Mensajes = bandeja de los chats de todos los frentes.
-         v0.42.0 (Carlos, 14-sep; artifact 17j5wESZ, «bandeja + hilo solamente»): bandeja a la izquierda en tres secciones
-         (Personas · Frentes · Sin conversación) y a la derecha el hilo del frente elegido —el MISMO #tab-chat del proyecto,
-         que se aloja aquí mientras Mensajes está en pantalla— o la ficha de la persona, cuyo mensaje directo va por Teams
-         (la bitácora la lee todo el equipo: aquí nada es privado). «Te mencionaron» salió: vive en Inicio y en la ficha. -->
+         v0.42.0 (Carlos, 14-sep; artifact 17j5wESZ, «bandeja + hilo solamente»): bandeja a la izquierda y a la derecha el
+         hilo del frente elegido —el MISMO #tab-chat del proyecto, que se aloja aquí mientras Mensajes está en pantalla—.
+         v0.43.0 (Carlos, 15-sep): SOLO chat por frente; la sección Personas y la ficha con liga a Teams salieron
+         (la bitácora la lee todo el equipo: aquí nada es privado). «Te mencionaron» vive en Inicio. -->
     <section id="p-mensajes" class="pantalla oculto">
       <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.6-4.5A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14h4"/></svg></span><h1>Mensajes</h1><p class="sub" id="mensajesSub"></p></header>
       <div class="msj" id="msj">
         <div class="msj-izq">
           <label for="mensajesBusca" class="oculto">Buscar en Mensajes</label>
-          <input class="buscador" id="mensajesBusca" type="search" placeholder="Buscar frente, persona o texto…" autocomplete="off">
+          <input class="buscador" id="mensajesBusca" type="search" placeholder="Buscar frente o texto…" autocomplete="off">
           <div class="lista bandeja" id="mensajesLista"></div>
         </div>
         <div class="msj-der" id="mensajesDer">
           <button class="mn-btn is-ghost is-sm msj-volver" id="mensajesVolver" type="button">← Bandeja</button>
-          <p class="vacio msj-vacio" id="mensajesVacio">Elige un frente para leer su chat, o a una persona para escribirle.</p>
-          <div class="msj-ficha oculto" id="mensajesFicha"></div>
+          <p class="vacio msj-vacio" id="mensajesVacio">Elige un frente para leer su chat.</p>
           <div class="msj-hilo" id="mensajesHilo"></div>
         </div>
       </div>

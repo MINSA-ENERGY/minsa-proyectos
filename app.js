@@ -19,7 +19,7 @@ import { $, L, VERSION, estado, el, boton, ondaAlPulsar, avatar, chip, chipVence
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
-import { pintarRoadmap, pintarRoadmapProyecto, roadmapFull, engancharRoadmap, pintarCalendario, engancharCalendario, pintarMensajes, engancharMensajes, devolverChat, correoDeAlias, mensajesNuevos, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
+import { pintarRoadmap, pintarRoadmapProyecto, roadmapFull, engancharRoadmap, pintarCalendario, engancharCalendario, pintarMensajes, engancharMensajes, devolverChat, mensajesNuevos, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
 const pca = new msal.PublicClientApplication({
@@ -244,8 +244,9 @@ function irA(p) {
 // que las escrituras propias (fijarHash desde irA / abrirTarjeta) no repintan dos veces. Con Atras
 // del navegador se cierra la tarjeta o se vuelve a la pantalla anterior, que es lo que la gente espera.
 // v0.10.0: cinco pantallas mas (roadmap · calendario · mensajes · archivos · reportes) y la pestana roadmap del proyecto.
-// v0.42.0: Mensajes lleva lo elegido en el hash (#mensajes/f/<clave> el hilo del frente · #mensajes/d/<alias> la ficha de la
-// persona), para que Atras regrese a la bandeja y una liga pegada abra justo ese hilo. El alias es el de la @mencion.
+// v0.42.0: Mensajes lleva lo elegido en el hash (#mensajes/f/<clave> el hilo del frente), para que Atras regrese a la
+// bandeja y una liga pegada abra justo ese hilo. v0.43.0: #mensajes/d/<alias> (la ficha de la persona) ya no existe;
+// una liga vieja con /d/ cae a la bandeja de Mensajes con aviso.
 const RE_HASH = /^#(?:(inicio|proyectos|mis|roadmap|calendario|mensajes|archivos|reportes)(?:\/(f|d)\/([a-z0-9._-]+))?|p\/([a-z0-9-]+)(?:\/(lista|docs|chat|tablero|resumen|roadmap))?)(?:\/t\/(\d+))?$/;
 function esHashDeLaApp(h) { return RE_HASH.test(String(h || '')); }
 function aplicarHash() {
@@ -261,10 +262,10 @@ function aplicarHash() {
             fijarProyectoAbierto(p); estado.tab = tab; irA('proyecto');
         }
     } else if (pantalla === 'mensajes') {
-        // /f/<clave> o /d/<alias> solo valen aqui; un sufijo en otra pantalla se ignora (el regex lo admite para no partir la ruta)
+        // /f/<clave> solo vale aqui; un sufijo en otra pantalla se ignora (el regex lo admite para no partir la ruta)
         let sel = null;
         if (msjTipo === 'f') { const p = estado.proyectos.find(x => String(x.Clave || '') === msjClave); if (p) { sel = { t: 'f', k: p.Clave }; if (p.Estado === 'activo' || comentariosDe(p.id).length) asegurarActividadDe(p.id).then(hubo => { if (hubo && estado.pestana === 'mensajes') repintar(); }); } else avisar(`No hay un frente con la clave «${msjClave}».`, 'ojo'); }
-        else if (msjTipo === 'd') { const c = correoDeAlias(msjClave); if (c) sel = { t: 'd', k: c }; else avisar(`No hay nadie con el alias «${msjClave}».`, 'ojo'); }
+        else if (msjTipo === 'd') avisar('El chat por persona ya no está en la app (v0.43.0): escríbele por Teams.', 'ojo');
         const cambio = JSON.stringify(sel) !== JSON.stringify(estado.mensajesSel || null);
         estado.mensajesSel = sel;
         if (estado.pestana !== 'mensajes') irA('mensajes'); else if (cambio) repintar();

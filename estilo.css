@@ -1181,14 +1181,6 @@ body.sin-scroll { overflow: hidden; }
 .msj-sec + .msj-sec { border-top: 1px solid var(--border-hairline); }
 .msg-proy.is-on { background: var(--surface-selected); margin: 0 calc(-1 * var(--sp-3)); padding-left: var(--sp-3); padding-right: var(--sp-3); width: calc(100% + 2 * var(--sp-3)); border-radius: var(--r-sm); }   /* el relleno cubre el renglon entero: el boton en grid no crece solo con width:auto (captura 14-sep) */
 .msg-proy .t > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* «LAU ASEA-03-001 (Licenc» se cortaba sin puntos: el span interno del inline-flex no heredaba la elipsis */
-.msg-pers .avw { position: relative; display: inline-grid; } .msg-pers .avw .punto { position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--surface-card); background: var(--text-faint); }
-.msg-pers .avw .punto.is-hoy { background: var(--status-ok-solid); } .msg-pers .avw .punto.is-semana { background: var(--status-warn-solid); }
-.msg-pers .m { color: var(--text-muted); }
-.msj-ficha { display: grid; gap: var(--sp-3); }
-.msj-ficha .top { display: flex; gap: var(--sp-3); align-items: center; } .msj-ficha .top .av { width: 44px; height: 44px; font-size: .95rem; }
-.msj-ficha .top .n { margin: 0; font-size: 1.15rem; } .msj-ficha .top .r, .msj-ficha .top .c { margin: 0; font-size: .82rem; color: var(--text-muted); }
-.msj-ficha .teams .acciones { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-2); }
-.msj-ficha .teams .acciones a { text-decoration: none; }
 @media (max-width: 900px) {
   .msj { grid-template-columns: 1fr; }
   .msj.is-hilo .msj-izq { display: none; }
