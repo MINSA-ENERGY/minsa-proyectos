@@ -670,6 +670,26 @@ try {
           $('tEditar').open = false; $('tChips').querySelector('[data-edita="ftVence"]').click(); await dormir(30);
           R.ok('v0.24.0: clic en el chip de vence abre «Editar la tarjeta» con el foco en Vence', $('tEditar').open && document.activeElement === $('ftVence'), document.activeElement && document.activeElement.id);
           $('tEditar').open = false; }
+        // v0.50.0 (Carlos, 15-sep; artifact 1mTr2BGa, 1A + 2B + 3A): las propiedades son RENGLONES rótulo · valor (sin .mn-chip); la cubeta abre el menú #tMover
+        // (que vive dentro de su renglón, con «1 de 2» y las flechas al lado); la prioridad es un segmentado con barras y un input oculto con el id de siempre.
+        { const rotulos = [...$('tChips').querySelectorAll(':scope > b')].map(b => b.textContent);
+          R.ok('v0.50.0: cuatro renglones rótulo · valor (Asignado · Cubeta · Vence · Prioridad) y ningún chip', rotulos.join(',') === 'Asignado,Cubeta,Vence,Prioridad' && !$('tChips').querySelector('.mn-chip') && $('tChips').classList.contains('t-props'), rotulos.join(','));
+          const abre = $('tChips').querySelector('[data-abre-mover]');
+          R.ok('v0.50.0: #tMover y #tOrden viven dentro del renglón de la cubeta, y el menú arranca cerrado', !!abre && $('tChips').contains($('tMover')) && $('tChips').contains($('tOrden')) && $('tMover').classList.contains('oculto') && abre.getAttribute('aria-expanded') === 'false');
+          abre.click(); await dormir(20);
+          R.ok('v0.50.0: clic en la cubeta abre el menú con un botón por cubeta, la actual apagada y marcada «actual», y el foco en la primera pulsable', !$('tMover').classList.contains('oculto') && abre.getAttribute('aria-expanded') === 'true' && $('tMover').querySelector('button.is-here').disabled && $('tMover').querySelector('button.is-here').textContent.includes('actual') && document.activeElement && document.activeElement.closest('#tMover') === $('tMover'), document.activeElement && document.activeElement.textContent);
+          $('tMover').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); await dormir(20);
+          R.ok('v0.50.0: Esc cierra el menú sin cerrar la tarjeta y devuelve el foco a la cubeta', $('tMover').classList.contains('oculto') && $('dlgTarea').open && document.activeElement === abre, document.activeElement && document.activeElement.outerHTML.slice(0, 60));
+          abre.click(); await dormir(20); $('tDesc').click(); await dormir(20);
+          R.ok('v0.50.0: clic fuera del menú lo cierra', $('tMover').classList.contains('oculto') && $('dlgTarea').open);
+          R.ok('v0.50.0: la prioridad de la ficha lleva las barras, y el editor un segmentado de 3 con el valor en el input oculto', !!$('tChips').querySelector('[data-chip="prioridad"] .barras') && $('ftPrioridadSeg').querySelectorAll('button[role="radio"]').length === 3 && $('ftPrioridad').type === 'hidden' && $('ftPrioridadSeg').querySelector('[aria-checked="true"]').dataset.prio === ($('ftPrioridad').value || 'normal'));
+          $('ftPrioridadSeg').querySelector('[data-prio="alta"]').click();
+          R.ok('v0.50.0: pulsar «Alta» en el segmentado escribe el input oculto y marca el botón', $('ftPrioridad').value === 'alta' && $('ftPrioridadSeg').querySelector('[aria-checked="true"]').dataset.prio === 'alta');
+          poner('ftPrioridad', 'baja');
+          R.ok('v0.50.0: poner() sobre el input oculto (value + change) repinta el segmentado', $('ftPrioridadSeg').querySelector('[aria-checked="true"]').dataset.prio === 'baja');
+          $('tEditar').open = false; $('tChips').querySelector('[data-edita="ftPrioridad"]').click(); await dormir(30);
+          R.ok('v0.50.0: clic en el renglón Prioridad abre Editar con el foco en la opción marcada del segmentado', $('tEditar').open && document.activeElement && document.activeElement.dataset.prio === 'baja', document.activeElement && document.activeElement.outerHTML.slice(0, 60));
+          $('tEditar').open = false; }
         R.ok('la tarjeta dice su orden en la columna; Subir deshabilitado arriba', $('tOrden').textContent.includes('1 de 2') && $('tOrden').querySelector('[data-orden="subir"]').disabled && !$('tOrden').querySelector('[data-orden="bajar"]').disabled, $('tOrden').textContent);
         $('tOrden').querySelector('[data-orden="bajar"]').click();
         await esperar(() => $('tOrden').textContent.includes('2 de 2'), 'bajada');
@@ -1029,10 +1049,11 @@ try {
             // F11 (v0.3.0): mover una tarjeta a otro frente, solo gerencia.
             await abrirLau(); await esperar(() => document.querySelector(`.tarjeta[data-t="${normal.id}"]`), 'tarjeta normal');
             document.querySelector(`.tarjeta[data-t="${normal.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
-            R.ok('gerencia ve el select de Proyecto en el editor con los 2 activos', !$('ftProyectoCampo').classList.contains('oculto') && $('ftProyecto').options.length === 2 && $('ftProyecto').value === String(proyectoId));
-            $('tEditar').open = true; poner('ftProyecto', String(filas('proyectos')[1].id)); clic('btnGuardarTarea');
-            await esperar(() => actividad('editar-tarea').some(a => a.fields.Title.startsWith('trajo')), 'movida de proyecto');
-            R.ok('la tarjeta cambió de proyecto, salió del tablero y quedó registrado en los dos', Number(normal.fields.ProyectoId) === filas('proyectos')[1].id && !document.querySelector(`.tarjeta[data-t="${normal.id}"]`) && actividad('editar-tarea').some(a => a.fields.Title.startsWith('pasó')));
+            // v0.50.0 (Carlos, 15-sep): el select «Proyecto (moverla a otro frente)» se QUITO del editor — ni gerencia lo ve, y guardar no toca ProyectoId.
+            R.ok('v0.50.0: el editor ya no trae «Proyecto (moverla a otro frente)» ni para gerencia', !$('ftProyecto') && !$('ftProyectoCampo') && !$('formTarea').textContent.includes('otro frente'));
+            $('tEditar').open = true; poner('ftDesc', 'Descripción editada por gerencia'); clic('btnGuardarTarea');
+            await esperar(() => normal.fields.Descripcion === 'Descripción editada por gerencia', 'edición guardada');
+            R.ok('v0.50.0: guardar la edición conserva el proyecto de la tarjeta y la deja en el tablero', Number(normal.fields.ProyectoId) === proyectoId && !!document.querySelector(`.tarjeta[data-t="${normal.id}"]`) && !actividad('editar-tarea').some(a => a.fields.Title.startsWith('pasó')));
             // Borrar tarjeta y cerrar proyecto: solo gerencia.
             await abrirLau(); await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta');
             document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
@@ -1067,7 +1088,7 @@ try {
             await abrirLau(); await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta');
             document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
             R.ok('colaborador: Borrar deshabilitado', $('tBorrar').disabled);
-            R.ok('colaborador: sin select de Proyecto, y la tarjeta lista el enlace', $('ftProyectoCampo').classList.contains('oculto') && $('tDocs').textContent.includes('Oficio ASEA'));
+            R.ok('colaborador: sin select de Proyecto (v0.50.0: ya no existe para nadie), y la tarjeta lista el enlace', !$('ftProyectoCampo') && $('tDocs').textContent.includes('Oficio ASEA'));
             $('tBorrar').disabled = false; clic('tBorrar'); await dormir(80);
             R.ok('colaborador: borrar se niega aunque se fuerce', filas('tareas').some(x => x.id === t.id) && !!avisoCon('Solo gerencia'));
             clic('tCerrar');
@@ -1494,7 +1515,7 @@ try {
         await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta');
         document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
         // C6 (v0.6.0): una sola señal — la linea gris; ni banda roja ni «Mover a…» a la vista.
-        R.ok('C6 (lectura): una línea «Solo lectura», sin banda roja y sin «Mover a…»', !$('tSoloLectura').classList.contains('oculto') && $('tSoloLectura').textContent.startsWith('Solo lectura') && $('tDeny').classList.contains('oculto') && $('tMover').classList.contains('oculto') && $('tMoverEtiqueta').classList.contains('oculto'));
+        R.ok('C6 (lectura): una línea «Solo lectura», sin banda roja y sin menú de cubetas (v0.50.0: la cubeta es texto, sin botón que abra #tMover)', !$('tSoloLectura').classList.contains('oculto') && $('tSoloLectura').textContent.startsWith('Solo lectura') && $('tDeny').classList.contains('oculto') && $('tMover').classList.contains('oculto') && !document.querySelector('#tChips [data-abre-mover]') && !document.querySelector('#tChips .prop-btn'));
         R.ok('lectura: botones de mover deshabilitados y sin editar', [...document.querySelectorAll('#tMover button')].every(b => b.disabled) && $('tEditar').classList.contains('oculto') && $('tBorrar').disabled);
         R.ok('D2 (lectura): «Proyecto» es un enlace a #p/<clave> con el icono del equipo (v0.7.0: icono, no chip)', !!document.querySelector('#tKv a[data-proyecto="lau-demo"]') && document.querySelector('#tKv .proy .eqi').title === 'CALYTEK');
         R.ok('lectura: sin «→ siguiente», sin Subir/Bajar, sin pegar enlace', !document.querySelector('[data-sig]') && !$('tOrden').querySelector('button') && !document.querySelector('#tDocs [data-enlace]'));

@@ -1398,19 +1398,9 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .t-side { padding: var(--sp-4); min-width: 0; background: var(--surface-sunken); border-left: 1px solid var(--border-hairline); align-self: stretch; }
 #dlgTarea .editar { grid-column: 1 / -1; margin: 0; padding: var(--sp-3) var(--sp-4) var(--sp-4); border-top: 1px solid var(--border-hairline); }
 /* v0.31.0: el formulario de Editar es una rejilla de dos columnas (bloque v0.31.0 al final); antes iba a 36 rem */
-/* Chips bajo el titulo: quien (con avatar) · cubeta · vence · prioridad. El chip que se puede cambiar es un boton sin
-   caja que abre «Editar la tarjeta» en su campo; el foco lo dibuja el anillo de la casa. */
-.t-chips { display: flex; flex-wrap: wrap; gap: 0 var(--sp-2); align-items: center; margin-bottom: var(--sp-2); }
-.t-chips .mn-chip { font-size: .78rem; padding: 3px 10px; }
-.t-chips .mn-chip .av { width: 16px; height: 16px; font-size: .5rem; margin-left: -4px; }
-.t-chips .chip-btn { border: 0; padding: 0; background: none; font: inherit; cursor: pointer; border-radius: var(--r-pill); display: inline-flex; align-items: center; min-height: var(--control-h-sm); }   /* el chip mide 25 px; el objetivo, 32 / 40 tactil (medido a 390: chip-btn 143x25 sin esto) */
-.t-chips .chip-btn:hover .mn-chip { filter: brightness(.95); }
-.t-chips .chip-btn:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
+/* v0.24.0 puso aqui los CHIPS bajo el titulo (.t-chips) y «Mover a…» en una fila de botones (#dlgTarea .mover). v0.50.0 los
+   sustituye por los renglones .t-props y el menu de cubetas: las reglas viven en el bloque v0.50.0 al final del archivo. */
 .t-desc { margin: 0 0 var(--sp-3); font-size: .9rem; color: var(--text-body); white-space: pre-line; overflow-wrap: anywhere; }
-/* «Mover a…» en UNA fila: tantas columnas como cubetas quepan a 7 rem; con las 4 de siempre caben en la izquierda (≈540 px),
-   con 6 parten en dos filas. El texto del boton puede partir («En revisión · actual») en vez de desbordar. */
-#dlgTarea .mover { grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr)); gap: var(--sp-1); }
-#dlgTarea .mover .mn-btn { white-space: normal; line-height: 1.2; padding-inline: var(--sp-2); min-height: var(--control-h-sm); height: auto; }
 /* La columna derecha: rotulo, kv a una columna de rotulo estrecha, documentos en renglones que parten. */
 .t-side .kv { grid-template-columns: 82px minmax(0, 1fr); font-size: .82rem; }
 .t-side .kv span { overflow-wrap: anywhere; }
@@ -1538,3 +1528,56 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
   .is-arbol tr.pest.bloque td, .is-arbol tr.pest.bloque.is-plegada td { border: 0; box-shadow: none; padding-top: var(--sp-2); padding-bottom: 0; }
   .is-arbol .cab.nodo { flex-wrap: wrap; }
 }
+
+/* ==== v0.50.0 (2026-09-15): la ficha de tarjeta sin burbujas (Carlos; artifact 1mTr2BGa, eligio 1A + 2B + 3A) ==== */
+/* 1A — las cuatro propiedades (Asignado · Cubeta · Vence · Prioridad) son RENGLONES rotulo · valor, el mismo kv de la columna
+   derecha (82 px de rotulo). El valor que se puede cambiar es un boton sin caja (.prop-btn) que se ilumina al pasar y lleva un
+   chevron; lo que esta en su valor por DEFAULT («Sin asignar», «Poner fecha», «Normal») va en gris tenue. El semaforo de la fecha
+   tine el texto (vencio en rojo, hoy/pronto en ambar). Descartadas en el artifact: 1B linea de metadatos · 1C controles con
+   caja · 1D solo lo que no es default — no re-proponer. */
+.t-props { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 2px var(--sp-3); align-items: center; font-size: .86rem; margin-bottom: var(--sp-3); }
+.t-props > b { color: var(--text-muted); font-weight: 500; font-size: .8rem; }
+.t-props .val { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; min-width: 0; min-height: var(--control-h-sm); position: relative; }
+.t-props .val > span, .t-props .prop-btn > span { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--text-strong); overflow-wrap: anywhere; }
+.t-props .val .default { color: var(--text-faint); }   /* .val .x pesa mas que «.prop-btn > span», que pinta text-strong (la captura lo cazo: «venció» salia negro) */
+.t-props .val .is-danger { color: var(--status-danger-fg); font-weight: 600; }
+.t-props .val .is-warn { color: var(--status-warn-fg); font-weight: 600; }
+.t-props .av { width: 18px; height: 18px; font-size: .5rem; }
+.t-props .prop-btn { border: 0; background: none; font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: var(--sp-1); padding: 2px var(--sp-2) 2px var(--sp-1); margin-left: calc(-1 * var(--sp-1)); border-radius: var(--r-sm); min-height: var(--control-h-sm); color: inherit; text-align: left; }
+.t-props .prop-btn::after { content: ""; width: 6px; height: 6px; border-right: 1.5px solid var(--text-faint); border-bottom: 1.5px solid var(--text-faint); transform: translateY(-2px) rotate(45deg); flex: none; margin-left: 2px; }
+.t-props .prop-btn:hover { background: var(--surface-hover); }
+.t-props .prop-btn:hover::after { border-color: var(--text-muted); }
+.t-props .prop-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.t-props .prop-btn[aria-expanded="true"] { background: var(--surface-active); }
+/* 2B — la cubeta es un renglon mas: su valor abre el MENU #tMover (un boton por cubeta, la actual apagada y marcada «actual»),
+   que cuelga bajo el boton; el orden en la cubeta («1 de 7» y las flechas) va a la derecha en el mismo renglon. Sustituye la
+   seccion «Mover a…» con un boton grande por cubeta (v0.3.0-v0.49.0). Descartadas: 2A segmentado · 2C flujo · 2D anterior/siguiente. */
+#dlgTarea .mover.menu { position: absolute; left: calc(-1 * var(--sp-1)); top: calc(100% + 2px); z-index: var(--z-pop); display: grid; grid-template-columns: 1fr; gap: 2px; margin: 0; padding: var(--sp-1); min-width: 12rem; background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-sm); box-shadow: var(--shadow-pop); }
+#dlgTarea .mover.menu.oculto { display: none; }
+#dlgTarea .mover.menu .mn-btn { justify-content: flex-start; border: 0; background: none; white-space: normal; text-align: left; height: auto; min-height: var(--control-h-sm); padding-inline: var(--sp-2); }
+#dlgTarea .mover.menu .mn-btn:hover:not(:disabled) { background: var(--surface-hover); }
+#dlgTarea .mover.menu .mn-btn.is-here { background: var(--surface-selected); color: var(--brand-primary); font-weight: 600; }
+#dlgTarea .mover.menu .mn-btn:disabled:not(.is-here) { opacity: .5; }
+#dlgTarea .orden { margin: 0; gap: 2px; font-family: var(--font-data); font-size: .74rem; }
+#dlgTarea .orden > span { margin-right: var(--sp-1); }
+#dlgTarea .orden .mn-btn { min-width: 26px; padding-inline: var(--sp-1); }
+#dlgTarea .orden:empty { display: none; }
+/* 3A — la prioridad es un SEGMENTADO con barras de senal: baja (1, gris) · normal (2, gris medio) · alta (3, azul de marca —
+   el mismo punto azul que la tarjeta lleva en el tablero; Carlos descarto el rojo). Sustituye al <select> (que no admite icono
+   por opcion). Las mismas barras van en el renglon Prioridad de la ficha. Descartadas: 3B chevrones · 3C tres tarjetas · 3D select con glifo. */
+.prio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border-default); border-radius: var(--r-sm); overflow: hidden; min-height: var(--control-h); background: var(--surface-card); }
+.prio button { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); border: 0; border-right: 1px solid var(--border-default); background: none; font: inherit; font-size: .86rem; color: var(--text-body); cursor: pointer; padding: 0 var(--sp-2); min-height: 0; border-radius: 0; }
+.prio button:last-child { border-right: 0; }
+.prio button:hover { background: var(--surface-hover); }
+.prio button[aria-checked="true"] { background: var(--surface-sunken); color: var(--text-strong); font-weight: 600; box-shadow: inset 0 -2px 0 var(--brand-primary); }
+.prio button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.barras { display: inline-flex; align-items: flex-end; gap: 1.5px; height: 12px; flex: none; }
+.barras i { display: block; width: 3px; border-radius: 1px; background: var(--border-default); }
+.barras i:nth-child(1) { height: 4px; } .barras i:nth-child(2) { height: 8px; } .barras i:nth-child(3) { height: 12px; }
+.barras.is-baja i.on { background: var(--status-idle-solid); }
+.barras.is-normal i.on { background: var(--text-muted); }
+.barras.is-alta i.on { background: var(--brand-primary); }
+.t-props .barras { margin-right: 2px; }
+/* 4 — «Proyecto (moverla a otro frente)» salio del editor: Descripcion toma las dos columnas de la rejilla de v0.31.0. */
+#dlgTarea .editar .forma > #ftDescCampo { grid-column: 1 / -1; }
+@media (max-width: 720px) { .t-props { grid-template-columns: 72px minmax(0, 1fr); } .prio button { font-size: .82rem; gap: var(--sp-1); } }

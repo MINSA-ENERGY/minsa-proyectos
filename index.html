@@ -255,13 +255,16 @@
   <div class="mn-dialog-body t-cuerpo">
     <div class="dlg-avisos"></div>
     <div class="t-main">
-      <div class="t-chips" id="tChips"></div>
+      <!-- v0.50.0 (Carlos, 15-sep; artifact 1mTr2BGa, 1A + 2B + 3A): las cuatro propiedades son RENGLONES rotulo · valor
+           (el mismo kv que la columna derecha), no chips. La cubeta es un renglon mas: su valor abre el menu #tMover
+           (antes la seccion «Mover a…» con un boton por cubeta) y a su lado va el orden (#tOrden). tablero.js mete
+           #tMover y #tOrden dentro del renglon de la cubeta al pintar; aqui viven para que el DOM exista sin tarjeta. -->
+      <div class="t-props" id="tChips"></div>
+      <div class="mover menu oculto" id="tMover" role="menu" aria-label="Mover a otra cubeta"></div>
+      <div class="orden" id="tOrden"></div>
       <p class="t-desc" id="tDesc"></p>
       <div id="tDeny" class="deny oculto"></div>
       <p id="tSoloLectura" class="mn-help solo-lectura oculto">Solo lectura · la mueve su asignado o cualquier colaborador.</p>
-      <div class="mn-label" id="tMoverEtiqueta">Mover a…</div>
-      <div class="mover" id="tMover"></div>
-      <div class="orden" id="tOrden"></div>
       <div class="mn-label">Notas<span class="n" id="tNotasN"></span></div>
       <div class="notas" id="tNotasLista"></div>
       <form id="formNota" class="nota-forma" novalidate>
@@ -282,12 +285,14 @@
         <div class="mn-field"><label for="ftTitulo">Tarea (verbo + objeto)</label><input id="ftTitulo" required maxlength="255"></div>
         <div class="mn-row">
           <div class="mn-field"><label for="ftAsignado">Asignado</label><select id="ftAsignado"></select></div>
-          <div class="mn-field"><label for="ftPrioridad">Prioridad</label><select id="ftPrioridad"><option value="alta">alta</option><option value="normal" selected>normal</option><option value="baja">baja</option></select></div>
+          <!-- v0.50.0 (3A): la prioridad es un segmentado con barras de señal (una · dos · tres); el valor vive en el input oculto
+               con el id de siempre, asi guardarEdicion y la E2E siguen leyendo $('ftPrioridad').value. Lo pinta selectorPrioridad. -->
+          <div class="mn-field"><label id="ftPrioridadEtiqueta">Prioridad</label><input type="hidden" id="ftPrioridad" value="normal"><div class="prio" id="ftPrioridadSeg" data-prio-de="ftPrioridad" aria-labelledby="ftPrioridadEtiqueta"></div></div>
         </div>
         <div class="mn-field"><label id="ftColorEtiqueta">Color de la tarjeta</label><div class="tonos" id="ftColor" aria-labelledby="ftColorEtiqueta"></div></div>
         <div class="mn-field"><label for="ftVence">Vence</label><input id="ftVence" type="date"><div class="atajos-fecha" id="ftAtajos"></div></div>
-        <div class="mn-field"><label for="ftDesc">Descripción</label><textarea id="ftDesc" rows="3"></textarea></div>
-        <div class="mn-field oculto" id="ftProyectoCampo"><label for="ftProyecto">Proyecto (moverla a otro frente)</label><select id="ftProyecto"></select></div>
+        <!-- v0.50.0: «Proyecto (moverla a otro frente)» se QUITO (Carlos, 15-sep: nunca se usa; una tarjeta se queda en su frente). Descripcion toma el ancho entero. -->
+        <div class="mn-field" id="ftDescCampo"><label for="ftDesc">Descripción</label><textarea id="ftDesc" rows="3"></textarea></div>
         <div class="mn-dialog-foot"><button class="mn-btn is-danger is-sm" id="tBorrar" type="button">Borrar tarjeta</button><button class="mn-btn is-primary is-sm" id="btnGuardarTarea" type="submit">Guardar cambios</button></div>
       </form>
     </details>
@@ -303,7 +308,7 @@
       <div class="mn-field"><label for="ntTitulo">Tarea (verbo + objeto)</label><input id="ntTitulo" required maxlength="255" placeholder="Entregar el original de la fianza en ASEA"></div>
       <div class="mn-row">
         <div class="mn-field"><label for="ntAsignado">Asignado</label><select id="ntAsignado"></select></div>
-        <div class="mn-field"><label for="ntPrioridad">Prioridad</label><select id="ntPrioridad"><option value="alta">alta</option><option value="normal" selected>normal</option><option value="baja">baja</option></select></div>
+        <div class="mn-field"><label id="ntPrioridadEtiqueta">Prioridad</label><input type="hidden" id="ntPrioridad" value="normal"><div class="prio" id="ntPrioridadSeg" data-prio-de="ntPrioridad" aria-labelledby="ntPrioridadEtiqueta"></div></div>
       </div>
       <div class="mn-field"><label id="ntColorEtiqueta">Color (opcional)</label><div class="tonos" id="ntColor" aria-labelledby="ntColorEtiqueta"></div></div>
       <!-- v0.31.0: Vence a todo el ancho, como en «Editar la tarjeta» — a media anchura los atajos se partian en dos lineas. -->

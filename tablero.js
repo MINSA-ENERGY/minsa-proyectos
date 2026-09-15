@@ -58,6 +58,44 @@ export function selectorTonos(cont, actual, alElegir, rotulo = 'Color') {
     return cont;
 }
 
+/* v0.50.0 (Carlos, 15-sep; artifact 1mTr2BGa, opcion 3A): la prioridad se elige en un SEGMENTADO con barras de senal —una
+   (baja) · dos (normal) · tres (alta, en azul de marca, el mismo punto azul del tablero)— en vez del <select>, que no admite
+   icono ni color por opcion. El valor vive en un <input type="hidden"> con el id de siempre (ftPrioridad / ntPrioridad): quien
+   lee $(id).value no cambia, y `poner()` de la E2E (value + change) tambien lo mueve, porque el segmento escucha 'change'. */
+const PRIORIDADES = [['baja', 'Baja', 'Puede esperar'], ['normal', 'Normal', 'Lo de siempre'], ['alta', 'Alta', 'Va primero']];
+export function barrasPrioridad(v) {
+    const n = v === 'alta' ? 3 : v === 'baja' ? 1 : 2;
+    const s = el('span', 'barras is-' + (v === 'alta' ? 'alta' : v === 'baja' ? 'baja' : 'normal')); s.setAttribute('aria-hidden', 'true');
+    for (let i = 1; i <= 3; i++) s.appendChild(el('i', i <= n ? 'on' : ''));
+    return s;
+}
+export function selectorPrioridad(seg) {
+    const inp = $(seg.dataset.prioDe); seg.textContent = ''; seg.setAttribute('role', 'radiogroup');
+    const marcar = v => { for (const b of seg.children) { const on = b.dataset.prio === v; b.setAttribute('aria-checked', on ? 'true' : 'false'); b.tabIndex = on ? 0 : -1; } };
+    for (const [clave, nombre, ayuda] of PRIORIDADES) {
+        const b = el('button'); b.type = 'button'; b.dataset.prio = clave; b.title = ayuda; b.setAttribute('role', 'radio');
+        b.appendChild(barrasPrioridad(clave)); b.appendChild(el('span', '', nombre));
+        b.addEventListener('click', () => { inp.value = clave; marcar(clave); });
+        b.addEventListener('keydown', ev => {
+            const d = ev.key === 'ArrowRight' || ev.key === 'ArrowDown' ? 1 : ev.key === 'ArrowLeft' || ev.key === 'ArrowUp' ? -1 : 0; if (!d) return;
+            ev.preventDefault(); const i = (PRIORIDADES.findIndex(p => p[0] === clave) + d + 3) % 3;
+            inp.value = PRIORIDADES[i][0]; marcar(inp.value); seg.children[i].focus();
+        });
+        seg.appendChild(b);
+    }
+    inp.addEventListener('change', () => marcar(inp.value || 'normal'));
+    marcar(inp.value || 'normal');
+    return seg;
+}
+/** Fija el valor y repinta el segmento (asignar .value a un hidden no dispara nada). */
+function ponerPrioridad(id, v) { const inp = $(id); inp.value = v || 'normal'; inp.dispatchEvent(new Event('change')); }
+
+/** v0.50.0 (2B): abre / cierra el menu de cubetas colgado del renglon «Cubeta» y mantiene aria-expanded en su boton. */
+function alternarMover(mostrar) {
+    const mv = $('tMover'); mv.classList.toggle('oculto', !mostrar);
+    const abre = document.querySelector('#tChips [data-abre-mover]'); if (abre) abre.setAttribute('aria-expanded', mostrar ? 'true' : 'false');
+}
+
 export function tarjeta(t, conProyecto = false) {
     // D4 (v0.6.0): la prioridad alta es un atributo estable (clase .alta); el chip rojo se queda solo
     // para «venció». v0.20.0 (iteracion 2): el filete izquierdo pasa a ser SEMAFORO de fecha
@@ -354,26 +392,42 @@ export function abrirTarjeta(id) {
     tarjetaAbierta = t;
     const p = porId(estado.proyectos, t.ProyectoId);
     $('tTitulo').textContent = t.Title;
-    // v0.24.0 (iteracion 6): asignado · cubeta · vence · prioridad son CHIPS bajo el titulo —«Persona · Por hacer ·
-    // venció 11/09 · alta» se lee en un golpe— y la tabla de 7 renglones se va; la descripcion es un parrafo. Un clic
-    // en el chip de asignado, de vence o de prioridad abre «Editar la tarjeta» en ese campo, si se puede editar.
+    // v0.24.0 (iteracion 6) puso asignado · cubeta · vence · prioridad como CHIPS bajo el titulo. v0.50.0 (Carlos, 15-sep;
+    // artifact 1mTr2BGa, opcion 1A) los vuelve RENGLONES rotulo · valor —el mismo kv de la columna derecha—, porque cuatro
+    // pastillas del mismo peso decian cosas de peso distinto («normal» y «sin fecha» son el default). Regla: lo que esta en
+    // su valor por defecto va en gris tenue. El valor de asignado / vence / prioridad es un boton que abre «Editar la
+    // tarjeta» en su campo (si se puede editar); el de cubeta abre el menu #tMover (opcion 2B: «Mover a…» ya no es seccion).
     const puedeEditar = PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';
-    const chips = $('tChips'); chips.textContent = '';
-    const ponerChip = (nodo, clave, campo) => {
+    // #tMover y #tOrden viven DENTRO del renglon de la cubeta desde la primera apertura: se toman antes de vaciar los renglones,
+    // o el vaciado se los lleva (la E2E lo cazo: null en la segunda apertura).
+    const mv = $('tMover'), or = $('tOrden');
+    const props = $('tChips'); props.textContent = '';
+    const renglon = (rotulo, nodo, clave, campo) => {
         nodo.dataset.chip = clave;
-        if (!campo || !puedeEditar) { chips.appendChild(nodo); return; }
-        const b = el('button', 'chip-btn'); b.type = 'button'; b.title = 'Cambiar en «Editar la tarjeta»'; b.dataset.edita = campo;
+        props.appendChild(el('b', '', rotulo));
+        const celda = el('span', 'val');
+        if (!campo || !puedeEditar) { celda.appendChild(nodo); props.appendChild(celda); return celda; }
+        const b = el('button', 'prop-btn'); b.type = 'button'; b.title = 'Cambiar en «Editar la tarjeta»'; b.dataset.edita = campo;
         b.appendChild(nodo);
-        b.addEventListener('click', () => { $('tEditar').open = true; const f = $(campo); f.scrollIntoView({ block: 'nearest' }); f.focus(); });
-        chips.appendChild(b);
+        b.addEventListener('click', () => {
+            $('tEditar').open = true; const f = $(campo); f.scrollIntoView({ block: 'nearest' });
+            // el hidden de prioridad no toma foco: lo toma su opcion marcada
+            (f.type === 'hidden' ? $(campo + 'Seg').querySelector('[aria-checked="true"]') || f : f).focus();
+        });
+        celda.appendChild(b); props.appendChild(celda);
+        return celda;
     };
-    const quien = chip(t.Asignado ? nombreDe(t.Asignado, estado.roles) : 'sin asignar', t.Asignado ? 'ok' : 'warn');
+    const quien = el('span', t.Asignado ? '' : 'default', t.Asignado ? nombreDe(t.Asignado, estado.roles) : 'Sin asignar');
     if (t.Asignado) quien.prepend(avatar(t.Asignado));
-    ponerChip(quien, 'asignado', 'ftAsignado');
-    ponerChip(chipColumna(t), 'cubeta');
-    // Sin fecha, un chip gris que lo dice; hecha con fecha, la fecha a secas en verde (chipVence calla en «hecho»: ya no vence).
-    ponerChip(chipVence(t) || chip(t.Vence ? (t.Columna === HECHO ? fechaCorta(t.Vence) : `vence ${fechaCorta(t.Vence)}`) : 'sin fecha', t.Vence && t.Columna === HECHO ? 'ok' : null), 'vence', 'ftVence');
-    ponerChip(chip(t.Prioridad === 'alta' ? 'alta' : t.Prioridad === 'baja' ? 'baja' : 'normal', t.Prioridad === 'alta' ? 'warn' : null), 'prioridad', 'ftPrioridad');
+    renglon('Asignado', quien, 'asignado', 'ftAsignado');
+    const celdaCubeta = renglon('Cubeta', el('span', '', nombreColumna(t)), 'cubeta');
+    // Vence: el semaforo de la fecha (vencio / hoy / pronto) tine el texto; sin fecha, «Poner fecha» en gris tenue; hecha, la fecha a secas.
+    const ev = estadoVence(t, CONFIG.vencePronto);   // null en «hecho»: ya no vence
+    const vence = el('span', !t.Vence ? 'default' : ev === 'danger' ? 'is-danger' : ev === 'warn' ? 'is-warn' : '',
+        !t.Vence ? (puedeEditar ? 'Poner fecha' : 'Sin fecha') : ev === 'danger' ? `venció ${fechaCorta(t.Vence)}` : ev === 'warn' && diasPara(t.Vence) === 0 ? 'hoy' : fechaCorta(t.Vence));
+    renglon('Vence', vence, 'vence', 'ftVence');
+    const prio = el('span', t.Prioridad === 'alta' || t.Prioridad === 'baja' ? '' : 'default'); prio.appendChild(barrasPrioridad(t.Prioridad)); prio.appendChild(document.createTextNode(t.Prioridad === 'alta' ? 'Alta' : t.Prioridad === 'baja' ? 'Baja' : 'Normal'));
+    renglon('Prioridad', prio, 'prioridad', 'ftPrioridad');
     $('tDesc').textContent = t.Descripcion || ''; $('tDesc').classList.toggle('oculto', !t.Descripcion);
 
     // La columna derecha: lo que se consulta del frente (Proyecto · Hecho por · Creada · Último cambio).
@@ -403,43 +457,52 @@ export function abrirTarjeta(id) {
     // (ocultos): moverTarea se niega sola aunque alguien los fuerce (la E2E lo prueba).
     const lectura = !PUEDE.mover(estado.rol);
     $('tSoloLectura').classList.toggle('oculto', !lectura);
-    $('tMoverEtiqueta').classList.toggle('oculto', lectura); $('tMover').classList.toggle('oculto', lectura);
     const cerrado = !!p && p.Estado !== 'activo';
     $('tDeny').classList.toggle('oculto', !cerrado);   // tambien lectura ve «cerrado»
     $('tDeny').textContent = cerrado ? 'El proyecto está cerrado: sus tarjetas quedan como registro.' : '';
-    const mv = $('tMover'); mv.textContent = '';
+    // v0.50.0 (opcion 2B): #tMover es un MENU colgado del renglon «Cubeta»: el valor es un boton con chevron que lo abre,
+    // y dentro va un boton por cubeta (data-move, como siempre). Con rol lectura el valor es texto y el menu queda oculto;
+    // los botones se siguen armando: moverTarea se niega sola aunque alguien los fuerce (la E2E lo prueba).
+    mv.textContent = ''; mv.classList.add('oculto');
+    celdaCubeta.appendChild(mv);
+    if (puedeMover) {
+        const valor = celdaCubeta.querySelector('[data-chip="cubeta"]');
+        const abre = el('button', 'prop-btn is-menu'); abre.type = 'button'; abre.title = 'Mover a otra cubeta'; abre.dataset.abreMover = '1';
+        abre.setAttribute('aria-haspopup', 'menu'); abre.setAttribute('aria-expanded', 'false'); abre.setAttribute('aria-controls', 'tMover');
+        abre.appendChild(valor); celdaCubeta.prepend(abre);
+        abre.addEventListener('click', () => { alternarMover(mv.classList.contains('oculto')); if (!mv.classList.contains('oculto')) { const f = mv.querySelector('button:not([disabled])'); if (f) f.focus(); } });
+        // cerrar con clic fuera y con Esc lo engancha engancharTablero UNA vez (aqui se re-pinta en cada apertura)
+    }
     // v0.11.0: las cubetas de SU proyecto (+ la huerfana en la que este, para que se lea como «actual»).
     for (const c of columnasConHuerfanas(p, [t])) {
         // C5: la columna actual se lee como «X · actual», no como el boton que hay que pulsar.
         const aqui = t.Columna === c.clave;
         const b = boton(aqui ? `${c.nombre} · actual` : c.nombre, 'mn-btn is-sm' + (aqui ? ' is-here' : ''), () => moverTarea(t.id, c.clave), { move: c.clave });
+        b.setAttribute('role', 'menuitem');
         if (aqui) b.setAttribute('aria-current', 'true');
         b.disabled = !puedeMover || aqui || !!c.huerfana;
         mv.appendChild(b);
     }
-    // F11: Subir / Bajar dentro de la columna (renumera Orden en el orden visual).
-    const or = $('tOrden'); or.textContent = '';
+    // F11: Subir / Bajar dentro de la columna (renumera Orden en el orden visual). v0.50.0: va en el mismo renglon de la cubeta.
+    or.textContent = '';
+    celdaCubeta.appendChild(or);
     if (puedeMover) {
         const hermanas = ordenar(tareasDe(p, estado.tareas).filter(x => x.Columna === t.Columna));
         const i = hermanas.findIndex(x => x.id === t.id);
         if (hermanas.length > 1) {
-            or.appendChild(el('span', '', `Orden en ${nombreColumna(t)}: ${i + 1} de ${hermanas.length}`));
-            const up = boton('↑ Subir', 'mn-btn is-ghost is-sm', () => reordenarTarea(t.id, -1), { orden: 'subir' }); up.disabled = i <= 0; or.appendChild(up);
-            const dn = boton('↓ Bajar', 'mn-btn is-ghost is-sm', () => reordenarTarea(t.id, 1), { orden: 'bajar' }); dn.disabled = i >= hermanas.length - 1; or.appendChild(dn);
+            or.appendChild(el('span', '', `${i + 1} de ${hermanas.length}`));
+            const up = boton('↑', 'mn-btn is-ghost is-sm', () => reordenarTarea(t.id, -1), { orden: 'subir' }); up.disabled = i <= 0; up.title = 'Subir un lugar'; up.setAttribute('aria-label', 'Subir'); or.appendChild(up);
+            const dn = boton('↓', 'mn-btn is-ghost is-sm', () => reordenarTarea(t.id, 1), { orden: 'bajar' }); dn.disabled = i >= hermanas.length - 1; dn.title = 'Bajar un lugar'; dn.setAttribute('aria-label', 'Bajar'); or.appendChild(dn);
         }
     }
     $('tBorrar').disabled = !PUEDE.borrar(estado.rol);
     $('tBorrar').title = PUEDE.borrar(estado.rol) ? '' : 'Solo gerencia borra tarjetas';
-    // Editar (puedeEditar se calculo arriba, con los chips)
+    // Editar (puedeEditar se calculo arriba, con los renglones)
     $('tEditar').classList.toggle('oculto', !puedeEditar);
     $('tEditar').open = false;
     opciones($('ftAsignado'), personas(), x => x, x => nombreDe(x, estado.roles), 'sin asignar');
-    // F11: mover la tarjeta a otro frente (solo gerencia): select con los proyectos activos.
-    const puedeMoverProyecto = PUEDE.proyecto(estado.rol) && puedeEditar;
-    $('ftProyectoCampo').classList.toggle('oculto', !puedeMoverProyecto);
-    opciones($('ftProyecto'), estado.proyectos.filter(x => x.Estado === 'activo'), x => x.id, x => x.Title, null);
-    $('ftProyecto').value = String(t.ProyectoId);
-    $('ftTitulo').value = t.Title || ''; $('ftAsignado').value = String(t.Asignado || '').toLowerCase(); $('ftPrioridad').value = t.Prioridad || 'normal';
+    // v0.50.0: «Proyecto (moverla a otro frente)» se quito del editor (Carlos, 15-sep): la tarjeta se queda en su frente.
+    $('ftTitulo').value = t.Title || ''; $('ftAsignado').value = String(t.Asignado || '').toLowerCase(); ponerPrioridad('ftPrioridad', t.Prioridad);
     $('ftVence').value = diaInput(t.Vence); $('ftDesc').value = t.Descripcion || '';
     selectorTonos($('ftColor'), t.Color, null, 'Color de la tarjeta');   // v0.12.0
     atajosFecha('ftVence', 'ftAtajos', p && p.Vence);   // C2 + D1
@@ -626,32 +689,16 @@ async function guardarEdicion(ev) {
         ...(($('ftColor').dataset.valor || '') !== colorValido(t.Color) ? { Color: $('ftColor').dataset.valor || null } : {})   // v0.12.0: solo si cambio (antes de provisionar, un Color siempre presente daria 400 en toda edicion — revisor)
     };
     const cambioAsignado = String(t.Asignado || '').toLowerCase() !== String(campos.Asignado || '').toLowerCase();
-    // F11: a otro frente (solo gerencia). Cae al final de su cubeta en el proyecto nuevo y arrastra sus ligas.
-    // v0.11.0: si el proyecto nuevo no tiene esa cubeta, cae en la PRIMERA (hecha sigue en hecho: existe siempre).
-    const proyectoNuevo = !$('ftProyectoCampo').classList.contains('oculto') && $('ftProyecto').value && Number($('ftProyecto').value) !== Number(t.ProyectoId) ? porId(estado.proyectos, $('ftProyecto').value) : null;
-    if (proyectoNuevo && !PUEDE.proyecto(estado.rol)) { avisar('Solo gerencia mueve tarjetas entre proyectos.', 'error'); return; }
-    if (proyectoNuevo && proyectoNuevo.Estado !== 'activo') { avisar('Ese proyecto está cerrado.', 'error'); return; }
-    if (proyectoNuevo) {
-        const colsNuevo = columnasDe(proyectoNuevo);
-        const colDestino = colsNuevo.some(c => c.clave === t.Columna) ? t.Columna : colsNuevo[0].clave;
-        if (colDestino !== t.Columna) { campos.Columna = colDestino; campos.Desde = new Date().toISOString(); }
-        campos.ProyectoId = proyectoNuevo.id; campos.Orden = tareasDe(proyectoNuevo, estado.tareas).filter(x => x.Columna === colDestino).length + 1;
-    }
-    const proyectoViejo = t.ProyectoId;
+    // v0.50.0: mover la tarjeta a otro frente (F11, solo gerencia) se QUITO del editor a pedido de Carlos (15-sep): nunca se
+    // usaba. La tarjeta nace y muere en su frente; recuperable en git (v0.49.0) si algun dia hace falta.
     $('btnGuardarTarea').disabled = true;
     try {
         await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, t.id, campos, m => avisar(m, 'ojo'), t._etag);
         aplicar(t, campos);
         cerrarDialogo('dlgTarea');
-        avisar(proyectoNuevo ? `«${titulo}» ahora es de «${proyectoNuevo.Title}».` : 'Tarjeta actualizada.', 'ok');
+        avisar('Tarjeta actualizada.', 'ok');
         alCambiar();
-        if (proyectoNuevo) {
-            for (const l of estado.ligas) if (Number(l.TareaId) === t.id) {
-                try { await estado.cliente.actualizarRenglon(estado.siteId, L.ligas, l.id, { ProyectoId: proyectoNuevo.id }, undefined, l._etag); aplicar(l, { ProyectoId: proyectoNuevo.id }); } catch (_) { /* la liga se queda en el proyecto viejo; Docs la muestra ahi */ }
-            }
-            await registrarActividad('editar-tarea', `pasó «${titulo.slice(0, 80)}» al proyecto «${proyectoNuevo.Title.slice(0, 60)}»`, proyectoViejo, t.id);
-            await registrarActividad('editar-tarea', `trajo «${titulo.slice(0, 80)}» de otro proyecto`, proyectoNuevo.id, t.id);
-        } else await registrarActividad('editar-tarea', cambioAsignado && campos.Asignado ? `asignó «${titulo.slice(0, 80)}» a ${nombreDe(campos.Asignado, estado.roles)}` : `editó «${titulo.slice(0, 80)}»`, t.ProyectoId, t.id);
+        await registrarActividad('editar-tarea', cambioAsignado && campos.Asignado ? `asignó «${titulo.slice(0, 80)}» a ${nombreDe(campos.Asignado, estado.roles)}` : `editó «${titulo.slice(0, 80)}»`, t.ProyectoId, t.id);
         alCambiar();
     } catch (e) {
         if (esConflicto(e)) { await conflicto(t); return; }
@@ -691,7 +738,7 @@ export function abrirNuevaTarea() {
     const cols = columnasDe(p);   // v0.11.0: las cubetas de este proyecto; nace en la primera
     opciones($('ntColumna'), cols, c => c.clave, c => c.nombre, null);
     $('ntColumna').value = cols[0].clave;
-    $('ntTitulo').value = ''; $('ntPrioridad').value = 'normal'; $('ntVence').value = ''; $('ntDesc').value = '';
+    $('ntTitulo').value = ''; ponerPrioridad('ntPrioridad', 'normal'); $('ntVence').value = ''; $('ntDesc').value = '';
     selectorTonos($('ntColor'), '', null, 'Color de la tarjeta');   // v0.12.0
     atajosFecha('ntVence', 'ntAtajos', p.Vence);   // C2 + D1
     abrirDialogo('dlgNuevaTarea');
@@ -844,6 +891,11 @@ export function engancharTablero() {
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { const m = document.querySelector('#filtroChips .menu-quien[open]'); if (m) { m.open = false; m.querySelector('summary').focus(); } } });
     $('tCerrar').addEventListener('click', () => cerrarDialogo('dlgTarea'));
     $('dlgTarea').addEventListener('close', () => { fijarHash(hashDe()); });   // al cerrar (boton, Esc o Atras) el hash vuelve a la pantalla
+    // v0.50.0 (2B): el menu de cubetas se cierra con clic fuera (por ancestro, como el menu «Quién») y con Esc — Esc con el menu
+    // abierto NO cierra el dialogo. Los segmentados de prioridad (3A) se pintan una vez: el input oculto conserva el valor.
+    $('dlgTarea').addEventListener('click', e => { if (!$('tMover').classList.contains('oculto') && !(e.target.closest && e.target.closest('#tMover, [data-abre-mover]'))) alternarMover(false); });
+    $('dlgTarea').addEventListener('keydown', e => { if (e.key === 'Escape' && !$('tMover').classList.contains('oculto')) { e.preventDefault(); e.stopPropagation(); alternarMover(false); const a = document.querySelector('#tChips [data-abre-mover]'); if (a) a.focus(); } });
+    for (const seg of document.querySelectorAll('.prio[data-prio-de]')) selectorPrioridad(seg);
     $('tCompartir').addEventListener('click', compartirTarjeta);
     $('formNota').addEventListener('submit', anotar);
     // C4: Ctrl/Cmd+Enter envia la nota (el unico envio era el boton) y el contador sigue al teclado.
