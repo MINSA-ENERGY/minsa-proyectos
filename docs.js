@@ -82,14 +82,16 @@ export async function pintarDocs(p) {
     // (.dtabla.is-arbol, mismas columnas y orden) con el proyecto como raiz, cada tarjeta como CARPETA —icono con el
     // color de su cubeta, nombre de la cubeta y vencimiento— que se pliega con un clic, los documentos colgando con
     // linea de conexion, y al final un nodo con las tarjetas ABIERTAS que aun no tienen expediente («Ligar aqui»).
-    const tabla = tablaDocs({ orden: estado.ordenDocs, alOrdenar: o => { estado.ordenDocs = o; pintarDocs(p); } }); const tb = tabla.querySelector('tbody');
+    // v0.55.0 (Carlos, 15-sep): la columna «Tarjeta» SALE tambien de Docs, como en #archivos (v0.45.0) — la carpeta ya la
+    // nombra— y el select que MUEVE la liga (F1) vive ahora en el menu «⋯» de cada documento (renglon «Mover a»).
+    const tabla = tablaDocs({ orden: estado.ordenDocs, alOrdenar: o => { estado.ordenDocs = o; pintarDocs(p); }, sinTarjeta: true }); const tb = tabla.querySelector('tbody');
     tabla.classList.add('is-arbol');
     const columnas = columnasDe(p);
-    tb.appendChild(filaRaiz(p.Title, ligas.length, todas.length));
+    tb.appendChild(filaRaiz(p.Title, ligas.length, todas.length, { sinTarjeta: true }));
     // v0.52.0 (Carlos, 15-sep): el arbol NACE TODO PLEGADO —el Set guarda lo abierto, no lo plegado, incluido el nodo de vacias—.
     const plegada = k => !estado.abiertasDocs.has(k);
     const alPlegar = k => { if (estado.abiertasDocs.has(k)) estado.abiertasDocs.delete(k); else estado.abiertasDocs.add(k); pintarDocs(p); };
-    const { llaves } = filasDeExpediente(tb, p, ligas, { plegada, alPlegar, doc: l => ({ p, puede: puedeDe(l) }) });
+    const { llaves } = filasDeExpediente(tb, p, ligas, { plegada, alPlegar, sinTarjeta: true, doc: l => ({ p, puede: puedeDe(l) }) });
     // Las tarjetas abiertas (no hechas) sin ningun documento: UN nodo, plegado por default, para que un frente de 30
     // tarjetas no llene el arbol de carpetas vacias y aun asi se vea cuantas van sin expediente. Solo sin filtro ni busqueda.
     let hayVacias = false;
@@ -242,7 +244,7 @@ export function filaRaiz(titulo, n, total, { icono = null, plegada = false, alPl
 }
 /** v0.33.0: el nodo «N tarjetas abiertas sin documentos». Plegado por default: en estado.abiertasDocs la llave -1 significa ABIERTO (v0.52.0: como todas). */
 function filaVacias(n, abierto, alPlegar) {
-    const tr = el('tr', 'vacias' + (abierto ? '' : ' is-plegada')); const td = el('td'); td.colSpan = COLUMNAS_DOCS.length;
+    const tr = el('tr', 'vacias' + (abierto ? '' : ' is-plegada')); const td = el('td'); td.colSpan = columnasDocs(true).length;
     const cab = el('button', 'cab nodo is-vacio'); cab.type = 'button'; cab.setAttribute('aria-expanded', abierto ? 'true' : 'false'); cab.title = abierto ? 'Plegar' : 'Desplegar'; cab.addEventListener('click', alPlegar);
     cab.appendChild(iconoSvg(TRAZOS_CARET, 'caret')); cab.appendChild(iconoSvg(TRAZOS_CARPETA, 'carpeta'));
     cab.appendChild(el('span', 'grupo-vacio', `${n} ${n === 1 ? 'tarjeta abierta sin documentos' : 'tarjetas abiertas sin documentos'}`));
@@ -250,7 +252,7 @@ function filaVacias(n, abierto, alPlegar) {
 }
 /** v0.33.0: una tarjeta sin expediente, como hoja: carpeta vacia + cubeta + vencimiento + «Ligar aqui» (si puede). */
 function filaVacia(t, columnas, alLigar) {
-    const tr = el('tr', 'doc vacia'); tr.dataset.vacia = String(t.id); const td = el('td'); td.colSpan = COLUMNAS_DOCS.length;
+    const tr = el('tr', 'doc vacia'); tr.dataset.vacia = String(t.id); const td = el('td'); td.colSpan = columnasDocs(true).length;
     const caja = el('div', 'nombre'); const ic = iconoSvg(TRAZOS_CARPETA, 'carpeta'); const color = colorValido(t.Color); if (color) ic.dataset.tono = color; else ic.classList.add('is-' + claseDeColumna(t.Columna, columnas));
     caja.appendChild(ic); const tt = el('div', 't', t.Title); tt.title = t.Title; caja.appendChild(tt); caja.appendChild(el('span', 'cubeta-de', nombreColumnaEn(t.Columna, columnas)));
     const v = chipVence(t); if (v) caja.appendChild(v);
@@ -291,6 +293,14 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
     // no existe (la carpeta ya la nombra) y «Abrir tarjeta» va al menu «⋯».
     const tt = l.TareaId ? porId(estado.tareas, l.TareaId) : null;
     const tdC = sinTarjeta ? null : el('td', 'c-tarjeta');
+    // v0.55.0: sin columna y con permiso, el select vive en el menu «⋯» (renglon «Mover a»); mismo data-tarjeta-de y misma confirmacion.
+    let mover = null;
+    if (sinTarjeta && puede && p && !enArchivos) {
+        mover = el('label', 'menu-mover'); mover.appendChild(el('span', '', 'Mover a'));
+        const sel = el('select'); sel.dataset.tarjetaDe = String(l.id); sel.setAttribute('aria-label', 'Mover el documento a otra tarjeta');
+        opcionesTarjetas(sel, p); sel.value = l.TareaId ? String(l.TareaId) : '';
+        sel.addEventListener('change', () => reasignarLiga(l, sel.value, sel)); mover.appendChild(sel);
+    }
     if (sinTarjeta) { /* nada */ }
     else if (puede && p) {
         const sel = el('select'); sel.dataset.tarjetaDe = String(l.id); sel.setAttribute('aria-label', 'Tarjeta de la liga');
@@ -311,6 +321,7 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
     if (ruta) acciones.push(boton(l.Tipo === 'enlace' ? 'Copiar dirección' : 'Copiar ruta', 'mn-btn is-ghost is-sm', () => copiarTexto(ruta), { copiar: String(l.id) }));   // v0.19.0: la ruta que salio de debajo del nombre
     if (sinTarjeta && tt && alTarjeta) acciones.push(boton('Abrir tarjeta', 'mn-btn is-ghost is-sm', () => alTarjeta(tt), { abrirTarjeta: String(tt.id) }));   // v0.45.0; v0.54.1: sin .tarjeta-liga, que le ponia la pildora encima del mn-btn
     if (enArchivos && p) acciones.push(boton('Documentos del proyecto', 'mn-btn is-ghost is-sm', () => irAHash(`#p/${p.Clave}/docs`)));
+    if (mover) acciones.push(mover);   // v0.55.0: antes de Quitar, que es lo destructivo
     if (puede) acciones.push(boton('Quitar', 'mn-btn is-ghost is-sm is-peligro', () => quitarLiga(porId(estado.ligas, l.id) || l), { quitar: String(l.id) }));
     if (acciones.length) {
         const d = el('details', 'fila-menu'); const s = el('summary', 'mn-btn is-ghost is-sm is-icono', '⋯'); s.setAttribute('aria-label', 'Acciones del documento'); s.title = 'Acciones'; d.appendChild(s);
