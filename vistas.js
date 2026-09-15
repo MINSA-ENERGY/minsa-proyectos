@@ -407,15 +407,15 @@ export function pintarArchivos() {
     // de estado.plegadasArchivos van prefijadas por proyecto («p7», «p7/0» = Del proyecto, «p7/t12» = tarjeta) porque los ids
     // de tarjeta y de proyecto se cruzan. Sin nodo de «tarjetas sin documentos»: aqui solo se encuentra, no se liga.
     const porP = new Map(); for (const l of ligas) { const k = Number(l.ProyectoId); if (!porP.has(k)) porP.set(k, []); porP.get(k).push(l); }
-    const tabla = tablaDocs({ orden: estado.ordenArchivos, alOrdenar: o => { estado.ordenArchivos = o; pintarArchivos(); } }); const tb = tabla.querySelector('tbody');
+    const tabla = tablaDocs({ orden: estado.ordenArchivos, alOrdenar: o => { estado.ordenArchivos = o; pintarArchivos(); }, sinTarjeta: true }); const tb = tabla.querySelector('tbody');   // v0.45.0: sin columna «Tarjeta», la carpeta ya la nombra
     tabla.classList.add('is-arbol', 'is-frentes');
     const S = estado.plegadasArchivos; const plegada = k => S.has(k);
     const alPlegar = k => { if (S.has(k)) S.delete(k); else S.add(k); pintarArchivos(); };
     const llaves = [];
     for (const p of ordenarProyectos(estado.proyectos.filter(p => porP.has(p.id)))) {
         const kp = `p${p.id}`; const total = estado.ligas.filter(l => Number(l.ProyectoId) === p.id).length; llaves.push(kp);
-        tb.appendChild(filaRaiz(p.Title, porP.get(p.id).length, total, { icono: iconoEquipo(equipoDe(p), 'sm'), plegada: plegada(kp), alPlegar: () => alPlegar(kp), alAbrir: () => irAHash(`#p/${p.Clave}/docs`) }));
-        const r = filasDeExpediente(tb, p, porP.get(p.id), { llave: k => `${kp}/${k ? 't' + k : 0}`, plegada, alPlegar, ocultas: plegada(kp), doc: () => ({ p, enArchivos: true, alTarjeta: irTarjeta }) });
+        tb.appendChild(filaRaiz(p.Title, porP.get(p.id).length, total, { icono: iconoEquipo(equipoDe(p), 'sm'), plegada: plegada(kp), alPlegar: () => alPlegar(kp), alAbrir: () => irAHash(`#p/${p.Clave}/docs`), sinTarjeta: true }));
+        const r = filasDeExpediente(tb, p, porP.get(p.id), { llave: k => `${kp}/${k ? 't' + k : 0}`, plegada, alPlegar, ocultas: plegada(kp), sinTarjeta: true, doc: () => ({ p, enArchivos: true, alTarjeta: irTarjeta }) });
         for (const k of r.llaves) llaves.push(`${kp}/${k ? 't' + k : 0}`);
     }
     cont.appendChild(tabla);

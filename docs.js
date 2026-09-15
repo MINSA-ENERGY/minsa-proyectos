@@ -140,6 +140,11 @@ const TRAZOS_PROYECTO = ['M3 7h7l2 2h9v10H3z'];
 // (`quien`, `fecha`) siguen en ordenarLigas por si un estado guardado las trae; tablaDocs las cae a `del`.
 export const COLUMNAS_DOCS = [['c-nombre', 'Nombre', 'nombre'], ['c-del', 'Fecha', 'del'], ['c-tipo', 'Tipo', 'tipo'], ['c-estado', 'Estado', 'estado'], ['c-tarjeta', 'Tarjeta', 'tarjeta'], ['c-acc', '', null]];
 const COLUMNAS_IDAS = new Set(['quien', 'fecha']);
+// v0.45.0 (Carlos, 15-sep): en #archivos la columna «Tarjeta» SALE — cada documento ya cuelga de la carpeta con el nombre de
+// su tarjeta (v0.36.0), asi que repetirlo por renglon era redundante. Docs del proyecto la conserva: ahi la celda es el select
+// que cambia una liga de tarjeta (F1). `sinTarjeta` recorre tablaDocs, filaRaiz, filasDeExpediente, filaGrupo y filaDoc;
+// «Abrir tarjeta» pasa al menu «⋯» y un orden guardado por `tarjeta` cae a `del` (dentro de una carpeta todos la comparten).
+export const columnasDocs = (sinTarjeta = false) => sinTarjeta ? COLUMNAS_DOCS.filter(([cls]) => cls !== 'c-tarjeta') : COLUMNAS_DOCS;
 
 /** v0.18.0: las ligas en el orden `o` ({ col, dir }; nombre visible de quien ligo y titulo de la tarjeta, como se ven). */
 export function ordenarDocs(ligas, o = estado.ordenDocs) {
@@ -153,10 +158,10 @@ export function ordenarDocs(ligas, o = estado.ordenDocs) {
  * nuevo y lo guarda donde le toque: Docs en estado.ordenDocs (se reinicia por proyecto), #archivos en estado.ordenArchivos.
  * Se ordena dentro de cada grupo: los grupos (tarjeta o proyecto) conservan su acomodo.
  */
-export function tablaDocs({ orden = null, alOrdenar = null } = {}) {
+export function tablaDocs({ orden = null, alOrdenar = null, sinTarjeta = false } = {}) {
     const w = el('div', 'dtabla'); const t = el('table'); const th = el('thead'); const tr = el('tr');
-    const o = orden && COLUMNAS_IDAS.has(orden.col) ? { col: 'del', dir: -1 } : orden;   // v0.29.0: una columna que ya no existe no puede quedar mandando
-    for (const [cls, texto, clave] of COLUMNAS_DOCS) {
+    const o = orden && (COLUMNAS_IDAS.has(orden.col) || (sinTarjeta && orden.col === 'tarjeta')) ? { col: 'del', dir: -1 } : orden;   // v0.29.0: una columna que ya no existe no puede quedar mandando
+    for (const [cls, texto, clave] of columnasDocs(sinTarjeta)) {
         const h = el('th', cls, texto); h.scope = 'col'; if (!texto) h.setAttribute('aria-label', 'Acciones');
         if (clave && o && alOrdenar) {
             const activo = o.col === clave;
@@ -177,10 +182,10 @@ export function tablaDocs({ orden = null, alOrdenar = null } = {}) {
  * Renglon de grupo: la lengüeta de v0.16.0 (icono + `.grupo` con el titulo + conteo) sobre un <tr class="pest">.
  * Con `icono` (un nodo) y `alClic` es la cabecera de un PROYECTO en #archivos: la lengüeta es un boton .grupo-proy.
  */
-export function filaGrupo(tareaId, titulo, n, { icono = null, alClic = null, title = '', tarea = null, columnas = null, plegada = false, alPlegar = null, oculta = false } = {}) {
+export function filaGrupo(tareaId, titulo, n, { icono = null, alClic = null, title = '', tarea = null, columnas = null, plegada = false, alPlegar = null, oculta = false, sinTarjeta = false } = {}) {
     const tr = el('tr', 'pest' + (tareaId ? '' : ' is-proyecto') + (plegada ? ' is-plegada' : '')); if (tareaId) tr.dataset.tarjeta = String(tareaId);
     if (oculta) tr.hidden = true;   // v0.36.0: su raiz (#archivos) esta plegada
-    const td = el('td'); td.colSpan = COLUMNAS_DOCS.length;
+    const td = el('td'); td.colSpan = columnasDocs(sinTarjeta).length;
     // v0.33.0: con `alPlegar` es un NODO del arbol (Docs del proyecto): boton que pliega/despliega, con el caret, la carpeta
     // del color de la cubeta (data-tono si la tarjeta eligio color; si no, la clase por posicion), cubeta y vencimiento.
     const cab = alClic || alPlegar ? el('button', 'cab' + (alClic ? ' grupo-proy' : ' nodo')) : el('div', 'cab');
@@ -204,11 +209,11 @@ const TRAZOS_CARPETA = ['M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2
  * plegadas —Docs la usa tal cual; #archivos la prefija por proyecto—; `doc(l)` da las opciones de filaDoc de cada hoja;
  * `ocultas` esconde todas las filas (la raiz de #archivos esta plegada). Devuelve las llaves locales usadas.
  */
-export function filasDeExpediente(tb, p, ligas, { llave = k => k, plegada, alPlegar, doc = () => ({}), ocultas = false }) {
+export function filasDeExpediente(tb, p, ligas, { llave = k => k, plegada, alPlegar, doc = () => ({}), ocultas = false, sinTarjeta = false }) {
     const columnas = columnasDe(p);
     const delProyecto = ligas.filter(l => !l.TareaId);
     const cerrada = k => plegada(llave(k));
-    if (delProyecto.length) { tb.appendChild(filaGrupo(null, 'Del proyecto', delProyecto.length, { plegada: cerrada(0), alPlegar: () => alPlegar(llave(0)), oculta: ocultas })); for (const l of delProyecto) tb.appendChild(filaDoc(l, { ...doc(l), oculta: ocultas || cerrada(0) })); }
+    if (delProyecto.length) { tb.appendChild(filaGrupo(null, 'Del proyecto', delProyecto.length, { plegada: cerrada(0), alPlegar: () => alPlegar(llave(0)), oculta: ocultas, sinTarjeta })); for (const l of delProyecto) tb.appendChild(filaDoc(l, { ...doc(l), oculta: ocultas || cerrada(0), sinTarjeta })); }
     const porTarjeta = new Map();
     for (const l of ligas.filter(l => l.TareaId)) { const k = Number(l.TareaId); if (!porTarjeta.has(k)) porTarjeta.set(k, []); porTarjeta.get(k).push(l); }
     const tarjetas = [...porTarjeta.keys()].sort((a, b) => { const ta = porId(estado.tareas, a), tb2 = porId(estado.tareas, b); return String(ta ? ta.Title : '').localeCompare(String(tb2 ? tb2.Title : '')) || a - b; });
@@ -216,7 +221,7 @@ export function filasDeExpediente(tb, p, ligas, { llave = k => k, plegada, alPle
     // color de la tarjeta (tr.bloque + data-tono o is-p/c/r/h en el <tr>, que el CSS lee como --tono). Sustituye la cebra
     // is-par de v0.34.0: la banda separaba renglones sin decir de que tarjeta eran. «Del proyecto» y vacias no llevan tinte.
     const enBloque = (tr, t) => { if (!t) return tr; tr.classList.add('bloque'); const color = colorValido(t.Color); if (color) tr.dataset.tono = color; else tr.classList.add('is-' + claseDeColumna(t.Columna, columnas)); return tr; };
-    for (const k of tarjetas) { const tt = porId(estado.tareas, k); tb.appendChild(enBloque(filaGrupo(k, tt ? tt.Title : `Tarjeta #${k}`, porTarjeta.get(k).length, { tarea: tt, columnas, plegada: cerrada(k), alPlegar: () => alPlegar(llave(k)), oculta: ocultas }), tt)); for (const l of porTarjeta.get(k)) tb.appendChild(enBloque(filaDoc(l, { ...doc(l), oculta: ocultas || cerrada(k) }), tt)); }
+    for (const k of tarjetas) { const tt = porId(estado.tareas, k); tb.appendChild(enBloque(filaGrupo(k, tt ? tt.Title : `Tarjeta #${k}`, porTarjeta.get(k).length, { tarea: tt, columnas, plegada: cerrada(k), alPlegar: () => alPlegar(llave(k)), oculta: ocultas, sinTarjeta }), tt)); for (const l of porTarjeta.get(k)) tb.appendChild(enBloque(filaDoc(l, { ...doc(l), oculta: ocultas || cerrada(k), sinTarjeta }), tt)); }
     return { llaves: [...(delProyecto.length ? [0] : []), ...tarjetas] };
 }
 
@@ -225,8 +230,8 @@ export function filasDeExpediente(tb, p, ligas, { llave = k => k, plegada, alPle
  * v0.36.0: con `alPlegar` es un NODO plegable (#archivos: una raiz por proyecto) con caret, el icono del equipo si viene, y
  * un boton aparte «Documentos» (`.ir-docs`, `alAbrir`) que abre la pestaña Documentos del proyecto.
  */
-export function filaRaiz(titulo, n, total, { icono = null, plegada = false, alPlegar = null, alAbrir = null } = {}) {
-    const tr = el('tr', 'raiz' + (plegada ? ' is-plegada' : '')); const td = el('td'); td.colSpan = COLUMNAS_DOCS.length;
+export function filaRaiz(titulo, n, total, { icono = null, plegada = false, alPlegar = null, alAbrir = null, sinTarjeta = false } = {}) {
+    const tr = el('tr', 'raiz' + (plegada ? ' is-plegada' : '')); const td = el('td'); td.colSpan = columnasDocs(sinTarjeta).length;
     const cab = alPlegar ? el('button', 'cab nodo') : el('div', 'cab');
     if (alPlegar) { cab.type = 'button'; cab.setAttribute('aria-expanded', plegada ? 'false' : 'true'); cab.title = plegada ? 'Desplegar' : 'Plegar'; cab.addEventListener('click', alPlegar); cab.appendChild(iconoSvg(TRAZOS_CARET, 'caret')); }
     cab.appendChild(iconoSvg(TRAZOS_CARPETA, 'carpeta')); if (icono) cab.appendChild(icono); cab.appendChild(el('span', 'grupo-raiz', titulo));
@@ -256,7 +261,7 @@ function filaVacia(t, columnas, alLigar) {
  * Renglon de un documento. `puede` habilita el select de tarjeta y «Quitar» (Docs del proyecto); `enArchivos`
  * pinta la tarjeta como boton que la abre y marca el renglon con data-archivo (la E2E de #archivos lo cuenta).
  */
-export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarjeta = null, oculta = false } = {}) {
+export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarjeta = null, oculta = false, sinTarjeta = false } = {}) {
     const tr = el('tr', 'doc'); tr.dataset.liga = String(l.id); if (enArchivos) tr.dataset.archivo = String(l.id);
     if (oculta) tr.hidden = true;   // v0.33.0: su carpeta esta plegada
     // Nombre (v0.19.0): icono + [emisor] + titulo humano (liga) + [rev]. La ruta ya no va debajo: vive en el title del
@@ -281,16 +286,18 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
     const tdT = el('td', 'c-tipo'); const bt = el('span', 'mn-chip tipo is-' + ta.clave, ta.sigla); bt.dataset.tipo = ta.clave; bt.title = ta.etiqueta; tdT.appendChild(bt); tr.appendChild(tdT);
     // Estado de la liga (archivado / en el buzon / enlace); el 404 del buzon lo reemplaza pintarDocs.
     const tdE = el('td', 'c-estado'); const est = el('span', 'estado'); est.appendChild(l.Tipo === 'buzon' ? chip('en el buzón', 'info') : l.Tipo === 'enlace' ? chip('enlace') : chip('archivado', 'ok')); tdE.appendChild(est); tr.appendChild(tdE);
-    // Tarjeta: select (F1) si puede; boton que la abre en #archivos; texto en lectura.
-    const tdC = el('td', 'c-tarjeta');
+    // Tarjeta: select (F1) si puede; boton que la abre en #archivos; texto en lectura. v0.45.0: con `sinTarjeta` la celda
+    // no existe (la carpeta ya la nombra) y «Abrir tarjeta» va al menu «⋯».
     const tt = l.TareaId ? porId(estado.tareas, l.TareaId) : null;
-    if (puede && p) {
+    const tdC = sinTarjeta ? null : el('td', 'c-tarjeta');
+    if (sinTarjeta) { /* nada */ }
+    else if (puede && p) {
         const sel = el('select'); sel.dataset.tarjetaDe = String(l.id); sel.setAttribute('aria-label', 'Tarjeta de la liga');
         opcionesTarjetas(sel, p); sel.value = l.TareaId ? String(l.TareaId) : '';
         sel.addEventListener('change', () => reasignarLiga(l, sel.value, sel)); tdC.appendChild(sel);
     } else if (l.TareaId && enArchivos) { const b = boton(tt ? tt.Title : `tarjeta #${l.TareaId}`, 'tarjeta-liga', tt && alTarjeta ? () => alTarjeta(tt) : null); b.title = tt ? tt.Title : ''; tdC.appendChild(b); }
     else { const s = el('span', 'tarjeta-liga' + (l.TareaId ? '' : ' sin'), tt ? tt.Title : l.TareaId ? `tarjeta #${l.TareaId}` : 'el proyecto entero'); if (tt) s.title = tt.Title; tdC.appendChild(s); }   // v0.29.0: pildora de ancho fijo con «…», como el boton
-    tr.appendChild(tdC);
+    if (tdC) tr.appendChild(tdC);
     // Quien y cuando (v0.29.0): ya no son columnas; van al title del renglon y como nota del menu «⋯».
     const quien = l.LigadoPor ? nombreDe(l.LigadoPor, estado.roles) : '', cuando = l._creado ? fechaCorta(l._creado) : '';
     const ligada = quien || cuando ? `Ligado por ${quien || '—'}${cuando ? ' · ' + cuando : ''}` : '';
@@ -301,6 +308,7 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
     if (ligada) { const n = el('span', 'menu-nota quien'); if (l.LigadoPor) n.appendChild(avatar(l.LigadoPor)); const tx = el('span', '', ligada); if (l._creado) tx.title = fechaHora(l._creado); n.appendChild(tx); acciones.push(n); }
     if (href) { const a = el('a', 'mn-btn is-ghost is-sm', 'Abrir'); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; acciones.push(a); }
     if (ruta) acciones.push(boton(l.Tipo === 'enlace' ? 'Copiar dirección' : 'Copiar ruta', 'mn-btn is-ghost is-sm', () => copiarTexto(ruta), { copiar: String(l.id) }));   // v0.19.0: la ruta que salio de debajo del nombre
+    if (sinTarjeta && tt && alTarjeta) acciones.push(boton('Abrir tarjeta', 'mn-btn is-ghost is-sm tarjeta-liga', () => alTarjeta(tt), { abrirTarjeta: String(tt.id) }));   // v0.45.0
     if (enArchivos && p) acciones.push(boton('Documentos del proyecto', 'mn-btn is-ghost is-sm', () => irAHash(`#p/${p.Clave}/docs`)));
     if (puede) acciones.push(boton('Quitar', 'mn-btn is-ghost is-sm is-peligro', () => quitarLiga(porId(estado.ligas, l.id) || l), { quitar: String(l.id) }));
     if (acciones.length) {
