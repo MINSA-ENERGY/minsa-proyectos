@@ -1477,17 +1477,14 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .is-arbol tr.doc:last-child td.c-nombre::before, .is-arbol tr.doc:has(+ tr.pest) td.c-nombre::before, .is-arbol tr.doc:has(+ tr.vacias) td.c-nombre::before { bottom: 50%; }   /* la ultima hoja cierra la rama */
 .is-arbol tbody tr.doc:nth-of-type(even) td { background: none; }   /* la cebra generica cuenta nodos y hojas ocultas: aqui la pone docs.js */
 .is-arbol tr.doc:hover td { background: var(--surface-hover); }
-/* v0.35.0 (Carlos, 14-sep; artifact 2Kb1WRx5, opcion B de seis): BLOQUE TINTADO por tarjeta — la carpeta y sus hojas comparten el
-   8 % del color de la tarjeta (el mismo tinte que .tarjeta[data-tono] en el tablero), filete del tono arriba y abajo, y un hueco del
-   color de la tabla entre bloques. Sustituye la cebra is-par de v0.34.0 (separaba renglones sin decir de que tarjeta eran). El tono
-   lo pone docs.js en el <tr> (data-tono o is-p/c/r/h). Descartadas: A cebra por grupo, C marco con lomo, D cabecera de color,
-   E cajon hundido, F rail de color — no re-proponer. La linea de conexion (::before/::after) se pinta encima del tinte. */
-.is-arbol tr.bloque td { background: color-mix(in srgb, var(--tono) 8%, var(--surface-card)); }
-.is-arbol tr.pest.bloque td { border-top: var(--sp-2) solid var(--surface-card); box-shadow: inset 0 1px 0 color-mix(in srgb, var(--tono) 28%, var(--border-hairline)); padding-top: var(--sp-1); }   /* el hueco entre bloques es un borde del color de la tabla; el filete, una sombra interior */
-.is-arbol tr.pest.bloque.is-plegada td { border-bottom: 1px solid color-mix(in srgb, var(--tono) 28%, var(--border-hairline)); padding-bottom: var(--sp-1); }   /* plegada, la carpeta cierra sola su bloque */
-.is-arbol tr.doc.bloque td { border-bottom-color: color-mix(in srgb, var(--tono) 18%, var(--border-hairline)); }
-.is-arbol tr.doc.bloque:last-child td, .is-arbol tr.doc.bloque:has(+ tr.pest) td, .is-arbol tr.doc.bloque:has(+ tr.vacias) td { border-bottom: 1px solid color-mix(in srgb, var(--tono) 28%, var(--border-hairline)); }   /* la ultima hoja cierra el bloque */
-.is-arbol tr.doc.bloque:hover td { background: color-mix(in srgb, var(--tono) 16%, var(--surface-card)); }
+/* v0.37.0 (Carlos, 14-sep): SIN COLOR — el bloque por tarjeta queda solo como ESTRUCTURA (hueco + filete neutro arriba y abajo,
+   y la linea de conexion), sin tinte de fondo ni filete del tono. Sustituye el bloque tintado de v0.35.0 (8 % del color de la tarjeta,
+   opcion B de seis): Carlos lo vio como una cebra blanco/gris y pidio quitarla. docs.js sigue poniendo tr.bloque + data-tono / is-*
+   (lo usa la carpeta punteada de la hoja vacia); para volver al tinte, restaurar las cinco reglas de v0.35.0 desde git. Siguen
+   descartadas: A cebra por grupo, C marco con lomo, D cabecera de color, E cajon hundido, F rail de color — no re-proponer. */
+.is-arbol tr.pest.bloque td { border-top: var(--sp-2) solid var(--surface-card); box-shadow: inset 0 1px 0 var(--border-hairline); padding-top: var(--sp-1); }   /* el hueco entre bloques es un borde del color de la tabla; el filete, una sombra interior */
+.is-arbol tr.pest.bloque.is-plegada td { border-bottom: 1px solid var(--border-hairline); padding-bottom: var(--sp-1); }   /* plegada, la carpeta cierra sola su bloque */
+.is-arbol tr.doc.bloque:last-child td, .is-arbol tr.doc.bloque:has(+ tr.pest) td, .is-arbol tr.doc.bloque:has(+ tr.vacias) td { border-bottom: 1px solid var(--border-hairline); }   /* la ultima hoja cierra el bloque */
 .arbol-todo { display: inline-flex; gap: 2px; }   /* v0.34.0: «Abrir todo» / «Plegar todo» junto a los filtros de Docs */
 /* la hoja VACIA (tarjeta sin expediente): carpeta punteada + titulo + cubeta + vence + «Ligar aqui» en una celda ancha */
 .is-arbol tr.doc.vacia td { padding-left: calc(var(--sp-3) + var(--sangria) * 2); position: relative; }
