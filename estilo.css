@@ -752,18 +752,18 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tarjeta-caja { display: grid; gap: 2px; min-width: 0; }
 
 /* ---- Mis tareas: AGENDA POR DIA (v0.57.0; Carlos, 15-sep; artifact CrSMdQaxRzctu9VFqrU1dP, corte B). Sustituye al bloque
-   «Urgentes» en rejilla (.urgente, .urgentes-grid, v0.2.0-v0.56.0; recuperable en git). Seis grupos .dia con el rotulo a la
+   «Urgentes» en rejilla (.urgente, .urgentes-grid, v0.2.0-v0.56.0; recuperable en git). Seis grupos .agenda .dia (ACOTADOS a .agenda: sueltos, `.dia` pisaba la hoja de calendario de .pficha y el separador del chat — 15-sep) con el rotulo a la
    izquierda pegado al bajar y una .lista de RENGLONES: cada renglon es la .tarjeta de siempre acomodada en fila, con la fecha
    (.d) en la columna derecha y el chip .vence escondido (la fecha ya esta a la derecha y el grupo ya dice si vencio). */
 .agenda { display: grid; gap: var(--sp-4); align-content: start; min-width: 0; }
-.dia { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: var(--sp-3); align-items: start; }
-.dia .rot { position: sticky; top: var(--sp-2); display: grid; gap: 2px; padding-top: 6px; }
-.dia .rot b { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; color: var(--text-strong); line-height: 1.1; }
-.dia .rot small { font-family: var(--font-data); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); }
-.dia.is-vencidas .rot b { color: var(--status-danger-fg); }
-.dia.is-hoy .rot b, .dia.is-manana .rot b, .dia.is-semana .rot b { color: var(--status-warn-fg); }
-.dia.is-sinfecha .rot b { color: var(--text-muted); }
-.dia .lista { display: grid; background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow: hidden; min-width: 0; }
+.agenda .dia { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: var(--sp-3); align-items: start; }
+.agenda .dia .rot { position: sticky; top: var(--sp-2); display: grid; gap: 2px; padding-top: 6px; }
+.agenda .dia .rot b { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; color: var(--text-strong); line-height: 1.1; }
+.agenda .dia .rot small { font-family: var(--font-data); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); }
+.agenda .dia.is-vencidas .rot b { color: var(--status-danger-fg); }
+.agenda .dia.is-hoy .rot b, .agenda .dia.is-manana .rot b, .agenda .dia.is-semana .rot b { color: var(--status-warn-fg); }
+.agenda .dia.is-sinfecha .rot b { color: var(--text-muted); }
+.agenda .dia .lista { display: grid; background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow: hidden; min-width: 0; }
 .agenda .tarjeta { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: var(--sp-3); align-items: center; border: 0; border-left: 3px solid transparent; border-top: 1px solid var(--border-hairline); border-radius: 0; padding: 10px var(--sp-3) 10px 9px; }
 .agenda .lista > :first-child .tarjeta { border-top: 0; }   /* la .tarjeta-caja envuelve al boton */
 .agenda .tarjeta:hover { background: var(--surface-sunken); border-color: var(--border-hairline); }
@@ -773,11 +773,11 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .agenda .tarjeta .f { grid-row: 2; }
 .agenda .tarjeta .f .vence { display: none; }
 .agenda .tarjeta .d { grid-column: 2; grid-row: 1 / 3; font-family: var(--font-data); font-size: .75rem; color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.dia.is-vencidas .tarjeta .d { color: var(--status-danger-fg); font-weight: 600; }
-.dia.is-hoy .tarjeta .d, .dia.is-manana .tarjeta .d, .dia.is-semana .tarjeta .d { color: var(--status-warn-fg); font-weight: 600; }
+.agenda .dia.is-vencidas .tarjeta .d { color: var(--status-danger-fg); font-weight: 600; }
+.agenda .dia.is-hoy .tarjeta .d, .agenda .dia.is-manana .tarjeta .d, .agenda .dia.is-semana .tarjeta .d { color: var(--status-warn-fg); font-weight: 600; }
 @media (max-width: 640px) {
-  .dia { grid-template-columns: 1fr; gap: var(--sp-1); }
-  .dia .rot { position: static; display: flex; gap: var(--sp-2); align-items: baseline; padding-top: 0; }
+  .agenda .dia { grid-template-columns: 1fr; gap: var(--sp-1); }
+  .agenda .dia .rot { position: static; display: flex; gap: var(--sp-2); align-items: baseline; padding-top: 0; }
   /* la fecha baja a un tercer renglon: a 390 la columna derecha se comia la mitad del ancho y el titulo salia a dos lineas (medido en la captura) */
   .agenda .tarjeta { grid-template-columns: minmax(0, 1fr); }
   .agenda .tarjeta .d { grid-column: 1; grid-row: 3; margin-top: 2px; }
