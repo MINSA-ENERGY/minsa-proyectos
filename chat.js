@@ -17,6 +17,11 @@ let abrirTarjeta = () => {};
 export function fijarAbrirTarjeta(fn) { abrirTarjeta = fn; }
 
 const COMENTARIO_MAX = 250, COMENTARIO_AVISO = 200;
+// v0.42.0: el hilo sabe de que proyecto es. Antes `enviar` leia estado.proyectoAbierto, que era siempre el mismo
+// porque el chat solo vivia en la pestana del proyecto; en Mensajes el #tab-chat se aloja junto a la bandeja y pinta
+// el frente elegido AHI, que no es el abierto. La ultima pintada fija el destino; salirDelChat lo suelta.
+let proyectoChat = null;
+export const proyectoDelChat = () => proyectoChat;
 const personas = () => estado.roles.filter(r => r.Activo !== false).map(r => String(r.Title || '').toLowerCase()).filter(Boolean);
 export const puedeComentarEn = p => PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';
 
@@ -36,6 +41,7 @@ const diaDe = iso => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexic
 
 export function pintarChat(p) {
     const hilo = $('chatHilo');
+    proyectoChat = p;
     const yo = estado.cuenta.username.toLowerCase();
     const cs = comentariosDe(p.id);
     // El refresco automatico (120 s) repinta el hilo: si la persona estaba leyendo arriba, se queda donde
@@ -106,7 +112,7 @@ export function pintarChat(p) {
     hilo.scrollTop = estabaAlFondo ? hilo.scrollHeight : scrollAntes;
 }
 /** v0.9.0: app.js lo llama cuando el chat deja de estar en pantalla; la proxima pintada cuenta como «entrar». */
-export function salirDelChat() { const h = $('chatHilo'); if (h) { delete h.dataset.proyecto; delete h.dataset.pintado; h._nuevos = null; } }
+export function salirDelChat() { proyectoChat = null; const h = $('chatHilo'); if (h) { delete h.dataset.proyecto; delete h.dataset.pintado; h._nuevos = null; } }
 /** Tras enviar, siempre al fondo (es mi mensaje). */
 function alFondo() { const h = $('chatHilo'); h.scrollTop = h.scrollHeight; }
 
@@ -120,7 +126,7 @@ function contar() {
 
 async function enviar(ev) {
     ev.preventDefault();
-    const p = estado.proyectoAbierto; if (!p) return;
+    const p = proyectoChat || estado.proyectoAbierto; if (!p) return;   // v0.42.0: el frente que el hilo pinta, no el abierto
     if (!PUEDE.tarea(estado.rol)) { avisar('Tu rol es de lectura: no puedes comentar.', 'error'); return; }
     if (p.Estado !== 'activo') { avisar('El proyecto está cerrado.', 'error'); return; }
     if (navigator.onLine === false) { avisar('Sin conexión: el comentario se manda cuando regrese la red (vuelve a intentarlo).', 'ojo'); return; }   // T2: Ctrl+Enter no pasa por pointer-events

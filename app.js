@@ -19,7 +19,7 @@ import { $, L, VERSION, estado, el, boton, ondaAlPulsar, avatar, chip, chipVence
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
-import { pintarRoadmap, pintarRoadmapProyecto, roadmapFull, engancharRoadmap, pintarCalendario, engancharCalendario, pintarMensajes, mensajesNuevos, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
+import { pintarRoadmap, pintarRoadmapProyecto, roadmapFull, engancharRoadmap, pintarCalendario, engancharCalendario, pintarMensajes, engancharMensajes, devolverChat, correoDeAlias, mensajesNuevos, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
 const pca = new msal.PublicClientApplication({
@@ -244,21 +244,32 @@ function irA(p) {
 // que las escrituras propias (fijarHash desde irA / abrirTarjeta) no repintan dos veces. Con Atras
 // del navegador se cierra la tarjeta o se vuelve a la pantalla anterior, que es lo que la gente espera.
 // v0.10.0: cinco pantallas mas (roadmap · calendario · mensajes · archivos · reportes) y la pestana roadmap del proyecto.
-const RE_HASH = /^#(?:(inicio|proyectos|mis|roadmap|calendario|mensajes|archivos|reportes)|p\/([a-z0-9-]+)(?:\/(lista|docs|chat|tablero|resumen|roadmap))?)(?:\/t\/(\d+))?$/;
+// v0.42.0: Mensajes lleva lo elegido en el hash (#mensajes/f/<clave> el hilo del frente · #mensajes/d/<alias> la ficha de la
+// persona), para que Atras regrese a la bandeja y una liga pegada abra justo ese hilo. El alias es el de la @mencion.
+const RE_HASH = /^#(?:(inicio|proyectos|mis|roadmap|calendario|mensajes|archivos|reportes)(?:\/(f|d)\/([a-z0-9._-]+))?|p\/([a-z0-9-]+)(?:\/(lista|docs|chat|tablero|resumen|roadmap))?)(?:\/t\/(\d+))?$/;
 function esHashDeLaApp(h) { return RE_HASH.test(String(h || '')); }
 function aplicarHash() {
     if (!estado.siteId) return;
     const m = RE_HASH.exec(location.hash || '');
     if (!m) { irA('inicio'); return; }
-    if (m[2]) {
-        const p = estado.proyectos.find(x => String(x.Clave || '') === m[2]);
-        if (!p) { irA('inicio'); avisar(`No hay un proyecto con la clave «${m[2]}».`, 'ojo'); return; }
-        const tab = m[3] || 'tablero';
+    const [, pantalla, msjTipo, msjClave, clave, tabHash, tareaId] = m;
+    if (clave) {
+        const p = estado.proyectos.find(x => String(x.Clave || '') === clave);
+        if (!p) { irA('inicio'); avisar(`No hay un proyecto con la clave «${clave}».`, 'ojo'); return; }
+        const tab = tabHash || 'tablero';
         if (estado.pestana !== 'proyecto' || !estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id || estado.tab !== tab) {
             fijarProyectoAbierto(p); estado.tab = tab; irA('proyecto');
         }
-    } else if (estado.pestana !== m[1]) irA(m[1]);
-    const id = m[4] ? Number(m[4]) : null;
+    } else if (pantalla === 'mensajes') {
+        // /f/<clave> o /d/<alias> solo valen aqui; un sufijo en otra pantalla se ignora (el regex lo admite para no partir la ruta)
+        let sel = null;
+        if (msjTipo === 'f') { const p = estado.proyectos.find(x => String(x.Clave || '') === msjClave); if (p) { sel = { t: 'f', k: p.Clave }; if (p.Estado === 'activo' || comentariosDe(p.id).length) asegurarActividadDe(p.id).then(hubo => { if (hubo && estado.pestana === 'mensajes') repintar(); }); } else avisar(`No hay un frente con la clave «${msjClave}».`, 'ojo'); }
+        else if (msjTipo === 'd') { const c = correoDeAlias(msjClave); if (c) sel = { t: 'd', k: c }; else avisar(`No hay nadie con el alias «${msjClave}».`, 'ojo'); }
+        const cambio = JSON.stringify(sel) !== JSON.stringify(estado.mensajesSel || null);
+        estado.mensajesSel = sel;
+        if (estado.pestana !== 'mensajes') irA('mensajes'); else if (cambio) repintar();
+    } else if (estado.pestana !== pantalla) irA(pantalla);
+    const id = tareaId ? Number(tareaId) : null;
     if (id) { if (tarjetaAbiertaId() !== id) { if (porId(estado.tareas, id)) abrirTarjeta(id); else avisar(`No hay una tarjeta #${id}.`, 'ojo'); } }
     else if ($('dlgTarea').open) cerrarDialogo('dlgTarea');
 }
@@ -279,9 +290,12 @@ function fijarProyectoAbierto(p) {
     asegurarActividadDe(p.id).then(hubo => { if (hubo && estado.proyectoAbierto && estado.proyectoAbierto.id === p.id) repintar(); });
 }
 function repintar() {
-    if (estado.pestana !== 'proyecto' || estado.tab !== 'chat') salirDelChat();   // v0.9.0: la proxima vez que se vea el chat cuenta como «entrar»
+    // v0.42.0: el hilo tambien vive en Mensajes (#mensajes/f/<clave>); ahi el chat esta «en pantalla» y no se sale de el.
+    const chatEnMensajes = estado.pestana === 'mensajes' && !!(estado.mensajesSel && estado.mensajesSel.t === 'f');
+    if (!(estado.pestana === 'proyecto' && estado.tab === 'chat') && !chatEnMensajes) salirDelChat();   // v0.9.0: la proxima vez que se vea el chat cuenta como «entrar»
+    if (estado.pestana !== 'mensajes') devolverChat();   // v0.42.0: #tab-chat vuelve a la pestana del proyecto
     if (estado.pestana !== 'inicio') estado.nuevosInicio = null;   // v0.15.0: la proxima visita a Inicio fija otro conjunto de «Nuevo para ti»
-    document.body.classList.toggle('is-chat', estado.pestana === 'proyecto' && estado.tab === 'chat');   // v0.15.0: en celular el FAB se esconde en el chat
+    document.body.classList.toggle('is-chat', (estado.pestana === 'proyecto' && estado.tab === 'chat') || chatEnMensajes);   // v0.15.0: en celular el FAB se esconde en el chat
     pintarInsignias();
     pintarRailEquipos();
     if (estado.pestana === 'inicio') pintarInicio();
@@ -983,6 +997,7 @@ $('npCancelar').addEventListener('click', () => cerrarDialogo('dlgProyecto'));
 engancharTablero();
 engancharDocs();
 engancharChat();
+engancharMensajes();   // v0.42.0
 engancharRoadmap(); engancharCalendario(); engancharArchivos(); engancharReportes();   // v0.10.0 · v0.26.0 roadmap a pantalla completa
 for (const b of document.querySelectorAll('.ir-movil')) b.addEventListener('click', () => { $('menuMovil').open = false; irA(b.dataset.ir); });   // v0.10.0: Roadmap · Archivos · Reportes no caben en la barra del celular
 $('btnActividadInicio').addEventListener('click', () => abrirActividad(null));

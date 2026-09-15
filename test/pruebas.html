@@ -1266,8 +1266,26 @@ try {
             filas('actividad').push({ id: DB.siguienteId++, fields: { Title: 'mensaje nuevo para la bandeja', Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date(Date.now() + 1000).toISOString(), ProyectoId: proyectoId } });
             await recargarYEsperar(); await dormir(30);
             R.ok('v0.10.0: un comentario ajeno posterior a la visita enciende la insignia del rail y marca el renglón como nuevo', !$('nMensajes').hidden && $('nMensajes').textContent === '1' && document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`).classList.contains('is-nuevo') && $('mensajesSub').textContent.includes('1 mensaje(s) nuevo(s)'));
-            document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`).click(); await esperar(() => visible('tab-chat') && location.hash === `#p/${CLAVE}/chat`, 'chat desde la bandeja');
-            R.ok('v0.10.0: el renglón abre el chat del frente y la insignia se apaga al leerlo', visible('tab-chat') && $('nMensajes').hidden);
+            // v0.42.0 (Carlos, 14-sep; artifact 17j5wESZ): el renglon ya NO salta al proyecto — el hilo abre a la derecha, dentro de Mensajes.
+            document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`).click(); await esperar(() => visible('tab-chat') && location.hash === `#mensajes/f/${CLAVE}`, 'hilo dentro de Mensajes'); await dormir(30);
+            R.ok('v0.42.0: el renglón abre el hilo del frente DENTRO de Mensajes (#mensajes/f/<clave>), alojando el mismo #tab-chat, y la insignia se apaga al leerlo', visible('p-mensajes') && visible('tab-chat') && $('tab-chat').parentNode === $('mensajesHilo') && $('nMensajes').hidden && $('chatHilo').textContent.includes('mensaje nuevo para la bandeja') && document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`).classList.contains('is-on'), location.hash);
+            R.ok('v0.42.0: la bandeja va en tres secciones —Personas · Frentes · Sin conversación (plegada)— y Personas lista a Colega con su chip Teams', [...document.querySelectorAll('#mensajesLista .msj-sec')].map(d => d.dataset.sec).join(',') === 'personas,frentes,sin' && !document.querySelector('#mensajesLista .msj-sec[data-sec="sin"]').open && !!document.querySelector('#mensajesLista [data-persona="colega@example.invalid"] .mn-chip.is-info'));
+            if (!$('formChat').classList.contains('oculto')) {
+                // enviar desde Mensajes escribe en ESE frente (proyectoChat), no en estado.proyectoAbierto
+                const nAct = filas('actividad').length; poner('chatTexto', 'respuesta desde la bandeja'); clic('chatEnviar'); await esperar(() => filas('actividad').length === nAct + 1, 'enviado desde Mensajes');
+                const nuevo = filas('actividad')[filas('actividad').length - 1].fields;
+                // (el ajeno de arriba lleva Cuando = ahora + 1 s, asi que en el hilo queda DEBAJO del mio: se busca el mio, no el ultimo)
+                R.ok('v0.42.0: enviar desde el hilo de Mensajes crea el comentario en el frente elegido y se pinta como mío', Number(nuevo.ProyectoId) === proyectoId && nuevo.Accion === 'comentar' && [...document.querySelectorAll('#chatHilo .msg.is-mio')].some(m => m.textContent.includes('respuesta desde la bandeja')));
+            }
+            document.querySelector('#mensajesLista [data-persona="colega@example.invalid"]').click(); await esperar(() => location.hash === '#mensajes/d/colega' && visible('mensajesFicha'), 'ficha de Colega');
+            const aTeams = document.querySelector('#mensajesFicha a[data-teams="colega@example.invalid"]');
+            R.ok('v0.42.0: una persona abre su FICHA (no un chat en la app) con la liga al chat 1:1 de Teams en pestaña nueva, y el hilo se esconde', visible('mensajesFicha') && !visible('mensajesHilo') && !!aTeams && aTeams.href === 'https://teams.microsoft.com/l/chat/0/0?users=colega%40example.invalid' && aTeams.target === '_blank' && /noopener/.test(aTeams.rel) && $('mensajesFicha').textContent.includes('Colega Demo'));
+            poner('mensajesBusca', 'example'); await dormir(20);   // solo casa con el CORREO de Colega: el frente LAU compara título, clave, último mensaje y nombre de quien lo escribió
+            R.ok('v0.42.0: el buscador filtra la bandeja (Colega sí, el frente LAU no) y despliega «Sin conversación»', !!document.querySelector('#mensajesLista [data-persona="colega@example.invalid"]') && !document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`) && document.querySelector('#mensajesLista .msj-sec[data-sec="sin"]').open);
+            poner('mensajesBusca', ''); await dormir(20);
+            irHash(`#p/${CLAVE}/chat`); await esperar(() => visible('tab-chat') && visible('p-proyecto'), 'chat del proyecto'); await dormir(30);
+            R.ok('v0.42.0: volver a la pestaña Chat del proyecto devuelve #tab-chat a su lugar (dentro de #p-proyecto) con el hilo pintado', $('p-proyecto').contains($('tab-chat')) && document.querySelectorAll('#chatHilo .msg').length > 0);
+            irHash('#mensajes'); await esperar(() => visible('p-mensajes'), 'mensajes'); await dormir(20);
             R.ok('v0.29.1: una insignia del rail con .hidden NO se pinta (la piel le pone display: inline-grid y pisaba el [hidden]: se veía «0»)', ['nMensajes', 'nMis', 'nProyectos'].every(id => !$(id).hidden || getComputedStyle($(id)).display === 'none'), ['nMensajes', 'nMis', 'nProyectos'].map(id => `${id}:${$(id).hidden}/${getComputedStyle($(id)).display}`).join(' '));
             // ---- v0.15.0 (2026-09-13, auditoría como usuario): el mismo canal — marca compartida, ✓ visto, Nuevo para ti, Las que delegué.
             {

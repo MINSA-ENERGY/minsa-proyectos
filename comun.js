@@ -3,9 +3,9 @@
 // la bitacora PROY_Actividad.
 
 import { CONFIG } from './config.js';
-import { PUEDE, iniciales, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe } from './reglas.js';
+import { PUEDE, iniciales, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion } from './reglas.js';
 
-export const VERSION = '0.41.0';
+export const VERSION = '0.42.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -13,6 +13,7 @@ export const estado = {
     cuenta: null, token: null, cliente: null, siteId: null, rol: 'lectura',
     proyectos: [], tareas: [], ligas: [], roles: [], actividad: [],
     proyectoAbierto: null,   // renglon de PROY_Proyectos
+    mensajesSel: null, buscaMensajes: '',   // v0.42.0: lo elegido en Mensajes ({t:'f'|'d', k: clave | correo}) y su buscador
     pestana: 'inicio', tab: 'tablero',
     filtroEquipo: null,
     // v0.3.0: filtro y orden dentro del proyecto (F9/F10), columna visible en celular (U5), filtro de Mis tareas (U3)
@@ -217,6 +218,8 @@ export function hashDe(tareaId) {
         h = '#p/' + estado.proyectoAbierto.Clave;
         if (estado.tab && estado.tab !== 'tablero') h += '/' + estado.tab;
     } else h = '#' + (estado.pestana || 'inicio');
+    // v0.42.0: Mensajes lleva lo elegido (el hilo de un frente o la ficha de una persona, por su alias de @mencion)
+    if (estado.pestana === 'mensajes' && estado.mensajesSel) h += estado.mensajesSel.t === 'f' ? `/f/${estado.mensajesSel.k}` : `/d/${aliasParaMencion(estado.mensajesSel.k, estado.roles) || String(estado.mensajesSel.k).split('@')[0]}`;
     if (tareaId) h += '/t/' + tareaId;
     return h;
 }

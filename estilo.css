@@ -1163,7 +1163,38 @@ body.sin-scroll { overflow: hidden; }
 .cal-detalle { display: grid; gap: var(--sp-1); } .cal-detalle h2 { margin-bottom: var(--sp-1); }
 .cal-detalle .cal-it { font-size: .82rem; padding: 6px 8px; min-height: 36px; }
 .cal-agenda { display: none; }
-/* ---- mensajes: bandeja */
+/* ---- mensajes: bandeja + hilo (v0.42.0, artifact 17j5wESZ). Dos columnas: la bandeja (secciones plegables) y lo elegido.
+   En ≤ 900 (tableta y celular) se ve UNA columna a la vez: la bandeja, o el hilo/ficha con «← Bandeja» arriba. */
+.msj { display: grid; grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); gap: var(--sp-4); align-items: start; }
+.msj-izq { display: grid; gap: var(--sp-2); min-width: 0; }
+.msj-izq .buscador { height: var(--control-h-sm); padding: 0 var(--sp-3); border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); font: inherit; font-size: .85rem; width: 100%; }
+.msj-der { min-width: 0; display: grid; gap: var(--sp-3); align-content: start; }
+.msj-volver { display: none; justify-self: start; }
+.msj-vacio { color: var(--text-faint); font-size: .9rem; margin: 0; padding: var(--sp-4); border: 1px dashed var(--border-default); border-radius: var(--r-md); }
+.msj-hilo .chat { padding-bottom: 0; }   /* el hueco del FAB es de la pestana del proyecto, no de aqui */
+.msj-sec > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) 0 var(--sp-1); font-family: var(--font-data); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); min-height: 36px; }
+.msj-sec > summary::-webkit-details-marker { display: none; }
+.msj-sec > summary::before { content: "▾"; font-size: .8rem; color: var(--text-faint); width: 10px; }
+.msj-sec:not([open]) > summary::before { content: "▸"; }
+.msj-sec > summary .cnt { margin-left: auto; letter-spacing: 0; color: var(--text-faint); }
+.msj-sec > .vacio { color: var(--text-faint); font-size: .82rem; margin: 0; padding: var(--sp-1) 0 var(--sp-2); }
+.msj-sec + .msj-sec { border-top: 1px solid var(--border-hairline); }
+.msg-proy.is-on { background: var(--surface-selected); margin: 0 calc(-1 * var(--sp-3)); padding-left: var(--sp-3); padding-right: var(--sp-3); width: calc(100% + 2 * var(--sp-3)); border-radius: var(--r-sm); }   /* el relleno cubre el renglon entero: el boton en grid no crece solo con width:auto (captura 14-sep) */
+.msg-proy .t > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* «LAU ASEA-03-001 (Licenc» se cortaba sin puntos: el span interno del inline-flex no heredaba la elipsis */
+.msg-pers .avw { position: relative; display: inline-grid; } .msg-pers .avw .punto { position: absolute; right: -2px; bottom: -2px; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--surface-card); background: var(--text-faint); }
+.msg-pers .avw .punto.is-hoy { background: var(--status-ok-solid); } .msg-pers .avw .punto.is-semana { background: var(--status-warn-solid); }
+.msg-pers .m { color: var(--text-muted); }
+.msj-ficha { display: grid; gap: var(--sp-3); }
+.msj-ficha .top { display: flex; gap: var(--sp-3); align-items: center; } .msj-ficha .top .av { width: 44px; height: 44px; font-size: .95rem; }
+.msj-ficha .top .n { margin: 0; font-size: 1.15rem; } .msj-ficha .top .r, .msj-ficha .top .c { margin: 0; font-size: .82rem; color: var(--text-muted); }
+.msj-ficha .teams .acciones { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-2); }
+.msj-ficha .teams .acciones a { text-decoration: none; }
+@media (max-width: 900px) {
+  .msj { grid-template-columns: 1fr; }
+  .msj.is-hilo .msj-izq { display: none; }
+  .msj:not(.is-hilo) .msj-der { display: none; }
+  .msj.is-hilo .msj-volver { display: inline-flex; }
+}
 .bandeja { gap: 0; background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-md); padding: 0 var(--sp-3); }
 .msg-proy { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; width: 100%; padding: var(--sp-3) 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .msg-proy:first-child { border-top: 0; } .msg-proy:hover { background: var(--surface-hover); }
