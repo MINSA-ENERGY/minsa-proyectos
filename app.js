@@ -101,14 +101,15 @@ async function refrescarCliente() {
     estado.cliente = crearCliente(CONFIG.graph, async () => { try { estado.token = await token(); } catch (_) { /* se queda el ultimo */ } return estado.token; });
 }
 /* A5 (2026-09-12): el correo + rol en un solo span se partia a media palabra («gerenci / a»).
-   Ahora: nombre en negrita, rol como chip, correo en el title. */
+   Ahora: nombre en negrita, correo en el title. v0.48.0: el rol es un ROTULO DE DATOS (`.rol`, mono y
+   versalitas como «EQUIPOS»), ya no un chip celeste — es un dato de la sesion, no un estado. */
 function ponerQuien(texto) {
     const rol = texto.includes(' · ') ? texto.split(' · ').pop() : '';
     const correo = texto.split(' · ')[0];
     for (const q of document.querySelectorAll('.quien')) {
         q.textContent = ''; q.title = correo;
         q.appendChild(el('b', '', nombreDe(correo, estado.roles)));
-        if (rol) { const c = el('div'); c.appendChild(chip(rol, rol === 'gerencia' ? 'info' : null)); q.appendChild(c); }
+        if (rol) q.appendChild(el('span', 'rol', rol));
     }
     $('rolMovil').textContent = rol;
 }
@@ -116,7 +117,7 @@ function pintarSync(leyendo = false) {
     const t = Date.now() - estado.cargadoEl;
     const hace = !estado.cargadoEl ? '' : t < 60000 ? `hace ${Math.max(1, Math.round(t / 1000))} s` : t < 3600000 ? `hace ${Math.round(t / 60000)} min` : `hace ${Math.round(t / 3600000)} h`;
     for (const x of document.querySelectorAll('.sync')) {
-        x.textContent = leyendo ? 'Leyendo las listas…' : estado.cargadoEl ? `Al día · leído ${hace}` : '';
+        x.textContent = 'corto' in x.dataset ? (leyendo ? 'leyendo…' : hace) : leyendo ? 'Leyendo las listas…' : estado.cargadoEl ? `Al día · leído ${hace}` : '';   // v0.48.0: dentro del menu «···» solo cabe «hace N min»
         x.classList.toggle('viejo', !leyendo && t > 300000);
     }
 }

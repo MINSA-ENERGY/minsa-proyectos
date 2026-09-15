@@ -157,10 +157,17 @@
 .kv .proy { display: inline-flex; align-items: center; gap: var(--sp-1); flex-wrap: wrap; }
 .kv .proy .eqi { vertical-align: middle; }
 .rail .sesion { margin-top: auto; padding: var(--sp-3) var(--sp-2) 0; border-top: 1px solid var(--border-hairline); display: grid; gap: var(--sp-2); font-size: .8rem; color: var(--text-muted); }
-/* A5: el nombre en negrita + el rol como chip; el correo va en el title. `break-all` partia
+/* A5: el nombre en negrita; el correo va en el title. `break-all` partia
    «gerencia» en «gerenci» + «a»; `anywhere` solo parte cuando de verdad no cabe. */
-.rail .sesion .quien { overflow-wrap: anywhere; color: var(--text-strong); display: grid; gap: 2px; }
+.rail .sesion .quien { overflow-wrap: anywhere; color: var(--text-strong); display: grid; gap: 2px; min-width: 0; }
 .rail .sesion .quien b { font-weight: 600; }
+/* v0.48.0 (Carlos, 15-sep; artifact M3B6fy3g «A4»): el rol es un ROTULO DE DATOS — la misma metrica que el rotulo
+   «EQUIPOS» del rail (mono, versalitas, gris). Antes era `mn-chip is-info`: el unico celeste de toda la columna. */
+.rail .sesion .quien .rol { font-family: var(--font-data); font-size: .64rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 500; color: var(--text-muted); }
+/* v0.48.0: renglon 1 = nombre/rol + «···» a la derecha; renglon 2 = el tema como segmento a todo el ancho. */
+.rail .sesion-fila { display: flex; align-items: center; gap: var(--sp-2); }
+.rail .sesion-fila .quien { flex: 1; }
+.rail .sesion-fila .menu-rail { flex: none; }
 /* Auditoria 2026-09-12 (#1, #13): el pie del rail tenia tres botones distintos lado a lado —«Actualizar»
    sin borde y gris, «···» en 700, sol/luna con filete tenue— porque `.mn-rail button` (0,1,1) pisa a
    `.mn-btn` (0,1,0) en borde, fondo, color y gap. Todo control del rail que sea `.mn-btn` vuelve al
@@ -170,18 +177,31 @@
 .rail .mn-btn { border: 1px solid var(--border-default); background: var(--surface-card); color: var(--text-body); justify-content: center; gap: var(--sp-2); }
 .rail .mn-btn:hover { background: var(--surface-hover); }
 /* D6 (v0.6.0): el pie del rail apilaba seis controles en dos renglones; Equipo, Ver en SharePoint y
-   Salir van en un menu «···» que abre HACIA ARRIBA (el rail termina en el borde de la ventana). */
+   Salir van en un menu «···» que abre HACIA ARRIBA (el rail termina en el borde de la ventana).
+   v0.48.0: Actualizar entra tambien al menu, con la hora de la ultima lectura (`.sync`) a su derecha; el menu
+   abre pegado al borde derecho del rail porque el «···» ya vive ahi. */
 .menu-rail { position: relative; }
 .menu-rail > summary { list-style: none; cursor: pointer; letter-spacing: .1em; }
 .menu-rail > summary::-webkit-details-marker { display: none; }
-.menu-rail .menu-caja { position: absolute; left: 0; bottom: calc(100% + 4px); z-index: var(--z-pop); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); padding: var(--sp-2); display: grid; gap: var(--sp-2); min-width: 190px; }
+.menu-rail .menu-caja { position: absolute; right: 0; bottom: calc(100% + 4px); z-index: var(--z-pop); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); padding: var(--sp-2); display: grid; gap: var(--sp-2); min-width: 210px; }
 .menu-caja .salir { margin-top: var(--sp-1); }
+.menu-caja #btnActualizar { justify-content: flex-start; }
+.menu-caja #btnActualizar .sync { margin-left: auto; padding-left: var(--sp-2); white-space: nowrap; }
+.menu-caja #btnActualizar .sync:empty { display: none; }
 .sync { font-size: .72rem; color: var(--text-faint); }
 .sync.viejo { color: var(--status-warn-fg); }
 .tema { display: inline-flex; gap: var(--sp-1); margin-left: auto; }
 .tema .mn-btn { color: var(--text-muted); }
 .tema button[aria-pressed="true"] { color: var(--brand-primary); border-color: var(--brand-primary); }
 .tema svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+/* v0.48.0: SEGMENTO Claro | Oscuro en el rail — caja hundida, el activo es pastilla de tarjeta con sombra corta
+   (la misma pastilla que la pestana activa). Solo el rail lo lleva (`.tema.seg`); el menu movil conserva sus dos iconos. */
+.rail .tema.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; margin: 0; padding: 2px; background: var(--surface-sunken); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); }
+.rail .tema.seg .mn-btn { min-height: 26px; height: 26px; padding: 0 var(--sp-2); border: 0; border-radius: 4px; background: transparent; color: var(--text-muted); font-size: .76rem; gap: var(--sp-1); }
+.rail .tema.seg .mn-btn svg { width: 14px; height: 14px; }
+.rail .tema.seg button[aria-pressed="true"] { background: var(--surface-card); color: var(--text-strong); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.rail .tema.seg .mn-btn:hover { background: var(--surface-hover); }
+.rail .tema.seg button[aria-pressed="true"]:hover { background: var(--surface-card); }
 
 /* ---- v0.28.0: rail PLEGABLE en escritorio (Carlos, 14-sep). `.app.rail-plegado` deja 64 px con solo
    iconos: los rotulos, la marca, el nombre y el sync se ocultan; los contadores saltan a la esquina
@@ -201,15 +221,15 @@
   .rail-plegado .rail .plegar { margin-left: 0; }
   .rail-plegado .rail .plegar svg { transform: rotate(180deg); }
   .rail-plegado .rail nav button > span, .rail-plegado .rail .equipos .rama, .rail-plegado .rail .equipos button > span:not(.eqi):not(.n),
-  .rail-plegado .rail .sesion .quien, .rail-plegado .rail .sesion .sync, .rail-plegado .rail #btnActualizar > span { display: none; }
+  .rail-plegado .rail .sesion .quien, .rail-plegado .rail .tema.seg .mn-btn > span { display: none; }
   .rail-plegado .rail nav button, .rail-plegado .rail .equipos button { position: relative; justify-content: center; padding: 0; gap: 0; }
   .rail-plegado .rail .equipos { gap: 2px; }
   .rail-plegado .rail .mn-rail-hot { position: absolute; top: 2px; right: 2px; margin: 0; }
   .rail-plegado .rail .equipos .n { position: absolute; top: 0; right: 0; margin: 0; }
   .rail-plegado .rail .sesion { padding-inline: 0; }
-  .rail-plegado .rail .sesion-botones { flex-direction: column; align-items: stretch; }
-  .rail-plegado .rail .sesion-botones .tema { margin-left: 0; flex-direction: column; }
-  .rail-plegado .rail #btnActualizar { padding: 0; }
+  .rail-plegado .rail .sesion-fila { justify-content: center; }
+  .rail-plegado .rail .tema.seg { grid-auto-flow: row; grid-auto-columns: auto; }   /* v0.48.0: el segmento se apila (sol / luna) a 64 px */
+  .rail-plegado .rail .tema.seg .mn-btn { padding: 0; }
   .rail-plegado .rail .menu-rail > summary { width: 100%; }
 }
 #btnActualizar .ico { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
