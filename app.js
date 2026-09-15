@@ -440,8 +440,9 @@ function fraseMarcada(texto) {
  * reconstruida por _creado/HechoEl) y un sparkline de 8 dias; y UNA COLA por urgencia (reglas.js: gruposHoy) con el mismo
  * esqueleto por renglon —punto de estado · titulo · frente y dato · avatar · Abrir/Ver—: vencidas · hoy y manana · nuevo
  * para ti · te mencionaron · esta semana · sin dueño. «Proyectos activos» ya lo dice el saludo y «sin dueño» es un grupo
- * de la cola (solo si hay). Proyectos activos y Actividad reciente siguen debajo; la lateral trae Fines de frente y Sin
- * movimiento (las Acciones rapidas de v0.18.0 salieron en v0.38.0).
+ * de la cola (solo si hay). v0.39.0 («Una sola columna»): sin lateral — bandas a lo ancho, 5 KPI (+ sin dueño y sin
+ * movimiento, planos), la cola en dos mitades, fichas a 2 columnas, Actividad | Sin movimiento; Fines de frente salio
+ * (las Acciones rapidas de v0.18.0 salieron en v0.38.0).
  */
 function pintarInicio() {
     const ahora = new Date();
@@ -477,26 +478,26 @@ function pintarInicio() {
     kpi(mias.length, 'mías abiertas', 'info', { kpi: 'mis', a: 'mis', mis: null }, 'abiertas', false);
     kpi(s7, 'vencen en 7 d', s7 ? 'warn' : null, { kpi: 'pronto', a: 'mis', mis: 'pronto' }, 'pronto', true);
     kpi(ven, 'vencidas', ven ? 'danger' : 'ok', { kpi: 'vencidas', a: 'mis', mis: 'vencidas' }, 'vencidas', true);
+    // v0.39.0 («Una sola columna»): dos KPI GLOBALES mas, sin tendencia — serieKpis reconstruye lo mio por dia y estos dos no
+    // tienen serie —: «sin dueño» salta al proyecto que mas tiene con el filtro puesto (el mismo salto del grupo de la cola)
+    // y «sin movimiento» baja a su tarjeta. Cuentan lo mismo que la cola y la tarjeta de abajo (misma `abiertas`).
+    const quietas = sinMovimiento(abiertas, CONFIG.sinMovimientoDias, ahora, columnasDeTarea);
+    const huerfanas = sinDueno(abiertas);
+    const kpiPlano = (v, l, cls, llave, alClic) => {
+        const d = el('button', 'mn-kpi is-plano' + (v ? ' is-clickable' : '') + (cls ? ' is-' + cls : '')); d.type = 'button'; d.dataset.kpi = llave; d.disabled = !v;
+        d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v)));
+        d.addEventListener('click', alClic); k.appendChild(d);
+    };
+    kpiPlano(huerfanas.length, 'sin dueño', huerfanas.length ? 'warn' : null, 'sin-dueno', () => huerfanas.length ? irASinDueno(huerfanas) : irA('reportes'));
+    kpiPlano(quietas.length, 'sin movimiento', quietas.length ? 'warn' : null, 'sin-mov', () => { const c = $('cardSinMov'); if (!c.classList.contains('oculto')) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     pintarCola(abiertas);
     const lp = $('inicioProyectos');
     pintarFichas(lp, ordenarProyectos(activos()));   // C10 · v0.25.0: los mismos renglones «calendario de mes» que en Proyectos
     if (!activos().length) lp.appendChild(el('p', 'vacio', PUEDE.proyecto(estado.rol) ? 'Sin proyectos activos: crea el primero en Proyectos.' : 'Sin proyectos activos todavía.'));
     // C9: tambien estos renglones abren su tarjeta (el revisor vio la inconsistencia con la actividad).
     const abrirT = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; };
-    // v0.21.0: fines de frente — los activos CON fecha, del mas proximo al mas lejano (4); el renglon abre el proyecto.
-    const fi = $('inicioFines'); fi.textContent = '';
-    const conFin = ordenarProyectos(activos()).filter(p => diasPara(p.Vence) !== null).slice(0, 4);
-    for (const p of conFin) {
-        const d = diasPara(p.Vence), a = avance(tareasDe(p, estado.tareas), columnasDe(p));
-        const it = el('button', 'it clic'); it.type = 'button'; it.dataset.fin = String(p.id); it.title = 'Abrir el proyecto'; it.addEventListener('click', () => abrirProyecto(p.id));
-        it.appendChild(chip(d < 0 ? `${-d} d tarde` : d === 0 ? 'hoy' : `${d} d`, d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : null));
-        const c = el('div'); c.appendChild(el('span', 'q', p.Title));
-        c.appendChild(el('div', 'w', `${fechaCorta(p.Vence)} · ${a.hechas}/${a.total} hechas${a.total ? ` · ${a.pct} %` : ''}`)); it.appendChild(c);
-        fi.appendChild(it);
-    }
-    $('cardFines').classList.toggle('oculto', conFin.length === 0);
+    // v0.39.0: «Fines de frente» (v0.21.0) salio con la lateral — la hoja de calendario de cada ficha ya trae fecha y semaforo.
     const sm = $('inicioSinMov'); sm.textContent = '';
-    const quietas = sinMovimiento(abiertas, CONFIG.sinMovimientoDias, ahora, columnasDeTarea);
     for (const t of quietas.slice(0, 6)) { const p = porId(estado.proyectos, t.ProyectoId); sm.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', `${-diasPara(t.Desde)} d`, 'warn', abrirT(t))); }
     $('cardSinMov').classList.toggle('oculto', quietas.length === 0);
     const act = $('inicioActividad'); act.textContent = '';
@@ -535,7 +536,10 @@ function sparkline(vals) {
  * es de nadie y sale siempre; «nuevo para ti» y «te mencionaron» son mios por definicion.
  */
 function pintarCola(abiertas) {
-    const lista = $('inicioHoy'); lista.textContent = '';
+    // v0.39.0: la cola va en DOS mitades (#inicioUrgente | #inicioResto) dentro de #inicioHoy; `lista` apunta a la que se
+    // esta llenando. Izquierda: vencidas · hoy y mañana · sin dueño. Derecha: nuevo para ti · te mencionaron · esta semana.
+    const urgente = $('inicioUrgente'), resto = $('inicioResto'); urgente.textContent = ''; resto.textContent = '';
+    let lista = urgente;
     const yoCorreo = estado.cuenta.username.toLowerCase();
     const fil = $('hoyFiltro'); fil.textContent = '';
     for (const [texto, mias] of [['todo el frente', false], ['solo mías', true]]) {
@@ -580,6 +584,7 @@ function pintarCola(abiertas) {
     let total = 0;
     if (g.vencidas.length) { grupo('vencidas', 'Vencidas', g.vencidas.length, 'danger'); pintarGrupo(g.vencidas, 'danger', estado.hoySoloMias ? 'ver en Mis tareas' : 'ver en Reportes', () => { if (estado.hoySoloMias) { estado.filtroMis = 'vencidas'; irA('mis'); } else irA('reportes'); }); total += g.vencidas.length; }
     if (g.hoy.length) { grupo('hoy', 'Hoy y mañana', g.hoy.length, 'warn'); pintarGrupo(g.hoy, 'warn', 'ver en el Calendario', () => irA('calendario')); total += g.hoy.length; }
+    lista = resto;
     if (nuevos.length) {
         grupo('nuevo', 'Nuevo para ti', nuevos.length, 'info');
         for (const x of nuevos.slice(0, 8)) {
@@ -598,20 +603,25 @@ function pintarCola(abiertas) {
     if (g.semana.length) { grupo('semana', 'Esta semana', g.semana.length, null); pintarGrupo(g.semana, null, 'ver en el Calendario', () => irA('calendario')); total += g.semana.length; }
     // C7 (v0.6.0): las tarjetas sin dueño no salen en Mis tareas de NADIE. El grupo solo existe si hay alguna; su encabezado
     // aterriza en el proyecto que mas tiene con el filtro «sin dueño» puesto (el mismo salto que tenia el KPI).
+    lista = urgente;
     if (huerfanas.length) {
-        grupo('sin-dueno', 'Sin dueño', huerfanas.length, 'warn', () => {
-            const porProyecto = new Map(); for (const t of huerfanas) porProyecto.set(t.ProyectoId, (porProyecto.get(t.ProyectoId) || 0) + 1);
-            const [pid] = [...porProyecto.entries()].sort((a, b) => b[1] - a[1])[0];
-            // El filtro se pone ENTERO: si ese proyecto ya estaba abierto, fijarProyectoAbierto no lo limpia
-            // y un «quien» previo se combinaria con «sin dueño» dejando el tablero vacio (revisor, 2026-09-12).
-            abrirProyecto(Number(pid)); estado.filtroTareas = { quien: [], alta: false, vencidas: false, sinDueno: true, texto: '' }; $('filtroTexto').value = ''; pintarProyecto();
-        });
+        grupo('sin-dueno', 'Sin dueño', huerfanas.length, 'warn', () => irASinDueno(huerfanas));
         lista.querySelector('[data-grupo="sin-dueno"]').dataset.kpi = 'sin-dueno';
         for (const t of huerfanas.slice(0, 6)) { const d = diasPara(t.Vence); lista.appendChild(renglon('warn', t.Title, `sin dueño${d === null ? '' : ' · ' + chipDias(t, d)} · ${tituloDe(t)}`, '', abrirTarea(t), { t: String(t.id), sinDueno: '1' })); }
         total += huerfanas.length;
     }
     $('nHoy').textContent = total ? String(total) : '';
-    if (!total) lista.appendChild(el('p', 'vacio', estado.hoySoloMias ? 'Nada urgente de lo tuyo: ni vencidas ni por vencer esta semana.' : 'Nada urgente: ni vencidas ni por vencer esta semana.'));
+    // Cada mitad vacia lo dice en su lugar; el «solo mías» sigue mandando en el texto de la izquierda.
+    if (!urgente.children.length) urgente.appendChild(el('p', 'vacio', estado.hoySoloMias ? 'Nada urgente de lo tuyo: ni vencidas ni para hoy.' : 'Nada urgente: ni vencidas ni para hoy, y todo tiene dueño.'));
+    if (!resto.children.length) resto.appendChild(el('p', 'vacio', estado.hoySoloMias ? 'Nada nuevo para ti ni tuyo por vencer esta semana.' : 'Nada nuevo para ti ni por vencer esta semana.'));
+}
+/** El salto de «sin dueño» (C7): al proyecto que mas tiene, con el filtro «sin dueño» puesto ENTERO — si ese proyecto ya
+ *  estaba abierto, fijarProyectoAbierto no lo limpia y un «quien» previo se combinaria dejando el tablero vacio (revisor, 12-sep).
+ *  v0.39.0: lo comparten el encabezado del grupo y el KPI plano. */
+function irASinDueno(huerfanas) {
+    const porProyecto = new Map(); for (const t of huerfanas) porProyecto.set(t.ProyectoId, (porProyecto.get(t.ProyectoId) || 0) + 1);
+    const [pid] = [...porProyecto.entries()].sort((a, b) => b[1] - a[1])[0];
+    abrirProyecto(Number(pid)); estado.filtroTareas = { quien: [], alta: false, vencidas: false, sinDueno: true, texto: '' }; $('filtroTexto').value = ''; pintarProyecto();
 }
 
 // ---------------------------------------------------------------- toda la actividad (F12) y el equipo (F13)

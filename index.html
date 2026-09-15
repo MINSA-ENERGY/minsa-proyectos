@@ -68,23 +68,23 @@
     <section id="p-inicio" class="pantalla oculto">
       <!-- v0.21.0 (iteracion 3, «Inicio Hoy»): el titulo es el saludo con nombre; la fecha, los frentes activos y el rol van debajo -->
       <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11l9-8 9 8v10H3z"/><path d="M9 21v-6h6v6"/></svg></span><h1 id="inicioSaludo">Inicio</h1><p class="sub" id="inicioSub"></p></header>
-      <div class="dos-columnas">
-        <div class="apilado">
-          <!-- v0.21.0: 3 KPI de lo MIO con tendencia contra ayer (antes 5 sin tendencia, a lo ancho) -->
-          <div class="mn-kpis kpis-hoy" id="inicioKpis"></div>
-          <!-- v0.21.0: UNA cola por urgencia — vencidas · hoy y manana · nuevo para ti · te mencionaron · esta semana · sin dueño —
-               que sustituye a «Nuevo para ti», «Te mencionaron» y «Proximos vencimientos» (tres tarjetas con tres formatos) -->
-          <section class="mn-card cola" id="cardHoy">
-            <div class="cola-cab"><h2>Hoy <span class="n" id="nHoy"></span></h2><div class="filtros grupo" id="hoyFiltro" role="group" aria-label="Qué tarjetas entran a la cola"></div></div>
-            <div class="cola-lista" id="inicioHoy"></div>
-          </section>
-          <section class="mn-card"><h2>Proyectos activos</h2><div class="lista" id="inicioProyectos"></div></section>
-          <!-- v0.14.0: la actividad vive en la columna ancha (bajo los proyectos), no apretada en la lateral de 340 px -->
+      <!-- v0.39.0 («Una sola columna», corte 5 del artifact S7pfEtW6, Carlos 2026-09-14): se fue la lateral de 340 px. Inicio son
+           BANDAS a todo lo ancho: 5 KPI · la cola partida en dos mitades (urgente | resto) · proyectos a 2 columnas · actividad | sin
+           movimiento. «Fines de frente» salio (la hoja de calendario de cada ficha ya trae la fecha y el color). -->
+      <div class="bandas">
+        <!-- v0.21.0: 3 KPI de lo MIO con tendencia contra ayer; v0.39.0: + «sin dueño» y «sin movimiento», globales y sin tendencia -->
+        <div class="mn-kpis kpis-hoy" id="inicioKpis"></div>
+        <!-- v0.21.0: UNA cola por urgencia — vencidas · hoy y manana · nuevo para ti · te mencionaron · esta semana · sin dueño —
+             que sustituye a «Nuevo para ti», «Te mencionaron» y «Proximos vencimientos» (tres tarjetas con tres formatos).
+             v0.39.0: la misma cola en DOS mitades lado a lado — izquierda lo urgente (vencidas · hoy y manana · sin dueño), derecha
+             el resto (nuevo para ti · te mencionaron · esta semana); #inicioHoy sigue envolviendo a las dos. -->
+        <section class="mn-card cola" id="cardHoy">
+          <div class="cola-cab"><h2>Hoy <span class="n" id="nHoy"></span></h2><div class="filtros grupo" id="hoyFiltro" role="group" aria-label="Qué tarjetas entran a la cola"></div></div>
+          <div class="cola-dos" id="inicioHoy"><div class="cola-lista" id="inicioUrgente"></div><div class="cola-lista" id="inicioResto"></div></div>
+        </section>
+        <section class="mn-card"><h2>Proyectos activos</h2><div class="lista dosc" id="inicioProyectos"></div></section>
+        <div class="dosmitad">
           <section class="mn-card"><h2>Actividad reciente <button class="mn-btn is-ghost is-sm ver-toda" id="btnActividadInicio" type="button">ver toda</button></h2><div class="mini" id="inicioActividad"></div></section>
-        </div>
-        <div class="apilado">
-          <!-- v0.21.0: los fines de frente mas proximos (dias · titulo · fecha y avance), solo si algun activo tiene fecha -->
-          <section class="mn-card oculto" id="cardFines"><h2>Fines de frente</h2><div class="mini fines" id="inicioFines"></div></section>
           <section class="mn-card" id="cardSinMov"><h2>Sin movimiento</h2><div class="mini" id="inicioSinMov"></div></section>
         </div>
       </div>
