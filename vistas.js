@@ -394,12 +394,13 @@ export function pintarArchivos() {
     if (!ligas.length) { cont.appendChild(el('p', 'vacio', estado.ligas.length ? 'Nada con ese filtro.' : 'Ningún documento ligado todavía.')); return; }
     // v0.17.0: una sola tabla (la de Docs del proyecto). v0.36.0 (Carlos, 14-sep): y el MISMO ARBOL de expediente que Docs
     // (.is-arbol.is-frentes), con una carpeta raiz mas arriba: proyecto > tarjeta > documento. Cada raiz se pliega; las llaves
-    // de estado.plegadasArchivos van prefijadas por proyecto («p7», «p7/0» = Del proyecto, «p7/t12» = tarjeta) porque los ids
+    // de estado.abiertasArchivos van prefijadas por proyecto («p7», «p7/0» = Del proyecto, «p7/t12» = tarjeta) porque los ids
     // de tarjeta y de proyecto se cruzan. Sin nodo de «tarjetas sin documentos»: aqui solo se encuentra, no se liga.
+    // v0.51.0 (Carlos, 15-sep): el arbol NACE TODO PLEGADO —el Set guarda lo abierto, no lo plegado— y la sesion recuerda lo que abriste.
     const porP = new Map(); for (const l of ligas) { const k = Number(l.ProyectoId); if (!porP.has(k)) porP.set(k, []); porP.get(k).push(l); }
     const tabla = tablaDocs({ orden: estado.ordenArchivos, alOrdenar: o => { estado.ordenArchivos = o; pintarArchivos(); }, sinTarjeta: true }); const tb = tabla.querySelector('tbody');   // v0.45.0: sin columna «Tarjeta», la carpeta ya la nombra
     tabla.classList.add('is-arbol', 'is-frentes');
-    const S = estado.plegadasArchivos; const plegada = k => S.has(k);
+    const S = estado.abiertasArchivos; const plegada = k => !S.has(k);
     const alPlegar = k => { if (S.has(k)) S.delete(k); else S.add(k); pintarArchivos(); };
     const llaves = [];
     for (const p of ordenarProyectos(estado.proyectos.filter(p => porP.has(p.id)))) {
@@ -412,8 +413,8 @@ export function pintarArchivos() {
     // v0.36.0: «Abrir todo» / «Plegar todo», como en Docs (v0.34.0); cada boton se apaga cuando no tiene nada que hacer.
     $('archivosTodo').hidden = false;
     $('archivosAbrirTodo').disabled = llaves.every(k => !plegada(k)); $('archivosPlegarTodo').disabled = llaves.every(k => plegada(k));
-    $('archivosAbrirTodo').onclick = () => { estado.plegadasArchivos = new Set(); pintarArchivos(); };
-    $('archivosPlegarTodo').onclick = () => { estado.plegadasArchivos = new Set(llaves); pintarArchivos(); };
+    $('archivosAbrirTodo').onclick = () => { estado.abiertasArchivos = new Set(llaves); pintarArchivos(); };
+    $('archivosPlegarTodo').onclick = () => { estado.abiertasArchivos = new Set(); pintarArchivos(); };
 }
 export function engancharArchivos() {
     $('archivosProyecto').addEventListener('change', () => { estado.filtroArchivos.proyectoId = $('archivosProyecto').value ? Number($('archivosProyecto').value) : null; pintarArchivos(); });
