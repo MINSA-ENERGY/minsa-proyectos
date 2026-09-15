@@ -86,8 +86,9 @@ export async function pintarDocs(p) {
     tabla.classList.add('is-arbol');
     const columnas = columnasDe(p);
     tb.appendChild(filaRaiz(p.Title, ligas.length, todas.length));
-    const plegada = k => estado.plegadasDocs.has(k);
-    const alPlegar = k => { if (estado.plegadasDocs.has(k)) estado.plegadasDocs.delete(k); else estado.plegadasDocs.add(k); pintarDocs(p); };
+    // v0.52.0 (Carlos, 15-sep): el arbol NACE TODO PLEGADO —el Set guarda lo abierto, no lo plegado, incluido el nodo de vacias—.
+    const plegada = k => !estado.abiertasDocs.has(k);
+    const alPlegar = k => { if (estado.abiertasDocs.has(k)) estado.abiertasDocs.delete(k); else estado.abiertasDocs.add(k); pintarDocs(p); };
     const { llaves } = filasDeExpediente(tb, p, ligas, { plegada, alPlegar, doc: l => ({ p, puede: puedeDe(l) }) });
     // Las tarjetas abiertas (no hechas) sin ningun documento: UN nodo, plegado por default, para que un frente de 30
     // tarjetas no llene el arbol de carpetas vacias y aun asi se vea cuantas van sin expediente. Solo sin filtro ni busqueda.
@@ -95,16 +96,16 @@ export async function pintarDocs(p) {
     if (!estado.filtroDocs && !estado.buscaDocs) {
         const conDocs = new Set(todas.map(l => Number(l.TareaId)).filter(Boolean));
         const vacias = tareasDe(p, estado.tareas).filter(t => t.Columna !== HECHO && !conDocs.has(t.id)).sort((a, b) => String(a.Title).localeCompare(String(b.Title)));
-        if (vacias.length) { hayVacias = true; const ab = estado.plegadasDocs.has(-1); tb.appendChild(filaVacias(vacias.length, ab, () => alPlegar(-1))); if (ab) for (const t of vacias) tb.appendChild(filaVacia(t, columnas, puede ? () => abrirLigar({ proyecto: p, tareaId: t.id }) : null)); }
+        if (vacias.length) { hayVacias = true; const ab = estado.abiertasDocs.has(-1); tb.appendChild(filaVacias(vacias.length, ab, () => alPlegar(-1))); if (ab) for (const t of vacias) tb.appendChild(filaVacia(t, columnas, puede ? () => abrirLigar({ proyecto: p, tareaId: t.id }) : null)); }
     }
     // v0.34.0: «Abrir todo» / «Plegar todo». Las llaves del arbol: 0 = Del proyecto, id de cada tarjeta con expediente, y
-    // -1 = el nodo de vacias, que va al reves (presente = ABIERTO). Cada boton se apaga cuando ya no tiene nada que hacer.
-    const todoPlegado = llaves.every(k => plegada(k)) && (!hayVacias || !estado.plegadasDocs.has(-1));
-    const todoAbierto = llaves.every(k => !plegada(k)) && (!hayVacias || estado.plegadasDocs.has(-1));
+    // -1 = el nodo de vacias (desde v0.52.0 con la misma regla: presente = ABIERTO). Cada boton se apaga cuando ya no tiene nada que hacer.
+    const todoPlegado = llaves.every(k => plegada(k)) && (!hayVacias || !estado.abiertasDocs.has(-1));
+    const todoAbierto = llaves.every(k => !plegada(k)) && (!hayVacias || estado.abiertasDocs.has(-1));
     $('docsTodo').hidden = false;
     $('docsAbrirTodo').disabled = todoAbierto; $('docsPlegarTodo').disabled = todoPlegado;
-    $('docsAbrirTodo').onclick = () => { estado.plegadasDocs = new Set(hayVacias ? [-1] : []); pintarDocs(p); };
-    $('docsPlegarTodo').onclick = () => { estado.plegadasDocs = new Set(llaves); pintarDocs(p); };
+    $('docsAbrirTodo').onclick = () => { estado.abiertasDocs = new Set(hayVacias ? [...llaves, -1] : llaves); pintarDocs(p); };
+    $('docsPlegarTodo').onclick = () => { estado.abiertasDocs = new Set(); pintarDocs(p); };
     cont.appendChild(tabla);
     // «En el buzon» en vivo: una consulta por liga de tipo buzon, cacheada por carga.
     if (bib) {
@@ -239,7 +240,7 @@ export function filaRaiz(titulo, n, total, { icono = null, plegada = false, alPl
     if (alAbrir) { const fila = el('div', 'raiz-fila'); fila.appendChild(cab); const b = boton('Documentos', 'mn-btn is-ghost is-sm ir-docs', alAbrir); b.title = 'Abrir Documentos del proyecto'; fila.appendChild(b); td.appendChild(fila); } else td.appendChild(cab);
     tr.appendChild(td); return tr;
 }
-/** v0.33.0: el nodo «N tarjetas abiertas sin documentos». Plegado por default: en estado.plegadasDocs la llave -1 significa ABIERTO. */
+/** v0.33.0: el nodo «N tarjetas abiertas sin documentos». Plegado por default: en estado.abiertasDocs la llave -1 significa ABIERTO (v0.52.0: como todas). */
 function filaVacias(n, abierto, alPlegar) {
     const tr = el('tr', 'vacias' + (abierto ? '' : ' is-plegada')); const td = el('td'); td.colSpan = COLUMNAS_DOCS.length;
     const cab = el('button', 'cab nodo is-vacio'); cab.type = 'button'; cab.setAttribute('aria-expanded', abierto ? 'true' : 'false'); cab.title = abierto ? 'Plegar' : 'Desplegar'; cab.addEventListener('click', alPlegar);

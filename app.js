@@ -284,7 +284,7 @@ function fijarProyectoAbierto(p) {
         estado.colMovil = null; estado.ordenLista = { col: 'vence', dir: 1 };   // v0.11.0: null = la primera cubeta del proyecto
         estado.hechoTodas = false; estado.filtroDocs = null; estado.buscaDocs = '';   // v0.17.0: el buscador de Docs tampoco viaja entre proyectos
         estado.ordenDocs = { col: 'del', dir: -1 };   // v0.18.0: ni su orden (una columna oculta en este panel no puede quedar mandando); v0.19.0: la del documento, que si se ve
-        estado.plegadasDocs = new Set();   // v0.33.0: ni que carpetas del arbol estan plegadas
+        estado.abiertasDocs = new Set();   // v0.52.0: ni que carpetas del arbol abriste (nace todo plegado)
     }
     estado.proyectoAbierto = p;
     // v0.13.1: la actividad de este proyecto se completa fuera de la ventana (chat y notas viejas); si trae algo
