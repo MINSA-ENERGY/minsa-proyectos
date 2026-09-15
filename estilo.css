@@ -1423,3 +1423,65 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .mn-field input[type="file"]::file-selector-button:hover { background: var(--surface-hover); }
 /* Documentos en la tarjeta: las tres acciones (Ligar · Subir · Pegar un enlace) con la misma caja; en 280 px envuelven. */
 .t-side .tdoc-acciones { gap: var(--sp-1); }
+
+/* ==== v0.33.0 (2026-09-14): Documentos del proyecto como ARBOL DE EXPEDIENTE (Carlos, artifact HMVvZx2L, opcion E de ocho) ==== */
+/* La misma .dtabla (columnas, orden, container queries, fichas en celular) con la clase is-arbol: el proyecto es la raiz
+   (tr.raiz), cada tarjeta una CARPETA (tr.pest > button.cab.nodo: caret + carpeta del color de la cubeta + nombre + cubeta +
+   vencimiento + conteo) que se pliega, los documentos cuelgan con linea de conexion (sangria + ::before en .c-nombre), y al
+   final el nodo «N tarjetas abiertas sin documentos» (tr.vacias) con sus hojas tr.doc.vacia. La lengüeta azul de v0.16.0
+   sigue viva en #archivos (sin is-arbol), donde el grupo es el proyecto. Descartadas en el artifact: A acordeon, B maestro-
+   detalle, C columnas, D fichas, F pestañas, G carriles por fecha, H indice fijo — no re-proponer. */
+.is-arbol { --sangria: 22px; min-width: 0; }   /* #docsLista es grid: sin esto el item toma su min-content, y el titulo nowrap de un nodo (407 px a 390, medido con --medir) ensancha la tabla entera */
+.is-arbol tr.raiz td { padding: var(--sp-2) var(--sp-3) 0; border-bottom: 0; }
+.is-arbol tr.raiz .cab { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); max-width: 100%; min-width: 0; font-family: var(--font-display); font-weight: 600; font-size: .95rem; color: var(--text-strong); white-space: normal; }
+.is-arbol tr.raiz .grupo-raiz { min-width: 0; overflow-wrap: anywhere; }
+.is-arbol tr.raiz .cab .n { font-family: var(--font-data); font-size: .68rem; font-weight: 400; color: var(--text-muted); }
+.is-arbol .cab .carpeta, .is-arbol .nombre .carpeta { width: 18px; height: 18px; flex: none; fill: var(--tono, var(--brand-primary)); stroke: none; }   /* .cab delante: `.pest .cab svg` (fill none, trazo) pesa 0,2,1 y ganaba */
+.cab .grupo { display: block; border: 0; border-radius: 0; background: none; }   /* v0.32.0 hizo de `.grupo` el marco de los filtros (borde + inline-flex); el titulo del grupo de la tabla comparte el nombre desde v0.16.0 y se veia enmarcado (cazado en la captura oscura a 1366) */
+.is-arbol tr.raiz .cab .carpeta { fill: var(--brand-primary); }
+/* el nodo: sin lengüeta — el color va en la carpeta y el titulo en tinta, como un explorador de archivos */
+.is-arbol tr.pest td { padding: var(--sp-2) var(--sp-3) 0 calc(var(--sp-3) + var(--sangria)); }
+.is-arbol tr.pest + tr.doc td, .is-arbol tr.vacias + tr.doc td { border-top: 0; }
+.is-arbol .cab.nodo { background: none; color: var(--text-strong); border: 1px solid transparent; padding: 3px var(--sp-2) 3px 4px; cursor: pointer; max-width: 100%; min-width: 0; }
+.is-arbol tr.raiz td, .is-arbol tr.pest td, .is-arbol tr.vacias td { white-space: normal; }   /* el td nowrap de .dtabla volveria min-content al titulo entero */
+.is-arbol .cab.nodo:hover, .is-arbol .cab.nodo:focus-visible { background: var(--surface-hover); border-color: var(--border-hairline); }
+.is-arbol .cab.nodo:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.is-arbol .cab.nodo .caret { width: 14px; height: 14px; flex: none; fill: none; stroke: var(--text-faint); stroke-width: 2.2; transform: rotate(90deg); transition: transform var(--dur-fast); }
+.is-plegada .cab.nodo .caret { transform: none; }
+.is-arbol .cab.nodo .grupo { color: var(--text-strong); white-space: normal; overflow-wrap: anywhere; }   /* el titulo de la tarjeta ENVUELVE en vez de recortarse: nowrap aqui es min-content de toda la tabla (tabla y grid lo respetan) */
+.is-arbol .cab.nodo .n { color: var(--text-muted); opacity: 1; }
+/* cubeta y vencimiento dentro del nodo: rotulo mono con el punto del color, y el chip de vence de la casa */
+.is-arbol .cubeta-de { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-data); font-size: .64rem; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; flex: none; }
+.is-arbol .cubeta-de::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--tono, var(--brand-primary)); flex: none; }
+.is-arbol .cab.nodo .mn-chip { flex: none; }
+/* color de la carpeta sin color elegido: por posicion de la cubeta (claseDeColumna), como los puntos del tablero */
+.is-arbol .is-p { --tono: var(--idle-solid); } .is-arbol .is-c { --tono: var(--brand-primary); } .is-arbol .is-r { --tono: var(--info-solid); } .is-arbol .is-h { --tono: var(--ok-solid); }
+.is-arbol .cab.nodo.is-vacio { color: var(--text-muted); } .is-arbol .cab.nodo.is-vacio .carpeta { fill: var(--border-default); }
+.is-arbol .grupo-vacio { font-family: var(--font-ui); font-size: .84rem; }
+.is-arbol tr.pest.is-proyecto .cab.nodo { background: none; border-color: transparent; color: var(--text-strong); } .is-arbol tr.pest.is-proyecto .cab.nodo:hover { background: var(--surface-hover); border-color: var(--border-hairline); }
+.is-arbol tr.pest.is-proyecto .cab.nodo .carpeta { fill: var(--idle-solid); }
+/* la hoja: sangria doble y la linea de conexion (vertical desde la carpeta + ramal horizontal) dibujada en la celda del nombre */
+.is-arbol tr.doc td.c-nombre { position: relative; padding-left: calc(var(--sp-3) + var(--sangria) * 2); }
+.is-arbol tr.doc td.c-nombre::before { content: ""; position: absolute; left: calc(var(--sp-3) + var(--sangria) + 6px); top: 0; bottom: 0; width: 14px; border-left: 1px solid var(--border-default); }
+.is-arbol tr.doc td.c-nombre::after { content: ""; position: absolute; left: calc(var(--sp-3) + var(--sangria) + 6px); top: 50%; width: 12px; border-top: 1px solid var(--border-default); }
+.is-arbol tr.doc:last-child td.c-nombre::before, .is-arbol tr.doc:has(+ tr.pest) td.c-nombre::before, .is-arbol tr.doc:has(+ tr.vacias) td.c-nombre::before { bottom: 50%; }   /* la ultima hoja cierra la rama */
+.is-arbol tbody tr.doc:nth-of-type(even) td { background: none; }   /* sin cebra: la rama ya separa, y la banda cortaria la linea */
+.is-arbol tr.doc:hover td { background: var(--surface-hover); }
+/* la hoja VACIA (tarjeta sin expediente): carpeta punteada + titulo + cubeta + vence + «Ligar aqui» en una celda ancha */
+.is-arbol tr.doc.vacia td { padding-left: calc(var(--sp-3) + var(--sangria) * 2); position: relative; }
+.is-arbol tr.doc.vacia td::before { content: ""; position: absolute; left: calc(var(--sp-3) + var(--sangria) + 6px); top: 0; bottom: 0; width: 14px; border-left: 1px solid var(--border-default); }
+.is-arbol tr.doc.vacia td::after { content: ""; position: absolute; left: calc(var(--sp-3) + var(--sangria) + 6px); top: 50%; width: 12px; border-top: 1px solid var(--border-default); }
+.is-arbol tr.doc.vacia:last-child td::before { bottom: 50%; }
+.is-arbol tr.doc.vacia .nombre { display: flex; gap: var(--sp-2); align-items: center; min-width: 0; }
+.is-arbol tr.doc.vacia .carpeta { fill: color-mix(in srgb, var(--tono, var(--idle-solid)) 45%, var(--surface-card)); }
+.is-arbol tr.doc.vacia .t { font-weight: 500; color: var(--text-body); }
+/* en fichas apiladas (panel < 720): la sangria se reduce y la linea de conexion se va — la ficha ya tiene su borde */
+@container (max-width: 720px) {
+  .is-arbol { --sangria: 10px; }
+  .is-arbol tr.raiz { display: block; } .is-arbol tr.raiz td { display: block; padding: var(--sp-2) 0 0; }
+  .is-arbol tr.vacias { display: block; } .is-arbol tr.vacias td { display: block; padding: var(--sp-2) 0 var(--sp-1); }
+  .is-arbol tr.pest td { padding-left: 0; }
+  .is-arbol tr.doc td.c-nombre, .is-arbol tr.doc.vacia td { padding-left: 0; }
+  .is-arbol tr.doc td.c-nombre::before, .is-arbol tr.doc td.c-nombre::after, .is-arbol tr.doc.vacia td::before, .is-arbol tr.doc.vacia td::after { display: none; }
+  .is-arbol .cab.nodo { flex-wrap: wrap; }
+}
