@@ -875,6 +875,7 @@ try {
         // Lista.
         tab('lista'); await esperar(() => document.querySelector('#tab-lista tr.clic'), 'lista');
         R.ok('v0.11.0: la pestaña Lista ya no trae la columna «Origen en la KB» (el dato sigue en la lista) y la cabecera dice «Cubeta»', !document.querySelector('#tab-lista td.src') && ![...document.querySelectorAll('#tab-lista th')].some(x => x.textContent.includes('Origen')) && [...document.querySelectorAll('#tab-lista th')].some(x => x.textContent === 'Cubeta') && t.fields.Origen.includes('#renglon-7'));
+        R.ok('v0.59.0: la columna Cubeta de la Lista es texto plano (sin .mn-chip) y los renglones pares llevan la banda gris', !document.querySelector('#tab-lista tbody .mn-chip') && (document.querySelectorAll('#tab-lista tbody tr').length < 2 || getComputedStyle(document.querySelector('#tab-lista tbody tr:nth-child(2) td')).backgroundColor !== getComputedStyle(document.querySelector('#tab-lista tbody tr:nth-child(1) td')).backgroundColor), String(document.querySelectorAll('#tab-lista tbody tr').length));
         document.querySelector(`#tab-lista tr[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde la lista');
         R.ok('v0.11.0: la tarjeta no enseña «Origen»', !$('tKv').textContent.includes('Origen') && !$('tKv').textContent.includes('#renglon-7'));
         clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');

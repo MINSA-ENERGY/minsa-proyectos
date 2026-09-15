@@ -797,6 +797,8 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tabla th { text-align: left; font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; font-weight: 600; text-transform: uppercase; color: var(--text-muted); padding: var(--sp-2); border-bottom: 1px solid var(--border-hairline); }
 .tabla td { padding: var(--sp-2); border-bottom: 1px solid var(--border-hairline); vertical-align: top; }
 .tabla tr.clic { cursor: pointer; }
+/* v0.59.0: cebra blanco/gris en la lista del proyecto (Carlos, 15-sep); misma --banda que .dtabla */
+#tab-lista tbody tr:nth-child(even) td { background: var(--banda); }   /* solo la del proyecto: la de Equipo (.eq-tabla) se queda como estaba */
 .tabla tr.clic:hover td { background: var(--surface-hover); }
 /* F10: ordenar por columna */
 .tabla th[data-sort] { cursor: pointer; user-select: none; white-space: nowrap; }

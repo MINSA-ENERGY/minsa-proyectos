@@ -317,7 +317,7 @@ export function pintarLista(proyecto) {
         const tdp = el('td', 'col-p'); if (t.Prioridad === 'alta') { const p = el('i', 'p-alta'); p.setAttribute('role', 'img'); p.setAttribute('aria-label', 'Prioridad alta'); tdp.appendChild(p); tdp.title = 'Prioridad alta'; } r.appendChild(tdp);
         r.appendChild(el('td', '', t.Title));
         r.appendChild(el('td', '', t.Asignado ? nombreDe(t.Asignado, estado.roles) : '—'));
-        const tdc = el('td'); tdc.appendChild(chipColumna(t)); r.appendChild(tdc);
+        r.appendChild(el('td', '', nombreColumna(t)));   // v0.59.0: texto plano, sin chip (Carlos, 15-sep) — el chip sigue en tarjeta y Mis tareas
         r.appendChild(el('td', 'mn-mono', fechaCorta(t.Vence)));
         r.addEventListener('click', () => abrirTarjeta(t.id));
         tbody.appendChild(r);
