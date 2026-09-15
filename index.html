@@ -205,7 +205,7 @@
     <section id="p-archivos" class="pantalla oculto">
       <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg></span><h1>Archivos</h1><p class="sub" id="archivosSub"></p></header>
       <div class="mn-kpis" id="archivosKpis"></div>   <!-- v0.17.0 -->
-      <div class="archivos-filtros"><div class="filtros grupo" id="archivosTipo"></div><select id="archivosProyecto" aria-label="Proyecto"></select><input id="textoArchivos" class="buscador" type="search" placeholder="Buscar por nombre, ruta o dirección" aria-label="Buscar un archivo" autocomplete="off"></div>
+      <div class="archivos-filtros"><div class="filtros grupo" id="archivosTipo"></div><select id="archivosProyecto" aria-label="Proyecto"></select><!-- v0.36.0: abrir / plegar todas las carpetas del árbol, como en Documentos --><span class="arbol-todo" id="archivosTodo" hidden><button id="archivosAbrirTodo" class="mn-btn is-ghost is-sm" type="button" title="Desplegar todas las carpetas">Abrir todo</button><button id="archivosPlegarTodo" class="mn-btn is-ghost is-sm" type="button" title="Plegar todas las carpetas">Plegar todo</button></span><input id="textoArchivos" class="buscador" type="search" placeholder="Buscar por nombre, ruta o dirección" aria-label="Buscar un archivo" autocomplete="off"></div>
       <div class="docs"><div class="lista" id="archivosLista"></div></div>
     </section>
 

@@ -1448,6 +1448,16 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .is-arbol .cab.nodo:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
 .is-arbol .cab.nodo .caret { width: 14px; height: 14px; flex: none; fill: none; stroke: var(--text-faint); stroke-width: 2.2; transform: rotate(90deg); transition: transform var(--dur-fast); }
 .is-plegada .cab.nodo .caret { transform: none; }
+/* v0.36.0 (Carlos, 14-sep): #archivos es el MISMO arbol con una carpeta raiz mas arriba — una raiz PLEGABLE por proyecto
+   (tr.raiz > button.cab.nodo: caret + carpeta + icono del equipo + nombre + conteo) y, al lado, «Documentos» (.ir-docs) que
+   abre la pestaña del proyecto. Debajo cuelgan las mismas carpetas por tarjeta y hojas que Docs. Plegada la raiz, todo lo
+   suyo va hidden (lo pone docs.js). Entre proyectos, un hueco y un filete. */
+.is-arbol.is-frentes tr.raiz td { padding-bottom: var(--sp-1); }
+.is-arbol .raiz-fila { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); min-width: 0; }
+.is-arbol.is-frentes tr.raiz + tr.raiz td, .is-arbol.is-frentes tr:not(.raiz) + tr.raiz td { border-top: 1px solid var(--border-hairline); padding-top: var(--sp-3); }
+.is-arbol tr.raiz button.cab.nodo { display: inline-flex; flex: 1 1 auto; padding: 3px var(--sp-2) 3px 4px; white-space: normal; }
+.is-arbol tr.raiz .cab .eqi { flex: none; }
+.is-arbol tr.raiz .ir-docs { flex: none; margin-left: auto; }
 .is-arbol .cab.nodo .grupo { color: var(--text-strong); white-space: normal; overflow-wrap: anywhere; }   /* el titulo de la tarjeta ENVUELVE en vez de recortarse: nowrap aqui es min-content de toda la tabla (tabla y grid lo respetan) */
 .is-arbol .cab.nodo .n { color: var(--text-muted); opacity: 1; }
 /* cubeta y vencimiento dentro del nodo: rotulo mono con el punto del color, y el chip de vence de la casa */
@@ -1491,6 +1501,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 @container (max-width: 720px) {
   .is-arbol { --sangria: 10px; }
   .is-arbol tr.raiz { display: block; } .is-arbol tr.raiz td { display: block; padding: var(--sp-2) 0 0; }
+  .is-arbol.is-frentes tr.raiz td { padding: var(--sp-2) 0 0; } .is-arbol.is-frentes tr.raiz + tr.raiz td, .is-arbol.is-frentes tr:not(.raiz) + tr.raiz td { padding-top: var(--sp-3); }
   .is-arbol tr.vacias { display: block; } .is-arbol tr.vacias td { display: block; padding: var(--sp-2) 0 var(--sp-1); }
   .is-arbol tr.pest td { padding-left: 0; }
   .is-arbol tr.doc td.c-nombre, .is-arbol tr.doc.vacia td { padding-left: 0; }

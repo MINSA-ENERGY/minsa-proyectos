@@ -86,18 +86,9 @@ export async function pintarDocs(p) {
     tabla.classList.add('is-arbol');
     const columnas = columnasDe(p);
     tb.appendChild(filaRaiz(p.Title, ligas.length, todas.length));
-    const delProyecto = ligas.filter(l => !l.TareaId);
     const plegada = k => estado.plegadasDocs.has(k);
     const alPlegar = k => { if (estado.plegadasDocs.has(k)) estado.plegadasDocs.delete(k); else estado.plegadasDocs.add(k); pintarDocs(p); };
-    if (delProyecto.length) { tb.appendChild(filaGrupo(null, 'Del proyecto', delProyecto.length, { plegada: plegada(0), alPlegar: () => alPlegar(0) })); for (const l of delProyecto) tb.appendChild(filaDoc(l, { p, puede: puedeDe(l), oculta: plegada(0) })); }
-    const porTarjeta = new Map();
-    for (const l of ligas.filter(l => l.TareaId)) { const k = Number(l.TareaId); if (!porTarjeta.has(k)) porTarjeta.set(k, []); porTarjeta.get(k).push(l); }
-    const tarjetas = [...porTarjeta.keys()].sort((a, b) => { const ta = porId(estado.tareas, a), tb2 = porId(estado.tareas, b); return String(ta ? ta.Title : '').localeCompare(String(tb2 ? tb2.Title : '')) || a - b; });
-    // v0.35.0 (Carlos, 14-sep; artifact 2Kb1WRx5, opcion B de seis): la carpeta y sus hojas forman un BLOQUE TINTADO con el
-    // color de la tarjeta (tr.bloque + data-tono o is-p/c/r/h en el <tr>, que el CSS lee como --tono). Sustituye la cebra
-    // is-par de v0.34.0: la banda separaba renglones sin decir de que tarjeta eran. «Del proyecto» y vacias no llevan tinte.
-    const enBloque = (tr, t) => { if (!t) return tr; tr.classList.add('bloque'); const color = colorValido(t.Color); if (color) tr.dataset.tono = color; else tr.classList.add('is-' + claseDeColumna(t.Columna, columnas)); return tr; };
-    for (const k of tarjetas) { const tt = porId(estado.tareas, k); tb.appendChild(enBloque(filaGrupo(k, tt ? tt.Title : `Tarjeta #${k}`, porTarjeta.get(k).length, { tarea: tt, columnas, plegada: plegada(k), alPlegar: () => alPlegar(k) }), tt)); for (const l of porTarjeta.get(k)) tb.appendChild(enBloque(filaDoc(l, { p, puede: puedeDe(l), oculta: plegada(k) }), tt)); }
+    const { llaves } = filasDeExpediente(tb, p, ligas, { plegada, alPlegar, doc: l => ({ p, puede: puedeDe(l) }) });
     // Las tarjetas abiertas (no hechas) sin ningun documento: UN nodo, plegado por default, para que un frente de 30
     // tarjetas no llene el arbol de carpetas vacias y aun asi se vea cuantas van sin expediente. Solo sin filtro ni busqueda.
     let hayVacias = false;
@@ -108,7 +99,6 @@ export async function pintarDocs(p) {
     }
     // v0.34.0: «Abrir todo» / «Plegar todo». Las llaves del arbol: 0 = Del proyecto, id de cada tarjeta con expediente, y
     // -1 = el nodo de vacias, que va al reves (presente = ABIERTO). Cada boton se apaga cuando ya no tiene nada que hacer.
-    const llaves = [...(delProyecto.length ? [0] : []), ...tarjetas];
     const todoPlegado = llaves.every(k => plegada(k)) && (!hayVacias || !estado.plegadasDocs.has(-1));
     const todoAbierto = llaves.every(k => !plegada(k)) && (!hayVacias || estado.plegadasDocs.has(-1));
     $('docsTodo').hidden = false;
@@ -187,8 +177,9 @@ export function tablaDocs({ orden = null, alOrdenar = null } = {}) {
  * Renglon de grupo: la lengüeta de v0.16.0 (icono + `.grupo` con el titulo + conteo) sobre un <tr class="pest">.
  * Con `icono` (un nodo) y `alClic` es la cabecera de un PROYECTO en #archivos: la lengüeta es un boton .grupo-proy.
  */
-export function filaGrupo(tareaId, titulo, n, { icono = null, alClic = null, title = '', tarea = null, columnas = null, plegada = false, alPlegar = null } = {}) {
+export function filaGrupo(tareaId, titulo, n, { icono = null, alClic = null, title = '', tarea = null, columnas = null, plegada = false, alPlegar = null, oculta = false } = {}) {
     const tr = el('tr', 'pest' + (tareaId ? '' : ' is-proyecto') + (plegada ? ' is-plegada' : '')); if (tareaId) tr.dataset.tarjeta = String(tareaId);
+    if (oculta) tr.hidden = true;   // v0.36.0: su raiz (#archivos) esta plegada
     const td = el('td'); td.colSpan = COLUMNAS_DOCS.length;
     // v0.33.0: con `alPlegar` es un NODO del arbol (Docs del proyecto): boton que pliega/despliega, con el caret, la carpeta
     // del color de la cubeta (data-tono si la tarjeta eligio color; si no, la clase por posicion), cubeta y vencimiento.
@@ -206,12 +197,42 @@ export function filaGrupo(tareaId, titulo, n, { icono = null, alClic = null, tit
 const TRAZOS_CARET = ['M9 6l6 6-6 6'];
 const TRAZOS_CARPETA = ['M3 6a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z'];
 
-/** v0.33.0: la raiz del arbol — el proyecto como carpeta abierta con el conteo («N de M» si hay filtro). */
-function filaRaiz(titulo, n, total) {
-    const tr = el('tr', 'raiz'); const td = el('td'); td.colSpan = COLUMNAS_DOCS.length;
-    const cab = el('div', 'cab'); cab.appendChild(iconoSvg(TRAZOS_CARPETA, 'carpeta')); cab.appendChild(el('span', 'grupo-raiz', titulo));
+/**
+ * v0.36.0: las filas del EXPEDIENTE de un proyecto dentro del arbol — «Del proyecto» y una carpeta por tarjeta con sus hojas
+ * en bloque tintado (v0.35.0). Lo comparten Docs del proyecto (raiz = el proyecto) y #archivos (una raiz plegable por
+ * proyecto, con el mismo formato). `llave(k)` traduce la llave local (0 = Del proyecto, id de tarjeta) a la del Set de
+ * plegadas —Docs la usa tal cual; #archivos la prefija por proyecto—; `doc(l)` da las opciones de filaDoc de cada hoja;
+ * `ocultas` esconde todas las filas (la raiz de #archivos esta plegada). Devuelve las llaves locales usadas.
+ */
+export function filasDeExpediente(tb, p, ligas, { llave = k => k, plegada, alPlegar, doc = () => ({}), ocultas = false }) {
+    const columnas = columnasDe(p);
+    const delProyecto = ligas.filter(l => !l.TareaId);
+    const cerrada = k => plegada(llave(k));
+    if (delProyecto.length) { tb.appendChild(filaGrupo(null, 'Del proyecto', delProyecto.length, { plegada: cerrada(0), alPlegar: () => alPlegar(llave(0)), oculta: ocultas })); for (const l of delProyecto) tb.appendChild(filaDoc(l, { ...doc(l), oculta: ocultas || cerrada(0) })); }
+    const porTarjeta = new Map();
+    for (const l of ligas.filter(l => l.TareaId)) { const k = Number(l.TareaId); if (!porTarjeta.has(k)) porTarjeta.set(k, []); porTarjeta.get(k).push(l); }
+    const tarjetas = [...porTarjeta.keys()].sort((a, b) => { const ta = porId(estado.tareas, a), tb2 = porId(estado.tareas, b); return String(ta ? ta.Title : '').localeCompare(String(tb2 ? tb2.Title : '')) || a - b; });
+    // v0.35.0 (Carlos, 14-sep; artifact 2Kb1WRx5, opcion B de seis): la carpeta y sus hojas forman un BLOQUE TINTADO con el
+    // color de la tarjeta (tr.bloque + data-tono o is-p/c/r/h en el <tr>, que el CSS lee como --tono). Sustituye la cebra
+    // is-par de v0.34.0: la banda separaba renglones sin decir de que tarjeta eran. «Del proyecto» y vacias no llevan tinte.
+    const enBloque = (tr, t) => { if (!t) return tr; tr.classList.add('bloque'); const color = colorValido(t.Color); if (color) tr.dataset.tono = color; else tr.classList.add('is-' + claseDeColumna(t.Columna, columnas)); return tr; };
+    for (const k of tarjetas) { const tt = porId(estado.tareas, k); tb.appendChild(enBloque(filaGrupo(k, tt ? tt.Title : `Tarjeta #${k}`, porTarjeta.get(k).length, { tarea: tt, columnas, plegada: cerrada(k), alPlegar: () => alPlegar(llave(k)), oculta: ocultas }), tt)); for (const l of porTarjeta.get(k)) tb.appendChild(enBloque(filaDoc(l, { ...doc(l), oculta: ocultas || cerrada(k) }), tt)); }
+    return { llaves: [...(delProyecto.length ? [0] : []), ...tarjetas] };
+}
+
+/**
+ * v0.33.0: la raiz del arbol — el proyecto como carpeta abierta con el conteo («N de M» si hay filtro).
+ * v0.36.0: con `alPlegar` es un NODO plegable (#archivos: una raiz por proyecto) con caret, el icono del equipo si viene, y
+ * un boton aparte «Documentos» (`.ir-docs`, `alAbrir`) que abre la pestaña Documentos del proyecto.
+ */
+export function filaRaiz(titulo, n, total, { icono = null, plegada = false, alPlegar = null, alAbrir = null } = {}) {
+    const tr = el('tr', 'raiz' + (plegada ? ' is-plegada' : '')); const td = el('td'); td.colSpan = COLUMNAS_DOCS.length;
+    const cab = alPlegar ? el('button', 'cab nodo') : el('div', 'cab');
+    if (alPlegar) { cab.type = 'button'; cab.setAttribute('aria-expanded', plegada ? 'false' : 'true'); cab.title = plegada ? 'Desplegar' : 'Plegar'; cab.addEventListener('click', alPlegar); cab.appendChild(iconoSvg(TRAZOS_CARET, 'caret')); }
+    cab.appendChild(iconoSvg(TRAZOS_CARPETA, 'carpeta')); if (icono) cab.appendChild(icono); cab.appendChild(el('span', 'grupo-raiz', titulo));
     cab.appendChild(el('span', 'n', n === total ? `${total} ${total === 1 ? 'documento' : 'documentos'}` : `${n} de ${total}`));
-    td.appendChild(cab); tr.appendChild(td); return tr;
+    if (alAbrir) { const fila = el('div', 'raiz-fila'); fila.appendChild(cab); const b = boton('Documentos', 'mn-btn is-ghost is-sm ir-docs', alAbrir); b.title = 'Abrir Documentos del proyecto'; fila.appendChild(b); td.appendChild(fila); } else td.appendChild(cab);
+    tr.appendChild(td); return tr;
 }
 /** v0.33.0: el nodo «N tarjetas abiertas sin documentos». Plegado por default: en estado.plegadasDocs la llave -1 significa ABIERTO. */
 function filaVacias(n, abierto, alPlegar) {

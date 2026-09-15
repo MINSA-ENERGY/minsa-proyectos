@@ -8,7 +8,7 @@
 import { CONFIG } from './config.js';
 import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, sinDueno, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, enProceso, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos } from './reglas.js';
 import { $, estado, el, boton, avatar, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, mencionesA, columnasDeTarea } from './comun.js';
-import { tablaDocs, filaGrupo, filaDoc, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden
+import { tablaDocs, filaRaiz, filasDeExpediente, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden; v0.36.0: y el mismo arbol
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
@@ -372,15 +372,30 @@ export function pintarArchivos() {
     const kpi = (v, l, cls, id) => { const d = el('div', 'mn-kpi' + (cls ? ' is-' + cls : '')); d.dataset.kpi = id; d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v))); k.appendChild(d); };
     kpi(estado.ligas.length, 'Documentos ligados', '', 'total'); kpi(cuenta('archivado'), 'Archivados', 'ok', 'archivado'); kpi(cuenta('buzon'), 'En el buzón', 'info', 'buzon'); kpi(cuenta('enlace'), 'Enlaces', '', 'enlace');
     const cont = $('archivosLista'); cont.textContent = '';
+    $('archivosTodo').hidden = true;   // v0.36.0: solo con arbol pintado
     if (!ligas.length) { cont.appendChild(el('p', 'vacio', estado.ligas.length ? 'Nada con ese filtro.' : 'Ningún documento ligado todavía.')); return; }
-    // v0.17.0: una sola tabla (la de Docs del proyecto) con un renglon de grupo por proyecto, que abre sus Documentos.
+    // v0.17.0: una sola tabla (la de Docs del proyecto). v0.36.0 (Carlos, 14-sep): y el MISMO ARBOL de expediente que Docs
+    // (.is-arbol.is-frentes), con una carpeta raiz mas arriba: proyecto > tarjeta > documento. Cada raiz se pliega; las llaves
+    // de estado.plegadasArchivos van prefijadas por proyecto («p7», «p7/0» = Del proyecto, «p7/t12» = tarjeta) porque los ids
+    // de tarjeta y de proyecto se cruzan. Sin nodo de «tarjetas sin documentos»: aqui solo se encuentra, no se liga.
     const porP = new Map(); for (const l of ligas) { const k = Number(l.ProyectoId); if (!porP.has(k)) porP.set(k, []); porP.get(k).push(l); }
     const tabla = tablaDocs({ orden: estado.ordenArchivos, alOrdenar: o => { estado.ordenArchivos = o; pintarArchivos(); } }); const tb = tabla.querySelector('tbody');
+    tabla.classList.add('is-arbol', 'is-frentes');
+    const S = estado.plegadasArchivos; const plegada = k => S.has(k);
+    const alPlegar = k => { if (S.has(k)) S.delete(k); else S.add(k); pintarArchivos(); };
+    const llaves = [];
     for (const p of ordenarProyectos(estado.proyectos.filter(p => porP.has(p.id)))) {
-        tb.appendChild(filaGrupo(null, p.Title, porP.get(p.id).length, { icono: iconoEquipo(equipoDe(p), 'sm'), alClic: () => irAHash(`#p/${p.Clave}/docs`), title: 'Abrir Documentos del proyecto' }));
-        for (const l of porP.get(p.id)) tb.appendChild(filaDoc(l, { p, enArchivos: true, alTarjeta: irTarjeta }));
+        const kp = `p${p.id}`; const total = estado.ligas.filter(l => Number(l.ProyectoId) === p.id).length; llaves.push(kp);
+        tb.appendChild(filaRaiz(p.Title, porP.get(p.id).length, total, { icono: iconoEquipo(equipoDe(p), 'sm'), plegada: plegada(kp), alPlegar: () => alPlegar(kp), alAbrir: () => irAHash(`#p/${p.Clave}/docs`) }));
+        const r = filasDeExpediente(tb, p, porP.get(p.id), { llave: k => `${kp}/${k ? 't' + k : 0}`, plegada, alPlegar, ocultas: plegada(kp), doc: () => ({ p, enArchivos: true, alTarjeta: irTarjeta }) });
+        for (const k of r.llaves) llaves.push(`${kp}/${k ? 't' + k : 0}`);
     }
     cont.appendChild(tabla);
+    // v0.36.0: «Abrir todo» / «Plegar todo», como en Docs (v0.34.0); cada boton se apaga cuando no tiene nada que hacer.
+    $('archivosTodo').hidden = false;
+    $('archivosAbrirTodo').disabled = llaves.every(k => !plegada(k)); $('archivosPlegarTodo').disabled = llaves.every(k => plegada(k));
+    $('archivosAbrirTodo').onclick = () => { estado.plegadasArchivos = new Set(); pintarArchivos(); };
+    $('archivosPlegarTodo').onclick = () => { estado.plegadasArchivos = new Set(llaves); pintarArchivos(); };
 }
 export function engancharArchivos() {
     $('archivosProyecto').addEventListener('change', () => { estado.filtroArchivos.proyectoId = $('archivosProyecto').value ? Number($('archivosProyecto').value) : null; pintarArchivos(); });

@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, iniciales, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe } from './reglas.js';
 
-export const VERSION = '0.35.0';
+export const VERSION = '0.36.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -30,6 +30,7 @@ export const estado = {
     filtroDocs: null,
     ordenDocs: { col: 'del', dir: -1 },
     plegadasDocs: new Set(),                   // v0.33.0: ids de tarjeta plegadas en el arbol de Docs (0 = «Del proyecto»; -1 = «sin documentos» ABIERTO, que ese nace plegado); se reinicia por proyecto         // v0.19.0: por la fecha del DOCUMENTO (la unica de las dos que se ve en el panel de Docs a 1366); v0.18.0: orden de la tabla de Docs del proyecto (se reinicia al cambiar de proyecto, como ordenLista)
+    plegadasArchivos: new Set(),               // v0.36.0: llaves plegadas del arbol de #archivos («p7», «p7/0», «p7/t12»); vive la sesion, como su filtro
     ordenArchivos: { col: 'del', dir: -1 },     // v0.19.0: idem; v0.18.0: orden de #archivos (vive la sesion, como su filtro); separado del de Docs (revisor, 13-sep)
     accionProyectoId: null,                 // v0.18.0: proyecto elegido en las acciones rapidas de Inicio
     hoySoloMias: false,                     // v0.21.0: la cola «Hoy» de Inicio filtra a lo mio (la sesion; el default es todo el frente)
