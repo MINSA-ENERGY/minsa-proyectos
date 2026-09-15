@@ -542,7 +542,7 @@ try {
         pestana('mis'); await esperar(() => visible('p-mis'), 'mis'); document.querySelector('#filtroMis [data-mis="vencidas"]').click(); await dormir(30);
         R.ok('v0.41.0: el chip Vencidas de Mis tareas pone el filtro (el KPI que lo hacía desde Inicio salió)', location.hash === '#mis' && document.querySelector('#filtroMis button.is-on').dataset.mis === 'vencidas', location.hash);
         document.querySelector('#filtroMis [data-mis="todas"]').click(); await dormir(30);
-        R.ok('el chip Todas quita el filtro de Mis tareas', document.querySelector('#filtroMis button.is-on').dataset.mis === 'todas' && document.querySelectorAll('#misLista .tarjeta').length === (gerencia ? 1 : 2), String(document.querySelectorAll('#misLista .tarjeta').length));
+        R.ok('el chip Todas quita el filtro de Mis tareas', document.querySelector('#filtroMis button.is-on').dataset.mis === 'todas' && document.querySelectorAll('#misLista .tr').length === (gerencia ? 1 : 2), String(document.querySelectorAll('#misLista .tr').length));
         pestana('proyectos'); await esperar(() => visible('p-proyectos'), 'proyectos');
         R.ok('rail: CALYTEK trae su contador y ningún equipo está marcado', document.querySelector('#railEquipos [data-equipo="CALYTEK"] .n').textContent === '1' && !document.querySelector('#railEquipos button.is-on'));
         document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
@@ -683,7 +683,7 @@ try {
           DB.listas.proyectos.items = filas('proyectos').filter(p => !idsC10.includes(p.id)); await recargarYEsperar(); }
         pestana('mis'); await esperar(() => visible('p-mis'), 'mis');
         poner('textoMis', 'INSUMOS'); await dormir(30);
-        R.ok('C3: el buscador de Mis tareas filtra por título', document.querySelectorAll('#misLista .tarjeta').length === 1 && !!document.querySelector(`#misLista .tarjeta[data-t="${t.id}"]`));
+        R.ok('C3: el buscador de Mis tareas filtra por título', document.querySelectorAll('#misLista .tr').length === 1 && !!document.querySelector(`#misLista .tr[data-t="${t.id}"]`));
         poner('textoMis', 'nada-de-nada'); await dormir(30);
         R.ok('C3: Mis tareas sin resultado lo dice', $('misLista').textContent.includes('ese texto'));
         poner('textoMis', ''); await dormir(30);
@@ -880,12 +880,17 @@ try {
         clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
         // Mis tareas filtra por correo.
         pestana('mis'); await esperar(() => visible('p-mis'), 'mis tareas');
-        R.ok('Mis tareas trae solo lo mío', [...document.querySelectorAll('#misLista .tarjeta')].length === (gerencia ? 1 : 2) && !!document.querySelector(`#misLista .tarjeta[data-t="${t.id}"]`), String(document.querySelectorAll('#misLista .tarjeta').length));
-        // v0.57.0 (artifact CrSMdQaxRzctu9VFqrU1dP, corte B): agenda por día — grupos .dia en orden fijo, rótulo + lista de renglones, fecha a la derecha, sin «Urgentes».
-        { const ORDEN = ['vencidas', 'hoy', 'manana', 'semana', 'despues', 'sinfecha']; const dias = [...document.querySelectorAll('#misLista > .dia')];
-          R.ok('v0.57.0: Mis tareas es una agenda: cada grupo trae rótulo y al menos un renglón, en el orden Vencidas → Sin fecha, sin bloque «Urgentes»', dias.length > 0 && !document.querySelector('#misLista .urgente') && dias.every(d => d.querySelector('.rot b') && d.querySelectorAll('.lista .tarjeta').length) && dias.map(d => ORDEN.indexOf(d.dataset.dia)).every((n, k, arr) => n >= 0 && (k === 0 || n > arr[k - 1])), dias.map(d => d.dataset.dia).join(','));
-          R.ok('v0.57.0: cada renglón de la agenda lleva su fecha a la derecha (.d) y el chip .vence escondido', [...document.querySelectorAll('#misLista .tarjeta')].every(b => b.querySelector('.d') && b.querySelector('.d').textContent.trim() && (!b.querySelector('.vence') || getComputedStyle(b.querySelector('.vence')).display === 'none')));
-          if (!gerencia) { const sem = filas('tareas').find(x => x.fields.Title === 'Tarea sembrada para mí'); R.ok('v0.57.0: la sembrada vencida cae en el grupo Vencidas con los días en rojo («· −N d»)', !!document.querySelector(`#misLista .dia[data-dia="vencidas"] .tarjeta[data-t="${sem.id}"] .d`) && /−\d+ d$/.test(document.querySelector(`#misLista .dia[data-dia="vencidas"] .tarjeta[data-t="${sem.id}"] .d`).textContent.trim())); } }
+        R.ok('Mis tareas trae solo lo mío', [...document.querySelectorAll('#misLista .tr')].length === (gerencia ? 1 : 2) && !!document.querySelector(`#misLista .tr[data-t="${t.id}"]`), String(document.querySelectorAll('#misLista .tr').length));
+        // v0.58.0 (artifact CrSMdQaxRzctu9VFqrU1dP, corte C): lista densa — contadores .kpi que filtran, cabecera, separadores por bloque en orden fijo, un .tr por tarjeta con proyecto · cubeta · vence; sin .dia ni «Urgentes».
+        { const ORDEN = ['vencidas', 'semana', 'despues', 'sinfecha']; const seps = [...document.querySelectorAll('#misLista > .sep')]; const kpis = [...document.querySelectorAll('#filtroMis .kpi')];
+          R.ok('v0.58.0: cinco contadores arriba (abiertas · vencidas · vencen en 7 días · sin fecha · las que delegué), cada uno con su cifra y «abiertas» = los renglones', kpis.map(k => k.dataset.mis).join(',') === 'todas,vencidas,pronto,sinfecha,delegadas' && kpis.every(k => /^\d+$/.test(k.querySelector('b').textContent)) && Number(kpis[0].querySelector('b').textContent) === document.querySelectorAll('#misLista .tr').length, kpis.map(k => k.dataset.mis + '=' + k.querySelector('b').textContent).join(' '));
+          R.ok('v0.58.0: Mis tareas es una tabla densa: cabecera .hd, separadores en el orden Vencidas → Sin fecha y ningún .dia ni «Urgentes»', !!document.querySelector('#misLista > .hd') && seps.length > 0 && !document.querySelector('#misLista .dia, #misLista .urgente') && seps.map(d => ORDEN.indexOf(d.dataset.bloque)).every((n, k, arr) => n >= 0 && (k === 0 || n > arr[k - 1])), seps.map(d => d.dataset.bloque).join(','));
+          R.ok('v0.58.0: cada renglón trae título, chip de proyecto, chip de cubeta y la fecha (.v) a la derecha', [...document.querySelectorAll('#misLista .tr')].every(b => b.querySelector('.t .tit') && b.querySelector('.eqc .mn-chip') && b.querySelector('.cu .mn-chip') && b.querySelector('.v') && b.querySelector('.v').textContent.trim()));
+          R.ok('v0.58.0: un separador va justo antes de sus renglones (el primero después de la cabecera es un .sep, nunca un .tr)', $('misLista').children[1] && $('misLista').children[1].classList.contains('sep'));
+          if (!gerencia) { const sem = filas('tareas').find(x => x.fields.Title === 'Tarea sembrada para mí'); const r = document.querySelector(`#misLista .tr[data-t="${sem.id}"]`); R.ok('v0.58.0: la sembrada vencida va tintada (.is-vencida) bajo el separador «Vencidas» con «dd/mm · −N» en rojo', !!r && r.classList.contains('is-vencida') && r.previousElementSibling && [...$('misLista').children].slice(0, [...$('misLista').children].indexOf(r)).reverse().find(x => x.classList.contains('sep')).dataset.bloque === 'vencidas' && /^\d{2}\/\d{2} · −\d+$/.test(r.querySelector('.v').textContent.trim()), r ? r.querySelector('.v').textContent : 'sin renglón'); }
+          document.querySelector('#filtroMis [data-mis="sinfecha"]').click(); await dormir(30);
+          R.ok('v0.58.0: el contador «sin fecha» filtra a las tarjetas sin Vence (y su cifra cuadra)', document.querySelector('#filtroMis .kpi.is-on').dataset.mis === 'sinfecha' && document.querySelectorAll('#misLista .tr').length === Number(document.querySelector('#filtroMis [data-mis="sinfecha"] b').textContent) && [...document.querySelectorAll('#misLista .tr .v')].every(v => v.textContent.trim() === '—'), String(document.querySelectorAll('#misLista .tr').length));
+          document.querySelector('#filtroMis [data-mis="todas"]').click(); await dormir(30); }
         // Inicio: KPI y próximos.
         pestana('inicio'); await esperar(() => $('inicioSub').textContent, 'inicio');
         R.ok('v0.21.0: el saludo cuenta 1 frente activo', $('inicioSub').textContent.includes('1 frente activo ·'), $('inicioSub').textContent);
@@ -1477,9 +1482,9 @@ try {
                 const tAjena = { id: DB.siguienteId++, fields: { Title: 'Tarjeta delegada a Colega', ProyectoId: proyectoId, Columna: 'por-hacer', Asignado: 'colega@example.invalid', Prioridad: 'normal' } }; filas('tareas').push(tAjena);
                 filas('actividad').push({ id: DB.siguienteId++, fields: { Title: `asignó «${tAjena.fields.Title}» a Colega Demo`, Accion: 'editar-tarea', Quien: YO, Cuando: new Date().toISOString(), ProyectoId: Number(tAjena.fields.ProyectoId), TareaId: tAjena.id } });
                 await recargarYEsperar(); pestana('mis'); await esperar(() => visible('p-mis'), 'mis'); await dormir(30);
-                const sinFiltro = [...document.querySelectorAll('#misLista .tarjeta')].some(x => x.dataset.t === String(tAjena.id));
+                const sinFiltro = [...document.querySelectorAll('#misLista .tr')].some(x => x.dataset.t === String(tAjena.id));
                 document.querySelector('#filtroMis [data-mis="delegadas"]').click(); await dormir(40);
-                R.ok('v0.15.0: «Las que delegué» en Mis tareas lista la tarjeta ajena que yo asigné (y sin el filtro no sale)', !sinFiltro && [...document.querySelectorAll('#misLista .tarjeta')].some(x => x.dataset.t === String(tAjena.id)) && $('misLista').textContent.includes('Colega'));
+                R.ok('v0.15.0: «Las que delegué» en Mis tareas lista la tarjeta ajena que yo asigné (y sin el filtro no sale)', !sinFiltro && [...document.querySelectorAll('#misLista .tr')].some(x => x.dataset.t === String(tAjena.id)) && $('misLista').textContent.includes('Colega'));
                 document.querySelector('#filtroMis [data-mis="todas"]').click(); await dormir(20);
             }
             // Archivos
@@ -1645,7 +1650,7 @@ try {
         { const mod = await import('../comun.js'); const c = mod.comentariosDe(filas('proyectos')[0].id)[0]; const nAntes = filas('actividad').length; await mod.borrarComentario(c, mod.estado.proyectoAbierto);
           R.ok('v0.9.0 (lectura): borrarComentario se niega aunque se fuerce', filas('actividad').length === nAntes && !!avisoCon('Solo quien lo escribió')); }
         pestana('mis'); await esperar(() => visible('p-mis'), 'mis');
-        R.ok('lectura (v0.57.0): Mis tareas trae la sembrada en el grupo Vencidas de la agenda, con «venció» y los días a la derecha', document.querySelectorAll('#misLista .tarjeta').length === 1 && !!document.querySelector('#misLista .dia[data-dia="vencidas"] .tarjeta') && $('misLista').textContent.includes('venció') && $('misLista').querySelector('.dia[data-dia="vencidas"] .tarjeta .d').textContent.trim().endsWith(`−${-diasPara('2026-09-01T18:00:00Z')} d`));
+        R.ok('lectura (v0.58.0): Mis tareas trae la sembrada como renglón vencido de la tabla densa, bajo el separador «Vencidas» y con los días a la derecha', document.querySelectorAll('#misLista .tr').length === 1 && document.querySelector('#misLista .tr').classList.contains('is-vencida') && document.querySelector('#misLista > .sep').dataset.bloque === 'vencidas' && $('misLista').querySelector('.tr .v').textContent.trim().endsWith(`· −${-diasPara('2026-09-01T18:00:00Z')}`));
         pestana('inicio'); await dormir(50);
         R.ok('lectura (v0.41.0): Inicio no trae KPI; la vencida la dice el contador rojo del rail', !document.getElementById('inicioKpis') && !$('nMis').hidden && $('nMis').textContent === '1', $('nMis').textContent);
         clic('btnEquipo'); await esperar(() => $('dlgEquipo').open, 'equipo');

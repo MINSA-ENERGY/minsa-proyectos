@@ -7,7 +7,7 @@
 // «→ siguiente» de la cara de la tarjeta se quito, y «Origen en la KB» ya no se ensena ni se pide.
 
 import { CONFIG } from './config.js';
-import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, diaDe, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas } from './reglas.js';
+import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas } from './reglas.js';
 import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
@@ -327,64 +327,85 @@ export function pintarLista(proyecto) {
 }
 
 /**
- * Mis tareas (U4 de la auditoria, v0.2.0): ARRIBA las urgentes de todos los proyectos —vencidas y
- * las que vencen en `vencePronto` dias— con el numero de dias grande; abajo la bandeja por proyecto
- * con el resto. El mismo acomodo que Pendientes del tablero de escritorio.
+ * Mis tareas. v0.58.0 (Carlos, 15-sep: «aplica "lista densa" del artifact en vez de agenda por día»; artifact
+ * CrSMdQaxRzctu9VFqrU1dP, corte C «Lista densa con contadores»): ARRIBA cinco contadores grandes que también FILTRAN
+ * (abiertas · vencidas · vencen en 7 días · sin fecha · las que delegué), abajo UNA tabla de un renglón por tarjeta
+ * —título · proyecto · cubeta · vence— partida por bloques (Vencidas · Esta semana · Después · Sin fecha) con el
+ * renglón vencido tintado. Sustituye a la agenda por día de v0.57.x (rótulo a la izquierda + renglones; recuperable
+ * en git) y antes al bloque «Urgentes» en rejilla (v0.2.0-v0.56.0). Cabecera en versalitas mono como la Lista del tablero.
+ * El renglón NO es tarjeta(): es un `button.tr[data-t]` propio (clic abre la ficha) con las columnas fijas de la tabla.
  */
-const FILTROS_MIS = [[null, 'Todas'], ['vencidas', 'Vencidas'], ['pronto', 'Vencen en 7 días'], ['delegadas', 'Las que delegué']];   // v0.15.0: quien reparte no las pierde de vista
+const FILTROS_MIS = [[null, 'abiertas'], ['vencidas', 'vencidas'], ['pronto', 'vencen en 7 días'], ['sinfecha', 'sin fecha'], ['delegadas', 'las que delegué']];   // v0.15.0: quien reparte no las pierde de vista; v0.58.0: «sin fecha» nace con los contadores
 export function pintarMisTareas() {
     const yo = estado.cuenta.username.toLowerCase();
     $('misTitulo').textContent = 'Mis tareas · ' + nombreDe(yo, estado.roles);
-    // U3: los KPI de Inicio aterrizan aqui con el filtro puesto; estos chips lo muestran y lo cambian.
+    const porFecha = (a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')) || a.id - b.id;
+    const propias = estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === yo && t.Columna !== 'hecho').sort(porFecha);
+    // v0.15.0: «Las que delegué» = abiertas de OTRO que yo cree o asigne (createdBy o la bitacora); el renglón enseña a quien.
+    const delego = estado.filtroMis === 'delegadas';
+    const ajenas = delegadas(estado.tareas, estado.actividad, yo).sort(porFecha);
+    // U3: los KPI de Inicio aterrizan aqui con el filtro puesto; los contadores lo muestran y lo cambian (v0.58.0: cada uno con su cifra).
+    const cuenta = { todas: propias.length, vencidas: propias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger').length, pronto: propias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn').length, sinfecha: propias.filter(t => !t.Vence).length, delegadas: ajenas.length };
     const fm = $('filtroMis'); fm.textContent = '';
     for (const [k, texto] of FILTROS_MIS) {
-        const b = boton(texto, estado.filtroMis === k ? 'is-on' : '', () => { estado.filtroMis = k; pintarMisTareas(); }, { mis: k || 'todas' });
-        b.setAttribute('aria-pressed', estado.filtroMis === k ? 'true' : 'false'); fm.appendChild(b);
+        const on = estado.filtroMis === k;
+        const b = el('button', 'kpi' + (on ? ' is-on' : '') + (k === 'vencidas' ? ' is-danger' : k === 'pronto' ? ' is-warn' : '')); b.type = 'button'; b.dataset.mis = k || 'todas';
+        b.appendChild(el('b', '', String(cuenta[k || 'todas']))); b.appendChild(el('small', '', texto));
+        b.setAttribute('aria-pressed', on ? 'true' : 'false'); b.setAttribute('aria-label', `${cuenta[k || 'todas']} ${texto}`);
+        b.addEventListener('click', () => { estado.filtroMis = k; pintarMisTareas(); }); fm.appendChild(b);
     }
     const cont = $('misLista'); cont.textContent = '';
-    // v0.15.0: «Las que delegué» = abiertas de OTRO que yo cree o asigne (createdBy o la bitacora); la tarjeta enseña a quien.
-    const delego = estado.filtroMis === 'delegadas';
     $('misSub').textContent = delego ? 'Tarjetas abiertas de otros que tú creaste o asignaste, en orden de fecha. Las vencidas arriba.' : 'Tus tarjetas abiertas, en todos los proyectos, en orden de fecha. Las vencidas arriba.';
-    const todas = delego ? delegadas(estado.tareas, estado.actividad, yo) : estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === yo && t.Columna !== 'hecho')
-        .sort((a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')) || a.id - b.id);
+    const todas = delego ? ajenas : propias;
     // C3 (v0.6.0): buscador por titulo, sin acentos, encima del filtro por vencimiento.
     const q = sinAcentos(estado.textoMis).trim();
     const conTexto = q ? todas.filter(t => sinAcentos(t.Title).includes(q)) : todas;
     const mias = estado.filtroMis === 'vencidas' ? conTexto.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger')
-        : estado.filtroMis === 'pronto' ? conTexto.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn') : conTexto;
+        : estado.filtroMis === 'pronto' ? conTexto.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn')
+        : estado.filtroMis === 'sinfecha' ? conTexto.filter(t => !t.Vence) : conTexto;
     if (!mias.length) { cont.appendChild(el('p', 'vacio', todas.length ? (q ? 'Ninguna con ese texto.' : 'Nada con ese filtro.') : delego ? 'No has delegado ninguna tarjeta abierta: las que crees o asignes a otros salen aquí.' : 'Sin tareas abiertas asignadas a ti.')); return; }
-    // v0.57.0 (Carlos, 15-sep; artifact CrSMdQaxRzctu9VFqrU1dP, corte B «Agenda por día» entre seis): UNA lista partida por
-    // CUÁNDO —Vencidas · Hoy · Mañana · Esta semana (hasta `vencePronto` días) · Después · Sin fecha—, el rótulo del grupo a la
-    // izquierda (pegado al bajar) y un RENGLÓN por tarjeta con la fecha a la derecha. Sustituye al bloque «Urgentes» en rejilla
-    // + una card por proyecto (v0.2.0-v0.56.0): con seis urgentes la rejilla se comía media pantalla y las de a 30 días y las
-    // sin fecha se veían iguales. No re-proponer: C lista densa · D tres columnas por urgencia · E enfoque · F por frente.
-    // El renglón ES la tarjeta de siempre (`tarjeta(t, true)`, data-t, clic abre): estilo.css la acomoda en fila (.agenda).
-    for (const [clave, titulo, sub, ts] of gruposAgenda(mias)) {
-        if (!ts.length) continue;
-        const sec = el('section', 'dia is-' + clave); sec.dataset.dia = clave;
-        const rot = el('div', 'rot'); rot.appendChild(el('b', '', titulo)); rot.appendChild(el('small', '', `${sub} · ${ts.length}`)); sec.appendChild(rot);
-        const lista = el('div', 'lista');
-        for (const t of ts) { const caja = tarjeta(t, true); caja.querySelector('.tarjeta').appendChild(el('span', 'd', fechaAgenda(t))); lista.appendChild(caja); }   // tarjeta() devuelve la .tarjeta-caja; la fecha va DENTRO del boton
-        sec.appendChild(lista); cont.appendChild(sec);
+    const hd = el('div', 'hd'); hd.setAttribute('aria-hidden', 'true');
+    for (const [c, x] of [['', ''], ['', 'Tarea'], ['', 'Proyecto'], ['', 'Cubeta'], ['v', 'Vence']]) hd.appendChild(el('span', c, x));
+    cont.appendChild(hd);
+    let bloque = '';
+    for (const t of mias) {
+        const b = bloqueDe(t);
+        if (b !== bloque) { bloque = b; const s = el('div', 'sep', b); s.dataset.bloque = BLOQUES[b]; cont.appendChild(s); }
+        cont.appendChild(renglonDenso(t, delego));
     }
 }
-const DIAS_SEM = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'], MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-/** «vie 12 sep» a partir de dd/mm/aaaa (fechaCorta ya corta el día en hora de México). */
-function diaCorto(iso) { const [d, m, a] = fechaCorta(iso).split('/').map(Number); if (!a) return fechaCorta(iso); const f = new Date(a, m - 1, d); return `${DIAS_SEM[f.getDay()]} ${d} ${MESES[m - 1]}`; }
-/** Columna derecha del renglón: la fecha y, si aprieta, los días («vie 12 sep · −3 d», «hoy», «mañana», «jue 18 sep · 3 d», «mié 15 oct», «—»). */
-function fechaAgenda(t) {
+const BLOQUES = { 'Vencidas': 'vencidas', 'Esta semana': 'semana', 'Después': 'despues', 'Sin fecha': 'sinfecha' };
+/** El bloque de la tabla: por el mismo umbral que el chip («Esta semana» = hasta `vencePronto` días, hoy incluido). */
+function bloqueDe(t) { const e = estadoVence(t, CONFIG.vencePronto); return e === 'danger' ? 'Vencidas' : e === 'warn' ? 'Esta semana' : t.Vence ? 'Después' : 'Sin fecha'; }
+/** Columna «Vence», mono y sin año («12/09 · −3», «hoy», «18/09 · 3d», «15/10», «—»): el bloque y el color ya dicen si venció. */
+function fechaDensa(t) {
     const d = diasPara(t.Vence); if (d === null) return '—';
-    if (d === 0) return 'hoy'; if (d === 1) return 'mañana';
-    const f = diaCorto(t.Vence);
-    return d < 0 ? `${f} · −${-d} d` : d <= CONFIG.vencePronto ? `${f} · ${d} d` : f;
+    if (d === 0) return 'hoy';
+    const f = fechaCorta(t.Vence).replace(/\/\d{4}$/, '');
+    return d < 0 ? `${f} · −${-d}` : d <= CONFIG.vencePronto ? `${f} · ${d}d` : f;
 }
-/** Los seis grupos de la agenda, en orden; cada uno [clave, título, subtítulo, tarjetas]. Las tarjetas llegan ya ordenadas por Vence. */
-function gruposAgenda(ts) {
-    const g = { vencidas: [], hoy: [], manana: [], semana: [], despues: [], sinfecha: [] };
-    for (const t of ts) { const d = diasPara(t.Vence); g[d === null ? 'sinfecha' : d < 0 ? 'vencidas' : d === 0 ? 'hoy' : d === 1 ? 'manana' : d <= CONFIG.vencePronto ? 'semana' : 'despues'].push(t); }
-    const en = n => { const f = new Date(); f.setDate(f.getDate() + n); return diaCorto(diaDe(f)); };   // diaDe: el mismo corte de día (hora de México) que diasPara
-    return [['vencidas', 'Vencidas', 'antes de hoy', g.vencidas], ['hoy', 'Hoy', en(0), g.hoy], ['manana', 'Mañana', en(1), g.manana],
-        ['semana', 'Esta semana', `hasta ${en(CONFIG.vencePronto)}`, g.semana], ['despues', 'Después', `de ${en(CONFIG.vencePronto)}`, g.despues], ['sinfecha', 'Sin fecha', 'no suben solas', g.sinfecha]];
+/** Un renglón de la tabla densa: filete semáforo · título (punto de prioridad, insignias; en «delegué», a quién) · proyecto · cubeta · vence. */
+function renglonDenso(t, conQuien) {
+    const sem = semaforo(t, CONFIG.semaforoDias);
+    const b = el('button', 'tr' + (sem ? ' is-' + sem : '') + (t.Prioridad === 'alta' ? ' alta' : '')); b.type = 'button'; b.dataset.t = String(t.id);
+    if (colorValido(t.Color)) b.dataset.tono = colorValido(t.Color);
+    b.appendChild(el('span', 'sem'));
+    const tt = el('span', 't');
+    if (t.Prioridad === 'alta') { const p = el('i', 'p-alta'); p.setAttribute('role', 'img'); p.setAttribute('aria-label', 'Prioridad alta'); tt.appendChild(p); }
+    tt.appendChild(el('span', 'tit', t.Title));
+    if (conQuien) { const q = el('span', 'quien'); q.appendChild(avatar(t.Asignado)); q.appendChild(document.createTextNode(t.Asignado ? nombreDe(t.Asignado, estado.roles).split(' ')[0] : 'sin asignar')); tt.appendChild(q); }
+    const nNotas = notasPorTarea().get(t.id) || 0, nDocs = ligasPorTarea().get(t.id) || 0;
+    if (nNotas) tt.appendChild(insignia(TRAZOS.burbuja, nNotas, `${nNotas} nota${nNotas === 1 ? '' : 's'}`, 'is-notas'));
+    if (nDocs) tt.appendChild(insignia(TRAZOS.clip, nDocs, `${nDocs} documento${nDocs === 1 ? '' : 's'}`, 'is-docs'));
+    if (buzonPorTarea().get(t.id)) tt.appendChild(chip('en el buzón', 'info'));
+    b.appendChild(tt);
+    const p = porId(estado.proyectos, t.ProyectoId); const eq = el('span', 'eqc'); if (p) eq.appendChild(chip(p.Clave)); b.appendChild(eq);
+    const cu = el('span', 'cu'); cu.appendChild(chipColumna(t)); b.appendChild(cu);
+    b.appendChild(el('span', 'v', fechaDensa(t)));
+    // El título se corta con puntos suspensivos si es largo (artifact C): el completo vive en el title, con lo que la fila no enseña.
+    b.title = [t.Title, t.Prioridad === 'alta' ? 'Prioridad alta' : '', p ? p.Title : '', t.Vence ? 'vence ' + fechaCorta(t.Vence) : 'sin fecha'].filter(Boolean).join(' · ');
+    b.addEventListener('click', () => abrirTarjeta(t.id));
+    return b;
 }
 
 // ---------------------------------------------------------------- tarjeta (dialogo)

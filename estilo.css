@@ -751,36 +751,44 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* La caja de la tarjeta se conserva (Mis tareas y la E2E la usan); desde v0.11.0 ya no lleva el atajo «→ siguiente». */
 .tarjeta-caja { display: grid; gap: 2px; min-width: 0; }
 
-/* ---- Mis tareas: AGENDA POR DIA (v0.57.0; Carlos, 15-sep; artifact CrSMdQaxRzctu9VFqrU1dP, corte B). Sustituye al bloque
-   «Urgentes» en rejilla (.urgente, .urgentes-grid, v0.2.0-v0.56.0; recuperable en git). Seis grupos .agenda .dia (ACOTADOS a .agenda: sueltos, `.dia` pisaba la hoja de calendario de .pficha y el separador del chat — 15-sep) con el rotulo a la
-   izquierda pegado al bajar y una .lista de RENGLONES: cada renglon es la .tarjeta de siempre acomodada en fila, con la fecha
-   (.d) en la columna derecha y el chip .vence escondido (la fecha ya esta a la derecha y el grupo ya dice si vencio). */
-.agenda { display: grid; gap: var(--sp-4); align-content: start; min-width: 0; }
-.agenda .dia { display: grid; grid-template-columns: 128px minmax(0, 1fr); gap: var(--sp-3); align-items: start; }
-.agenda .dia .rot { position: sticky; top: var(--sp-2); display: grid; gap: 2px; padding-top: 6px; }
-.agenda .dia .rot b { font-family: var(--font-display); font-size: 1.05rem; font-weight: 600; color: var(--text-strong); line-height: 1.1; }
-.agenda .dia .rot small { font-family: var(--font-data); font-size: .68rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); }
-.agenda .dia.is-vencidas .rot b { color: var(--status-danger-fg); }
-.agenda .dia.is-hoy .rot b, .agenda .dia.is-manana .rot b, .agenda .dia.is-semana .rot b { color: var(--status-warn-fg); }
-.agenda .dia.is-sinfecha .rot b { color: var(--text-muted); }
-.agenda .dia .lista { display: grid; background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow: hidden; min-width: 0; }
-.agenda .tarjeta { grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: auto auto; column-gap: var(--sp-3); align-items: center; border: 0; border-left: 3px solid transparent; border-top: 1px solid var(--border-hairline); border-radius: 0; padding: 10px var(--sp-3) 10px 9px; }
-.agenda .lista > :first-child .tarjeta { border-top: 0; }   /* la .tarjeta-caja envuelve al boton */
-.agenda .tarjeta:hover { background: var(--surface-sunken); border-color: var(--border-hairline); }
-.agenda .tarjeta.is-vencida { border-left-color: var(--status-danger-solid); }
-.agenda .tarjeta.is-pronto { border-left-color: var(--status-warn-solid); }
-.agenda .tarjeta .t { font-size: .9rem; }
-.agenda .tarjeta .f { grid-row: 2; }
-.agenda .tarjeta .f .vence { display: none; }
-.agenda .tarjeta .d { grid-column: 2; grid-row: 1 / 3; font-family: var(--font-data); font-size: .75rem; color: var(--text-muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
-.agenda .dia.is-vencidas .tarjeta .d { color: var(--status-danger-fg); font-weight: 600; }
-.agenda .dia.is-hoy .tarjeta .d, .agenda .dia.is-manana .tarjeta .d, .agenda .dia.is-semana .tarjeta .d { color: var(--status-warn-fg); font-weight: 600; }
-@media (max-width: 640px) {
-  .agenda .dia { grid-template-columns: 1fr; gap: var(--sp-1); }
-  .agenda .dia .rot { position: static; display: flex; gap: var(--sp-2); align-items: baseline; padding-top: 0; }
-  /* la fecha baja a un tercer renglon: a 390 la columna derecha se comia la mitad del ancho y el titulo salia a dos lineas (medido en la captura) */
-  .agenda .tarjeta { grid-template-columns: minmax(0, 1fr); }
-  .agenda .tarjeta .d { grid-column: 1; grid-row: 3; margin-top: 2px; }
+/* ---- Mis tareas: LISTA DENSA CON CONTADORES (v0.58.0; Carlos, 15-sep; artifact CrSMdQaxRzctu9VFqrU1dP, corte C).
+   Sustituye a la agenda por dia (.agenda .dia, v0.57.x; recuperable en git). Arriba .resumen con cinco .kpi que filtran
+   (cifra grande Saira + rotulo); abajo .densa: una rejilla de 5 columnas —filete semaforo · titulo · proyecto · cubeta ·
+   vence— con cabecera .hd en versalitas mono (como la Lista del tablero), separadores .sep por bloque y un .tr por
+   tarjeta; el vencido va tintado de --status-danger-bg. En celular (<= 720) salen las columnas de proyecto y cubeta. */
+.resumen { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
+.kpi { display: grid; gap: 0; padding: 8px 14px; border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); min-width: 104px; cursor: pointer; font: inherit; text-align: left; color: inherit; }
+.kpi b { font-family: var(--font-display); font-size: 1.5rem; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-strong); }
+.kpi small { font-size: .72rem; color: var(--text-muted); font-weight: 600; }
+.kpi.is-danger b { color: var(--status-danger-fg); } .kpi.is-warn b { color: var(--status-warn-fg); }
+.kpi.is-on { border-color: var(--brand-primary); background: var(--surface-selected); }
+.kpi.is-on small { color: var(--brand-primary); }
+.densa { display: grid; background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow: hidden; min-width: 0; align-content: start; }
+.densa > .vacio { padding: var(--sp-3); }
+.densa .hd, .densa .tr { display: grid; grid-template-columns: 4px minmax(0, 1fr) 96px 120px 92px; gap: 0 var(--sp-3); align-items: center; }
+.densa .hd { padding: 8px var(--sp-3) 8px 0; font-family: var(--font-data); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--text-muted); background: var(--surface-sunken); }
+.densa .hd .v { text-align: right; }
+.densa .sep { padding: 5px var(--sp-3); font-family: var(--font-data); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--text-faint); background: var(--surface-page); border-top: 1px solid var(--border-hairline); }
+.densa .tr { padding: 7px var(--sp-3) 7px 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; min-height: 40px; min-width: 0; }
+.densa .tr:hover { background: var(--surface-sunken); }
+.densa .tr .sem { align-self: stretch; }
+.densa .tr.is-vencida .sem { background: var(--status-danger-solid); } .densa .tr.is-pronto .sem { background: var(--status-warn-solid); }
+.densa .tr.is-vencida { background: color-mix(in srgb, var(--status-danger-bg) 55%, transparent); }
+.densa .tr.is-vencida:hover { background: color-mix(in srgb, var(--status-danger-bg) 80%, transparent); }
+.densa .tr .t { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; font-weight: 600; color: var(--text-strong); font-size: .88rem; }
+.densa .tr .t .tit { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* el titulo largo se corta: el completo vive en el title */
+.densa .tr .t .quien { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; font-size: .75rem; color: var(--text-muted); white-space: nowrap; }
+.densa .tr .t .insig, .densa .tr .t .mn-chip { flex: none; }
+.densa .tr .eqc, .densa .tr .cu { min-width: 0; overflow: hidden; }
+.densa .tr .cu .mn-chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
+.densa .tr .v { font-family: var(--font-data); font-size: .75rem; font-variant-numeric: tabular-nums; color: var(--text-muted); text-align: right; white-space: nowrap; }
+.densa .tr.is-vencida .v { color: var(--status-danger-fg); font-weight: 600; } .densa .tr.is-pronto .v { color: var(--status-warn-fg); font-weight: 600; }
+.densa .tr[data-tono]:not(.is-vencida) { background: color-mix(in srgb, var(--tono) 13%, var(--surface-card)); }   /* el color elegido tiñe el renglon como a la tarjeta; el vencido gana */
+@media (max-width: 720px) {
+  .densa .hd, .densa .tr { grid-template-columns: 4px minmax(0, 1fr) 76px; }
+  .densa .hd span:nth-child(3), .densa .hd span:nth-child(4), .densa .tr .eqc, .densa .tr .cu { display: none; }
+  .kpi { min-width: 0; flex: 1 1 30%; padding: 6px 10px; }
+  .kpi b { font-size: 1.25rem; }
 }
 
 /* ---- lista (tabla) */
@@ -1348,10 +1356,6 @@ body.sin-scroll { overflow: hidden; }
 /* v0.20.0: semaforo de fecha en el filete izquierdo — despues del tinte, que escribe border-color entero. */
 .tarjeta.is-vencida, .tarjeta.is-vencida:hover { border-left-color: var(--status-danger-solid); }
 .tarjeta.is-pronto, .tarjeta.is-pronto:hover { border-left-color: var(--status-warn-solid); }
-/* v0.57.0: en la agenda de Mis tareas el tinte se queda en el fondo; el filete superior sigue hairline y el izquierdo solo dice semaforo. */
-.agenda .tarjeta[data-tono], .agenda .tarjeta[data-tono]:hover { border-top-color: var(--border-hairline); border-left-color: transparent; }
-.agenda .tarjeta[data-tono].is-vencida, .agenda .tarjeta[data-tono].is-vencida:hover { border-left-color: var(--status-danger-solid); }
-.agenda .tarjeta[data-tono].is-pronto, .agenda .tarjeta[data-tono].is-pronto:hover { border-left-color: var(--status-warn-solid); }
 .tarjeta.is-hecha, .tarjeta.is-hecha:hover { border-left-color: var(--status-ok-solid); }
 /* Selector de color: una fila de circulos, el elegido con anillo; «sin color» es el primero (un circulo hueco). */
 .tonos { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }
