@@ -924,6 +924,23 @@ function fijarRail(plegado) {
 $('btnMarca').addEventListener('click', () => fijarRail(true));
 $('btnPlegar').addEventListener('click', () => fijarRail(false));
 
+// ---------------------------------------------------------------- bandeja de Mensajes plegable (v0.56.0)
+// Carlos, 15-sep (artifact MHCmeJw5, opción C): la bandeja se pliega a 52 px de iconos por frente (#mensajesRail) y el
+// hilo crece; «‹» pliega, «›» despliega. localStorage `bandeja` = 'plegada' (sin llave = abierta). El CSS solo la aplica
+// por encima de 900 px: en tableta y celular sigue «bandeja O hilo» con «← Bandeja».
+function aplicarBandeja(plegada) {
+    $('msj').classList.toggle('is-plegada', plegada);
+    $('mensajesPlegar').setAttribute('aria-expanded', plegada ? 'false' : 'true');
+    $('mensajesDesplegar').setAttribute('aria-expanded', plegada ? 'false' : 'true');
+}
+try { aplicarBandeja(localStorage.getItem('bandeja') === 'plegada'); } catch (_) { aplicarBandeja(false); }
+function fijarBandeja(plegada) {
+    try { if (plegada) localStorage.setItem('bandeja', 'plegada'); else localStorage.removeItem('bandeja'); } catch (_) {}
+    aplicarBandeja(plegada);
+}
+$('mensajesPlegar').addEventListener('click', () => fijarBandeja(true));
+$('mensajesDesplegar').addEventListener('click', () => fijarBandeja(false));
+
 // ---- v0.29.0 (Carlos, 14-sep; artifact c43ad139, opcion M5): el titulo del proyecto es un SELECTOR y la cabecera se contrae.
 // El selector lista los frentes ACTIVOS en el orden de la lista (vence antes primero) —el abierto siempre, aunque este
 // cerrado— con icono del equipo y «N abiertas · M vencidas»; elegir uno cambia de proyecto en la MISMA pestaña (tablero,

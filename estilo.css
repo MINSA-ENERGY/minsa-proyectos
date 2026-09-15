@@ -1203,6 +1203,25 @@ body.sin-scroll { overflow: hidden; }
 .msj-sec + .msj-sec { border-top: 1px solid var(--border-hairline); }
 .msg-proy.is-on { background: var(--surface-selected); margin: 0 calc(-1 * var(--sp-3)); padding-left: var(--sp-3); padding-right: var(--sp-3); width: calc(100% + 2 * var(--sp-3)); border-radius: var(--r-sm); }   /* el relleno cubre el renglon entero: el boton en grid no crece solo con width:auto (captura 14-sep) */
 .msg-proy .t > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* «LAU ASEA-03-001 (Licenc» se cortaba sin puntos: el span interno del inline-flex no heredaba la elipsis */
+/* v0.56.0 (Carlos, 15-sep; artifact MHCmeJw5, opción C): bandeja plegable. Plegada (.msj.is-plegada, > 900 px) la columna
+   izquierda mide 52 px y solo muestra #mensajesRail: «›» arriba y un botón por frente con el icono de la unidad (el título va
+   en el title) y la insignia de nuevos. El buscador y la lista se esconden; el hilo toma el resto. */
+.msj-cab { display: flex; gap: var(--sp-2); align-items: center; }
+.msj-cab .buscador { flex: 1; }
+.msj-rail { display: none; }
+.msj-rail .mn-btn svg, .msj-cab .mn-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+@media (min-width: 901px) {
+  .msj.is-plegada { grid-template-columns: 52px minmax(0, 1fr); }
+  .msj.is-plegada .msj-cab, .msj.is-plegada #mensajesLista { display: none; }
+  .msj.is-plegada .msj-rail { display: grid; gap: 2px; justify-items: center; padding: var(--sp-1); background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-md); }
+  .msj-rail > #mensajesRailFrentes { display: grid; gap: 2px; width: 100%; justify-items: center; }
+  .msj-rail .msj-desplegar { color: var(--text-muted); width: 100%; border-radius: var(--r-sm) var(--r-sm) 0 0; border-bottom: 1px solid var(--border-hairline); margin-bottom: 2px; }
+  .msj-rail .msj-frente { position: relative; display: grid; place-items: center; width: 40px; height: 40px; border: 0; border-radius: var(--r-sm); background: none; cursor: pointer; padding: 0; }
+  .msj-rail .msj-frente:hover { background: var(--surface-hover); }
+  .msj-rail .msj-frente.is-on { background: var(--surface-selected); box-shadow: inset 0 0 0 1px var(--border-default); }
+  .msj-rail .msj-frente.is-vacio { opacity: .45; }
+  .msj-rail .msj-frente .msj-hot { position: absolute; top: 1px; right: 1px; display: inline-grid; place-items: center; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 4px; background: var(--status-info-bg); color: var(--status-info-fg); box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent); font-family: var(--font-data); font-size: .58rem; font-weight: 700; line-height: 1; }
+}
 @media (max-width: 900px) {
   .msj { grid-template-columns: 1fr; }
   .msj.is-hilo .msj-izq { display: none; }

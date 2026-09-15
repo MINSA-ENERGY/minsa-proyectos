@@ -199,11 +199,21 @@
          (la bitácora la lee todo el equipo: aquí nada es privado). «Te mencionaron» vive en Inicio. -->
     <section id="p-mensajes" class="pantalla oculto">
       <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 21l1.6-4.5A8 8 0 1 1 21 12z"/><path d="M8.5 11h7M8.5 14h4"/></svg></span><h1>Mensajes</h1><p class="sub" id="mensajesSub"></p></header>
+      <!-- v0.56.0 (Carlos, 15-sep; artifact MHCmeJw5, opción C «bandeja plegable»): la bandeja se pliega a una columna de
+           iconos de unidad con insignia (#mensajesRail) y el hilo crece; «‹» pliega, «›» despliega; se recuerda por
+           dispositivo (localStorage `bandeja`). En ≤ 900 px el pliegue no aplica: sigue bandeja O hilo con «← Bandeja». -->
       <div class="msj" id="msj">
         <div class="msj-izq">
-          <label for="mensajesBusca" class="oculto">Buscar en Mensajes</label>
-          <input class="buscador" id="mensajesBusca" type="search" placeholder="Buscar frente o texto…" autocomplete="off">
+          <div class="msj-cab">
+            <label for="mensajesBusca" class="oculto">Buscar en Mensajes</label>
+            <input class="buscador" id="mensajesBusca" type="search" placeholder="Buscar frente o texto…" autocomplete="off">
+            <button class="mn-btn is-sm is-icono msj-plegar" id="mensajesPlegar" type="button" title="Plegar la bandeja" aria-label="Plegar la bandeja" aria-expanded="true" aria-controls="mensajesLista"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+          </div>
           <div class="lista bandeja" id="mensajesLista"></div>
+          <div class="msj-rail" id="mensajesRail" aria-label="Frentes (bandeja plegada)">
+            <button class="mn-btn is-sm is-icono msj-desplegar" id="mensajesDesplegar" type="button" title="Abrir la bandeja" aria-label="Abrir la bandeja" aria-expanded="false" aria-controls="mensajesLista"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+            <div id="mensajesRailFrentes"></div>
+          </div>
         </div>
         <div class="msj-der" id="mensajesDer">
           <button class="mn-btn is-ghost is-sm msj-volver" id="mensajesVolver" type="button">← Bandeja</button>

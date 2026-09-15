@@ -349,6 +349,21 @@ export function pintarMensajes() {
     for (const x of ult) if (!con.some(y => y.p.id === x.proyectoId) && porId(estado.proyectos, x.proyectoId)) nuevosTotal += comentariosNuevos(x.proyectoId).length;
     lista.appendChild(seccion('Frentes', con.length, true, con.map(x => renglon(x.p, x.ultimo)), 'frentes'));
     lista.appendChild(seccion('Sin conversación', sin.length, !!q, sin.map(p => renglon(p, null)), 'sin'));
+    // v0.56.0 (Carlos, 15-sep; artifact MHCmeJw5, opción C): la bandeja PLEGADA es un botón por frente —icono de la unidad,
+    // título en el title, insignia de nuevos— en el MISMO orden de la lista (con conversación primero, luego sin). El buscador
+    // no la filtra: plegada no hay buscador a la vista, y esconder un frente ahí sería esconderlo sin avisar.
+    const rail = $('mensajesRailFrentes'); rail.textContent = '';
+    const frenteRail = (p, conChat) => {
+        const nuevos = comentariosNuevos(p.id).length; const on = sel && sel.t === 'f' && sel.k === p.Clave;
+        const b = el('button', 'msj-frente' + (conChat ? '' : ' is-vacio') + (on ? ' is-on' : '')); b.type = 'button'; b.dataset.mensajesRail = String(p.id);
+        b.title = p.Title + (nuevos ? ` · ${nuevos} nuevo${nuevos === 1 ? '' : 's'}` : conChat ? '' : ' · sin conversación'); b.setAttribute('aria-label', b.title); b.setAttribute('aria-current', on ? 'true' : 'false');
+        b.appendChild(iconoEquipo(equipoDe(p)));
+        if (nuevos) b.appendChild(el('b', 'msj-hot', String(nuevos)));
+        b.addEventListener('click', () => irAHash(`#mensajes/f/${p.Clave}`));
+        return b;
+    };
+    for (const x of ult) { const p = porId(estado.proyectos, x.proyectoId); if (p) rail.appendChild(frenteRail(p, true)); }
+    for (const p of ordenarProyectos(activos().filter(p => !ult.some(x => x.proyectoId === p.id)))) rail.appendChild(frenteRail(p, false));
     $('mensajesSub').textContent = `${con.length} conversación(es) · ${nuevosTotal ? `${nuevosTotal} mensaje(s) nuevo(s) desde tu última visita` : 'nada nuevo desde tu última visita'}. Un chat por frente; escribe @nombre para avisarle a alguien.`;
     // ---- derecha: hilo del frente o el aviso de elegir
     const p = sel && sel.t === 'f' ? estado.proyectos.find(x => String(x.Clave || '') === sel.k) : null;
