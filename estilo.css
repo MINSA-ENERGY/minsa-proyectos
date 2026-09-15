@@ -982,8 +982,9 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .chat .hilo { display: grid; gap: var(--sp-1); align-content: start; max-height: min(62vh, 640px); overflow-y: auto; padding: var(--sp-3); background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-md); scrollbar-width: thin; }
 .chat .hilo .vacio { color: var(--text-faint); font-size: .85rem; margin: 0; }
 .chat .dia { justify-self: center; margin: var(--sp-2) 0 var(--sp-1); padding: 2px 10px; border-radius: var(--r-pill); background: var(--surface-sunken); font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }   /* muted, no faint: 2.45:1 a 10 px (revisor) */
-.msg { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: var(--sp-2); align-items: start; padding: var(--sp-1) 0; }
-.msg .av-hueco { width: 26px; height: 1px; }
+/* v0.49.0 (Carlos, 15-sep; artifact C8meacEE, opcion B): el hilo y la bandeja pierden la columna del avatar — el nombre
+   escrito y el tono del fondo ya dicen quien es. La rejilla de .msg pasa a UNA columna (+ la del boton borrar). */
+.msg { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); align-items: start; padding: var(--sp-1) 0; }
 .msg .cuerpo { display: grid; gap: 2px; min-width: 0; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-md); background: color-mix(in srgb, var(--msg-tono, var(--text-muted)) 9%, var(--surface-card)); }
 /* v0.14.0 (Carlos 13-sep): cada persona escribe en su burbuja, del tono de su avatar (comun.js tonoDe), para que el hilo no sea
    un solo bloque del mismo color. 9 % del tono sobre la tarjeta: en claro y oscuro el texto sigue siendo el del cuerpo (los
@@ -1050,7 +1051,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .mn-dialog-body > .editar { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border-hairline); }
 /* ---- borrar comentario/nota: boton de icono al final del renglon; en escritorio aparece al pasar el raton o con el
    foco, en tactil (sin hover) siempre, para que exista sin ensuciar el hilo. */
-.msg.has-borrar { grid-template-columns: 26px minmax(0, 1fr) auto; }
+.msg.has-borrar { grid-template-columns: minmax(0, 1fr) auto; }   /* v0.49.0: sin la columna del avatar */
 .nota.has-borrar { grid-template-columns: auto 1fr auto; }
 .borrar-msg { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--text-muted); cursor: pointer; align-self: start; opacity: 0; transition: opacity .12s, color .12s, background .12s; }
 .borrar-msg svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -1209,7 +1210,7 @@ body.sin-scroll { overflow: hidden; }
   .msj.is-hilo .msj-volver { display: inline-flex; }
 }
 .bandeja { gap: 0; background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-md); padding: 0 var(--sp-3); }
-.msg-proy { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; width: 100%; padding: var(--sp-3) 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.msg-proy { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-3);   /* v0.49.0: sin la columna del avatar */ align-items: center; width: 100%; padding: var(--sp-3) 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .msg-proy:first-child { border-top: 0; } .msg-proy:hover { background: var(--surface-hover); }
 .msg-proy .cuerpo { display: grid; gap: 2px; min-width: 0; }
 .msg-proy .cab { display: flex; justify-content: space-between; gap: var(--sp-2); align-items: center; min-width: 0; }

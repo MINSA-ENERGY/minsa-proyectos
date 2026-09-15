@@ -327,7 +327,8 @@ export function pintarMensajes() {
         const on = sel && sel.t === 'f' && sel.k === p.Clave;
         const b = el('button', 'msg-proy' + (nuevos ? ' is-nuevo' : '') + (ultimo ? '' : ' is-vacio') + (on ? ' is-on' : '')); b.type = 'button'; b.dataset.mensajes = String(p.id);
         b.setAttribute('aria-current', on ? 'true' : 'false');
-        b.appendChild(ultimo ? avatar(ultimo.Quien) : iconoEquipo(equipoDe(p)));
+        // v0.49.0 (Carlos, 15-sep; artifact C8meacEE, opcion B): sin la columna del avatar / icono grande — el titulo ya
+        // trae el icono chico de la unidad y el preview nombra a quien escribio; la bolita repetia las dos cosas.
         const c = el('span', 'cuerpo');
         const cab = el('span', 'cab'); const t = el('span', 't'); t.appendChild(iconoEquipo(equipoDe(p), 'sm')); t.appendChild(el('span', '', p.Title)); cab.appendChild(t);
         cab.appendChild(el('span', 'd', ultimo ? fechaHora(ultimo.Cuando) : '')); c.appendChild(cab);

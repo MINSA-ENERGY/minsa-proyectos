@@ -60,11 +60,12 @@ export function pintarChat(p) {
         if (d !== dia) { dia = d; hilo.appendChild(el('div', 'dia', c.Cuando ? rotuloDia(c.Cuando) : '—')); anterior = null; }
         if (!rayaPuesta && nuevos.has(c.id)) { rayaPuesta = true; hilo.appendChild(el('div', 'nuevos', `${nuevos.size} nuevo${nuevos.size === 1 ? '' : 's'} desde tu última visita`)); anterior = null; }
         const quien = String(c.Quien || '').toLowerCase();
-        // Mensajes seguidos de la misma persona (en el mismo dia, y sin tarjeta de por medio) se agrupan: sin avatar ni nombre.
+        // Mensajes seguidos de la misma persona (en el mismo dia, y sin tarjeta de por medio) se agrupan: sin nombre.
         const seguido = anterior && String(anterior.Quien || '').toLowerCase() === quien && !c.TareaId && !anterior.TareaId;
         const m = el('div', 'msg' + (quien === yo ? ' is-mio' : '') + (seguido ? ' is-seguido' : '')); m.dataset.comentario = String(c.id);
         if (quien) m.dataset.tono = String(tonoDe(quien));   // v0.14.0: burbuja del color de la persona
-        m.appendChild(seguido ? el('span', 'av-hueco') : avatar(quien));
+        // v0.49.0 (Carlos, 15-sep; artifact C8meacEE, opcion B): sin avatar en el hilo — el nombre ya va en la cabecera
+        // de la burbuja y el tono de la persona lo da su fondo; la bolita repetia lo que el renglon ya dice.
         const cuerpo = el('div', 'cuerpo');
         if (!seguido) { const cab = el('div', 'cab'); cab.appendChild(el('span', 'q', nombreDe(quien, estado.roles))); cab.appendChild(el('span', 'h mn-mono', fechaHora(c.Cuando))); cuerpo.appendChild(cab); }
         if (c.TareaId) {
