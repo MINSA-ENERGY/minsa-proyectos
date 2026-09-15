@@ -8,7 +8,7 @@
 
 import { CONFIG } from './config.js';
 import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas } from './reglas.js';
-import { $, L, estado, el, boton, avatar, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea } from './comun.js';
+import { $, L, estado, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
 import { engancharSelectorMenciones } from './chat.js';
@@ -120,7 +120,6 @@ export function tarjeta(t, conProyecto = false) {
     tt.appendChild(document.createTextNode(t.Title));
     b.appendChild(tt);
     const f = el('span', 'f');
-    f.appendChild(avatar(t.Asignado));
     const quien = t.Asignado ? nombreDe(t.Asignado, estado.roles).split(' ')[0] : 'sin asignar';
     f.appendChild(el('span', 'nom', quien)); enTitle.push(quien);
     if (conProyecto) { const p = porId(estado.proyectos, t.ProyectoId); if (p) f.appendChild(chip(p.Clave)); }
@@ -180,9 +179,8 @@ export function pintarFiltroTareas(proyecto) {
     const sum = el('summary'); sum.className = 'mn-btn is-sm' + (f.quien.length || f.sinDueno ? ' is-on' : '');
     const pilas = quienes.map(q => nombreDe(q, estado.roles).split(' ')[0]);
     const etiqueta = q => { const i = quienes.indexOf(q); return i >= 0 && pilas.filter(x => x === pilas[i]).length > 1 ? nombreDe(q, estado.roles) : nombreDe(q, estado.roles).split(' ')[0]; };   // dos «Ana»: nombre completo
-    // Una sola persona (sin «sin dueño») → su avatar y su nombre; cualquier otra combinacion → «Quién» + cuantas marcas.
+    // Una sola persona (sin «sin dueño») → su nombre; cualquier otra combinacion → «Quién» + cuantas marcas.
     const marcas = f.quien.length + (f.sinDueno ? 1 : 0);
-    if (f.quien.length) sum.appendChild(avatar(f.quien[0]));
     sum.appendChild(el('span', 'nom', marcas === 1 && f.quien.length === 1 ? etiqueta(f.quien[0]) : 'Quién'));
     if (marcas && !(marcas === 1 && f.quien.length === 1)) sum.appendChild(el('span', 'n', String(marcas)));
     sum.appendChild(iconoSvg(['M6 9l6 6 6-6']));
@@ -191,19 +189,19 @@ export function pintarFiltroTareas(proyecto) {
     caja.appendChild(el('span', 'mn-label tit', 'Con tarjetas en este frente'));
     // Cada cambio repinta la fila entera (el input enfocado se destruye): la casilla se vuelve a enfocar por su data-*
     // para que el teclado no caiga al inicio del documento (revisor, 14-sep).
-    const casilla = (texto, on, alCambiar, datos, av) => {
+    const casilla = (texto, on, alCambiar, datos) => {
         const l = el('label'); for (const k in datos) l.dataset[k] = datos[k];
         const sel = Object.keys(datos).map(k => '[data-' + k + '="' + datos[k] + '"]').join('');
         const i = el('input'); i.type = 'checkbox'; i.checked = on; i.addEventListener('change', () => { alCambiar(i.checked); repintar(); const n = c.querySelector('.menu-quien label' + sel + ' input'); if (n) n.focus({ preventScroll: true }); });
-        l.appendChild(i); l.appendChild(av); l.appendChild(el('span', 'nom', texto)); return l;
+        l.appendChild(i); l.appendChild(el('span', 'nom', texto)); return l;
     };
     for (const [i, q] of quienes.entries()) {
-        const l = casilla(etiqueta(q), f.quien.includes(q), on => { f.quien = on ? [...f.quien, q] : f.quien.filter(x => x !== q); }, { quien: q }, avatar(q));
+        const l = casilla(etiqueta(q), f.quien.includes(q), on => { f.quien = on ? [...f.quien, q] : f.quien.filter(x => x !== q); }, { quien: q });
         l.appendChild(el('span', 'n mn-mono', String(conteo[q]))); caja.appendChild(l);
     }
     if (!quienes.length) caja.appendChild(el('span', 'vacio', 'Ninguna tarjeta asignada.'));
     caja.appendChild(el('hr'));
-    const lsd = casilla('Sin dueño', !!f.sinDueno, on => { f.sinDueno = on; }, { filtro: 'sinDueno' }, avatar(''));
+    const lsd = casilla('Sin dueño', !!f.sinDueno, on => { f.sinDueno = on; }, { filtro: 'sinDueno' });
     if (conteo['']) lsd.appendChild(el('span', 'n mn-mono', String(conteo['']))); caja.appendChild(lsd);
     if (f.quien.length || f.sinDueno) caja.appendChild(boton('Quitar el filtro de persona', 'limp', () => { f.quien = []; f.sinDueno = false; repintar(); }, { filtro: 'quitarQuien' }));
     menu.appendChild(caja); c.appendChild(menu);
@@ -401,7 +399,7 @@ function renglonDenso(t, conQuien) {
     const tt = el('span', 't');
     tt.appendChild(el('span', 'tit', t.Title));
     tt.appendChild(marcaPrioridad(t.Prioridad));   // v0.60.0: a la derecha del titulo
-    if (conQuien) { const q = el('span', 'quien'); q.appendChild(avatar(t.Asignado)); q.appendChild(document.createTextNode(t.Asignado ? nombreDe(t.Asignado, estado.roles).split(' ')[0] : 'sin asignar')); tt.appendChild(q); }
+    if (conQuien) { const q = el('span', 'quien'); q.appendChild(document.createTextNode(t.Asignado ? nombreDe(t.Asignado, estado.roles).split(' ')[0] : 'sin asignar')); tt.appendChild(q); }
     const nNotas = notasPorTarea().get(t.id) || 0, nDocs = ligasPorTarea().get(t.id) || 0;
     if (nNotas) tt.appendChild(insignia(TRAZOS.burbuja, nNotas, `${nNotas} nota${nNotas === 1 ? '' : 's'}`, 'is-notas'));
     if (nDocs) tt.appendChild(insignia(TRAZOS.clip, nDocs, `${nDocs} documento${nDocs === 1 ? '' : 's'}`, 'is-docs'));
@@ -468,7 +466,6 @@ function pintarFicha(t) {
         return celda;
     };
     const quien = el('span', t.Asignado ? '' : 'default', t.Asignado ? nombreDe(t.Asignado, estado.roles) : 'Sin asignar');
-    if (t.Asignado) quien.prepend(avatar(t.Asignado));
     renglon('Asignado', quien, 'asignado', 'asignado');
     const celdaCubeta = renglon('Cubeta', el('span', '', nombreColumna(t)), 'cubeta');
     // Vence: el semaforo de la fecha (vencio / hoy / pronto) tine el texto; sin fecha, «Poner fecha» en gris tenue; hecha, la fecha a secas.
@@ -645,7 +642,6 @@ function pintarNotas(t, p) {
     $('tNotasN').textContent = notas.length ? String(notas.length) : '';   // v0.24.0: «Notas · 2»
     for (const n of notas) {
         const it = el('div', 'nota');
-        it.appendChild(avatar(n.Quien));
         const cuerpo = el('div');
         const cab = el('div', 'w'); cab.appendChild(el('span', '', nombreDe(n.Quien, estado.roles))); cab.appendChild(el('span', 'mn-mono', ' · ' + fechaHora(n.Cuando)));
         const texto = el('p'); texto.appendChild(textoConMenciones(n.Title)); cuerpo.appendChild(cab); cuerpo.appendChild(texto);   // v0.8.0: @menciones como chips

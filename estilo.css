@@ -338,7 +338,7 @@
 .dtabla td .t a { color: inherit; text-decoration: none; } .dtabla td .t a:hover { text-decoration: underline; }
 .dtabla td .p { font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dtabla .fico { width: 24px; height: 26px; } .dtabla .fico svg { width: 22px; height: 22px; }   /* v0.29.0: compacta */
-.dtabla .quien { display: inline-flex; gap: var(--sp-1); align-items: center; white-space: nowrap; } .dtabla .quien .av { width: 22px; height: 22px; font-size: .58rem; } .dtabla .quien > span:last-child { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
+.dtabla .quien { display: inline-flex; gap: var(--sp-1); align-items: center; white-space: nowrap; } .dtabla .quien > span:last-child { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
 /* cuando el PANEL (no la ventana) se estrecha, la tabla cede columnas antes que desbordar: primero quien, luego la fecha */
 .docs > .lista { container-type: inline-size; }
 /* v0.19.0: con la columna Fecha (del documento) la tabla ya no cabe en el panel de Docs a 1366 (810 px) con «Ligado por» y
@@ -347,7 +347,6 @@
 @container (max-width: 760px) { .dtabla .nombre { min-width: 170px; } .dtabla .c-tarjeta select { width: 150px; } }
 /* v0.29.0: la nota «Ligado por X · fecha» del menu «⋯» (antes dos columnas) */
 .fila-menu .menu .menu-nota { display: inline-flex; gap: var(--sp-2); align-items: center; padding: var(--sp-1) var(--sp-2) var(--sp-2); margin-bottom: 2px; border-bottom: 1px solid var(--border-hairline); font-size: .78rem; color: var(--text-muted); white-space: nowrap; }
-.fila-menu .menu .menu-nota .av { width: 20px; height: 20px; font-size: .56rem; }
 /* v0.55.0: «Mover a» del menu «⋯» de Docs — el select de tarjeta que antes era la columna Tarjeta (v0.19.0), a lo ancho del menu */
 .fila-menu .menu .menu-mover { display: grid; gap: var(--sp-1); padding: var(--sp-1) var(--sp-2); font-size: .78rem; color: var(--text-muted); }
 .fila-menu .menu .menu-mover select { min-height: var(--control-h-sm); font: inherit; font-family: var(--font-ui); font-size: .82rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); width: 100%; }
@@ -563,8 +562,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .pficha .stats b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text-strong); }
 .pficha .stats b.bad { color: var(--status-danger-fg); }
 .pficha .stats small { font-family: var(--font-data); font-size: .56rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); margin-top: 3px; }
-/* Auditoria #12: el avatar tiene DOS tamanos, 26 (.av) y 20 (.av.is-sm); antes habia 26/22/20/18. */
-.av.is-sm, .tarjeta .f .av, .filtros button .av { width: 20px; height: 20px; font-size: .58rem; }
+/* v0.61.0 (Carlos, 15-sep): sin avatares en toda la app; las reglas .av se fueron. Quedan --av-N para las burbujas del chat. */
 .segbar { display: flex; gap: 2px; height: 5px; width: 100%; }
 .segbar i { display: block; flex: 0; border-radius: 2px; }
 .segbar i.h { background: var(--status-ok-solid); } .segbar i.r { background: var(--status-info-solid); } .segbar i.c { background: var(--brand-primary); } .segbar i.p { background: var(--border-default); }
@@ -593,7 +591,6 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .grupo > button.is-on, .col-tabs > button.is-on { background: var(--brand-primary); color: var(--text-on-brand); border-color: var(--brand-primary); }
 .grupo > button.is-on .n, .col-tabs > button.is-on .n, .col-tabs > button.is-on .n.is-hot { color: inherit; }
 .grupo > button:focus-visible, .col-tabs > button:focus-visible { outline-offset: -2px; }   /* el overflow:hidden del marco recortaria un anillo exterior */
-.filtros button .av { margin: 0 var(--sp-1) 0 calc(-1 * var(--sp-2)); vertical-align: middle; }
 /* F9: filtro de tarjetas dentro del proyecto (chips + texto) */
 .tareas-filtros { align-items: center; }
 .tareas-filtros .chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }
@@ -602,7 +599,6 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .menu-quien { position: relative; }
 .menu-quien > summary { list-style: none; border-radius: var(--r-sm); gap: var(--sp-2); padding-inline: var(--sp-2) var(--sp-2); font-size: .8rem; color: var(--text-muted); }
 .menu-quien > summary::-webkit-details-marker { display: none; }
-.menu-quien > summary .av { margin-left: calc(-1 * var(--sp-1)); }
 .menu-quien > summary svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--dur-fast); }
 .menu-quien[open] > summary svg { transform: rotate(180deg); }
 .menu-quien > summary.is-on, .menu-quien[open] > summary { color: var(--brand-primary); border-color: var(--brand-primary); background: var(--surface-selected); }
@@ -613,7 +609,6 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .menu-quien .caja label:hover { background: var(--surface-hover); }
 .menu-quien .caja label:has(input:checked) { color: var(--text-strong); font-weight: 600; }
 .menu-quien .caja label input { accent-color: var(--brand-primary); width: 16px; height: 16px; margin: 0; flex: none; }
-.menu-quien .caja label .av { width: 20px; height: 20px; font-size: .58rem; }
 .menu-quien .caja label .nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-quien .caja label .n { margin-left: auto; font-size: .72rem; color: var(--text-faint); }
 .menu-quien .caja hr { border: 0; border-top: 1px solid var(--border-hairline); margin: var(--sp-1) 0; }
@@ -637,9 +632,8 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
    Ahora la cabecera lleva quien + cuando, la frase ocupa todo el ancho, el titulo «…» va en negrita y
    recortado a 2 lineas (integro en title), y el «de X a Y» baja a linea propia como «X → Y». */
 .mini { display: grid; }
-.mini .it { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-1) var(--sp-3); align-items: start; padding: var(--sp-2) 0; border-top: 1px solid var(--border-hairline); font-size: .85rem; line-height: 1.45; }
+.mini .it { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-1) var(--sp-3); align-items: start; padding: var(--sp-2) 0; border-top: 1px solid var(--border-hairline); font-size: .85rem; line-height: 1.45; }
 .mini .it:first-child { border-top: 0; padding-top: 0; }
-.mini .it .av { margin-top: 2px; }
 .mini .it .cab { display: flex; justify-content: space-between; gap: var(--sp-2); align-items: baseline; min-width: 0; }
 .mini .it .q { font-weight: 600; color: var(--text-strong); }
 .mini .it .f { color: var(--text-body); }
@@ -654,7 +648,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
    (verbo, titulo y complemento seguidos) y el proyecto va a la derecha en la misma cabecera; el acomodo apilado
    de 3-4 renglones era para la lateral de 340 px. Por debajo de 900 px la tarjeta vuelve a ser angosta y aplica lo de arriba. */
 @media (min-width: 901px) {
-  #inicioActividad .it { grid-template-columns: auto minmax(0, 1fr); padding: var(--sp-2) 0; }
+  #inicioActividad .it { grid-template-columns: minmax(0, 1fr); padding: var(--sp-2) 0; }
   #inicioActividad .it .cab { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: baseline; }
   #inicioActividad .it .cab .q { white-space: nowrap; }
   #inicioActividad .it .f { display: block; }
@@ -667,8 +661,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .mini button.it:first-child { border-top: 0; }
 .mini button.it:hover { background: var(--surface-hover); }
 .mini button.it:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: -2px; }
-.av { width: 26px; height: 26px; border-radius: 50%; background: var(--brand-primary); color: var(--text-on-brand); font-family: var(--font-display); font-size: .68rem; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; flex: none; }
-.av.is-tercero { background: var(--surface-sunken); color: var(--text-muted); }
 
 /* ---- tabs */
 .tabs { display: flex; gap: var(--sp-1); align-items: center; border-bottom: 1px solid var(--border-hairline); }
@@ -744,7 +736,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tablero.is-compacto .tarjeta { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--sp-2); padding: 4px var(--sp-2); min-height: 36px; }   /* 36 px: el umbral tactil que mide driver.js (revisor: a 32 salian «chicos») */
 .tablero.is-compacto .tarjeta .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; font-size: .84rem; }
 .tablero.is-compacto .tarjeta .f { flex-wrap: nowrap; }
-.tablero.is-compacto .tarjeta .f > :not(.av):not(.vence) { display: none; }
+.tablero.is-compacto .tarjeta .f > :not(.vence) { display: none; }
 .tablero.is-compacto .tarjeta .f .mn-chip { padding: 0 6px; font-size: .68rem; }
 .tarjeta .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; line-height: 1.3; }
 .tarjeta .f { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; font-size: .75rem; color: var(--text-muted); }
@@ -850,9 +842,9 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 @media (max-width: 720px) {
   .eq-tabla { display: none; }
   .eq-fichas { display: grid; gap: var(--sp-2); }
-  .eq-ficha { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-2); align-items: center; padding: var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); }
+  .eq-ficha { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-2); align-items: center; padding: var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); }
   .eq-ficha .n { font-weight: 600; color: var(--text-strong); overflow-wrap: anywhere; }
-  .eq-ficha .c { grid-column: 2 / -1; font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); overflow-wrap: anywhere; }
+  .eq-ficha .c { grid-column: 1 / -1; font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); overflow-wrap: anywhere; }
   .eq-ficha .ch { display: flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; justify-content: flex-end; }
   .eq-ficha.inactivo { opacity: .65; }
 }
@@ -865,7 +857,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tdoc-acciones { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-1); }
 .tdocs .vacio, .notas .vacio { color: var(--text-faint); font-size: .82rem; }
 .notas { display: grid; gap: var(--sp-2); margin: var(--sp-1) 0 var(--sp-2); font-size: .85rem; }
-.nota { display: grid; grid-template-columns: auto 1fr; gap: var(--sp-2); align-items: start; }
+.nota { display: grid; grid-template-columns: 1fr; gap: var(--sp-2); align-items: start; }
 .nota .w { color: var(--text-muted); font-size: .75rem; }
 .nota p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .nota-forma { display: grid; grid-template-columns: 1fr auto auto; gap: var(--sp-2); align-items: end; margin-bottom: var(--sp-3); }
@@ -963,10 +955,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   :root:not([data-theme="light"]) { --av-1: #7f9bff; --av-2: #5eead4; --av-3: #fbbf5c; --av-4: #c4b5fd; --av-5: #f9a8d4; --av-6: #86efac; --av-7: #8fd6ff; --av-8: #e3d29a; --av-tx: #0f0f0f; }
 }
 :root[data-theme="dark"] { --av-1: #7f9bff; --av-2: #5eead4; --av-3: #fbbf5c; --av-4: #c4b5fd; --av-5: #f9a8d4; --av-6: #86efac; --av-7: #8fd6ff; --av-8: #e3d29a; --av-tx: #0f0f0f; }
-.av[data-tono="1"] { background: var(--av-1); color: var(--av-tx); } .av[data-tono="2"] { background: var(--av-2); color: var(--av-tx); }
-.av[data-tono="3"] { background: var(--av-3); color: var(--av-tx); } .av[data-tono="4"] { background: var(--av-4); color: var(--av-tx); }
-.av[data-tono="5"] { background: var(--av-5); color: var(--av-tx); } .av[data-tono="6"] { background: var(--av-6); color: var(--av-tx); }
-.av[data-tono="7"] { background: var(--av-7); color: var(--av-tx); } .av[data-tono="8"] { background: var(--av-8); color: var(--av-tx); }
 
 /* ---- icono de archivo (comun.js iconoArchivo): hoja con la esquina doblada rellena del color del tipo, la marca
    encima. Sustituye al cuadro con «pdf»/«docx» escrito. Colores de Office por convencion (Word azul, Excel verde,
@@ -1212,7 +1200,7 @@ body.sin-scroll { overflow: hidden; }
 .cal-it.is-ok { background: var(--status-ok-bg); color: var(--status-ok-fg); border-left-color: var(--status-ok-solid); text-decoration: line-through; }
 .cal-it.is-danger { background: var(--status-danger-bg); color: var(--status-danger-fg); border-left-color: var(--status-danger-solid); }
 .cal-it.is-hito { background: var(--surface-sunken); color: var(--text-strong); border-left-color: var(--brand-primary); }
-.cal-it .av { width: 20px; height: 20px; font-size: .55rem; } .cal-it .eqi.is-sm { width: 18px; height: 18px; } .cal-it .eqi.is-sm svg { width: 11px; height: 11px; }
+.cal-it .eqi.is-sm { width: 18px; height: 18px; } .cal-it .eqi.is-sm svg { width: 11px; height: 11px; }
 .cal-it .m { font-weight: 400; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-left: auto; padding-left: 6px; max-width: 45%; }
 .cal-mas { border: 0; background: none; font: inherit; font-size: .68rem; color: var(--text-link); cursor: pointer; text-align: left; padding: 0 6px; }
 .cal-detalle { display: grid; gap: var(--sp-1); } .cal-detalle h2 { margin-bottom: var(--sp-1); }
@@ -1299,7 +1287,7 @@ body.sin-scroll { overflow: hidden; }
 .rep-lista { display: grid; }
 .rep-fila { display: grid; grid-template-columns: minmax(160px, 52%) minmax(0, 1fr); gap: var(--sp-3); align-items: center; width: 100%; padding: var(--sp-2) 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; font: inherit; color: inherit; text-align: left; }
 .rep-fila:first-child { border-top: 0; } button.rep-fila { cursor: pointer; border-radius: var(--r-sm); } button.rep-fila:hover { background: var(--surface-hover); }
-.rep-fila .eti { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 0 var(--sp-2); align-items: center; min-width: 0; }
+.rep-fila .eti { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--sp-2); align-items: center; min-width: 0; }
 .rep-fila .eti .t { font-weight: 600; color: var(--text-strong); font-size: .85rem; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .rep-fila .eti .m { grid-column: 2; font-size: .72rem; color: var(--text-faint); font-family: var(--font-data); }
 .rep-barra { display: grid; grid-template-columns: minmax(0, 1fr) 40px; gap: var(--sp-2); align-items: center; }
@@ -1410,8 +1398,8 @@ button.hoy-g { width: 100%; min-height: 36px; background: none; border: 0; borde
 .hoy-mas:hover, .hoy-mas:focus-visible { background: var(--surface-hover); }
 button.hoy-g::after { content: "ver en su tablero →"; margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-faint); }
 button.hoy-g:hover::after, button.hoy-g:focus-visible::after { color: var(--brand-primary); }
-/* Un renglon: punto · cuerpo (titulo + subtitulo) · avatar · verbo. Boton entero, 40 px minimo (tactil). */
-.hoy-r { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; width: 100%; min-height: 40px; padding: var(--sp-2) 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; font: inherit; color: inherit; text-align: left; border-radius: var(--r-sm); }
+/* Un renglon: punto · cuerpo (titulo + subtitulo); sin avatar desde v0.61.0. Boton entero, 40 px minimo (tactil). */
+.hoy-r { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-3); align-items: center; width: 100%; min-height: 40px; padding: var(--sp-2) 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; font: inherit; color: inherit; text-align: left; border-radius: var(--r-sm); }
 .hoy-g + .hoy-r { border-top: 0; }
 button.hoy-r { cursor: pointer; }
 button.hoy-r:hover { background: var(--surface-hover); }
@@ -1421,7 +1409,6 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .hoy-r .cuerpo { display: grid; min-width: 0; gap: 1px; }
 .hoy-r .t { font-size: .85rem; font-weight: 600; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
 .hoy-r .p { font-size: .75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.hoy-r .av.is-nadie { background: var(--surface-hover); color: var(--text-faint); }
 .cola-lista .vacio { color: var(--text-faint); font-size: .85rem; margin: 0; }
 /* v0.39.0: las reglas .fines (Fines de frente, v0.21.0) se fueron con la tarjeta. */
 @media (max-width: 720px) {
@@ -1588,7 +1575,6 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .t-props .val .default { color: var(--text-faint); }   /* .val .x pesa mas que «.prop-btn > span», que pinta text-strong (la captura lo cazo: «venció» salia negro) */
 .t-props .val .is-danger { color: var(--status-danger-fg); font-weight: 600; }
 .t-props .val .is-warn { color: var(--status-warn-fg); font-weight: 600; }
-.t-props .av { width: 18px; height: 18px; font-size: .5rem; }
 .t-props .prop-btn { border: 0; background: none; font: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: var(--sp-1); padding: 2px var(--sp-2) 2px var(--sp-1); margin-left: calc(-1 * var(--sp-1)); border-radius: var(--r-sm); min-height: var(--control-h-sm); color: inherit; text-align: left; }
 .t-props .prop-btn::after { content: ""; width: 6px; height: 6px; border-right: 1.5px solid var(--text-faint); border-bottom: 1.5px solid var(--text-faint); transform: translateY(-2px) rotate(45deg); flex: none; margin-left: 2px; }
 .t-props .prop-btn:hover { background: var(--surface-hover); }

@@ -3,9 +3,9 @@
 // la bitacora PROY_Actividad.
 
 import { CONFIG } from './config.js';
-import { PUEDE, iniciales, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion } from './reglas.js';
+import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion } from './reglas.js';
 
-export const VERSION = '0.60.0';
+export const VERSION = '0.61.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -82,9 +82,8 @@ export function ondaAlPulsar() {
     });
 }
 /**
- * v0.8.0: cada persona tiene SU color de avatar (Trello/Asana): el mismo correo da siempre el mismo
- * indice sobre una paleta de 8 tonos oscuros (estilo.css --av-N), asi que «quien» se reconoce de un
- * vistazo sin leer las iniciales. Sin correo = gris (tercero / sin asignar).
+ * v0.8.0: cada persona tiene SU color (Trello/Asana): el mismo correo da siempre el mismo indice sobre
+ * una paleta de 8 tonos (estilo.css --av-N). Desde v0.61.0 solo lo usan las burbujas del chat (.msg[data-tono]).
  */
 const AVATAR_TONOS = 8;
 export function tonoDe(correo) {
@@ -99,12 +98,7 @@ export function tonoDe(correo) {
     let h = 0; for (let k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) >>> 0;   // fuera del roster: hash
     return (h % AVATAR_TONOS) + 1;
 }
-export function avatar(correo) {
-    const a = el('span', 'av', iniciales(correo));
-    a.title = nombreDe(correo, estado.roles);
-    if (!correo) a.classList.add('is-tercero'); else a.dataset.tono = String(tonoDe(correo));
-    return a;
-}
+// v0.61.0 (Carlos, 15-sep): sin avatares en toda la app — «no me gusta como se ve». Se fue avatar(); tonoDe() se queda para las burbujas del chat.
 export function chip(texto, estado2) { return el('span', 'mn-chip' + (estado2 ? ' is-' + estado2 : ''), texto); }
 export function limpiar(obj) { const o = {}; for (const k in obj) if (obj[k] !== undefined && obj[k] !== '') o[k] = obj[k]; return o; }
 export function porId(coleccion, id) { return coleccion.find(x => x.id === Number(id)) || null; }

@@ -15,7 +15,7 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, ondaAlPulsar, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
+import { $, L, VERSION, estado, el, boton, ondaAlPulsar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
@@ -415,7 +415,6 @@ function itemMini(quien, texto, sub, derecha, claseDerecha, abrir) {
     // C9 (v0.6.0): con `abrir` el renglon es un boton que lleva a la tarjeta (antes era texto que habia que buscar).
     const it = el(abrir ? 'button' : 'div', 'it' + (abrir ? ' clic' : ''));
     if (abrir) { it.type = 'button'; it.addEventListener('click', abrir); it.title = 'Abrir la tarjeta'; }
-    it.appendChild(avatar(quien));
     const c = el('div');
     const nombre = nombreDe(quien, estado.roles), esNombre = texto === nombre;
     const cab = el('div', 'cab'); cab.appendChild(el('span', 'q', esNombre ? nombre : nombre.split(' ')[0]));
@@ -529,13 +528,12 @@ function pintarCola(abiertas) {
     const abrirTarea = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; };
     const abrirEvento = a => { const p = porId(estado.proyectos, a.ProyectoId); return abridorDe(a) || (p ? () => irAHash(`#p/${p.Clave}/chat`) : null); };
     const tituloDe = t => porId(estado.proyectos, t.ProyectoId) ? porId(estado.proyectos, t.ProyectoId).Title : '';
-    // Un renglon: punto de estado · titulo (+ subtitulo) · avatar. Es un boton entero (C9), como los .it de las mini listas;
+    // Un renglon: punto de estado · titulo (+ subtitulo); sin avatar desde v0.61.0. Es un boton entero (C9), como los .it de las mini listas;
     // el verbo «Abrir»/«Ver» a la derecha se quito en v0.25.1 (Carlos, 14-sep): el renglon entero ya lleva al pendiente.
     const renglon = (estadoCls, titulo, sub, quien, abrir, datos) => {
         const r = el(abrir ? 'button' : 'div', 'hoy-r'); if (abrir) { r.type = 'button'; r.addEventListener('click', abrir); }
         const st = el('i', 'st' + (estadoCls ? ' is-' + estadoCls : '')); st.setAttribute('aria-hidden', 'true'); r.appendChild(st);
         const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', titulo)); c.appendChild(el('span', 'p', sub)); c.querySelector('.t').title = titulo; r.appendChild(c);
-        r.appendChild(quien ? avatar(quien) : el('span', 'av is-nadie', '?'));
         for (const [k, v] of Object.entries(datos || {})) r.dataset[k] = v;
         return r;
     };
@@ -641,7 +639,6 @@ function abrirEquipo() {
         const correo = String(r.Title || '').toLowerCase();
         const abiertas = estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === correo && t.Columna !== 'hecho').length;
         const fa = el('div', 'eq-ficha' + (r.Activo === false ? ' inactivo' : ''));
-        fa.appendChild(avatar(correo));
         fa.appendChild(el('span', 'n', nombreDe(correo, estado.roles)));
         const ch = el('span', 'ch');
         ch.appendChild(chip(r.Rol || 'lectura', r.Rol === 'gerencia' ? 'info' : null));
@@ -651,7 +648,7 @@ function abrirEquipo() {
         fa.appendChild(el('span', 'c', correo));
         fi.appendChild(fa);
         const tr = el('tr', r.Activo === false ? 'inactivo' : '');
-        const td1 = el('td'); td1.appendChild(avatar(correo)); td1.appendChild(el('span', '', ' ' + nombreDe(correo, estado.roles))); tr.appendChild(td1);
+        tr.appendChild(el('td', '', nombreDe(correo, estado.roles)));
         tr.appendChild(el('td', 'mn-mono', correo));
         const tdr = el('td'); tdr.appendChild(chip(r.Rol || 'lectura', r.Rol === 'gerencia' ? 'info' : null)); tr.appendChild(tdr);
         const tda = el('td'); tda.appendChild(r.Activo === false ? chip('no', 'danger') : chip('sí', 'ok')); tr.appendChild(tda);

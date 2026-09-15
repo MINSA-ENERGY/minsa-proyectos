@@ -9,7 +9,7 @@
 // junta «Te mencionaron». El selector aparece al teclear @ (tambien en la nota de la tarjeta).
 
 import { PUEDE, mencionEnCurso, aliasDe, aliasParaMencion, nombreDe, sinAcentos } from './reglas.js';
-import { $, L, estado, el, boton, avatar, tonoDe, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos, vistosDeComentario, miVistoDe, puedeMarcarVisto, alternarVisto } from './comun.js';
+import { $, L, estado, el, boton, tonoDe, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos, vistosDeComentario, miVistoDe, puedeMarcarVisto, alternarVisto } from './comun.js';
 
 let alCambiar = () => {};
 export function alCambiarChat(fn) { alCambiar = fn; }
@@ -188,7 +188,7 @@ function pintarSelector(ta) {
     if (!s.opciones.length) { cerrarSelector(ta); return; }
     for (const [k, c] of s.opciones.entries()) {
         const b = boton('', '', () => elegir(ta, c), { mencionar: c }); b.setAttribute('role', 'option'); b.id = `${caja.id}-op-${k}`;
-        b.appendChild(avatar(c)); b.appendChild(el('span', 'n', nombreDe(c, estado.roles))); b.appendChild(el('span', 'a mn-mono', '@' + aliasParaMencion(c, estado.roles)));
+        b.appendChild(el('span', 'n', nombreDe(c, estado.roles))); b.appendChild(el('span', 'a mn-mono', '@' + aliasParaMencion(c, estado.roles)));
         b.addEventListener('mousedown', e => e.preventDefault());   // que el textarea no pierda el foco antes del clic
         caja.appendChild(b);
     }

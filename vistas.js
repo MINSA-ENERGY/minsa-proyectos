@@ -7,7 +7,7 @@
 
 import { CONFIG } from './config.js';
 import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
-import { $, estado, el, boton, avatar, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, columnasDeTarea, avisar } from './comun.js';
+import { $, estado, el, boton, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, columnasDeTarea, avisar } from './comun.js';
 import { pintarChat } from './chat.js';   // v0.42.0: Mensajes pinta el hilo del frente elegido en su propia columna
 import { tablaDocs, filaRaiz, filasDeExpediente, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden; v0.36.0: y el mismo arbol
 
@@ -91,10 +91,10 @@ function gantt(cont, filas, rango, opts = {}) {
     cont.appendChild(g);
 }
 
-/** Fila-etiqueta de una tarjeta en el roadmap del proyecto: avatar + titulo (abre la tarjeta). */
+/** Fila-etiqueta de una tarjeta en el roadmap del proyecto: titulo (abre la tarjeta). */
 function etiquetaTarea(t) {
     const b = el('button', 'g-tarea'); b.type = 'button'; b.dataset.t = String(t.id); b.title = t.Title;
-    b.appendChild(avatar(t.Asignado)); b.appendChild(el('span', 't', t.Title));
+    b.appendChild(el('span', 't', t.Title));
     b.addEventListener('click', () => irTarjeta(t, 'roadmap'));
     return b;
 }
@@ -221,7 +221,6 @@ export function pintarCalendario() {
     const itemTarea = (t, largo) => {
         const p = porId(estado.proyectos, t.ProyectoId);
         const b = el('button', 'cal-it is-' + claseVence(t)); b.type = 'button'; b.dataset.calT = String(t.id); b.title = `${t.Title}${p ? ' · ' + p.Title : ''}${t.Asignado ? ' · ' + nombreDe(t.Asignado, estado.roles) : ''}`;
-        if (largo) b.appendChild(avatar(t.Asignado));
         b.appendChild(el('span', 't', t.Title)); if (largo && p) b.appendChild(el('span', 'm', p.Title));
         b.addEventListener('click', () => irTarjeta(t)); return b;
     };
@@ -515,7 +514,7 @@ export function pintarReportes() {
     const carga = cargaPorPersona(todas, CONFIG.vencePronto); const maxC = Math.max(1, ...carga.map(c => c.abiertas));
     for (const c of carga) {
         const fila = el('div', 'rep-fila'); fila.dataset.repQ = c.quien || 'sin-dueno';
-        const eti = el('span', 'eti'); eti.appendChild(avatar(c.quien)); eti.appendChild(el('span', 't', c.quien ? nombreDe(c.quien, estado.roles) : 'Sin dueño')); eti.appendChild(el('span', 'm', `${c.hechas} hechas`)); fila.appendChild(eti);
+        const eti = el('span', 'eti'); eti.appendChild(el('span', 't', c.quien ? nombreDe(c.quien, estado.roles) : 'Sin dueño')); eti.appendChild(el('span', 'm', `${c.hechas} hechas`)); fila.appendChild(eti);
         const w = el('div', 'rep-barra'); const b = el('div', 'hbar'); b.title = `${c.abiertas} abiertas, ${c.vencidas} vencidas`;
         const ok = el('i', 'abiertas'); ok.style.width = ((c.abiertas - c.vencidas) * 100 / maxC) + '%'; b.appendChild(ok);
         if (c.vencidas) { const v = el('i', 'vencidas'); v.style.width = (c.vencidas * 100 / maxC) + '%'; v.appendChild(el('span', '', String(c.vencidas))); b.appendChild(v); }
@@ -530,7 +529,7 @@ export function pintarReportes() {
     const ap = $('repActividad'); ap.textContent = '';
     const act = actividadPorPersona(estado.actividad.filter(x => !x.ProyectoId || ps.some(p => p.id === Number(x.ProyectoId))), 30); const maxA = Math.max(1, ...act.map(x => x.n));
     for (const x of act) {
-        const fila = el('div', 'rep-fila'); const eti = el('span', 'eti'); eti.appendChild(avatar(x.quien)); eti.appendChild(el('span', 't', nombreDe(x.quien, estado.roles))); fila.appendChild(eti);
+        const fila = el('div', 'rep-fila'); const eti = el('span', 'eti'); eti.appendChild(el('span', 't', nombreDe(x.quien, estado.roles))); fila.appendChild(eti);
         const w = el('div', 'rep-barra'); const b = el('div', 'hbar'); const i = el('i', 'act'); i.style.width = (x.n * 100 / maxA) + '%'; b.appendChild(i); w.appendChild(b); w.appendChild(el('b', 'mn-mono', String(x.n))); fila.appendChild(w); ap.appendChild(fila);
     }
     if (!act.length) ap.appendChild(el('p', 'vacio', 'Sin actividad en 30 días.'));
@@ -541,7 +540,7 @@ export function pintarReportes() {
         const cab = el('div', 'grupo'); cab.textContent = `${p.Title} · ${vs.length}`; tv.appendChild(cab);
         for (const t of vs.sort((x, y) => String(x.Vence).localeCompare(String(y.Vence)))) {
             const b = el('button', 'it clic'); b.type = 'button'; b.dataset.repV = String(t.id); b.addEventListener('click', () => irTarjeta(t));
-            b.appendChild(avatar(t.Asignado)); const c = el('div'); const cab2 = el('div', 'cab'); cab2.appendChild(el('span', 'q', t.Asignado ? nombreDe(t.Asignado, estado.roles).split(' ')[0] : 'sin dueño')); cab2.appendChild(el('span', 'd is-danger', `hace ${-diasPara(t.Vence)} d`)); c.appendChild(cab2); c.appendChild(el('div', 'f', t.Title)); b.appendChild(c); tv.appendChild(b);
+            const c = el('div'); const cab2 = el('div', 'cab'); cab2.appendChild(el('span', 'q', t.Asignado ? nombreDe(t.Asignado, estado.roles).split(' ')[0] : 'sin dueño')); cab2.appendChild(el('span', 'd is-danger', `hace ${-diasPara(t.Vence)} d`)); c.appendChild(cab2); c.appendChild(el('div', 'f', t.Title)); b.appendChild(c); tv.appendChild(b);
         }
     }
     if (!venc.length) tv.appendChild(el('p', 'vacio', 'Nada vencido.'));
