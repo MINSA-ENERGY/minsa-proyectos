@@ -880,6 +880,11 @@ try {
         // Mis tareas filtra por correo.
         pestana('mis'); await esperar(() => visible('p-mis'), 'mis tareas');
         R.ok('Mis tareas trae solo lo mío', [...document.querySelectorAll('#misLista .tarjeta')].length === (gerencia ? 1 : 2) && !!document.querySelector(`#misLista .tarjeta[data-t="${t.id}"]`), String(document.querySelectorAll('#misLista .tarjeta').length));
+        // v0.57.0 (artifact CrSMdQaxRzctu9VFqrU1dP, corte B): agenda por día — grupos .dia en orden fijo, rótulo + lista de renglones, fecha a la derecha, sin «Urgentes».
+        { const ORDEN = ['vencidas', 'hoy', 'manana', 'semana', 'despues', 'sinfecha']; const dias = [...document.querySelectorAll('#misLista > .dia')];
+          R.ok('v0.57.0: Mis tareas es una agenda: cada grupo trae rótulo y al menos un renglón, en el orden Vencidas → Sin fecha, sin bloque «Urgentes»', dias.length > 0 && !document.querySelector('#misLista .urgente') && dias.every(d => d.querySelector('.rot b') && d.querySelectorAll('.lista .tarjeta').length) && dias.map(d => ORDEN.indexOf(d.dataset.dia)).every((n, k, arr) => n >= 0 && (k === 0 || n > arr[k - 1])), dias.map(d => d.dataset.dia).join(','));
+          R.ok('v0.57.0: cada renglón de la agenda lleva su fecha a la derecha (.d) y el chip .vence escondido', [...document.querySelectorAll('#misLista .tarjeta')].every(b => b.querySelector('.d') && b.querySelector('.d').textContent.trim() && (!b.querySelector('.vence') || getComputedStyle(b.querySelector('.vence')).display === 'none')));
+          if (!gerencia) { const sem = filas('tareas').find(x => x.fields.Title === 'Tarea sembrada para mí'); R.ok('v0.57.0: la sembrada vencida cae en el grupo Vencidas con los días en rojo («· −N d»)', !!document.querySelector(`#misLista .dia[data-dia="vencidas"] .tarjeta[data-t="${sem.id}"] .d`) && /−\d+ d$/.test(document.querySelector(`#misLista .dia[data-dia="vencidas"] .tarjeta[data-t="${sem.id}"] .d`).textContent.trim())); } }
         // Inicio: KPI y próximos.
         pestana('inicio'); await esperar(() => $('inicioSub').textContent, 'inicio');
         R.ok('v0.21.0: el saludo cuenta 1 frente activo', $('inicioSub').textContent.includes('1 frente activo ·'), $('inicioSub').textContent);
@@ -1639,7 +1644,7 @@ try {
         { const mod = await import('../comun.js'); const c = mod.comentariosDe(filas('proyectos')[0].id)[0]; const nAntes = filas('actividad').length; await mod.borrarComentario(c, mod.estado.proyectoAbierto);
           R.ok('v0.9.0 (lectura): borrarComentario se niega aunque se fuerce', filas('actividad').length === nAntes && !!avisoCon('Solo quien lo escribió')); }
         pestana('mis'); await esperar(() => visible('p-mis'), 'mis');
-        R.ok('lectura: Mis tareas trae la sembrada, vencida arriba en «Urgentes» con los días grandes', document.querySelectorAll('#misLista .tarjeta').length === 1 && !!document.querySelector('#misLista .urgentes .urgente.is-danger .tarjeta') && $('misLista').textContent.includes('venció') && $('misLista').querySelector('.urgente .k b').textContent === String(-diasPara('2026-09-01T18:00:00Z')));
+        R.ok('lectura (v0.57.0): Mis tareas trae la sembrada en el grupo Vencidas de la agenda, con «venció» y los días a la derecha', document.querySelectorAll('#misLista .tarjeta').length === 1 && !!document.querySelector('#misLista .dia[data-dia="vencidas"] .tarjeta') && $('misLista').textContent.includes('venció') && $('misLista').querySelector('.dia[data-dia="vencidas"] .tarjeta .d').textContent.trim().endsWith(`−${-diasPara('2026-09-01T18:00:00Z')} d`));
         pestana('inicio'); await dormir(50);
         R.ok('lectura (v0.41.0): Inicio no trae KPI; la vencida la dice el contador rojo del rail', !document.getElementById('inicioKpis') && !$('nMis').hidden && $('nMis').textContent === '1', $('nMis').textContent);
         clic('btnEquipo'); await esperar(() => $('dlgEquipo').open, 'equipo');
