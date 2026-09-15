@@ -93,7 +93,11 @@ export async function pintarDocs(p) {
     const porTarjeta = new Map();
     for (const l of ligas.filter(l => l.TareaId)) { const k = Number(l.TareaId); if (!porTarjeta.has(k)) porTarjeta.set(k, []); porTarjeta.get(k).push(l); }
     const tarjetas = [...porTarjeta.keys()].sort((a, b) => { const ta = porId(estado.tareas, a), tb2 = porId(estado.tareas, b); return String(ta ? ta.Title : '').localeCompare(String(tb2 ? tb2.Title : '')) || a - b; });
-    for (const k of tarjetas) { const tt = porId(estado.tareas, k); tb.appendChild(filaGrupo(k, tt ? tt.Title : `Tarjeta #${k}`, porTarjeta.get(k).length, { tarea: tt, columnas, plegada: plegada(k), alPlegar: () => alPlegar(k) })); for (const l of porTarjeta.get(k)) tb.appendChild(filaDoc(l, { p, puede: puedeDe(l), oculta: plegada(k) })); }
+    // v0.35.0 (Carlos, 14-sep; artifact 2Kb1WRx5, opcion B de seis): la carpeta y sus hojas forman un BLOQUE TINTADO con el
+    // color de la tarjeta (tr.bloque + data-tono o is-p/c/r/h en el <tr>, que el CSS lee como --tono). Sustituye la cebra
+    // is-par de v0.34.0: la banda separaba renglones sin decir de que tarjeta eran. «Del proyecto» y vacias no llevan tinte.
+    const enBloque = (tr, t) => { if (!t) return tr; tr.classList.add('bloque'); const color = colorValido(t.Color); if (color) tr.dataset.tono = color; else tr.classList.add('is-' + claseDeColumna(t.Columna, columnas)); return tr; };
+    for (const k of tarjetas) { const tt = porId(estado.tareas, k); tb.appendChild(enBloque(filaGrupo(k, tt ? tt.Title : `Tarjeta #${k}`, porTarjeta.get(k).length, { tarea: tt, columnas, plegada: plegada(k), alPlegar: () => alPlegar(k) }), tt)); for (const l of porTarjeta.get(k)) tb.appendChild(enBloque(filaDoc(l, { p, puede: puedeDe(l), oculta: plegada(k) }), tt)); }
     // Las tarjetas abiertas (no hechas) sin ningun documento: UN nodo, plegado por default, para que un frente de 30
     // tarjetas no llene el arbol de carpetas vacias y aun asi se vea cuantas van sin expediente. Solo sin filtro ni busqueda.
     let hayVacias = false;
@@ -102,10 +106,6 @@ export async function pintarDocs(p) {
         const vacias = tareasDe(p, estado.tareas).filter(t => t.Columna !== HECHO && !conDocs.has(t.id)).sort((a, b) => String(a.Title).localeCompare(String(b.Title)));
         if (vacias.length) { hayVacias = true; const ab = estado.plegadasDocs.has(-1); tb.appendChild(filaVacias(vacias.length, ab, () => alPlegar(-1))); if (ab) for (const t of vacias) tb.appendChild(filaVacia(t, columnas, puede ? () => abrirLigar({ proyecto: p, tareaId: t.id }) : null)); }
     }
-    // v0.34.0 (Carlos, 14-sep): hileras alternas grises y blancas para seguir la vista. Se cuentan SOLO las hojas visibles
-    // (una carpeta plegada no rompe la alternancia) y de corrido por todo el arbol, no por carpeta; nth-of-type no sirve
-    // porque cuenta tambien los nodos y las hojas ocultas.
-    let i = 0; for (const tr of tb.querySelectorAll('tr.doc')) if (!tr.hidden) tr.classList.toggle('is-par', i++ % 2 === 1);
     // v0.34.0: «Abrir todo» / «Plegar todo». Las llaves del arbol: 0 = Del proyecto, id de cada tarjeta con expediente, y
     // -1 = el nodo de vacias, que va al reves (presente = ABIERTO). Cada boton se apaga cuando ya no tiene nada que hacer.
     const llaves = [...(delProyecto.length ? [0] : []), ...tarjetas];
