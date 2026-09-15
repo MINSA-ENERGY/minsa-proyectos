@@ -32,9 +32,9 @@
   --amber-700: #a86400; --amber-600: #e08c00; --amber-100: #fff5e2;
 
   --page: var(--slate-50); --card: #ffffff; --sunken: var(--slate-100); --banda: #f4f4f4;   /* v0.29.0: cebra de .dtabla, mas tenue que --sunken */
-  --rail: #ffffff; --rail-on: var(--slate-100);
+  --rail: var(--page); --rail-on: #ffffff;   /* v0.44.0 (Carlos, 15-sep; artifact AHsKBeHt, R7 «Transparente»): la barra toma el gris de la pagina, sin filete; el activo es pastilla blanca con sombra corta */
   --rail-tx: var(--slate-800); --rail-tx-strong: var(--slate-950); --rail-tx-mute: var(--slate-500); --rail-tx-faint: var(--slate-400);
-  --rail-line: var(--slate-200); --rail-hover: var(--slate-50); --rail-chip: var(--slate-100);
+  --rail-line: transparent; --rail-hover: var(--slate-150); --rail-chip: var(--slate-200);
   --tx: var(--slate-950); --tx-body: var(--slate-800); --tx-mute: var(--slate-500); --tx-faint: var(--slate-400);
   --line: var(--slate-200); --line-soft: var(--slate-150);
   --brand: var(--blue-700); --on-brand: #ffffff;
@@ -74,9 +74,9 @@
   :root:not([data-theme="light"]) {
     color-scheme: dark;
     --page: #131313; --card: #1f1f1f; --sunken: #181818; --banda: #1a1a1a;
-    --rail: #0f0f0f; --rail-on: #2e3236;
+    --rail: var(--page); --rail-on: #242424;
     --rail-tx: var(--slate-300); --rail-tx-strong: #ffffff; --rail-tx-mute: var(--slate-500); --rail-tx-faint: var(--slate-600);
-    --rail-line: rgba(255,255,255,.07); --rail-hover: rgba(255,255,255,.06); --rail-chip: rgba(255,255,255,.09);
+    --rail-line: transparent; --rail-hover: rgba(255,255,255,.05); --rail-chip: rgba(255,255,255,.09);
     --tx: #ffffff; --tx-body: var(--slate-150); --tx-mute: var(--slate-300); --tx-faint: #8a8a8a;
     --line: #333333; --line-soft: #2a2a2a;
     --brand: #7f9bff; --on-brand: #0f0f0f;
@@ -93,9 +93,9 @@
 :root[data-theme="dark"] {
   color-scheme: dark;
   --page: #131313; --card: #1f1f1f; --sunken: #181818; --banda: #1a1a1a;
-  --rail: #0f0f0f; --rail-on: #2e3236;
+  --rail: var(--page); --rail-on: #242424;
   --rail-tx: var(--slate-300); --rail-tx-strong: #ffffff; --rail-tx-mute: var(--slate-500); --rail-tx-faint: var(--slate-600);
-  --rail-line: rgba(255,255,255,.07); --rail-hover: rgba(255,255,255,.06); --rail-chip: rgba(255,255,255,.09);
+  --rail-line: transparent; --rail-hover: rgba(255,255,255,.05); --rail-chip: rgba(255,255,255,.09);
   --tx: #ffffff; --tx-body: var(--slate-150); --tx-mute: var(--slate-300); --tx-faint: #8a8a8a;
   --line: #333333; --line-soft: #2a2a2a;
   --brand: #7f9bff; --on-brand: #0f0f0f;
@@ -110,6 +110,10 @@
 }
 /* El rail toma los tokens --rail-* del tablero (blanco en claro, negro en oscuro). */
 .rail { background: var(--rail); color: var(--rail-tx); border-color: var(--rail-line); }
+/* v0.44.0: la pestaña activa del rail es una PASTILLA blanca con hairline y sombra corta (la barra ya no tiene fondo propio). Los equipos, al pasar y al filtrar, tambien en blanco. */
+.rail nav button.is-on { background: var(--rail-on); color: var(--brand-primary); box-shadow: 0 0 0 1px var(--line), 0 1px 3px rgba(20,24,32,.10), 0 4px 10px rgba(20,24,32,.07); }
+.rail .equipos button.is-on, .rail .equipos button:hover { background: var(--rail-on); }
+@media (max-width: 720px) { .rail { border-top-color: var(--border-hairline); background: var(--surface-card); } }   /* en celular la barra va ABAJO, fija: conserva fondo y hairline para separarse del contenido que pasa debajo */
 
 /* ---- utilidades propias */
 .oculto { display: none !important; }
