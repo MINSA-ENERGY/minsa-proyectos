@@ -378,7 +378,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .fila-menu > summary { list-style: none; cursor: pointer; color: var(--text-muted); display: inline-flex; }
 .fila-menu > summary::-webkit-details-marker { display: none; }
 .fila-menu .menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: var(--z-pop); display: grid; gap: 2px; min-width: 200px; padding: var(--sp-2); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); text-align: left; }
-.fila-menu .menu .mn-btn { justify-content: flex-start; width: 100%; }
+.fila-menu .menu .mn-btn { justify-content: flex-start; width: 100%; } .fila-menu .menu a.mn-btn { text-decoration: none; }   /* v0.54.1: «Abrir» es un <a>; sin esto es el unico renglon subrayado */
 .fila-menu .menu .is-peligro { color: var(--status-danger-fg); }
 /* barra de la pestaña Docs: chips + conteo + buscador */
 .docs-barra { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }

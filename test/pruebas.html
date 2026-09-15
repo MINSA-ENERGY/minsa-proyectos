@@ -1110,10 +1110,10 @@ try {
         await esperar(() => avisoCon('está en el buzón'), 'aviso de buzón');
         R.ok('archivo del buzón sin path en la búsqueda: al releer se detecta y no nace liga «archivado»', filas('ligas').length === ligasAntes + 2 && !filas('ligas').some(l => l.fields.DriveItemId === 'archivo-l4'));
         clic('lgCerrar');
-        // Un equipo fuera del piloto: 403 al abrir el sitio, con el nombre.
+        // Un equipo fuera del piloto: 403 al abrir el sitio, con el nombre. v0.54.1: Administración (LEGAL), porque RABASA entró al piloto en v0.54.0.
         if (gerencia) {
             pestana('proyectos'); clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo');
-            poner('npTitulo', 'Inhibidor RABASA'); poner('npClave', 'inhibidor-rabasa'); poner('npEquipo', 'RABASA'); clic('npGuardar');
+            poner('npTitulo', 'Poderes notariales'); poner('npClave', 'poderes-legal'); poner('npEquipo', 'Administracion'); clic('npGuardar');
             await esperar(() => filas('proyectos').length === 2 && visible('p-proyecto'), 'segundo proyecto');
             // A1 (v0.5.0): con la biblioteca sin autorizar, Ligar y Subir quedan APAGADOS antes de
             // que nadie llegue al 403; «Pegar un enlace» sigue vivo porque no toca el sitio.
@@ -1122,7 +1122,7 @@ try {
                 $('btnLigar').disabled && $('btnSubir').disabled && !$('btnEnlace').disabled && $('btnLigar').title.includes('gerencia'));
             // Si aun asi se fuerza el boton, el 403 sigue nombrando el sitio (y a gerencia le dice el script).
             $('btnLigar').disabled = false; clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar'); poner('lgTexto', 'algo'); clic('lgBuscar');
-            await esperar(() => avisoCon('Sin acceso a Quimicos-RABASA'), '403 con nombre');
+            await esperar(() => avisoCon('Sin acceso a Administracion-Legal'), '403 con nombre');
             R.ok('biblioteca fuera del piloto: 403 nombra el sitio', !!avisoCon('otorgar-permiso-sitio'));
             clic('lgCerrar');
             // F11 (v0.3.0): mover una tarjeta a otro frente, solo gerencia.

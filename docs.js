@@ -309,7 +309,7 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
     if (ligada) { const n = el('span', 'menu-nota quien'); if (l.LigadoPor) n.appendChild(avatar(l.LigadoPor)); const tx = el('span', '', ligada); if (l._creado) tx.title = fechaHora(l._creado); n.appendChild(tx); acciones.push(n); }
     if (href) { const a = el('a', 'mn-btn is-ghost is-sm', 'Abrir'); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; acciones.push(a); }
     if (ruta) acciones.push(boton(l.Tipo === 'enlace' ? 'Copiar dirección' : 'Copiar ruta', 'mn-btn is-ghost is-sm', () => copiarTexto(ruta), { copiar: String(l.id) }));   // v0.19.0: la ruta que salio de debajo del nombre
-    if (sinTarjeta && tt && alTarjeta) acciones.push(boton('Abrir tarjeta', 'mn-btn is-ghost is-sm tarjeta-liga', () => alTarjeta(tt), { abrirTarjeta: String(tt.id) }));   // v0.45.0
+    if (sinTarjeta && tt && alTarjeta) acciones.push(boton('Abrir tarjeta', 'mn-btn is-ghost is-sm', () => alTarjeta(tt), { abrirTarjeta: String(tt.id) }));   // v0.45.0; v0.54.1: sin .tarjeta-liga, que le ponia la pildora encima del mn-btn
     if (enArchivos && p) acciones.push(boton('Documentos del proyecto', 'mn-btn is-ghost is-sm', () => irAHash(`#p/${p.Clave}/docs`)));
     if (puede) acciones.push(boton('Quitar', 'mn-btn is-ghost is-sm is-peligro', () => quitarLiga(porId(estado.ligas, l.id) || l), { quitar: String(l.id) }));
     if (acciones.length) {
