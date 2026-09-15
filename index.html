@@ -247,11 +247,14 @@
 
 <!-- Tarjeta (ver / mover / editar) -->
 <dialog id="dlgTarea" class="mn-dialog">
-  <div class="mn-dialog-head"><h2 id="tTitulo"></h2><div class="head-botones"><button class="mn-btn is-ghost is-sm is-icono" id="tCompartir" type="button" title="Copiar la liga de esta tarjeta para mandarla por chat" aria-label="Copiar la liga de esta tarjeta"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1"/></svg></button><button class="mn-btn is-ghost is-sm" id="tCerrar" type="button">Cerrar</button></div></div>
+  <!-- v0.53.0 (Carlos, 15-sep; artifact CMmGTirt, opcion D): la cabecera lleva el menu «···» (#tMenu, un details.fila-menu como el
+       de Docs) con «Borrar tarjeta» dentro, a la izquierda de Cerrar. El titulo es un boton (lo arma tablero.js si se puede editar)
+       que abre el popover #tPop colgado de la cabecera. -->
+  <div class="mn-dialog-head"><h2 id="tTitulo"></h2><div class="head-botones"><button class="mn-btn is-ghost is-sm is-icono" id="tCompartir" type="button" title="Copiar la liga de esta tarjeta para mandarla por chat" aria-label="Copiar la liga de esta tarjeta"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1"/></svg></button><details class="fila-menu" id="tMenu"><summary class="mn-btn is-ghost is-sm is-icono" title="Más acciones" aria-label="Más acciones de la tarjeta">···</summary><div class="menu" role="menu"><button class="mn-btn is-ghost is-sm is-peligro" id="tBorrar" type="button" role="menuitem">Borrar tarjeta</button></div></details><button class="mn-btn is-ghost is-sm" id="tCerrar" type="button">Cerrar</button></div></div>
   <!-- v0.24.0 (iteracion 6): dos columnas en escritorio. Izquierda (.t-main) lo que se lee y se escribe: chips, descripcion,
        Mover a…, notas. Derecha (.t-side) lo que se consulta: el frente (Proyecto · Creada · Ultimo cambio) y los documentos.
-       «Editar la tarjeta» cruza las dos columnas abajo: su formulario no cabe en 280 px y desde v0.31.0 usa ese ancho en dos
-       columnas (Color | Vence · Descripción | Proyecto). Bajo 900 px se apila en este orden. -->
+       Bajo 900 px se apila en este orden. El acordeon «Editar la tarjeta» que cruzaba abajo (v0.24.0-v0.52.0) se fue en v0.53.0:
+       cada propiedad se edita en su renglon con el popover #tPop. -->
   <div class="mn-dialog-body t-cuerpo">
     <div class="dlg-avisos"></div>
     <div class="t-main">
@@ -262,7 +265,8 @@
       <div class="t-props" id="tChips"></div>
       <div class="mover menu oculto" id="tMover" role="menu" aria-label="Mover a otra cubeta"></div>
       <div class="orden" id="tOrden"></div>
-      <p class="t-desc" id="tDesc"></p>
+      <!-- v0.53.0: la descripcion va en su caja para colgarle el popover; el lapiz (#tDescEditar) lo arma tablero.js si se puede editar. -->
+      <div class="t-desc-caja" id="tDescCaja"><p class="t-desc" id="tDesc"></p></div>
       <div id="tDeny" class="deny oculto"></div>
       <p id="tSoloLectura" class="mn-help solo-lectura oculto">Solo lectura · la mueve su asignado o cualquier colaborador.</p>
       <div class="mn-label">Notas<span class="n" id="tNotasN"></span></div>
@@ -280,23 +284,23 @@
       <div class="mn-label">Documentos<span class="n" id="tDocsN"></span></div>
       <div class="tdocs" id="tDocs"></div>
     </aside>
-    <details id="tEditar" class="editar"><summary>Editar la tarjeta</summary>
-      <form id="formTarea" class="forma" novalidate>
-        <div class="mn-field"><label for="ftTitulo">Tarea (verbo + objeto)</label><input id="ftTitulo" required maxlength="255"></div>
-        <div class="mn-row">
-          <div class="mn-field"><label for="ftAsignado">Asignado</label><select id="ftAsignado"></select></div>
-          <!-- v0.50.0 (3A): la prioridad es un segmentado con barras de señal (una · dos · tres); el valor vive en el input oculto
-               con el id de siempre, asi guardarEdicion y la E2E siguen leyendo $('ftPrioridad').value. Lo pinta selectorPrioridad. -->
-          <div class="mn-field"><label id="ftPrioridadEtiqueta">Prioridad</label><input type="hidden" id="ftPrioridad" value="normal"><div class="prio" id="ftPrioridadSeg" data-prio-de="ftPrioridad" aria-labelledby="ftPrioridadEtiqueta"></div></div>
-        </div>
-        <div class="mn-field"><label id="ftColorEtiqueta">Color de la tarjeta</label><div class="tonos" id="ftColor" aria-labelledby="ftColorEtiqueta"></div></div>
-        <div class="mn-field"><label for="ftVence">Vence</label><input id="ftVence" type="date"><div class="atajos-fecha" id="ftAtajos"></div></div>
-        <!-- v0.50.0: «Proyecto (moverla a otro frente)» se QUITO (Carlos, 15-sep: nunca se usa; una tarjeta se queda en su frente). Descripcion toma el ancho entero. -->
-        <div class="mn-field" id="ftDescCampo"><label for="ftDesc">Descripción</label><textarea id="ftDesc" rows="3"></textarea></div>
-        <div class="mn-dialog-foot"><button class="mn-btn is-danger is-sm" id="tBorrar" type="button">Borrar tarjeta</button><button class="mn-btn is-primary is-sm" id="btnGuardarTarea" type="submit">Guardar cambios</button></div>
-      </form>
-    </details>
   </div>
+  <!-- v0.53.0 (opcion D): UN popover de edicion para toda la ficha. tablero.js lo cuelga del renglon pulsado (o de la cabecera para
+       el titulo, o de la caja de la descripcion), muestra solo la seccion de ese campo (data-campo) y carga el valor al abrir; Guardar
+       manda UN PATCH con ese campo. Los ids de los controles son los de siempre (ftTitulo, ftAsignado, ftPrioridad…): guardarEdicion
+       y la E2E siguen leyendo $('ftX').value. Estacionado aqui, fuera del cuerpo, mientras no esta abierto. Bajo 720 px es una hoja
+       inferior fija (estilo.css). -->
+  <form id="tPop" class="pop oculto" novalidate role="dialog" aria-label="Editar un dato de la tarjeta">
+    <div class="pop-campo mn-field" data-campo="titulo"><label for="ftTitulo">Tarea (verbo + objeto)</label><input id="ftTitulo" required maxlength="255"></div>
+    <div class="pop-campo mn-field" data-campo="asignado"><label for="ftAsignado">Asignado</label><select id="ftAsignado"></select></div>
+    <!-- v0.50.0 (3A): la prioridad es un segmentado con barras de señal (una · dos · tres); el valor vive en el input oculto
+         con el id de siempre. Lo pinta selectorPrioridad. -->
+    <div class="pop-campo mn-field" data-campo="prioridad"><label id="ftPrioridadEtiqueta">Prioridad</label><input type="hidden" id="ftPrioridad" value="normal"><div class="prio" id="ftPrioridadSeg" data-prio-de="ftPrioridad" aria-labelledby="ftPrioridadEtiqueta"></div></div>
+    <div class="pop-campo mn-field" data-campo="color"><label id="ftColorEtiqueta">Color de la tarjeta</label><div class="tonos" id="ftColor" aria-labelledby="ftColorEtiqueta"></div></div>
+    <div class="pop-campo mn-field" data-campo="vence"><label for="ftVence">Vence</label><input id="ftVence" type="date"><div class="atajos-fecha" id="ftAtajos"></div><button class="mn-btn is-ghost is-sm" id="ftQuitarFecha" type="button">Quitar la fecha</button></div>
+    <div class="pop-campo mn-field" data-campo="descripcion"><label for="ftDesc">Descripción</label><textarea id="ftDesc" rows="4" placeholder="Qué hay que hacer, con quién, qué se necesita (Ctrl+Enter guarda)"></textarea></div>
+    <div class="pop-pie"><button class="mn-btn is-sm" id="tPopCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="btnGuardarTarea" type="submit">Guardar</button></div>
+  </form>
 </dialog>
 
 <!-- Nueva tarea -->

@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, iniciales, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion } from './reglas.js';
 
-export const VERSION = '0.52.0';
+export const VERSION = '0.53.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -446,7 +446,8 @@ export const TRAZOS = {
     arroba: ['M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z', 'M16 8v5.5a2.5 2.5 0 0 0 5 0V12a9 9 0 1 0-4 7.5'],
     enviar: ['M22 2L11 13', 'M22 2l-7 20-4-9-9-4z'],
     tarjeta: ['M4 5h16v14H4z', 'M8 10h8M8 14h5'],
-    basura: ['M4 7h16', 'M10 11v6M14 11v6', 'M6 7l1 13h10l1-13', 'M9 7V4h6v3']   // v0.9.0: borrar comentario/nota
+    basura: ['M4 7h16', 'M10 11v6M14 11v6', 'M6 7l1 13h10l1-13', 'M9 7V4h6v3'],   // v0.9.0: borrar comentario/nota
+    lapiz: ['M12 20h9', 'M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z']   // v0.53.0: el valor editable de la ficha
 };
 /** Insignia «icono + numero» para la cara de la tarjeta (Trello): notas, documentos, menciones. */
 export function insignia(trazos, n, titulo, clase = '') {

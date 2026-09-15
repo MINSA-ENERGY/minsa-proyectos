@@ -248,6 +248,9 @@ const filas = clave => DB.listas[clave].items;
 const pestana = p => document.querySelector(`#pestanas button[data-p="${p}"]`).click();
 const tab = t => document.querySelector(`.tab[data-tab="${t}"]`).click();
 async function confirmar() { const d = $('dlg'); await esperar(() => d.open, 'diálogo abierto', 2000).catch(() => {}); if (d.open) clic('dlgOk'); }
+// v0.53.0: abre el popover de edicion de ESE campo desde su boton con lapiz (titulo · asignado · vence · prioridad · color · descripcion).
+const editar = campo => { const b = document.querySelector(`#dlgTarea [data-edita="${campo}"]`); if (!b) throw new Error('sin boton de editar para ' + campo); b.click(); if (!$('tPop').closest || $('tPop').classList.contains('oculto')) throw new Error('el popover no abrió para ' + campo); };
+const popAbierto = () => !$('tPop').classList.contains('oculto') ? $('tPop').dataset.campo : null;
 function archivosFalsos() {
     const dt = new DataTransfer();
     dt.items.add(new File([new Blob(['%PDF-1.4 falso'])], 'filosofia-borrador.pdf', { type: 'application/pdf' }));
@@ -400,16 +403,68 @@ try {
         R.ok('la tarjeta volvió a por-hacer en el tablero', !!document.querySelector(`.col[data-col="por-hacer"] .tarjeta[data-t="${t.id}"]`));
         // Editar: reasignar a mí.
         document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
-        $('tEditar').open = true; poner('ftAsignado', YO); $('ftColor').querySelector('[data-tono="morado"]').click(); clic('btnGuardarTarea');
+        // v0.53.0 (opcion D): ya no hay acordeon «Editar la tarjeta»; cada propiedad abre SU popover (#tPop) desde el lapiz del renglon.
+        R.ok('v0.53.0: la ficha no trae el acordeón «Editar la tarjeta» ni formTarea; el popover existe, estacionado y oculto', !$('tEditar') && !$('formTarea') && !!$('tPop') && $('tPop').classList.contains('oculto') && $('tPop').parentElement === $('dlgTarea'));
+        editar('asignado');
+        R.ok('v0.53.0: el lápiz de Asignado abre el popover en el renglón con solo esa sección, el select cargado y con foco', popAbierto() === 'asignado' && $('tPop').closest('#tChips') !== null && [...$('tPop').querySelectorAll('.pop-campo')].filter(s => !s.hidden).map(s => s.dataset.campo).join() === 'asignado' && $('ftAsignado').value === String(t.fields.Asignado).toLowerCase() && document.activeElement === $('ftAsignado'), document.activeElement && document.activeElement.id);
+        poner('ftAsignado', YO); clic('btnGuardarTarea');
         await esperar(() => t.fields.Asignado === YO, 'reasignada');
-        R.ok('editar reasigna y registra', t.fields.Asignado === YO && actividad('editar-tarea').length === 1);
-        // v0.12.0: color de la tarjeta (PROY_Tareas.Color) — se guarda, tiñe la cara y el selector lo trae marcado al reabrir.
+        R.ok('editar reasigna y registra, y la ficha sigue abierta con el popover cerrado y el valor nuevo', t.fields.Asignado === YO && actividad('editar-tarea').length === 1 && $('dlgTarea').open && !popAbierto() && $('tChips').querySelector('[data-chip="asignado"]').textContent.includes('Persona de Prueba'), $('tChips').querySelector('[data-chip="asignado"]').textContent);
+        R.ok('v0.53.0: tras Guardar el foco queda en el lápiz (nuevo) del mismo campo, no en el body', document.activeElement === $('tChips').querySelector('[data-edita="asignado"]'), document.activeElement && document.activeElement.outerHTML.slice(0, 50));
+        editar('asignado'); $('tChips').querySelector('[data-edita="asignado"]').click();
+        R.ok('v0.53.0: pulsar el mismo lápiz con su popover abierto lo cierra (conmuta) y aria-expanded vuelve a false', !popAbierto() && $('tChips').querySelector('[data-edita="asignado"]').getAttribute('aria-expanded') === 'false');
+        // v0.12.0: color de la tarjeta (PROY_Tareas.Color) — se guarda, tiñe la cara y el selector lo trae marcado al reabrir. v0.53.0: Color es un renglon de la ficha con su popover.
+        R.ok('v0.53.0: la ficha trae el renglón Color («Sin color» en gris tenue) con su lápiz', !!$('tChips').querySelector('[data-chip="color"]') && $('tChips').querySelector('[data-chip="color"]').textContent === 'Sin color' && $('tChips').querySelector('[data-chip="color"]').classList.contains('default') && !!$('tChips').querySelector('[data-edita="color"]'));
+        editar('color'); $('ftColor').querySelector('[data-tono="morado"]').click(); clic('btnGuardarTarea');
+        await esperar(() => t.fields.Color === 'morado', 'color guardado');
         R.ok('v0.12.0: el color elegido se guarda en Color y la tarjeta lleva data-tono', t.fields.Color === 'morado' && document.querySelector(`.tarjeta[data-t="${t.id}"]`).dataset.tono === 'morado', t.fields.Color);
+        R.ok('v0.53.0: guardar el color re-pinta el renglón Color con la muestra y el nombre del tono, sin cerrar la ficha', $('dlgTarea').open && $('tChips').querySelector('[data-chip="color"]').textContent === 'Morado' && $('tChips').querySelector('[data-chip="color"] .muestra').dataset.tono === 'morado' && actividad('editar-tarea').length === 2, $('tChips').querySelector('[data-chip="color"]').textContent);
         document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+        editar('color');
         R.ok('v0.12.0: al reabrir, el selector marca «morado» y trae 9 opciones (sin color + 8)', $('ftColor').querySelector('[aria-checked="true"]').dataset.tono === 'morado' && $('ftColor').children.length === 9 && [...$('ftColor').children].filter(b => b.tabIndex === 0).length === 1 && $('ftColor').children[0].getAttribute('role') === 'radio');
         // «Sin color» deja el valor vacio (se guardaria como null); no se guarda aqui para no sumar una actividad mas (Inicio lista las ultimas 5).
         $('ftColor').querySelector('[data-tono=""]').click();
         R.ok('v0.12.0: «sin color» deja el selector en vacío y marcado', $('ftColor').dataset.valor === '' && $('ftColor').querySelector('[aria-checked="true"]').dataset.tono === '');
+        clic('tPopCancelar');
+        R.ok('v0.53.0: Cancelar cierra el popover sin guardar (Color sigue morado) y el foco vuelve al lápiz', !popAbierto() && t.fields.Color === 'morado' && document.activeElement === $('tChips').querySelector('[data-edita="color"]'), document.activeElement && document.activeElement.outerHTML.slice(0, 50));
+        // Guardar sin cambiar nada: ni PATCH ni bitacora, solo cierra.
+        editar('color'); clic('btnGuardarTarea'); await dormir(40);
+        R.ok('v0.53.0: Guardar sin cambios cierra el popover sin PATCH ni renglón de bitácora', !popAbierto() && actividad('editar-tarea').length === 2);
+        // Esc cierra el popover y NO el dialogo; clic fuera del popover tambien lo cierra.
+        editar('vence'); $('dlgTarea').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+        R.ok('v0.53.0: Esc con el popover abierto lo cierra y deja la tarjeta abierta', !popAbierto() && $('dlgTarea').open);
+        editar('vence'); $('tKv').click();
+        R.ok('v0.53.0: clic fuera del popover lo cierra sin guardar', !popAbierto() && $('dlgTarea').open);
+        // Titulo: el h2 es un boton con lapiz que abre el popover colgado de la cabecera; Enter guarda.
+        R.ok('v0.53.0: el título de la ficha es un botón con lápiz (data-edita=titulo) y conserva el texto', !!$('tTitulo').querySelector('[data-edita="titulo"]') && $('tTitulo').textContent === t.fields.Title);
+        editar('titulo');
+        R.ok('v0.53.0: el popover del título cuelga de la cabecera con el input cargado y con foco', popAbierto() === 'titulo' && $('tPop').parentElement.classList.contains('mn-dialog-head') && $('ftTitulo').value === t.fields.Title && document.activeElement === $('ftTitulo'));
+        poner('ftTitulo', ''); clic('btnGuardarTarea'); await dormir(40);
+        R.ok('v0.53.0: título vacío no se guarda (aviso) y el popover sigue abierto', popAbierto() === 'titulo' && !!avisoCon('necesita un título'));
+        const tituloOriginal = t.fields.Title;
+        poner('ftTitulo', tituloOriginal + ' (editado)'); $('tPop').requestSubmit();
+        await esperar(() => t.fields.Title === tituloOriginal + ' (editado)', 'título guardado');
+        R.ok('v0.53.0: el título editado se guarda, la cabecera lo muestra y la bitácora dice «editó»', $('tTitulo').textContent === tituloOriginal + ' (editado)' && actividad('editar-tarea').length === 3 && actividad('editar-tarea')[2].fields.Title.startsWith('editó'), actividad('editar-tarea')[2] && actividad('editar-tarea')[2].fields.Title);
+        // Descripcion: vacia -> «Agregar descripción»; con texto -> el texto + lapiz; Ctrl+Enter guarda.
+        R.ok('v0.53.0: sin descripción, la ficha ofrece «Agregar descripción» en gris tenue', !!$('tDescEditar') && $('tDescEditar').classList.contains('default') && $('tDescEditar').textContent === 'Agregar descripción');
+        editar('descripcion'); poner('ftDesc', 'Descripción por popover'); $('ftDesc').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true }));
+        await esperar(() => t.fields.Descripcion === 'Descripción por popover', 'descripción guardada');
+        R.ok('v0.53.0: Ctrl+Enter guarda la descripción; la ficha la muestra con el lápiz al final', $('tDesc').textContent.startsWith('Descripción por popover') && !!$('tDescEditar') && $('tDescEditar').classList.contains('is-lapiz') && !$('tDescEditar').textContent);
+        editar('descripcion');
+        R.ok('v0.53.0: reabrir la descripción deja el caret al FINAL sin seleccionar el texto (un tecleo no lo borra)', document.activeElement === $('ftDesc') && $('ftDesc').selectionStart === $('ftDesc').value.length && $('ftDesc').selectionEnd === $('ftDesc').selectionStart, `${$('ftDesc').selectionStart}-${$('ftDesc').selectionEnd}/${$('ftDesc').value.length}`);
+        clic('tPopCancelar');
+        // Vence: «Quitar la fecha» guarda null.
+        editar('vence');
+        R.ok('v0.53.0: el popover de Vence trae el input, los atajos y «Quitar la fecha» (hay fecha)', popAbierto() === 'vence' && $('ftVence').value === String(t.fields.Vence).slice(0, 10) && $('ftAtajos').querySelectorAll('button').length >= 3 && !$('ftQuitarFecha').hidden, $('ftVence').value);
+        clic('ftQuitarFecha'); await esperar(() => t.fields.Vence == null, 'fecha quitada');
+        R.ok('v0.53.0: «Quitar la fecha» guarda Vence = null y el renglón dice «Poner fecha»', $('tChips').querySelector('[data-chip="vence"]').textContent === 'Poner fecha');
+        editar('vence'); $('ftAtajos').querySelector('button[data-fecha]').click(); const fechaAtajo = $('ftVence').value; clic('btnGuardarTarea');
+        await esperar(() => String(t.fields.Vence || '').startsWith(fechaAtajo), 'fecha por atajo');
+        R.ok('v0.53.0: un atajo de fecha + Guardar escribe Vence', String(t.fields.Vence).startsWith(fechaAtajo) && !popAbierto() && actividad('editar-tarea').length === 6);
+        // Prioridad: el segmentado dentro del popover.
+        editar('prioridad');
+        R.ok('v0.53.0: el popover de Prioridad abre con el foco en la opción marcada del segmentado', popAbierto() === 'prioridad' && document.activeElement && document.activeElement.dataset.prio === ($('ftPrioridad').value || 'normal'), document.activeElement && document.activeElement.outerHTML.slice(0, 60));
+        clic('tPopCancelar');
         // 503 reintenta; 403 nombra el permiso.
         DB.fallas.push({ metodo: 'PATCH', incluye: `/items/${t.id}/fields`, status: 503, veces: 1 });
         await mover('en-curso'); R.ok('503 en el PATCH: reintenta y la tarjeta se mueve', t.fields.Columna === 'en-curso');
@@ -663,17 +718,17 @@ try {
         document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
         R.ok('U12: la tarjeta dice quién la creó y cuándo', $('tKv').textContent.includes('Creada') && $('tKv').textContent.includes('Persona de Prueba'), $('tKv').textContent.slice(-80));
         // v0.24.0 (iteración 6): asignado · cubeta · vence · prioridad son chips bajo el título; la tabla del frente (tKv) ya no los trae;
-        // el chip de vence es un botón que abre «Editar la tarjeta» con el foco en su campo; y la ficha va a dos columnas.
+        // (v0.53.0) el valor de vence es un botón con lápiz que abre el popover #tPop en su renglón; y la ficha va a dos columnas.
         { const ch = [...$('tChips').querySelectorAll('[data-chip]')].map(c => c.dataset.chip);
-          R.ok('v0.24.0: la tarjeta trae los 4 chips en orden (asignado · cubeta · vence · prioridad) y tKv ya no repite asignado ni cubeta', ch.join(',') === 'asignado,cubeta,vence,prioridad' && $('tChips').querySelector('[data-chip="cubeta"]').textContent === 'En curso' && !$('tKv').textContent.includes('Asignado') && !$('tKv').textContent.includes('Cubeta'), ch.join(',') + ' · ' + $('tKv').textContent.slice(0, 60));
-          R.ok('v0.24.0: el cuerpo es una rejilla de dos columnas (t-main · t-side) con Editar cruzando abajo, y Documentos vive en la derecha', !!document.querySelector('#dlgTarea .t-main #tMover') && !!document.querySelector('#dlgTarea .t-side #tDocs') && !$('tEditar').closest('.t-main') && !$('tEditar').closest('.t-side'));
-          $('tEditar').open = false; $('tChips').querySelector('[data-edita="ftVence"]').click(); await dormir(30);
-          R.ok('v0.24.0: clic en el chip de vence abre «Editar la tarjeta» con el foco en Vence', $('tEditar').open && document.activeElement === $('ftVence'), document.activeElement && document.activeElement.id);
-          $('tEditar').open = false; }
+          R.ok('v0.24.0 + v0.53.0: la tarjeta trae los 5 renglones en orden (asignado · cubeta · vence · prioridad · color) y tKv ya no repite asignado ni cubeta', ch.join(',') === 'asignado,cubeta,vence,prioridad,color' && $('tChips').querySelector('[data-chip="cubeta"]').textContent === 'En curso' && !$('tKv').textContent.includes('Asignado') && !$('tKv').textContent.includes('Cubeta'), ch.join(',') + ' · ' + $('tKv').textContent.slice(0, 60));
+          R.ok('v0.24.0: el cuerpo es una rejilla de dos columnas (t-main · t-side) y Documentos vive en la derecha; v0.53.0: sin acordeón Editar', !!document.querySelector('#dlgTarea .t-main #tMover') && !!document.querySelector('#dlgTarea .t-side #tDocs') && !$('tEditar'));
+          editar('vence'); await dormir(30);
+          R.ok('v0.53.0: clic en el renglón Vence abre el popover colgado de ese renglón con el foco en el input de fecha', popAbierto() === 'vence' && $('tPop').closest('#tChips') !== null && document.activeElement === $('ftVence'), document.activeElement && document.activeElement.id);
+          clic('tPopCancelar'); }
         // v0.50.0 (Carlos, 15-sep; artifact 1mTr2BGa, 1A + 2B + 3A): las propiedades son RENGLONES rótulo · valor (sin .mn-chip); la cubeta abre el menú #tMover
         // (que vive dentro de su renglón, con «1 de 2» y las flechas al lado); la prioridad es un segmentado con barras y un input oculto con el id de siempre.
         { const rotulos = [...$('tChips').querySelectorAll(':scope > b')].map(b => b.textContent);
-          R.ok('v0.50.0: cuatro renglones rótulo · valor (Asignado · Cubeta · Vence · Prioridad) y ningún chip', rotulos.join(',') === 'Asignado,Cubeta,Vence,Prioridad' && !$('tChips').querySelector('.mn-chip') && $('tChips').classList.contains('t-props'), rotulos.join(','));
+          R.ok('v0.50.0 + v0.53.0: cinco renglones rótulo · valor (Asignado · Cubeta · Vence · Prioridad · Color) y ningún chip', rotulos.join(',') === 'Asignado,Cubeta,Vence,Prioridad,Color' && !$('tChips').querySelector('.mn-chip') && $('tChips').classList.contains('t-props'), rotulos.join(','));
           const abre = $('tChips').querySelector('[data-abre-mover]');
           R.ok('v0.50.0: #tMover y #tOrden viven dentro del renglón de la cubeta, y el menú arranca cerrado', !!abre && $('tChips').contains($('tMover')) && $('tChips').contains($('tOrden')) && $('tMover').classList.contains('oculto') && abre.getAttribute('aria-expanded') === 'false');
           abre.click(); await dormir(20);
@@ -682,14 +737,16 @@ try {
           R.ok('v0.50.0: Esc cierra el menú sin cerrar la tarjeta y devuelve el foco a la cubeta', $('tMover').classList.contains('oculto') && $('dlgTarea').open && document.activeElement === abre, document.activeElement && document.activeElement.outerHTML.slice(0, 60));
           abre.click(); await dormir(20); $('tDesc').click(); await dormir(20);
           R.ok('v0.50.0: clic fuera del menú lo cierra', $('tMover').classList.contains('oculto') && $('dlgTarea').open);
-          R.ok('v0.50.0: la prioridad de la ficha lleva las barras, y el editor un segmentado de 3 con el valor en el input oculto', !!$('tChips').querySelector('[data-chip="prioridad"] .barras') && $('ftPrioridadSeg').querySelectorAll('button[role="radio"]').length === 3 && $('ftPrioridad').type === 'hidden' && $('ftPrioridadSeg').querySelector('[aria-checked="true"]').dataset.prio === ($('ftPrioridad').value || 'normal'));
+          editar('prioridad'); await dormir(30);
+          R.ok('v0.50.0: la prioridad de la ficha lleva las barras, y el popover un segmentado de 3 con el valor en el input oculto', !!$('tChips').querySelector('[data-chip="prioridad"] .barras') && $('ftPrioridadSeg').querySelectorAll('button[role="radio"]').length === 3 && $('ftPrioridad').type === 'hidden' && $('ftPrioridadSeg').querySelector('[aria-checked="true"]').dataset.prio === ($('ftPrioridad').value || 'normal'));
+          R.ok('v0.53.0: el popover de Prioridad abre con el foco en la opción marcada del segmentado', popAbierto() === 'prioridad' && document.activeElement && document.activeElement.dataset.prio === ($('ftPrioridad').value || 'normal'), document.activeElement && document.activeElement.outerHTML.slice(0, 60));
           $('ftPrioridadSeg').querySelector('[data-prio="alta"]').click();
           R.ok('v0.50.0: pulsar «Alta» en el segmentado escribe el input oculto y marca el botón', $('ftPrioridad').value === 'alta' && $('ftPrioridadSeg').querySelector('[aria-checked="true"]').dataset.prio === 'alta');
           poner('ftPrioridad', 'baja');
           R.ok('v0.50.0: poner() sobre el input oculto (value + change) repinta el segmentado', $('ftPrioridadSeg').querySelector('[aria-checked="true"]').dataset.prio === 'baja');
-          $('tEditar').open = false; $('tChips').querySelector('[data-edita="ftPrioridad"]').click(); await dormir(30);
-          R.ok('v0.50.0: clic en el renglón Prioridad abre Editar con el foco en la opción marcada del segmentado', $('tEditar').open && document.activeElement && document.activeElement.dataset.prio === 'baja', document.activeElement && document.activeElement.outerHTML.slice(0, 60));
-          $('tEditar').open = false; }
+          clic('btnGuardarTarea'); await esperar(() => t.fields.Prioridad === 'baja', 'prioridad guardada');
+          R.ok('v0.53.0: Guardar en el popover de Prioridad escribe Prioridad y el renglón dice «Baja»', $('tChips').querySelector('[data-chip="prioridad"]').textContent === 'Baja' && !popAbierto());
+          editar('prioridad'); $('ftPrioridadSeg').querySelector('[data-prio="normal"]').click(); clic('btnGuardarTarea'); await esperar(() => t.fields.Prioridad === 'normal', 'prioridad de vuelta'); }
         R.ok('la tarjeta dice su orden en la columna; Subir deshabilitado arriba', $('tOrden').textContent.includes('1 de 2') && $('tOrden').querySelector('[data-orden="subir"]').disabled && !$('tOrden').querySelector('[data-orden="bajar"]').disabled, $('tOrden').textContent);
         $('tOrden').querySelector('[data-orden="bajar"]').click();
         await esperar(() => $('tOrden').textContent.includes('2 de 2'), 'bajada');
@@ -1053,8 +1110,8 @@ try {
             await abrirLau(); await esperar(() => document.querySelector(`.tarjeta[data-t="${normal.id}"]`), 'tarjeta normal');
             document.querySelector(`.tarjeta[data-t="${normal.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
             // v0.50.0 (Carlos, 15-sep): el select «Proyecto (moverla a otro frente)» se QUITO del editor — ni gerencia lo ve, y guardar no toca ProyectoId.
-            R.ok('v0.50.0: el editor ya no trae «Proyecto (moverla a otro frente)» ni para gerencia', !$('ftProyecto') && !$('ftProyectoCampo') && !$('formTarea').textContent.includes('otro frente'));
-            $('tEditar').open = true; poner('ftDesc', 'Descripción editada por gerencia'); clic('btnGuardarTarea');
+            R.ok('v0.50.0: el editor ya no trae «Proyecto (moverla a otro frente)» ni para gerencia', !$('ftProyecto') && !$('ftProyectoCampo') && !$('tPop').textContent.includes('otro frente'));
+            editar('descripcion'); poner('ftDesc', 'Descripción editada por gerencia'); clic('btnGuardarTarea');
             await esperar(() => normal.fields.Descripcion === 'Descripción editada por gerencia', 'edición guardada');
             R.ok('v0.50.0: guardar la edición conserva el proyecto de la tarjeta y la deja en el tablero', Number(normal.fields.ProyectoId) === proyectoId && !!document.querySelector(`.tarjeta[data-t="${normal.id}"]`) && !actividad('editar-tarea').some(a => a.fields.Title.startsWith('pasó')));
             // Borrar tarjeta y cerrar proyecto: solo gerencia.
@@ -1064,7 +1121,10 @@ try {
             R.ok('gerencia puede borrar', !$('tBorrar').disabled);
             // C5 (v0.5.0): el orden del diálogo sigue la frecuencia de uso: Mover antes que Notas y Documentos,
             // y «Borrar tarjeta» deja de ser lo único fijo al pie — vive dentro de «Editar la tarjeta».
-            R.ok('C5: «Borrar tarjeta» está dentro de Editar, no en el pie del diálogo', $('tEditar').contains($('tBorrar')) && !document.querySelector('#dlgTarea > .mn-dialog-foot'));
+            // v0.53.0 (Carlos, 15-sep): «Borrar tarjeta» vive en el menú «···» de la cabecera, a la izquierda de Cerrar (C5 lo tenía dentro de Editar).
+            R.ok('v0.53.0: «Borrar tarjeta» está dentro del menú «···» de la cabecera (#tMenu), visible para gerencia, y no hay pie', $('tMenu').contains($('tBorrar')) && $('tMenu').closest('.head-botones') !== null && !$('tMenu').classList.contains('oculto') && !document.querySelector('#dlgTarea > .mn-dialog-foot') && $('tMenu').nextElementSibling === $('tCerrar'));
+            $('tMenu').open = true; $('dlgTarea').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true }));
+            R.ok('v0.53.0: Esc con el menú «···» abierto lo cierra sin cerrar la tarjeta', !$('tMenu').open && $('dlgTarea').open);
             const orden = [...$('dlgTarea').querySelectorAll('#tMover, #tNotasLista, #tDocs')].map(x => x.id);
             R.ok('C5: Mover a… va antes que Notas y que Documentos', orden.join(',') === 'tMover,tNotasLista,tDocs', orden.join(','));
             R.ok('C5: la columna actual se lee como «actual» y no es pulsable', document.querySelector('#tMover button.is-here').textContent.includes('actual') && document.querySelector('#tMover button.is-here').disabled);
@@ -1090,7 +1150,7 @@ try {
         } else {
             await abrirLau(); await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta');
             document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
-            R.ok('colaborador: Borrar deshabilitado', $('tBorrar').disabled);
+            R.ok('colaborador: Borrar deshabilitado y el menú «···» escondido', $('tBorrar').disabled && $('tMenu').classList.contains('oculto'));
             R.ok('colaborador: sin select de Proyecto (v0.50.0: ya no existe para nadie), y la tarjeta lista el enlace', !$('ftProyectoCampo') && $('tDocs').textContent.includes('Oficio ASEA'));
             $('tBorrar').disabled = false; clic('tBorrar'); await dormir(80);
             R.ok('colaborador: borrar se niega aunque se fuerce', filas('tareas').some(x => x.id === t.id) && !!avisoCon('Solo gerencia'));
@@ -1521,7 +1581,7 @@ try {
         document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
         // C6 (v0.6.0): una sola señal — la linea gris; ni banda roja ni «Mover a…» a la vista.
         R.ok('C6 (lectura): una línea «Solo lectura», sin banda roja y sin menú de cubetas (v0.50.0: la cubeta es texto, sin botón que abra #tMover)', !$('tSoloLectura').classList.contains('oculto') && $('tSoloLectura').textContent.startsWith('Solo lectura') && $('tDeny').classList.contains('oculto') && $('tMover').classList.contains('oculto') && !document.querySelector('#tChips [data-abre-mover]') && !document.querySelector('#tChips .prop-btn'));
-        R.ok('lectura: botones de mover deshabilitados y sin editar', [...document.querySelectorAll('#tMover button')].every(b => b.disabled) && $('tEditar').classList.contains('oculto') && $('tBorrar').disabled);
+        R.ok('lectura: botones de mover deshabilitados y sin editar (ni un lápiz, ni menú «···», título como texto)', [...document.querySelectorAll('#tMover button')].every(b => b.disabled) && !document.querySelector('#dlgTarea [data-edita]') && $('tMenu').classList.contains('oculto') && $('tBorrar').disabled && !$('tTitulo').querySelector('button'));
         R.ok('D2 (lectura): «Proyecto» es un enlace a #p/<clave> con el icono del equipo (v0.7.0: icono, no chip)', !!document.querySelector('#tKv a[data-proyecto="lau-demo"]') && document.querySelector('#tKv .proy .eqi').title === 'CALYTEK');
         R.ok('lectura: sin «→ siguiente», sin Subir/Bajar, sin pegar enlace', !document.querySelector('[data-sig]') && !$('tOrden').querySelector('button') && !document.querySelector('#tDocs [data-enlace]'));
         // v0.5.0: lo de la tanda 4 también con el rol que solo mira (antes sus 15 pruebas no tocaban nada nuevo).

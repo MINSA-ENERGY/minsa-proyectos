@@ -390,14 +390,32 @@ export function tarjetaAbiertaId() { return $('dlgTarea').open && tarjetaAbierta
 export function abrirTarjeta(id) {
     const t = porId(estado.tareas, id); if (!t) return;
     tarjetaAbierta = t;
+    pintarFicha(t);
+    abrirDialogo('dlgTarea');
+    fijarHash(hashDe(t.id));
+}
+
+const TITULO_EDITA = { asignado: 'Cambiar el asignado', vence: 'Cambiar la fecha', prioridad: 'Cambiar la prioridad', color: 'Cambiar el color' };
+/** v0.53.0: pinta la ficha de `t` en #dlgTarea sin abrirlo ni tocar el hash — abrirTarjeta la usa, y guardarEdicion la re-pinta
+ *  tras cada PATCH sin que abrirDialogo mande el scroll arriba. */
+function pintarFicha(t) {
     const p = porId(estado.proyectos, t.ProyectoId);
-    $('tTitulo').textContent = t.Title;
     // v0.24.0 (iteracion 6) puso asignado · cubeta · vence · prioridad como CHIPS bajo el titulo. v0.50.0 (Carlos, 15-sep;
     // artifact 1mTr2BGa, opcion 1A) los vuelve RENGLONES rotulo · valor —el mismo kv de la columna derecha—, porque cuatro
     // pastillas del mismo peso decian cosas de peso distinto («normal» y «sin fecha» son el default). Regla: lo que esta en
-    // su valor por defecto va en gris tenue. El valor de asignado / vence / prioridad es un boton que abre «Editar la
-    // tarjeta» en su campo (si se puede editar); el de cubeta abre el menu #tMover (opcion 2B: «Mover a…» ya no es seccion).
+    // su valor por defecto va en gris tenue. v0.53.0 (Carlos, 15-sep; artifact CMmGTirt, opcion D): el valor de asignado / vence /
+    // prioridad / color es un boton con LAPIZ que abre el popover #tPop de ESE campo ahi mismo (antes mandaba al acordeon
+    // «Editar la tarjeta», que ya no existe); el de cubeta abre el menu #tMover (opcion 2B). El titulo y la descripcion tambien.
     const puedeEditar = PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';
+    cerrarPop();   // si se re-pinta con el popover abierto (conflicto, relectura), se cierra sin guardar
+    const tit = $('tTitulo'); tit.textContent = '';
+    if (puedeEditar) {
+        const b = el('button', 'prop-btn is-titulo'); b.type = 'button'; b.title = 'Cambiar el título'; b.dataset.edita = 'titulo';
+        b.setAttribute('aria-haspopup', 'dialog'); b.setAttribute('aria-expanded', 'false');
+        b.appendChild(el('span', '', t.Title)); b.appendChild(iconoSvg(TRAZOS.lapiz, 'lapiz'));
+        b.addEventListener('click', () => abrirPop('titulo', tit.closest('.mn-dialog-head'), b));
+        tit.appendChild(b);
+    } else tit.textContent = t.Title;
     // #tMover y #tOrden viven DENTRO del renglon de la cubeta desde la primera apertura: se toman antes de vaciar los renglones,
     // o el vaciado se los lleva (la E2E lo cazo: null en la segunda apertura).
     const mv = $('tMover'), or = $('tOrden');
@@ -407,28 +425,40 @@ export function abrirTarjeta(id) {
         props.appendChild(el('b', '', rotulo));
         const celda = el('span', 'val');
         if (!campo || !puedeEditar) { celda.appendChild(nodo); props.appendChild(celda); return celda; }
-        const b = el('button', 'prop-btn'); b.type = 'button'; b.title = 'Cambiar en «Editar la tarjeta»'; b.dataset.edita = campo;
-        b.appendChild(nodo);
-        b.addEventListener('click', () => {
-            $('tEditar').open = true; const f = $(campo); f.scrollIntoView({ block: 'nearest' });
-            // el hidden de prioridad no toma foco: lo toma su opcion marcada
-            (f.type === 'hidden' ? $(campo + 'Seg').querySelector('[aria-checked="true"]') || f : f).focus();
-        });
+        const b = el('button', 'prop-btn is-edita'); b.type = 'button'; b.title = TITULO_EDITA[campo] || `Cambiar ${rotulo.toLowerCase()}`; b.dataset.edita = campo;
+        b.setAttribute('aria-haspopup', 'dialog'); b.setAttribute('aria-expanded', 'false');
+        b.appendChild(nodo); b.appendChild(iconoSvg(TRAZOS.lapiz, 'lapiz'));
+        b.addEventListener('click', () => abrirPop(campo, celda, b));
         celda.appendChild(b); props.appendChild(celda);
         return celda;
     };
     const quien = el('span', t.Asignado ? '' : 'default', t.Asignado ? nombreDe(t.Asignado, estado.roles) : 'Sin asignar');
     if (t.Asignado) quien.prepend(avatar(t.Asignado));
-    renglon('Asignado', quien, 'asignado', 'ftAsignado');
+    renglon('Asignado', quien, 'asignado', 'asignado');
     const celdaCubeta = renglon('Cubeta', el('span', '', nombreColumna(t)), 'cubeta');
     // Vence: el semaforo de la fecha (vencio / hoy / pronto) tine el texto; sin fecha, «Poner fecha» en gris tenue; hecha, la fecha a secas.
     const ev = estadoVence(t, CONFIG.vencePronto);   // null en «hecho»: ya no vence
     const vence = el('span', !t.Vence ? 'default' : ev === 'danger' ? 'is-danger' : ev === 'warn' ? 'is-warn' : '',
         !t.Vence ? (puedeEditar ? 'Poner fecha' : 'Sin fecha') : ev === 'danger' ? `venció ${fechaCorta(t.Vence)}` : ev === 'warn' && diasPara(t.Vence) === 0 ? 'hoy' : fechaCorta(t.Vence));
-    renglon('Vence', vence, 'vence', 'ftVence');
+    renglon('Vence', vence, 'vence', 'vence');
     const prio = el('span', t.Prioridad === 'alta' || t.Prioridad === 'baja' ? '' : 'default'); prio.appendChild(barrasPrioridad(t.Prioridad)); prio.appendChild(document.createTextNode(t.Prioridad === 'alta' ? 'Alta' : t.Prioridad === 'baja' ? 'Baja' : 'Normal'));
-    renglon('Prioridad', prio, 'prioridad', 'ftPrioridad');
-    $('tDesc').textContent = t.Descripcion || ''; $('tDesc').classList.toggle('oculto', !t.Descripcion);
+    renglon('Prioridad', prio, 'prioridad', 'prioridad');
+    // v0.53.0: Color es un renglon mas (antes solo vivia en el editor): la muestra redonda con el nombre del tono; sin color, gris tenue.
+    const tono = COLORES.find(c => c.clave === colorValido(t.Color));
+    const color = el('span', tono ? '' : 'default'); const muestra = el('i', 'muestra'); if (tono) muestra.dataset.tono = tono.clave; color.appendChild(muestra); color.appendChild(document.createTextNode(tono ? tono.nombre : 'Sin color'));
+    renglon('Color', color, 'color', 'color');
+    // Descripcion: texto (pre-line) con lapiz al final si se puede editar; vacia, «Agregar descripción» en gris tenue (o nada en lectura).
+    const caja = $('tDescCaja'); caja.textContent = '';
+    const desc = el('p', 't-desc', t.Descripcion || ''); desc.id = 'tDesc';
+    if (puedeEditar) {
+        const b = el('button', 'prop-btn is-edita' + (t.Descripcion ? ' is-lapiz' : ' default')); b.type = 'button'; b.id = 'tDescEditar'; b.dataset.edita = 'descripcion';
+        b.title = t.Descripcion ? 'Cambiar la descripción' : ''; b.setAttribute('aria-haspopup', 'dialog'); b.setAttribute('aria-expanded', 'false');
+        if (!t.Descripcion) b.appendChild(el('span', '', 'Agregar descripción')); else b.setAttribute('aria-label', 'Cambiar la descripción');
+        b.appendChild(iconoSvg(TRAZOS.lapiz, 'lapiz'));
+        b.addEventListener('click', () => abrirPop('descripcion', caja, b));
+        desc.appendChild(b);
+    } else desc.classList.toggle('oculto', !t.Descripcion);
+    caja.appendChild(desc);
 
     // La columna derecha: lo que se consulta del frente (Proyecto · Hecho por · Creada · Último cambio).
     const kv = $('tKv'); kv.textContent = '';
@@ -470,7 +500,7 @@ export function abrirTarjeta(id) {
         const abre = el('button', 'prop-btn is-menu'); abre.type = 'button'; abre.title = 'Mover a otra cubeta'; abre.dataset.abreMover = '1';
         abre.setAttribute('aria-haspopup', 'menu'); abre.setAttribute('aria-expanded', 'false'); abre.setAttribute('aria-controls', 'tMover');
         abre.appendChild(valor); celdaCubeta.prepend(abre);
-        abre.addEventListener('click', () => { alternarMover(mv.classList.contains('oculto')); if (!mv.classList.contains('oculto')) { const f = mv.querySelector('button:not([disabled])'); if (f) f.focus(); } });
+        abre.addEventListener('click', () => { cerrarPop(); alternarMover(mv.classList.contains('oculto')); if (!mv.classList.contains('oculto')) { const f = mv.querySelector('button:not([disabled])'); if (f) f.focus(); } });
         // cerrar con clic fuera y con Esc lo engancha engancharTablero UNA vez (aqui se re-pinta en cada apertura)
     }
     // v0.11.0: las cubetas de SU proyecto (+ la huerfana en la que este, para que se lea como «actual»).
@@ -495,20 +525,53 @@ export function abrirTarjeta(id) {
             const dn = boton('↓', 'mn-btn is-ghost is-sm', () => reordenarTarea(t.id, 1), { orden: 'bajar' }); dn.disabled = i >= hermanas.length - 1; dn.title = 'Bajar un lugar'; dn.setAttribute('aria-label', 'Bajar'); or.appendChild(dn);
         }
     }
+    // v0.53.0: «Borrar tarjeta» vive en el menu «···» de la cabecera (Carlos, 15-sep). El menu entero se esconde a quien no puede
+    // borrar (un menu con su unico renglon apagado no dice nada); el boton sigue disabled por si alguien lo fuerza — borrarTarea se niega sola.
     $('tBorrar').disabled = !PUEDE.borrar(estado.rol);
     $('tBorrar').title = PUEDE.borrar(estado.rol) ? '' : 'Solo gerencia borra tarjetas';
-    // Editar (puedeEditar se calculo arriba, con los renglones)
-    $('tEditar').classList.toggle('oculto', !puedeEditar);
-    $('tEditar').open = false;
-    opciones($('ftAsignado'), personas(), x => x, x => nombreDe(x, estado.roles), 'sin asignar');
-    // v0.50.0: «Proyecto (moverla a otro frente)» se quito del editor (Carlos, 15-sep): la tarjeta se queda en su frente.
-    $('ftTitulo').value = t.Title || ''; $('ftAsignado').value = String(t.Asignado || '').toLowerCase(); ponerPrioridad('ftPrioridad', t.Prioridad);
-    $('ftVence').value = diaInput(t.Vence); $('ftDesc').value = t.Descripcion || '';
-    selectorTonos($('ftColor'), t.Color, null, 'Color de la tarjeta');   // v0.12.0
-    atajosFecha('ftVence', 'ftAtajos', p && p.Vence);   // C2 + D1
-    abrirDialogo('dlgTarea');
-    fijarHash(hashDe(t.id));
+    $('tMenu').classList.toggle('oculto', !PUEDE.borrar(estado.rol)); $('tMenu').open = false;
 }
+
+// ---------------------------------------------------------------- popover de edicion (v0.53.0, opcion D)
+
+/** Campo abierto en #tPop, o null. */
+let popAbierto = null;
+/** Boton que abrio el popover (recupera el foco al cerrar). */
+let popDesde = null;
+/** Cuelga #tPop de `ancla` mostrando solo la seccion de `campo`, con el valor actual de la tarjeta cargado. */
+function abrirPop(campo, ancla, desde) {
+    const t = tarjetaAbierta; if (!t) return;
+    const p = porId(estado.proyectos, t.ProyectoId);
+    if (popAbierto === campo && popDesde === desde) { cerrarPop(); return; }   // el mismo lapiz otra vez: conmuta (revisor)
+    if (popAbierto) cerrarPop();
+    alternarMover(false);
+    const pop = $('tPop');
+    for (const s of pop.querySelectorAll('.pop-campo')) s.hidden = s.dataset.campo !== campo;
+    pop.dataset.campo = campo; popAbierto = campo; popDesde = desde || null;
+    // el valor se carga al ABRIR, de la tarjeta viva (no al pintar la ficha): asi un Cancelar nunca deja basura para la siguiente
+    if (campo === 'titulo') $('ftTitulo').value = t.Title || '';
+    if (campo === 'asignado') { opciones($('ftAsignado'), personas(), x => x, x => nombreDe(x, estado.roles), 'sin asignar'); $('ftAsignado').value = String(t.Asignado || '').toLowerCase(); }
+    if (campo === 'prioridad') ponerPrioridad('ftPrioridad', t.Prioridad);
+    if (campo === 'color') selectorTonos($('ftColor'), t.Color, null, 'Color de la tarjeta');   // v0.12.0
+    if (campo === 'vence') { $('ftVence').value = diaInput(t.Vence); atajosFecha('ftVence', 'ftAtajos', p && p.Vence); $('ftQuitarFecha').hidden = !t.Vence; }   // C2 + D1
+    if (campo === 'descripcion') $('ftDesc').value = t.Descripcion || '';
+    ancla.appendChild(pop); pop.classList.remove('oculto');
+    if (desde) desde.setAttribute('aria-expanded', 'true');
+    // el hidden de prioridad no toma foco: lo toma su opcion marcada; en color, el tono marcado
+    const f = campo === 'prioridad' ? $('ftPrioridadSeg').querySelector('[aria-checked="true"]') : campo === 'color' ? $('ftColor').querySelector('[aria-checked="true"]') : pop.querySelector('.pop-campo:not([hidden]) input:not([type="hidden"]), .pop-campo:not([hidden]) select, .pop-campo:not([hidden]) textarea');
+    // el titulo se selecciona entero (convencion «renombrar»); la descripcion NO: seleccionarla dejaria un parrafo a un tecleo de
+    // borrarse (revisor) — caret al final
+    if (f) { f.focus(); if (f.tagName === 'TEXTAREA') f.setSelectionRange(f.value.length, f.value.length); else if (f.select && f.type !== 'date') f.select(); }
+}
+/** Cierra #tPop sin guardar y lo estaciona al final del dialogo; el foco vuelve al boton que lo abrio. */
+export function cerrarPop() {
+    const pop = $('tPop'); if (!pop) return;
+    pop.classList.add('oculto'); $('dlgTarea').appendChild(pop);
+    if (popDesde) { popDesde.setAttribute('aria-expanded', 'false'); if (popAbierto && document.activeElement && (document.activeElement === document.body || pop.contains(document.activeElement))) popDesde.focus(); }
+    popAbierto = null; popDesde = null;
+}
+/** Id del campo abierto en el popover, o null (la E2E lo lee). */
+export function popCampo() { return popAbierto; }
 
 /** Documentos de la tarjeta (F3): las ligas con «Quitar», y «Ligar archivo» / «Subir al buzón» con esta tarjeta ya puesta. */
 function pintarDocsDeTarjeta(t, p) {
@@ -675,27 +738,37 @@ async function reordenarTarea(id, delta) {
     }
 }
 
+/** v0.53.0 (opcion D): guarda el UNICO campo abierto en #tPop — un PATCH por propiedad, y la ficha se re-pinta sin cerrarse.
+ *  Hasta v0.52.0 el acordeon «Editar la tarjeta» mandaba los seis campos juntos y cerraba el dialogo. */
 async function guardarEdicion(ev) {
-    ev.preventDefault();
-    const t = tarjetaAbierta; if (!t) return;
+    if (ev) ev.preventDefault();
+    const t = tarjetaAbierta, campo = popAbierto; if (!t || !campo) return;
     if (!PUEDE.tarea(estado.rol)) { avisar('Tu rol es de lectura: no puedes editar tarjetas.', 'error'); return; }
-    let vence;
-    try { vence = aIsoDia($('ftVence').value); } catch (e) { avisar(e.message, 'error'); return; }
-    const titulo = $('ftTitulo').value.trim();
-    if (!titulo) { avisar('La tarea necesita un título.', 'error'); $('ftTitulo').focus(); return; }
-    const campos = {
-        Title: titulo, Asignado: $('ftAsignado').value || null, Prioridad: $('ftPrioridad').value, Vence: vence,
-        Descripcion: $('ftDesc').value.trim() || null,   // v0.11.0: Origen ya no se edita desde la app (se conserva lo que traiga)
-        ...(($('ftColor').dataset.valor || '') !== colorValido(t.Color) ? { Color: $('ftColor').dataset.valor || null } : {})   // v0.12.0: solo si cambio (antes de provisionar, un Color siempre presente daria 400 en toda edicion — revisor)
-    };
-    const cambioAsignado = String(t.Asignado || '').toLowerCase() !== String(campos.Asignado || '').toLowerCase();
-    // v0.50.0: mover la tarjeta a otro frente (F11, solo gerencia) se QUITO del editor a pedido de Carlos (15-sep): nunca se
-    // usaba. La tarjeta nace y muere en su frente; recuperable en git (v0.49.0) si algun dia hace falta.
+    const campos = {};
+    if (campo === 'titulo') {
+        const titulo = $('ftTitulo').value.trim();
+        if (!titulo) { avisar('La tarea necesita un título.', 'error'); $('ftTitulo').focus(); return; }
+        if (titulo !== t.Title) campos.Title = titulo;
+    }
+    if (campo === 'asignado') { const v = $('ftAsignado').value || null; if (String(t.Asignado || '').toLowerCase() !== String(v || '').toLowerCase()) campos.Asignado = v; }
+    if (campo === 'prioridad') { const v = $('ftPrioridad').value || 'normal'; if (v !== (t.Prioridad || 'normal')) campos.Prioridad = v; }
+    if (campo === 'vence') {
+        let vence; try { vence = aIsoDia($('ftVence').value); } catch (e) { avisar(e.message, 'error'); return; }
+        if (diaInput(vence) !== diaInput(t.Vence)) campos.Vence = vence;
+    }
+    if (campo === 'descripcion') { const v = $('ftDesc').value.trim() || null; if (v !== (t.Descripcion || null)) campos.Descripcion = v; }
+    // v0.12.0: Color solo si cambio (antes de provisionar, un Color siempre presente daria 400 en toda edicion — revisor)
+    if (campo === 'color') { const v = $('ftColor').dataset.valor || ''; if (v !== colorValido(t.Color)) campos.Color = v || null; }
+    if (!Object.keys(campos).length) { cerrarPop(); return; }   // nada cambio: cerrar sin PATCH ni bitacora
+    const cambioAsignado = 'Asignado' in campos;
+    const titulo = campos.Title || t.Title || '';
     $('btnGuardarTarea').disabled = true;
     try {
         await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, t.id, campos, m => avisar(m, 'ojo'), t._etag);
         aplicar(t, campos);
-        cerrarDialogo('dlgTarea');
+        cerrarPop();
+        pintarFicha(t);
+        { const b = document.querySelector(`#dlgTarea [data-edita="${campo}"]`); if (b) b.focus(); }   // pintarFicha destruyo el lapiz viejo: el foco al nuevo (revisor)
         avisar('Tarjeta actualizada.', 'ok');
         alCambiar();
         await registrarActividad('editar-tarea', cambioAsignado && campos.Asignado ? `asignó «${titulo.slice(0, 80)}» a ${nombreDe(campos.Asignado, estado.roles)}` : `editó «${titulo.slice(0, 80)}»`, t.ProyectoId, t.id);
@@ -895,6 +968,26 @@ export function engancharTablero() {
     // abierto NO cierra el dialogo. Los segmentados de prioridad (3A) se pintan una vez: el input oculto conserva el valor.
     $('dlgTarea').addEventListener('click', e => { if (!$('tMover').classList.contains('oculto') && !(e.target.closest && e.target.closest('#tMover, [data-abre-mover]'))) alternarMover(false); });
     $('dlgTarea').addEventListener('keydown', e => { if (e.key === 'Escape' && !$('tMover').classList.contains('oculto')) { e.preventDefault(); e.stopPropagation(); alternarMover(false); const a = document.querySelector('#tChips [data-abre-mover]'); if (a) a.focus(); } });
+    // v0.53.0 (opcion D): el popover #tPop se cierra SIN guardar con clic fuera (por ancestro), con Cancelar y con Esc — Esc con el
+    // popover abierto NO cierra el dialogo. Enter en un input guarda (el form lo hace solo); en la descripcion, Ctrl/Cmd+Enter.
+    // «···» de la cabecera: clic fuera lo cierra el enganche global de .fila-menu (docs.js); Esc lo cierra aqui sin cerrar el dialogo.
+    $('dlgTarea').addEventListener('click', e => {
+        // Un atajo de fecha se RE-PINTA en su propio clic (atajosFecha): cuando el evento llega aqui el boton ya esta desprendido y
+        // closest() no encuentra #tPop — se juzga solo lo que sigue en el DOM (la E2E lo cazo: «hoy» cerraba el popover sin guardar).
+        if (!e.target.isConnected) return;
+        if (popCampo() && !(e.target.closest && e.target.closest('#tPop, [data-edita]'))) cerrarPop();
+        if ($('tMenu').open && !(e.target.closest && e.target.closest('#tMenu'))) $('tMenu').open = false;
+    });
+    $('dlgTarea').addEventListener('keydown', e => {
+        if (e.key !== 'Escape') return;
+        if (popCampo()) { e.preventDefault(); e.stopPropagation(); cerrarPop(); return; }
+        if ($('tMenu').open) { e.preventDefault(); e.stopPropagation(); $('tMenu').open = false; $('tMenu').querySelector('summary').focus(); }
+    });
+    $('tPop').addEventListener('submit', guardarEdicion);
+    $('tPopCancelar').addEventListener('click', () => cerrarPop());
+    $('ftDesc').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('tPop').requestSubmit(); } });
+    $('ftQuitarFecha').addEventListener('click', () => { $('ftVence').value = ''; $('tPop').requestSubmit(); });
+    $('tMenu').addEventListener('toggle', () => { if ($('tMenu').open) { cerrarPop(); alternarMover(false); } });
     for (const seg of document.querySelectorAll('.prio[data-prio-de]')) selectorPrioridad(seg);
     $('tCompartir').addEventListener('click', compartirTarjeta);
     $('formNota').addEventListener('submit', anotar);
@@ -903,7 +996,6 @@ export function engancharTablero() {
     $('tNota').addEventListener('input', contarNota);
     engancharSelectorMenciones('tNota', 'tNotaSelector', () => $('formNota').requestSubmit());
     $('tBorrar').addEventListener('click', borrarTarea);
-    $('formTarea').addEventListener('submit', guardarEdicion);
     $('btnNuevaTarea').addEventListener('click', abrirNuevaTarea);
     $('formNuevaTarea').addEventListener('submit', guardarNuevaTarea);
     $('ntGuardarYOtra').addEventListener('click', () => guardarNuevaTarea(null, true));   // C1

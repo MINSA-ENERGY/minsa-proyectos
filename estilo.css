@@ -797,7 +797,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .mover .mn-btn.is-here { background: var(--surface-selected); border-color: var(--brand-primary); color: var(--brand-primary); }
 .orden { display: flex; gap: var(--sp-2); align-items: center; margin: 0 0 var(--sp-3); font-size: .8rem; color: var(--text-muted); }
 .orden:empty { display: none; }
-.editar summary { cursor: pointer; font-size: .82rem; font-weight: 600; color: var(--text-link); padding: 0; min-height: var(--control-h-sm); display: flex; align-items: center; }   /* misma altura que un .is-sm: 32 / 40 tactil */
 /* v0.12.0: el pie de un formulario de dialogo ya NO lleva margen negativo: se salia del ancho del <dialog> (el boton primario
    cortado y 14 px de scroll vertical en «Cubetas», medido con capturas.mjs: dialog=512x427 scrollH=441). */
 .forma .mn-dialog-foot { margin: 0; }
@@ -805,7 +804,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .mn-dialog-foot .is-danger { margin-right: auto; }
 /* Un pie cuyo unico boton esta oculto (Actividad sin «ver 50 mas») no deja la barra vacia. */
 .mn-dialog-foot:has(> [hidden]:only-child) { display: none; }
-.editar .forma .mn-dialog-foot { margin: var(--sp-3) 0 0; background: transparent; border: 0; padding: 0; }
 .progreso { font-size: .78rem; color: var(--text-muted); min-height: 1.2em; }
 .progreso:empty { display: none; }   /* v0.31.0: vacio dejaba ~110 px en blanco entre la ayuda y el pie de «Subir» */
 .mn-dialog .kv:empty { display: none; }
@@ -1048,7 +1046,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
    cada bloque se lea como bloque y no como una lista continua de rotulos. El primero no lleva filete. */
 .mn-dialog-body > .mn-label, .t-main > .mn-label, .t-side > .mn-label { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border-hairline); }
 .mn-dialog-body > .mn-label:first-child, .mn-dialog-body > .kv + .mn-label, .mn-dialog-body > .dlg-avisos + .mn-label, .t-side > .mn-label:first-child, .t-main > .t-chips + .mn-label, .t-main > .t-desc + .mn-label, .t-main > .deny + .mn-label, .t-main > .solo-lectura + .mn-label { margin-top: 0; padding-top: 0; border-top: 0; }   /* v0.24.0: tambien dentro de las dos columnas */
-.mn-dialog-body > .editar { margin-top: var(--sp-4); padding-top: var(--sp-3); border-top: 1px solid var(--border-hairline); }
 /* ---- borrar comentario/nota: boton de icono al final del renglon; en escritorio aparece al pasar el raton o con el
    foco, en tactil (sin hover) siempre, para que exista sin ensuciar el hilo. */
 .msg.has-borrar { grid-template-columns: minmax(0, 1fr) auto; }   /* v0.49.0: sin la columna del avatar */
@@ -1396,7 +1393,6 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 #dlgTarea .dlg-avisos { grid-column: 1 / -1; margin: var(--sp-3) var(--sp-4) 0; }
 .t-main { padding: var(--sp-4); min-width: 0; }
 .t-side { padding: var(--sp-4); min-width: 0; background: var(--surface-sunken); border-left: 1px solid var(--border-hairline); align-self: stretch; }
-#dlgTarea .editar { grid-column: 1 / -1; margin: 0; padding: var(--sp-3) var(--sp-4) var(--sp-4); border-top: 1px solid var(--border-hairline); }
 /* v0.31.0: el formulario de Editar es una rejilla de dos columnas (bloque v0.31.0 al final); antes iba a 36 rem */
 /* v0.24.0 puso aqui los CHIPS bajo el titulo (.t-chips) y «Mover a…» en una fila de botones (#dlgTarea .mover). v0.50.0 los
    sustituye por los renglones .t-props y el menu de cubetas: las reglas viven en el bloque v0.50.0 al final del archivo. */
@@ -1416,15 +1412,11 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 }
 
 /* ==== v0.31.0 (2026-09-14): auditoria de dialogos (Carlos: consistencia y aprovechar el espacio) ==== */
-/* Tarjeta: «Editar la tarjeta» sigue cruzando las dos columnas abajo, pero el formulario ya USA ese ancho: rejilla de
+/* (v0.53.0: el acordeon y su rejilla ya no existen; queda el comentario como historia.) Tarjeta: «Editar la tarjeta» sigue cruzando las dos columnas abajo, pero el formulario ya USA ese ancho: rejilla de
    dos columnas (Tarea y Asignado·Prioridad a todo lo ancho; Color | Vence; Descripción | Proyecto; el pie a todo lo ancho).
    Antes iba a 36 rem y dejaba ~300 px vacíos a la derecha y el diálogo medía 1,094 px de scroll; con la rejilla mide menos
    y no hay hueco. La primera pasada (mover Editar bajo la izquierda y estirar la lateral gris) solo cambiaba el color del
    hueco — lo cazó el revisor. Bajo 900 px, una columna. */
-#dlgTarea .editar .forma { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 var(--sp-4); align-items: start; }
-#dlgTarea .editar .forma > .mn-field:has(#ftTitulo), #dlgTarea .editar .forma > .mn-row, #dlgTarea .editar .forma > .mn-dialog-foot { grid-column: 1 / -1; }
-#dlgTarea .editar .forma > .mn-field + .mn-field { margin-top: var(--sp-3); }   /* en la rejilla el margen es por item; el vecino de la derecha lo lleva igual */
-@media (max-width: 900px) { #dlgTarea .editar .forma { grid-template-columns: minmax(0, 1fr); } }
 /* Todo diálogo largo rueda por su CUERPO, con cabecera y pie fijos (antes solo Actividad lo tenía y Tarjeta —el más largo y
    más usado— perdía «Cerrar» arriba: scrollH 1094 del <dialog> a 1366 con Editar abierto, medido). Los formularios llevan
    head/body/foot dentro del <form>: el form es el que se vuelve columna flex. Solo con [open]: un display en el diálogo
@@ -1579,5 +1571,50 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .barras.is-alta i.on { background: var(--brand-primary); }
 .t-props .barras { margin-right: 2px; }
 /* 4 — «Proyecto (moverla a otro frente)» salio del editor: Descripcion toma las dos columnas de la rejilla de v0.31.0. */
-#dlgTarea .editar .forma > #ftDescCampo { grid-column: 1 / -1; }
 @media (max-width: 720px) { .t-props { grid-template-columns: 72px minmax(0, 1fr); } .prio button { font-size: .82rem; gap: var(--sp-1); } }
+
+/* ==== v0.53.0 (2026-09-15): la ficha se edita EN SITIO con un popover por propiedad (Carlos; artifact CMmGTirt, opcion D) ==== */
+/* El acordeon «Editar la tarjeta» (v0.24.0-v0.52.0) se fue. Cada valor editable de la ficha —titulo, asignado, vence, prioridad,
+   color (renglon nuevo) y descripcion— es un boton con LAPIZ tenue que abre #tPop, UN popover que tablero.js cuelga del renglon
+   pulsado y que muestra solo la seccion de ese campo, con Cancelar / Guardar explicitos: un PATCH por propiedad, sin guardado
+   accidental. La cubeta sigue con su menu #tMover (chevron). «Borrar tarjeta» vive en el menu «···» de la cabecera (#tMenu).
+   Descartadas en el artifact: A en sitio por renglon (el control sustituye al valor) · B todo siempre editable · C boton «Editar»
+   que conmuta la ficha entera — no re-proponer. */
+.t-props .prop-btn.is-edita::after { display: none; }   /* el chevron es del menu de cubetas; lo editable lleva lapiz */
+.prop-btn .lapiz { width: 13px; height: 13px; flex: none; fill: none; stroke: var(--text-faint); stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; margin-left: 2px; }
+.prop-btn:hover .lapiz, .prop-btn[aria-expanded="true"] .lapiz { stroke: var(--text-muted); }
+.t-props .val .muestra { display: inline-block; width: 14px; height: 14px; border-radius: 50%; background: var(--tono, var(--surface-card)); box-shadow: 0 0 0 1px var(--border-default); flex: none; }
+/* Titulo: el boton hereda la tipografia del h2 y parte en varias lineas; el lapiz al final del texto. */
+#tTitulo .prop-btn.is-titulo { display: inline; border: 0; background: none; cursor: pointer; font: inherit; color: inherit; padding: 0 var(--sp-1); margin: 0 calc(-1 * var(--sp-1)); border-radius: var(--r-sm); min-height: 0; text-align: left; white-space: normal; }
+#tTitulo .prop-btn.is-titulo:hover { background: var(--surface-hover); }
+#tTitulo .prop-btn.is-titulo .lapiz { display: inline; vertical-align: middle; width: 15px; height: 15px; margin-left: var(--sp-1); }
+#dlgTarea .mn-dialog-head { position: relative; }   /* ancla del popover del titulo */
+/* Descripcion: el lapiz al final del texto; vacia, «Agregar descripción» en gris tenue. */
+.t-desc-caja { position: relative; margin: 0 0 var(--sp-3); }
+.t-desc-caja .t-desc { margin: 0; }
+.t-desc .prop-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1); font: inherit; font-size: .86rem; color: var(--text-strong); border: 0; background: none; cursor: pointer; padding: 0 var(--sp-1); margin: -4px 0; min-height: var(--control-h-sm); min-width: var(--control-h-sm); border-radius: var(--r-sm); vertical-align: middle; }   /* 32 / 40 tactil, como los demas lapices (el revisor lo cazo en 23x24) */
+.t-desc .prop-btn.default { color: var(--text-faint); }
+.t-desc .prop-btn:hover { background: var(--surface-hover); }
+.t-desc .prop-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
+.t-main > .t-desc-caja + .mn-label { margin-top: 0; padding-top: 0; border-top: 0; }   /* como .t-desc + .mn-label (v0.24.0) */
+/* El popover: cuelga bajo el renglon (left alineado con el boton), ancho fijo legible; en la cabecera y en la descripcion toma el ancho. */
+#tPop { position: absolute; left: calc(-1 * var(--sp-1)); top: calc(100% + 2px); z-index: var(--z-pop); display: grid; gap: var(--sp-2); width: min(22rem, calc(100vw - 2 * var(--sp-4))); padding: var(--sp-3); background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-md); box-shadow: var(--shadow-pop); text-align: left; }
+#tPop.oculto { display: none; }
+#dlgTarea .mn-dialog-head > #tPop { left: var(--sp-4); right: var(--sp-4); top: calc(100% - 2px); width: auto; }
+.t-desc-caja > #tPop { left: 0; right: 0; width: auto; }
+#tPop .pop-campo { margin: 0; }
+#tPop .pop-campo > label { font-size: .78rem; }
+#tPop .pop-campo .tonos { min-height: var(--control-h-sm); }
+#tPop #ftQuitarFecha { justify-self: start; margin-top: var(--sp-1); }
+#tPop .pop-pie { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-1); }
+/* «···» de la cabecera: el mismo details.fila-menu de Docs, alineado con los otros dos botones. */
+.head-botones .fila-menu > summary { letter-spacing: .1em; }
+.head-botones .fila-menu .menu { min-width: 12rem; }
+.head-botones .fila-menu.oculto { display: none; }
+/* Sin red: ni abrir el popover ni guardar (T2). */
+.sin-red [data-edita], .sin-red #btnGuardarTarea, .sin-red #tBorrar { opacity: .5; pointer-events: none; }
+/* Celular: el popover es una HOJA INFERIOR fija (el renglon no tiene ancho para colgar nada), como el menu de cubetas a 390. */
+@media (max-width: 720px) {
+  #tPop, #dlgTarea .mn-dialog-head > #tPop, .t-desc-caja > #tPop { position: fixed; left: 0; right: 0; bottom: 0; top: auto; width: auto; border-radius: var(--r-md) var(--r-md) 0 0; padding: var(--sp-4) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -8px 24px rgba(0, 0, 0, .18); }
+  #tPop .pop-pie .mn-btn { flex: 1; }
+}
