@@ -6,7 +6,7 @@
 // graficos son SVG por DOM o cajas con ancho en %.
 
 import { CONFIG } from './config.js';
-import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, sinDueno, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, enProceso, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
+import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
 import { $, estado, el, boton, avatar, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, columnasDeTarea, avisar } from './comun.js';
 import { pintarChat } from './chat.js';   // v0.42.0: Mensajes pinta el hilo del frente elegido en su propia columna
 import { tablaDocs, filaRaiz, filasDeExpediente, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden; v0.36.0: y el mismo arbol
@@ -145,18 +145,11 @@ export function pintarRoadmapProyecto(p) {
 /**
  * Roadmap global (pantalla «Roadmap»): un frente por fila, del rail sale el filtro por equipo, la
  * barra va de la creacion del proyecto al fin del frente con su avance adentro; abajo los hitos que
- * vienen (fines de frente a 60 dias) y los KPI de la foto (total · en curso · hechas · vencidas).
+ * vienen (fines de frente a 60 dias). v0.46.0 (Carlos, 15-sep): la fila de KPI (total · en proceso · hechas · vencidas) SALIO.
  */
 export function pintarRoadmap() {
-    // El filtro por equipo del rail aplica PAREJO: filas, KPI e hitos (el revisor vio KPI globales con «2 frentes de CALYTEK» arriba).
+    // El filtro por equipo del rail aplica PAREJO: filas e hitos (el revisor vio cifras globales con «2 frentes de CALYTEK» arriba).
     const ps = ordenarProyectos(activos().filter(p => !estado.filtroEquipo || p.Equipo === estado.filtroEquipo));
-    const idsPs = new Set(ps.map(p => p.id));   // v0.13.1
-    const todas = estado.tareas.filter(t => idsPs.has(Number(t.ProyectoId)));
-    const abiertas = todas.filter(t => t.Columna !== 'hecho');
-    const k = $('roadmapKpis'); k.textContent = '';
-    const kpi = (v, l, cls) => { const d = el('div', 'mn-kpi' + (cls ? ' is-' + cls : '')); d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v))); k.appendChild(d); };
-    const venc = abiertas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger').length;
-    kpi(todas.length, 'tarjetas en total', 'info'); kpi(abiertas.filter(t => enProceso(t, columnasDeTarea(t))).length, 'en proceso', null); kpi(todas.length - abiertas.length, 'hechas', 'ok'); kpi(venc, 'vencidas', venc ? 'danger' : null);   // v0.11.0: «en proceso» = fuera de la primera cubeta
     $('roadmapSub').textContent = estado.filtroEquipo ? `${ps.length} frente(s) de ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}; quita el filtro en el rail para ver todos.` : `${ps.length} frente(s) activo(s), del que vence antes al que vence después. La barra va de la creación del proyecto a su fin de frente; el relleno es el avance.`;
     const caja = $('roadmapCaja'); caja.textContent = '';
     const ley = $('roadmapLeyenda'); ley.textContent = ''; ley.classList.toggle('oculto', !ps.length);
@@ -394,11 +387,7 @@ export function pintarArchivos() {
     }
     const ligas = ordenarDocs(filtrarLigas(estado.ligas, f), estado.ordenArchivos);   // v0.18.0: por la columna elegida, dentro de cada proyecto
     $('archivosSub').textContent = `${ligas.length} de ${estado.ligas.length} documento(s) ligado(s) en todos los frentes. Para ligar, quitar o cambiar de tarjeta, entra a Documentos del proyecto.`;
-    // v0.17.0: cuatro cifras arriba (como la captura de referencia): total, archivados, en el buzon, enlaces.
-    const k = $('archivosKpis'); k.textContent = '';
-    const cuenta = tipo => estado.ligas.filter(l => l.Tipo === tipo).length;
-    const kpi = (v, l, cls, id) => { const d = el('div', 'mn-kpi' + (cls ? ' is-' + cls : '')); d.dataset.kpi = id; d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v))); k.appendChild(d); };
-    kpi(estado.ligas.length, 'Documentos ligados', '', 'total'); kpi(cuenta('archivado'), 'Archivados', 'ok', 'archivado'); kpi(cuenta('buzon'), 'En el buzón', 'info', 'buzon'); kpi(cuenta('enlace'), 'Enlaces', '', 'enlace');
+    // v0.17.0 traia cuatro cifras arriba (total, archivados, en el buzon, enlaces); v0.46.0 (Carlos, 15-sep): SALIERON.
     const cont = $('archivosLista'); cont.textContent = '';
     $('archivosTodo').hidden = true;   // v0.36.0: solo con arbol pintado
     if (!ligas.length) { cont.appendChild(el('p', 'vacio', estado.ligas.length ? 'Nada con ese filtro.' : 'Ningún documento ligado todavía.')); return; }
@@ -493,9 +482,7 @@ export function pintarReportes() {
     const a = avanceGlobal(todas, columnasDeTarea); const abiertas = todas.filter(t => t.Columna !== 'hecho');   // v0.11.0: entre proyectos, por categoria
     const venc = abiertas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger');
     $('reportesSub').textContent = `${ps.length} frente(s) activo(s)${estado.filtroEquipo ? ` de ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}` : ''} · ${todas.length} tarjetas · calculado de las listas al ${fechaCorta(new Date().toISOString())}.`;
-    const k = $('reportesKpis'); k.textContent = '';
-    const kpi = (v, l, cls, id) => { const d = el('div', 'mn-kpi' + (cls ? ' is-' + cls : '')); d.dataset.rep = id; d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v))); k.appendChild(d); };
-    kpi(ps.length, 'proyectos activos', 'info', 'proyectos'); kpi(abiertas.length, 'tarjetas abiertas', null, 'abiertas'); kpi(a.hechas, 'hechas', 'ok', 'hechas'); kpi(venc.length, 'vencidas', venc.length ? 'danger' : null, 'vencidas'); kpi(sinDueno(abiertas).length, 'sin dueño', sinDueno(abiertas).length ? 'warn' : null, 'sin-dueno');
+    // v0.46.0 (Carlos, 15-sep): los 5 KPI de arriba (proyectos activos · abiertas · hechas · vencidas · sin dueño) SALIERON.
     // avance global + por proyecto
     const g = $('repGlobal'); g.textContent = ''; g.appendChild(anillo(segmentosGlobales(a), a.total, 132)); g.appendChild(leyenda(segmentosGlobales(a)));
     const pp = $('repProyectos'); pp.textContent = '';
