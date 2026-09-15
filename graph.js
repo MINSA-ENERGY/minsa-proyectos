@@ -202,7 +202,15 @@ export function crearCliente(graph, token) {
             }
             if (r.status === 412) throw errorHttp(`alguien cambió el renglón ${id} de ${nombreLista} hace un momento (412)`, 412);
             if (!r.ok) throw errorHttp(`no se pudo actualizar el renglón ${id} de ${nombreLista}: ` + await motivo(r), r.status);
-            return await r.json();
+            const campos2 = await r.json();
+            // v0.53.1: el PATCH de /fields no devuelve el eTag del ITEM, y sin el la SIGUIENTE escritura sobre el mismo renglon
+            // iba sin If-Match (la ficha ya no se cierra entre ediciones desde v0.53.0, y mover dos veces seguidas lo hacia desde
+            // v0.3.0). Un GET chico lo recupera; si falla, se devuelve sin `_etag` y quien llama queda como antes (incondicional).
+            try {
+                const g = await pedir(`${graph}/sites/${siteId}/lists/${listaId}/items/${id}?$select=id,eTag`, {}, undefined);
+                if (g.ok) { const it = await g.json(); const etag = it && (it.eTag || it['@odata.etag']); if (etag) campos2._etag = String(etag); }
+            } catch (_) { /* sin candado hasta la siguiente lectura, como antes */ }
+            return campos2;
         },
 
         /** Borra un renglon. Solo para lo que NUNCA tuvo folio ni firma (app.js decide); lo demas se ANULA, no se borra. */

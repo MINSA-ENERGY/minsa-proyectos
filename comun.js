@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, iniciales, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion } from './reglas.js';
 
-export const VERSION = '0.53.0';
+export const VERSION = '0.53.1';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -130,8 +130,14 @@ export function avisar(texto, clase = '', opts = {}) {
     $('avisos').appendChild(d);
     if (clase !== 'error') temporizadorAviso = setTimeout(limpiarAvisos, opts.ms || CONFIG.avisoMs);
 }
-/** Tras un PATCH propio el `_etag` leido ya no vale (Graph no lo devuelve): se olvida hasta la siguiente lectura. */
-export function aplicar(renglon, campos) { Object.assign(renglon, campos); delete renglon._etag; return renglon; }
+/** Tras un PATCH propio el `_etag` leido ya no vale. v0.53.1: actualizarRenglon lo RELEE y lo trae en `_etag` de lo que
+ *  devuelve; se pasa aqui como tercer argumento y el renglon conserva el candado. Sin el (GET fallido), se olvida hasta la
+ *  siguiente lectura, como antes. `campos` se aplica sin su `_etag` por si alguien pasa la respuesta entera. */
+export function aplicar(renglon, campos, etag) {
+    const { _etag, ...resto } = campos || {}; Object.assign(renglon, resto);
+    const e = etag || _etag; if (e) renglon._etag = String(e); else delete renglon._etag;
+    return renglon;
+}
 // Releer las listas (la pone app.js): es lo que hace un modulo al recibir 412 — la verdad esta en SharePoint.
 let releer = async () => {};
 export function fijarReleer(fn) { releer = fn; }
@@ -603,7 +609,7 @@ export async function guardarVisto() {
         try { const f = await estado.cliente.renglones(estado.siteId, L.roles, `fields/Title eq '${String(r.Title || '').replace(/'/g, "''")}'`); if (f && f.length) fresco = f.find(x => x.id === r.id) || f[0]; } catch (_) { /* sin red o 400: se funde con la copia local */ }
         const celda = JSON.stringify(fundirVisto(fresco.Visto, cambio));
         if (celda === String(fresco.Visto || '')) { r.Visto = fresco.Visto; return false; }
-        try { await estado.cliente.actualizarRenglon(estado.siteId, L.roles, r.id, { Visto: celda }, undefined, fresco._etag); r.Visto = celda; return true; }
+        try { const res = await estado.cliente.actualizarRenglon(estado.siteId, L.roles, r.id, { Visto: celda }, undefined, fresco._etag); aplicar(r, { Visto: celda }, res && res._etag); return true; }
         catch (e) {
             if (e && e.status === 412 && intento === 0) continue;
             if (e && e.status === 400) vistoApagado = true;

@@ -366,8 +366,8 @@ async function reasignarLiga(liga, tareaId, sel = null) {
     const { ok } = await confirmar({ titulo: 'Mover el documento', ok: 'Mover', texto: `¿Mover «${l.Title}» ${desde} ${hacia}? El archivo no se toca: solo cambia a qué tarjeta está ligado.` });
     if (!ok) { if (sel) sel.value = actual ? String(actual) : ''; return; }
     try {
-        await estado.cliente.actualizarRenglon(estado.siteId, L.ligas, l.id, { TareaId: nuevo }, m => avisar(m, 'ojo'), l._etag);
-        aplicar(l, { TareaId: nuevo });
+        const res = await estado.cliente.actualizarRenglon(estado.siteId, L.ligas, l.id, { TareaId: nuevo }, m => avisar(m, 'ojo'), l._etag);
+        aplicar(l, { TareaId: nuevo }, res && res._etag);
         avisar(t ? `«${l.Title}» ahora es de la tarjeta «${t.Title}».` : `«${l.Title}» ahora es del proyecto entero.`, 'ok');
         alCambiar();
         await registrarActividad('ligar', t ? `pasó la liga «${l.Title.slice(0, 60)}» a «${t.Title.slice(0, 60)}»` : `dejó la liga «${l.Title.slice(0, 60)}» para el proyecto entero`, l.ProyectoId, nuevo);

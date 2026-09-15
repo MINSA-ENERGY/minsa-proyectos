@@ -685,9 +685,9 @@ async function conflicto(t) {
 async function ejecutarMovimiento(t, columna) {
     const antes = t.Columna; const cols = columnasDeTarea(t);
     const campos = camposDeMovimiento(columna, estado.cuenta.username, new Date(), cols);
-    await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, t.id, campos, m => avisar(m, 'ojo'), t._etag);
+    const res = await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, t.id, campos, m => avisar(m, 'ojo'), t._etag);
     const deNombre = nombreColumnaEn(antes, cols);
-    aplicar(t, campos);
+    aplicar(t, campos, res && res._etag);
     alCambiar();
     // Se sigue escribiendo en la bitacora (metrica del piloto); desde v0.11.0 no se pinta en Actividad.
     await registrarActividad('mover-tarea', `movió «${t.Title.slice(0, 80)}» de ${deNombre} a ${nombreColumnaEn(columna, cols)}`, t.ProyectoId, t.id);
@@ -724,8 +724,8 @@ async function reordenarTarea(id, delta) {
     try {
         for (const c of cambios) {
             const x = porId(estado.tareas, c.id);
-            await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, x.id, { Orden: c.Orden }, m => avisar(m, 'ojo'), x._etag);
-            aplicar(x, { Orden: c.Orden });
+            const res = await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, x.id, { Orden: c.Orden }, m => avisar(m, 'ojo'), x._etag);
+            aplicar(x, { Orden: c.Orden }, res && res._etag);
         }
         alCambiar();
         abrirTarjeta(t.id);
@@ -764,8 +764,8 @@ async function guardarEdicion(ev) {
     const titulo = campos.Title || t.Title || '';
     $('btnGuardarTarea').disabled = true;
     try {
-        await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, t.id, campos, m => avisar(m, 'ojo'), t._etag);
-        aplicar(t, campos);
+        const res = await estado.cliente.actualizarRenglon(estado.siteId, L.tareas, t.id, campos, m => avisar(m, 'ojo'), t._etag);
+        aplicar(t, campos, res && res._etag);
         cerrarPop();
         pintarFicha(t);
         { const b = document.querySelector(`#dlgTarea [data-edita="${campo}"]`); if (b) b.focus(); }   // pintarFicha destruyo el lapiz viejo: el foco al nuevo (revisor)
@@ -790,7 +790,7 @@ async function borrarTarea() {
         // Las ligas de la tarjeta se quedan en el proyecto, ya sin tarjeta (best-effort: si falla, el
         // Docs las muestra como «tarjeta #N» y nada mas).
         for (const l of estado.ligas) if (Number(l.TareaId) === t.id) {
-            try { await estado.cliente.actualizarRenglon(estado.siteId, L.ligas, l.id, { TareaId: null }, undefined, l._etag); aplicar(l, { TareaId: null }); } catch (_) { /* se queda colgada */ }
+            try { const res = await estado.cliente.actualizarRenglon(estado.siteId, L.ligas, l.id, { TareaId: null }, undefined, l._etag); aplicar(l, { TareaId: null }, res && res._etag); } catch (_) { /* se queda colgada */ }
         }
         cerrarDialogo('dlgTarea');
         avisar('Tarjeta borrada.', 'ok');
@@ -931,8 +931,8 @@ async function guardarCubetas(ev) {
             const perdidas = enVivo.filter(t => quitadas.includes(t.Columna));
             if (perdidas.length) { avisar(`Hay ${perdidas.length} tarjeta(s) en una cubeta que quieres quitar (alguien las movió hace un momento): se releyó, muévelas primero.`, 'error'); await pedirRelectura(); pintarCubetas(); return; }
         }
-        await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
-        aplicar(p, campos);
+        const res = await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
+        aplicar(p, campos, res && res._etag);
         cerrarDialogo('dlgCubetas');
         estado.colMovil = null;
         avisar(`Cubetas guardadas: ${nuevas.map(c => c.nombre).join(' · ')}.`, 'ok');

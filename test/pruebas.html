@@ -133,6 +133,13 @@
             it.etag = (it.etag || 1) + 1; it.mod = `2026-09-11T20:00:${String(it.etag).padStart(2, '0')}Z`;
             return json(200, it.fields);
         }
+        // v0.53.1: tras cada PATCH la app relee el eTag del item (GET chico) para que la SIGUIENTE escritura tambien lleve If-Match.
+        if ((m = /^\/sites\/sitio-falso\/lists\/([^/]+)\/items\/(\d+)\?\$select=id,eTag$/.exec(ruta)) && metodo === 'GET') {
+            const l = lista(m[1]); const it = l && l.items.find(x => x.id === Number(m[2]));
+            if (!it) return error(404, 'renglón');
+            DB.releidos = (DB.releidos || 0) + 1;
+            return json(200, { id: String(it.id), eTag: etagDe(it) });
+        }
         if ((m = /^\/sites\/sitio-falso\/lists\/([^/]+)\/items\/(\d+)$/.exec(ruta)) && metodo === 'DELETE') {
             const l = lista(m[1]); const i = l ? l.items.findIndex(x => x.id === Number(m[2])) : -1;
             if (i < 0) return error(404, 'renglón');
@@ -461,6 +468,18 @@ try {
         editar('vence'); $('ftAtajos').querySelector('button[data-fecha]').click(); const fechaAtajo = $('ftVence').value; clic('btnGuardarTarea');
         await esperar(() => String(t.fields.Vence || '').startsWith(fechaAtajo), 'fecha por atajo');
         R.ok('v0.53.0: un atajo de fecha + Guardar escribe Vence', String(t.fields.Vence).startsWith(fechaAtajo) && !popAbierto() && actividad('editar-tarea').length === 6);
+        // v0.53.1: dos ediciones SEGUIDAS sin cerrar la ficha: las dos van con If-Match (el PATCH relee el eTag), y el 412 sigue vivo en la segunda.
+        { const ifm = DB.ifMatch, rel = DB.releidos || 0, prioOrig = t.fields.Prioridad || 'normal';
+          editar('prioridad'); $('ftPrioridadSeg').querySelector('[data-prio="baja"]').click(); clic('btnGuardarTarea'); await esperar(() => t.fields.Prioridad === 'baja', '1.ª edición seguida');   // la fixture es «alta»: se devuelve al final (los filtros de abajo la esperan)
+          editar('prioridad'); $('ftPrioridadSeg').querySelector('[data-prio="alta"]').click(); clic('btnGuardarTarea'); await esperar(() => t.fields.Prioridad === 'alta', '2.ª edición seguida');
+          await esperar(() => !popAbierto(), 'popover cerrado');
+          const tt = (await import('../comun.js')).estado.tareas.find(x => x.id === t.id);
+          R.ok('v0.53.1: dos ediciones seguidas en la misma ficha llevan If-Match las DOS (el eTag se relee tras cada PATCH) y el renglón en memoria conserva el candado', DB.ifMatch === ifm + 2 && (DB.releidos || 0) >= rel + 2 && tt && tt._etag === `"${t.etag}"`, `ifMatch +${DB.ifMatch - ifm} · releídos +${(DB.releidos || 0) - rel} · _etag=${tt && tt._etag} vs "${t.etag}"`);
+          // y si alguien cambia la tarjeta ENTRE dos ediciones seguidas, la segunda recibe 412 (no pisa)
+          t.etag = (t.etag || 1) + 1; t.fields.Descripcion = 'Cambiada por alguien más entre dos ediciones';
+          editar('prioridad'); $('ftPrioridadSeg').querySelector('[data-prio="normal"]').click(); clic('btnGuardarTarea'); await esperar(() => avisoCon('hace un momento'), '412 en la 2.ª edición');
+          R.ok('v0.53.1: un cambio ajeno entre dos ediciones seguidas dispara el 412: no se pisa y la ficha se relee', t.fields.Prioridad === 'alta' && $('tDesc').textContent.includes('Cambiada por alguien más'), $('tDesc').textContent.slice(0, 80));
+          if (prioOrig !== 'alta') { editar('prioridad'); $('ftPrioridadSeg').querySelector(`[data-prio="${prioOrig}"]`).click(); clic('btnGuardarTarea'); await esperar(() => t.fields.Prioridad === prioOrig, 'prioridad de vuelta'); } }
         // Prioridad: el segmentado dentro del popover.
         editar('prioridad');
         R.ok('v0.53.0: el popover de Prioridad abre con el foco en la opción marcada del segmentado', popAbierto() === 'prioridad' && document.activeElement && document.activeElement.dataset.prio === ($('ftPrioridad').value || 'normal'), document.activeElement && document.activeElement.outerHTML.slice(0, 60));

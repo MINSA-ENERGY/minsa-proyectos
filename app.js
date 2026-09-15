@@ -804,8 +804,8 @@ async function guardarProyecto(ev) {
         if (proyectoEnEdicion) {
             const p = proyectoEnEdicion;
             const campos = { Title: titulo, Equipo: $('npEquipo').value, Vence: vence, Responsable: $('npResponsable').value || null, Descripcion: $('npDesc').value.trim() || null, Carpeta: carpeta || null };
-            await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
-            aplicar(p, campos);
+            const res = await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
+            aplicar(p, campos, res && res._etag);
             cerrarDialogo('dlgProyecto'); avisar('Proyecto actualizado.', 'ok'); repintar();
             await registrarActividad('editar-proyecto', `editó el proyecto «${titulo.slice(0, 80)}»`, p.id, null); repintar();
             return;
@@ -837,8 +837,8 @@ async function cerrarProyecto() {
     if (!ok) return;
     const campos = { Estado: 'cerrado', CerradoPor: estado.cuenta.username, CerradoEl: new Date().toISOString() };
     try {
-        await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
-        aplicar(p, campos);
+        const res = await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
+        aplicar(p, campos, res && res._etag);
         avisar(`Proyecto «${p.Title}» cerrado.`, 'ok'); repintar();
         await registrarActividad('cerrar-proyecto', `cerró el proyecto «${p.Title.slice(0, 80)}»${faltan ? ` con ${faltan} tarjeta(s) abiertas` : ''}`, p.id, null); repintar();
     } catch (e) {
@@ -856,8 +856,8 @@ async function reabrirProyecto() {
     if (!ok) return;
     const campos = { Estado: 'activo', CerradoPor: null, CerradoEl: null };
     try {
-        await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
-        aplicar(p, campos);
+        const res = await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
+        aplicar(p, campos, res && res._etag);
         avisar(`Proyecto «${p.Title}» reabierto.`, 'ok'); repintar();
         await registrarActividad('reabrir-proyecto', `reabrió el proyecto «${p.Title.slice(0, 80)}»`, p.id, null); repintar();
     } catch (e) {
