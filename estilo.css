@@ -1075,7 +1075,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .g-tarea, .g-proy { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; width: 100%; min-height: 36px; padding: 2px 4px; border: 0; border-radius: var(--r-sm); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .g-tarea:hover, .g-proy:hover { background: var(--surface-hover); }
 .g-tarea .t, .g-proy .t { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.g-proy .cuerpo { display: grid; min-width: 0; } .g-proy .m { font-size: .72rem; color: var(--text-faint); font-family: var(--font-data); }
+.g-proy .cuerpo { display: grid; min-width: 0; } .g-proy .m { font-size: .72rem; color: var(--text-faint); font-family: var(--font-data); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }   /* v0.40.0: un renglon, como el titulo */
 .g-pista { position: relative; min-height: 36px; background: var(--bandas, none); }   /* v0.22.0: los meses alternan fondo (gradiente calculado del rango en gantt()) */
 .g-sem { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--border-hairline); }
 .g-hoy { position: absolute; top: 0; bottom: 0; border-left: 2px solid var(--status-danger-solid); z-index: 1; }

@@ -175,7 +175,7 @@ export function pintarRoadmap() {
         const filas = ps.map((p, i) => {
             const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p)); const d = diasPara(p.Vence);
             const eti = el('button', 'g-proy'); eti.type = 'button'; eti.dataset.roadmapP = String(p.id); eti.title = p.Title;
-            eti.appendChild(iconoEquipo(equipoDe(p), 'sm')); const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', p.Title)); c.appendChild(el('span', 'm', `${a.hechas}/${a.total} hechas · ${a.pct}%${p.Vence ? ` · fin ${fechaCorta(p.Vence).slice(0, 5)}` : ' · sin fin de frente'}`)); eti.appendChild(c);
+            eti.appendChild(iconoEquipo(equipoDe(p), 'sm')); const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', p.Title)); c.appendChild(el('span', 'm', `${a.hechas}/${a.total} hechas${p.Vence ? ` · fin ${fechaCorta(p.Vence).slice(0, 5)}` : ' · sin fin de frente'}`));   eti.appendChild(c);   // v0.40.0: el subtitulo va sin el % (Carlos, 14-sep) — el avance ya es el relleno de la barra
             eti.addEventListener('click', () => irAHash(`#p/${p.Clave}`));
             const textoFin = !p.Vence ? 'sin fin de frente' : d < 0 ? `venció hace ${-d} d` : d === 0 ? 'vence hoy' : `vence ${fechaCorta(p.Vence)}`;
             // la fecha del fin ya la dice su raya: adentro de la barra queda solo el avance (el title trae todo)
