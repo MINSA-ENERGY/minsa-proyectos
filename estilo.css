@@ -1285,11 +1285,9 @@ body.sin-scroll { overflow: hidden; }
 .visto-btn.is-on { background: var(--status-ok-bg); color: var(--status-ok-fg); border-color: transparent; font-weight: 600; }
 .visto-btn:hover, .visto-btn:focus-visible { color: var(--text-strong); border-color: var(--text-muted); }
 @media (hover: none) { .visto-btn { min-height: 36px; min-width: 40px; padding: 0 12px; } }
-/* ---- v0.21.0 (iteracion 3): Inicio «Hoy» — KPI con tendencia y sparkline, y la cola por urgencia
+/* ---- v0.21.0 (iteracion 3): Inicio «Hoy» — la cola por urgencia (los KPI con tendencia y sparkline salieron en v0.41.0)
    (sustituye a #cardNuevo / #inicioNuevo / #inicioMenciones / #inicioVence, que se fueron con sus tarjetas). */
-.kpis-hoy { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-/* v0.39.0 («Una sola columna», corte 5 del artifact S7pfEtW6): Inicio sin lateral. Bandas a todo lo ancho; los 5 KPI en una
-   fila (los 2 nuevos son «planos»: sin tendencia ni sparkline, porque serieKpis solo reconstruye lo mio); la cola en dos
+/* v0.39.0 («Una sola columna», corte 5 del artifact S7pfEtW6): Inicio sin lateral. Bandas a todo lo ancho; la cola en dos
    mitades; las fichas de proyecto a dos columnas; Actividad | Sin movimiento en una fila (si Sin movimiento se oculta,
    Actividad toma todo el ancho). Bajo 900 px todo cae a una columna, como caia la lateral. */
 .bandas { display: grid; gap: var(--sp-4); min-width: 0; }
@@ -1298,28 +1296,9 @@ body.sin-scroll { overflow: hidden; }
 .dosmitad { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-4); align-items: start; min-width: 0; }
 .dosmitad:has(> .oculto) { grid-template-columns: 1fr; }
 #inicioProyectos.dosc .fichas { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.kpis-hoy .mn-kpi.is-plano { grid-template-columns: minmax(0, 1fr); grid-template-areas: "l" "v"; align-content: start; }
-.kpis-hoy .mn-kpi.is-plano:disabled { cursor: default; color: inherit; }   /* en 0 no lleva a ningun lado; que no se vea apagado */
 @media (max-width: 900px) {
   .cola-dos, .dosmitad, #inicioProyectos.dosc .fichas { grid-template-columns: 1fr; }
-  /* 6 pistas: los 3 mios ocupan 2 cada uno (una fila) y los 2 planos 3 cada uno (la segunda fila llena, sin hueco) */
-  .kpis-hoy { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-  .kpis-hoy .mn-kpi { grid-column: span 2; }
-  .kpis-hoy .mn-kpi.is-plano { grid-column: span 3; }
 }
-.kpis-hoy .mn-kpi { display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem; grid-template-areas: "l l" "v s" "t t"; align-items: end; gap: 0 var(--sp-2); }
-.kpis-hoy .mn-kpi-label { grid-area: l; }
-.kpis-hoy .mn-kpi-val { grid-area: v; }
-.kpis-hoy .mn-kpi-tend { grid-area: t; font-size: .72rem; color: var(--text-muted); margin-top: var(--sp-1); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.kpis-hoy .mn-kpi-tend b { font-family: var(--font-data); font-weight: 600; color: var(--text-body); }
-.kpis-hoy .mn-kpi-tend.is-peor b { color: var(--status-danger-fg); }
-.kpis-hoy .mn-kpi-tend.is-mejor b { color: var(--status-ok-fg); }
-/* El sparkline hereda el color del filete (currentColor por estado); sin estado va gris. */
-.kpis-hoy .spark { grid-area: s; width: 100%; height: 22px; display: block; color: var(--status-idle-solid); justify-self: end; }
-.kpis-hoy .mn-kpi.is-info .spark { color: var(--status-info-solid); }
-.kpis-hoy .mn-kpi.is-warn .spark { color: var(--status-warn-solid); }
-.kpis-hoy .mn-kpi.is-danger .spark { color: var(--status-danger-solid); }
-.kpis-hoy .mn-kpi.is-ok .spark { color: var(--status-ok-solid); }
 .cola-cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-2); }
 .cola-cab h2 { margin: 0; }
 .cola-cab h2 .n:not(:empty)::before { content: "· "; }
@@ -1350,10 +1329,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .cola-lista .vacio { color: var(--text-faint); font-size: .85rem; margin: 0; }
 /* v0.39.0: las reglas .fines (Fines de frente, v0.21.0) se fueron con la tarjeta. */
 @media (max-width: 720px) {
-  /* En celular los 3 KPI van en una fila sin sparkline (el ancho de 390 no da para la curva) y el titulo de la cola parte en 2 lineas. */
-  .kpis-hoy { grid-template-columns: repeat(6, minmax(0, 1fr)); }   /* v0.39.0: mismas 6 pistas que a 900 */
-  .kpis-hoy .mn-kpi { grid-template-columns: minmax(0, 1fr); grid-template-areas: "l" "v" "t"; }
-  .kpis-hoy .spark { display: none; }
+  /* En celular el titulo de la cola parte en 2 lineas. */
   .hoy-r .t { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 }
 /* Equipo: la tabla de 5 columnas se cortaba en «Abiertas» a 1366 (auditoria 13-sep): el dialogo crece y el correo parte. */

@@ -14,7 +14,7 @@
 
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
-import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, serieKpis, gruposHoy, saludoDe, diaDe } from './reglas.js';
+import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe } from './reglas.js';
 import { $, L, VERSION, estado, el, boton, ondaAlPulsar, avatar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
@@ -442,7 +442,7 @@ function fraseMarcada(texto) {
  * para ti · te mencionaron · esta semana · sin dueño. «Proyectos activos» ya lo dice el saludo y «sin dueño» es un grupo
  * de la cola (solo si hay). v0.39.0 («Una sola columna»): sin lateral — bandas a lo ancho, 5 KPI (+ sin dueño y sin
  * movimiento, planos), la cola en dos mitades, fichas a 2 columnas, Actividad | Sin movimiento; Fines de frente salio
- * (las Acciones rapidas de v0.18.0 salieron en v0.38.0).
+ * (las Acciones rapidas de v0.18.0 salieron en v0.38.0). v0.41.0: la fila de KPI salio entera (Carlos, 14-sep).
  */
 function pintarInicio() {
     const ahora = new Date();
@@ -452,44 +452,9 @@ function pintarInicio() {
     $('inicioSub').textContent = `${fechaLarga(ahora)} · ${nAct} frente${nAct === 1 ? '' : 's'} activo${nAct === 1 ? '' : 's'} · ${estado.rol}`;
     const idsActivos = new Set(activos().map(p => p.id));   // v0.13.1: una vez, no por cada tarjeta
     const abiertas = estado.tareas.filter(t => t.Columna !== 'hecho' && idsActivos.has(Number(t.ProyectoId)));
-    const mias = misAbiertas();
-    // U3: los KPI cuentan lo MIO, porque el boton aterriza en Mis tareas con ese filtro y el numero tiene que ser el
-    // que se ve al llegar (revision 2026-09-11). Lo global va en la cola (con «todo el frente») y en «Sin movimiento».
-    // v0.21.0: la cifra de hoy se cuenta igual que antes (estadoVence sobre lo que hay); la tendencia y el sparkline
-    // salen de serieKpis, que reconstruye los 7 dias anteriores por fecha de creacion y de cierre.
-    const s7 = mias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn').length;
-    const ven = mias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger').length;
-    const serie = serieKpis(estado.tareas, estado.cuenta.username, ahora, 8, CONFIG.vencePronto);
-    const ayer = serie[serie.length - 2];
-    const k = $('inicioKpis'); k.textContent = '';
-    // U3: cada KPI es un boton que lleva a Mis tareas con ese filtro. `malo` dice si subir es mala noticia (vencidas, pronto).
-    const kpi = (v, l, cls, ir, llave, malo) => {
-        const d = el('button', 'mn-kpi is-clickable' + (cls ? ' is-' + cls : '')); d.type = 'button'; d.dataset.kpi = ir.kpi;
-        d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v)));
-        const delta = v - ayer[llave];
-        const tend = el('span', 'mn-kpi-tend' + (delta === 0 ? '' : (delta > 0) === malo ? ' is-peor' : ' is-mejor'));
-        tend.appendChild(el('b', '', delta === 0 ? '=' : delta > 0 ? `▲ ${delta}` : `▼ ${-delta}`));
-        tend.appendChild(document.createTextNode(delta === 0 ? ' igual que ayer' : ' desde ayer'));
-        tend.title = `Ayer: ${ayer[llave]}`; tend.dataset.delta = String(delta); d.appendChild(tend);
-        d.appendChild(sparkline(serie.slice(0, -1).map(x => x[llave]).concat(v)));
-        d.addEventListener('click', () => { estado.filtroMis = ir.mis; irA(ir.a); });
-        k.appendChild(d);
-    };
-    kpi(mias.length, 'mías abiertas', 'info', { kpi: 'mis', a: 'mis', mis: null }, 'abiertas', false);
-    kpi(s7, 'vencen en 7 d', s7 ? 'warn' : null, { kpi: 'pronto', a: 'mis', mis: 'pronto' }, 'pronto', true);
-    kpi(ven, 'vencidas', ven ? 'danger' : 'ok', { kpi: 'vencidas', a: 'mis', mis: 'vencidas' }, 'vencidas', true);
-    // v0.39.0 («Una sola columna»): dos KPI GLOBALES mas, sin tendencia — serieKpis reconstruye lo mio por dia y estos dos no
-    // tienen serie —: «sin dueño» salta al proyecto que mas tiene con el filtro puesto (el mismo salto del grupo de la cola)
-    // y «sin movimiento» baja a su tarjeta. Cuentan lo mismo que la cola y la tarjeta de abajo (misma `abiertas`).
+    // v0.41.0 (Carlos, 14-sep): la fila de KPI (mías abiertas · vencen en 7 d · vencidas · sin dueño · sin movimiento) SALIO
+    // de Inicio. Lo mio vive en Mis tareas (y el rojo del rail), lo global en la cola y en Reportes; «sin movimiento» en su tarjeta.
     const quietas = sinMovimiento(abiertas, CONFIG.sinMovimientoDias, ahora, columnasDeTarea);
-    const huerfanas = sinDueno(abiertas);
-    const kpiPlano = (v, l, cls, llave, alClic) => {
-        const d = el('button', 'mn-kpi is-plano' + (v ? ' is-clickable' : '') + (cls ? ' is-' + cls : '')); d.type = 'button'; d.dataset.kpi = llave; d.disabled = !v;
-        d.appendChild(el('span', 'mn-kpi-label', l)); d.appendChild(el('span', 'mn-kpi-val', String(v)));
-        d.addEventListener('click', alClic); k.appendChild(d);
-    };
-    kpiPlano(huerfanas.length, 'sin dueño', huerfanas.length ? 'warn' : null, 'sin-dueno', () => huerfanas.length ? irASinDueno(huerfanas) : irA('reportes'));
-    kpiPlano(quietas.length, 'sin movimiento', quietas.length ? 'warn' : null, 'sin-mov', () => { const c = $('cardSinMov'); if (!c.classList.contains('oculto')) c.scrollIntoView({ behavior: 'smooth', block: 'start' }); });
     pintarCola(abiertas);
     const lp = $('inicioProyectos');
     pintarFichas(lp, ordenarProyectos(activos()));   // C10 · v0.25.0: los mismos renglones «calendario de mes» que en Proyectos
@@ -514,17 +479,6 @@ const DIAS_LARGOS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'vier
 const MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 /** «domingo 13 de septiembre», por el dia de Mexico (diaDe). */
 function fechaLarga(ahora) { const d = diaDe(ahora); const x = new Date(d + 'T12:00:00Z'); return `${DIAS_LARGOS[x.getUTCDay()]} ${x.getUTCDate()} de ${MESES_LARGOS[x.getUTCMonth()]}`; }
-
-/** Sparkline de la serie (8 puntos) en un SVG de 100×22, sin eje: la forma, no el numero. Todo en cero = linea plana abajo. */
-function sparkline(vals) {
-    const NS = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(NS, 'svg'); svg.setAttribute('class', 'spark'); svg.setAttribute('viewBox', '0 0 100 22'); svg.setAttribute('preserveAspectRatio', 'none'); svg.setAttribute('aria-hidden', 'true');
-    const max = Math.max(1, ...vals), paso = 100 / (vals.length - 1);
-    const pts = vals.map((v, i) => `${(i * paso).toFixed(1)},${(20 - (v / max) * 16).toFixed(1)}`);
-    const pl = document.createElementNS(NS, 'polyline'); pl.setAttribute('points', pts.join(' ')); pl.setAttribute('fill', 'none'); pl.setAttribute('stroke', 'currentColor'); pl.setAttribute('stroke-width', '1.5'); pl.setAttribute('vector-effect', 'non-scaling-stroke'); svg.appendChild(pl);
-    const c = document.createElementNS(NS, 'circle'); const [cx, cy] = pts[pts.length - 1].split(','); c.setAttribute('cx', cx); c.setAttribute('cy', cy); c.setAttribute('r', '2'); c.setAttribute('fill', 'currentColor'); svg.appendChild(c);
-    return svg;
-}
 
 /**
  * v0.21.0: la cola «Hoy». Seis grupos en orden de urgencia; cada tarjeta con fecha entra UNA vez (en el mas urgente).
