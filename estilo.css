@@ -396,7 +396,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
   .mn-shell { display: block; }
   .dos-columnas, .dos-columnas.ancha { grid-template-columns: 1fr; }
   #p-proyecto.ver-resumen .lateral { display: grid !important; }   /* v0.30.0 (L6): imprimir desde Resumen imprime el resumen, no una hoja con solo la cabecera */
-  .tablero { grid-template-columns: repeat(4, 1fr); overflow: visible; }
+  .tablero { grid-template-columns: repeat(var(--n, 4), 1fr); overflow: visible; }
   .col, .tarjeta, .mn-card, .pficha, .doc { break-inside: avoid; box-shadow: none; }
   .tabla { overflow: visible; }
   a[href]::after { content: none; }
@@ -666,12 +666,13 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .tabs .mn-btn.is-primary { position: sticky; right: 0; background: var(--surface-page); box-shadow: -10px 0 8px -2px var(--surface-page); }
 }
 
-/* ---- tablero de 4 columnas */
-.tablero { display: grid; grid-template-columns: repeat(4, minmax(170px, 1fr)); gap: var(--sp-3); overflow-x: auto; padding-bottom: var(--sp-1); }
+/* ---- tablero: tantas columnas como cubetas tenga el proyecto (v0.47.0: `--n` la pone tablero.js; antes eran 4 fijas y con
+   3 cubetas quedaba un hueco a la derecha). Todas caben a lo ancho; con 8 a 150 px minimo scrollea. */
+.tablero { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(150px, 1fr)); gap: var(--sp-3); overflow-x: auto; padding-bottom: var(--sp-1); }
 /* A3: entre 721 y 900 px (tableta, ventana chica de laptop) las pestanas de columna todavia no
    existen; con `repeat(4, 240px)` el tablero volvia al scroll horizontal y cortaba «En revisión».
    2 x 2 conserva la vista de tablero completa sin desbordar. */
-@media (max-width: 900px) { .tablero { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow-x: visible; } }
+@media (max-width: 900px) { .tablero { grid-template-columns: repeat(2, minmax(0, 1fr)); overflow-x: visible; } .tablero[data-n="1"] { grid-template-columns: 1fr; } }
 /* U5: en celular, pestanas de columna y UNA columna a lo ancho; en escritorio las pestanas no existen. */
 .tablero-caja { display: grid; gap: var(--sp-2); min-width: 0; }
 .col-tabs { display: none; }
@@ -942,11 +943,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* Cubeta huerfana (una tarjeta quedo en una cubeta que ya no existe): se ve, marcada, hasta que alguien la mueva. */
 .col.is-huerfana { outline: 1px dashed var(--status-warn-fg); outline-offset: -1px; }
 .col.is-huerfana h3 .punto { background: var(--status-warn-fg); }
-/* Mas de 4 cubetas (hasta 8): la rejilla las reparte a lo ancho y scrollea si no caben. */
-.tablero[data-n="5"] { grid-template-columns: repeat(5, minmax(160px, 1fr)); }
-.tablero[data-n="6"] { grid-template-columns: repeat(6, minmax(150px, 1fr)); }
-.tablero[data-n="7"] { grid-template-columns: repeat(7, minmax(150px, 1fr)); }
-.tablero[data-n="8"] { grid-template-columns: repeat(8, minmax(150px, 1fr)); }
+/* v0.47.0: el numero de columnas (1 a 8) lo da `--n` en .tablero, arriba; los renglones por data-n=5..8 se retiraron. */
 /* ---- editor de cubetas (v0.11.0) */
 .cubetas { display: grid; gap: var(--sp-2); margin-bottom: var(--sp-2); }
 .cubeta { display: grid; grid-template-columns: auto 1fr auto auto auto auto; gap: var(--sp-2); align-items: center; }

@@ -224,8 +224,8 @@ export function pintarTablero(proyecto) {
         b.appendChild(el('span', '', c.nombre)); b.appendChild(el('span', 'n' + (vencidasEn(enCubeta) ? ' is-hot' : ''), String(enCubeta.length)));   // v0.20.0: rojo si trae vencidas
         tabs.appendChild(b);
     }
-    // Mas de 4 cubetas: la rejilla las reparte (el CSS lee data-n); en celular sigue siendo una a la vez.
-    $('tableroCols').dataset.n = String(columnas.length);
+    // v0.47.0: la rejilla tiene tantas columnas como cubetas (el CSS lee `--n`; data-n queda para el caso de 1 en tableta); en celular sigue siendo una a la vez.
+    $('tableroCols').dataset.n = String(columnas.length); $('tableroCols').style.setProperty('--n', String(columnas.length));
     cont.classList.toggle('is-compacto', estado.densidad === 'compacto');   // v0.20.0: una linea por tarjeta
     pintarDensidad();
     for (const [i, c] of columnas.entries()) {

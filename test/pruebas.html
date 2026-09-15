@@ -698,6 +698,11 @@ try {
             R.ok('v0.12.0: el color se guarda en Columnas[].color y la columna del tablero lleva data-tono (el punto por posición sigue para las demás)', cols.find(c => c.clave === 'en-curso').color === 'ambar' && !('color' in cols.find(c => c.clave === 'hecho')) && document.querySelector('.col[data-col="en-curso"]').dataset.tono === 'ambar' && !document.querySelector('.col[data-col="hecho"]').dataset.tono, proy.fields.Columnas);
             R.ok('cubetas: se guardan en PROY_Proyectos.Columnas con clave nueva del nombre, orden y renombre', cols.map(c => c.clave).join(',') === 'por-hacer,en-curso,bloqueado,en-revision,hecho' && cols[3].nombre === 'Por validar' && cols[2].nombre === 'Bloqueado', proy.fields.Columnas);
             R.ok('cubetas: la bitácora lo registra como editar-proyecto', actividad('editar-proyecto').some(a => a.fields.Title.includes('cubetas')));
+            // v0.47.0: en escritorio (> 900 px) la rejilla tiene tantas pistas como cubetas; en tableta 2 (o 1 si solo hay una); en celular una. El arnés corre a ≤ 900.
+            const pistas = () => getComputedStyle($('tableroCols')).gridTemplateColumns.trim().split(/\s+/).length;
+            const pistasEsperadas = n => matchMedia('(max-width: 720px)').matches ? 1 : matchMedia('(max-width: 900px)').matches ? Math.min(2, n) : n;
+            const llenaElAncho = () => { const cs = [...document.querySelectorAll('#tableroCols .col')].slice(0, pistas()); const gap = parseFloat(getComputedStyle($('tableroCols')).columnGap) || 0; return Math.abs(cs.reduce((s, c) => s + c.getBoundingClientRect().width, 0) + gap * (cs.length - 1) - $('tableroCols').clientWidth) < 2; };
+            R.ok('v0.47.0: con 5 cubetas `--n` = 5 y la rejilla tiene las pistas que tocan a este ancho', pistas() === pistasEsperadas(5) && $('tableroCols').style.getPropertyValue('--n') === '5', getComputedStyle($('tableroCols')).gridTemplateColumns + ' @ ' + innerWidth);
             await esperar(() => document.querySelectorAll('#tableroCols .col').length === 5, 'tablero con 5');
             R.ok('cubetas: el tablero pinta 5 columnas en ese orden, la pestaña móvil también, y el punto de color va por posición', [...document.querySelectorAll('#tableroCols .col')].map(c => c.dataset.col).join(',') === 'por-hacer,en-curso,bloqueado,en-revision,hecho' && document.querySelectorAll('#colTabs button').length === 5 && document.querySelector('.col[data-col="en-revision"] h3 span').textContent === 'Por validar' && document.querySelector('.col[data-col="bloqueado"]').dataset.cls === 'r' && $('tableroCols').dataset.n === '5');
             R.ok('cubetas: la línea de resumen y el avance de la lateral nombran las cubetas de en medio', /por validar/.test($('pResumen').textContent) && /bloqueado/.test($('pResumen').textContent) && $('pAvance').textContent.includes('Por validar'));
@@ -719,6 +724,21 @@ try {
             clic('cbGuardar'); await esperar(() => !$('dlgCubetas').open, 'guardadas');
             R.ok('cubetas: al volver exactamente a las 4 de siempre, Columnas queda vacía (el default no se guarda)', proy.fields.Columnas === null || proy.fields.Columnas === undefined, String(proy.fields.Columnas));
             await esperar(() => document.querySelectorAll('#tableroCols .col').length === 4, 'tablero con 4');
+            R.ok('v0.47.0: de vuelta a 4 cubetas, `--n` = 4', pistas() === pistasEsperadas(4) && $('tableroCols').style.getPropertyValue('--n') === '4', getComputedStyle($('tableroCols')).gridTemplateColumns);
+            // v0.47.0: con MENOS de 4 (quitar una vacía) la rejilla se reparte en 3 y no deja hueco a la derecha.
+            clic('btnCubetas'); await esperar(() => $('dlgCubetas').open, 'cubetas');
+            const quitable = [...$('cbLista').querySelectorAll('[data-quita]')].find(b => !b.disabled); const filaQuitada = quitable.closest('.cubeta'); const claveQuitada = filaQuitada.dataset.cubeta; const nombreQuitado = filaQuitada.querySelector('input').value; const posQuitada = [...$('cbLista').querySelectorAll('.cubeta')].indexOf(filaQuitada); quitable.click(); await dormir(20);
+            clic('cbGuardar'); await esperar(() => !$('dlgCubetas').open, 'guardadas');
+            await esperar(() => document.querySelectorAll('#tableroCols .col').length === 3, 'tablero con 3');
+            R.ok('v0.47.0: con 3 cubetas `--n` = 3, las pistas que tocan al ancho, y las columnas llenan el ancho (sin hueco a la derecha)', $('tableroCols').style.getPropertyValue('--n') === '3' && pistas() === pistasEsperadas(3) && llenaElAncho(), getComputedStyle($('tableroCols')).gridTemplateColumns + ' / ' + $('tableroCols').clientWidth + ' / ' + claveQuitada);
+            clic('btnCubetas'); await esperar(() => $('dlgCubetas').open, 'cubetas'); clic('cbAgregar'); await dormir(20);
+            const fila = i => [...$('cbLista').querySelectorAll('.cubeta')][i];   // el editor se repinta al mover: se vuelve a buscar la fila
+            const iNueva = [...$('cbLista').querySelectorAll('.cubeta')].findIndex(f => f.dataset.cubeta === '');   // nace antes de Hecho: con 3 cubetas es la 2
+            fila(iNueva).querySelector('input').value = nombreQuitado; fila(iNueva).querySelector('input').dispatchEvent(new Event('input'));
+            for (let i = iNueva; i > posQuitada; i--) { fila(i).querySelector('[data-sube]').click(); await dormir(10); }
+            clic('cbGuardar'); await esperar(() => !$('dlgCubetas').open, 'guardadas (restaurar) · ' + $('avisos').textContent);
+            await esperar(() => document.querySelectorAll('#tableroCols .col').length === 4, 'tablero con 4 otra vez');
+            R.ok('v0.47.0: restauradas las 4 de siempre, Columnas vuelve a quedar vacía', proy.fields.Columnas === null || proy.fields.Columnas === undefined, String(proy.fields.Columnas));
             // Huérfana: alguien dejó una tarjeta en una cubeta que ya no existe → columna marcada, la tarjeta no desaparece.
             const huer = filas('tareas').find(x => x.id === t.id); huer.fields.Columna = 'fantasma';
             await recargarYEsperar(); await esperar(() => document.querySelector('.col.is-huerfana'), 'columna huérfana');
