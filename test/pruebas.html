@@ -510,11 +510,26 @@ try {
         R.ok('Ligar desde la tarjeta: la tarjeta ya va puesta y el diálogo de tarjeta se cerró', $('lgTarea').value === String(t.id) && !$('dlgTarea').open && $('lgNota').classList.contains('oculto'));
         await esperar(() => location.hash === `#p/${CLAVE}`, 'hash sin tarjeta');
         R.ok('hash: al cerrar la tarjeta la URL vuelve al proyecto', location.hash === `#p/${CLAVE}`, location.hash);
-        clic('lgCerrar');
-        document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+        clic('lgCerrar'); await esperar(() => $('dlgTarea').open, 'vuelve a la tarjeta');
+        // v0.70.0 (Carlos, 16-sep): Cancelar en Ligar / Subir / Enlace abiertos desde la tarjeta VUELVE a la tarjeta, no a la pantalla.
+        R.ok('v0.70.0: Cancelar en Ligar vuelve a la MISMA tarjeta (diálogo abierto y hash con la tarjeta)', $('dlgTarea').open && $('tTitulo').textContent.startsWith('Lista de insumos') && location.hash === `#p/${CLAVE}/t/${t.id}`, location.hash);
         document.querySelector(`#tDocs [data-subir="${t.id}"]`).click(); await esperar(() => $('dlgSubir').open, 'subir desde la tarjeta');
         R.ok('Subir desde la tarjeta: la tarjeta ya va puesta', $('sbTarea').value === String(t.id) && !$('dlgTarea').open);
-        clic('sbCancelar'); await esperar(() => location.hash === `#p/${CLAVE}`, 'hash sin tarjeta');
+        clic('sbCancelar'); await esperar(() => $('dlgTarea').open, 'vuelve a la tarjeta');
+        R.ok('v0.70.0: Cancelar en Subir vuelve a la tarjeta', $('dlgTarea').open && !$('dlgSubir').open);
+        document.querySelector(`#tDocs [data-enlace="${t.id}"]`).click(); await esperar(() => $('dlgEnlace').open, 'enlace desde la tarjeta');
+        clic('enCancelar'); await esperar(() => $('dlgTarea').open, 'vuelve a la tarjeta');
+        R.ok('v0.70.0: Cancelar en Enlace vuelve a la tarjeta', $('dlgTarea').open && !$('dlgEnlace').open);
+        // v0.70.0: la franja de celdas ya no recorta el popover (v0.69.0 traia overflow hidden y las cuatro opciones editables salian cortadas): abierto desde
+        // Prioridad (celda de la derecha) el popover queda entero DENTRO del dialogo, y desde Asignado (la primera) tambien.
+        for (const campo of ['prioridad', 'asignado']) {
+            editar(campo); const rp = $('tPop').getBoundingClientRect(), rd = $('dlgTarea').getBoundingClientRect(), rf = $('tChips').getBoundingClientRect();
+            const movil = matchMedia('(max-width: 720px)').matches;   // a <=720 es la hoja inferior fija: entera dentro del viewport y pegada abajo
+            const entero = movil ? (rp.left >= -1 && rp.right <= innerWidth + 1 && Math.abs(rp.bottom - innerHeight) < 2) : (rp.left >= rd.left - 1 && rp.right <= rd.right + 1 && rp.top >= rf.bottom - 40 && rp.bottom > rf.bottom);
+            R.ok(`v0.70.0: el popover de ${campo} se ve entero (${movil ? 'hoja inferior dentro del viewport' : 'dentro del diálogo, por debajo de la franja'}, y la franja no recorta)`, getComputedStyle($('tChips')).overflow !== 'hidden' && rp.width > 200 && entero, JSON.stringify({ pop: [rp.left, rp.right, rp.top, rp.bottom], dlg: [rd.left, rd.right], franja: rf.bottom, vw: innerWidth, vh: innerHeight }));
+            clic('tPopCancelar');
+        }
+        clic('tCerrar'); await esperar(() => !$('dlgTarea').open && location.hash === `#p/${CLAVE}`, 'hash sin tarjeta');
         // El hash MANDA: Atrás del navegador o una liga pegada en el chat.
         irHash(`#p/${CLAVE}/t/${t.id}`); await esperar(() => $('dlgTarea').open, 'tarjeta por hash');
         R.ok('#p/<clave>/t/<id> abre la tarjeta', $('tTitulo').textContent.startsWith('Lista de insumos'));

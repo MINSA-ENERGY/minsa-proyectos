@@ -47,6 +47,10 @@ export function puedeEnlazarEn(p) { return PUEDE.ligar(estado.rol) && !!p && p.E
 // `reemplaza` es la liga vieja que se quita al ligar el resultado (F2); `alTerminar` vuelve a la
 // tarjeta si se abrio desde ahi.
 let ctx = { proyecto: null, tareaId: null, reemplaza: null, alTerminar: null };
+/** v0.70.0 (Carlos, 16-sep): Cancelar, Esc o Atras en Ligar / Subir / Enlace VUELVEN a la tarjeta desde la que se abrio, no a la
+ *  pantalla. Consume `alTerminar` (idempotente: el boton lo llama y el evento `close` lo repite sin efecto); el camino que si ligo
+ *  lo vacia antes de cerrar, porque ya lo llama el mismo. */
+function volverSiCancela() { const f = ctx.alTerminar; ctx.alTerminar = null; if (f) f(); }
 
 // ---------------------------------------------------------------- pintar
 
@@ -482,7 +486,7 @@ async function ligarDocumento(x) {
             catch (e2) { throw (e2 && e2.status === 400) ? new Error(`${e2.message} · largos: ${resumenLargos(campos)} (ya reintentado con la Url corta)`) : e2; }
         }
         estado.ligas.push(n);
-        const vieja = ctx.reemplaza; const alTerminar = ctx.alTerminar;
+        const vieja = ctx.reemplaza; const alTerminar = ctx.alTerminar; ctx.alTerminar = null;   // v0.70.0: que el `close` no vuelva por su cuenta
         cerrarDialogo('dlgLigar');
         avisar(vieja ? `«${item.nombre}» ligado en lugar de «${vieja.Title}».` : `«${item.nombre}» ligado.`, 'ok');
         alCambiar();
@@ -524,7 +528,7 @@ async function guardarEnlace(ev) {
     try {
         const n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => avisar(m, 'ojo'));
         estado.ligas.push(n);
-        const alTerminar = ctx.alTerminar;
+        const alTerminar = ctx.alTerminar; ctx.alTerminar = null;
         cerrarDialogo('dlgEnlace');
         avisar(`Enlace «${titulo}» guardado.`, 'ok');
         alCambiar();
@@ -598,7 +602,7 @@ async function subirAlBuzon(ev) {
         if (largos.length) throw new Error(`${largos.join(', ')} pasa(n) de los ${TEXTO_MAX} caracteres que admite la lista`);
         const n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => prog(m));
         estado.ligas.push(n); estado.buzonExiste[ruta] = true;
-        const alTerminar = ctx.alTerminar;
+        const alTerminar = ctx.alTerminar; ctx.alTerminar = null;
         cerrarDialogo('dlgSubir');
         avisar(`Lote «${concepto}» en el buzón de ${bib.nombre} (${archivos.length} archivo(s)).`, 'ok');
         alCambiar();
@@ -615,17 +619,19 @@ async function subirAlBuzon(ev) {
 
 export function engancharDocs() {
     $('btnLigar').addEventListener('click', () => abrirLigar());
-    $('lgCerrar').addEventListener('click', () => cerrarDialogo('dlgLigar'));
+    $('lgCerrar').addEventListener('click', () => { cerrarDialogo('dlgLigar'); volverSiCancela(); });
     $('lgBuscar').addEventListener('click', buscarDocumento);
     $('lgTexto').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); buscarDocumento(); } });
     $('btnSubir').addEventListener('click', () => abrirSubir());
-    $('sbCancelar').addEventListener('click', () => cerrarDialogo('dlgSubir'));
+    $('sbCancelar').addEventListener('click', () => { cerrarDialogo('dlgSubir'); volverSiCancela(); });
     $('formSubir').addEventListener('submit', subirAlBuzon);
     $('btnEnlace').addEventListener('click', () => abrirEnlace());
     // v0.17.0: buscador de la pestaña; el proyecto abierto se repinta al teclear.
     $('docsBusca').addEventListener('input', () => { estado.buscaDocs = $('docsBusca').value; if (estado.proyectoAbierto) pintarDocs(estado.proyectoAbierto); });
     // Un clic fuera cierra el menu «⋯» abierto.
     document.addEventListener('click', e => { for (const o of document.querySelectorAll('.fila-menu[open]')) if (!o.contains(e.target)) o.open = false; });
-    $('enCancelar').addEventListener('click', () => cerrarDialogo('dlgEnlace'));
+    $('enCancelar').addEventListener('click', () => { cerrarDialogo('dlgEnlace'); volverSiCancela(); });
     $('formEnlace').addEventListener('submit', guardarEnlace);
+    // v0.70.0: Esc y Atras (B8) no pasan por los botones; el `close` del <dialog> vuelve a la tarjeta igual (no llega bajo tiempo virtual: la E2E prueba el boton)
+    for (const id of ['dlgLigar', 'dlgSubir', 'dlgEnlace']) $(id).addEventListener('close', volverSiCancela);
 }

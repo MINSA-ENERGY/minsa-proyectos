@@ -1641,7 +1641,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
    chevron; lo que esta en su valor por DEFAULT («Sin asignar», «Poner fecha», «Normal») va en gris tenue. El semaforo de la fecha
    tine el texto (vencio en rojo, hoy/pronto en ambar). Descartadas en el artifact: 1B linea de metadatos · 1C controles con
    caja · 1D solo lo que no es default — no re-proponer. */
-.t-props { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.1fr) minmax(0, 1.05fr) minmax(0, .9fr) minmax(0, 1.2fr); font-size: .86rem; margin-bottom: var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-page); overflow: hidden; }   /* v0.69.0 (A2): UNA franja de celdas con divisores (las reglas de .t-cel en el bloque v0.69.0 al final) */
+.t-props { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.1fr) minmax(0, 1.05fr) minmax(0, .9fr) minmax(0, 1.2fr); font-size: .86rem; margin-bottom: var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-page); }   /* v0.69.0 (A2): UNA franja de celdas con divisores (las reglas de .t-cel en el bloque v0.69.0 al final). v0.70.0: SIN overflow hidden — recortaba #tPop y el menu de cubetas, que cuelgan de la celda (captura de Carlos, 16-sep) */
 .t-props .t-cel > b { color: var(--text-muted); font-weight: 500; font-size: .72rem; font-family: var(--font-display); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }   /* v0.69.0: «PRIORIDAD» (70 px) se salia de una celda de 57 px interiores (revisor): celdas parejas y padding corto */
 .t-props .val { display: flex; align-items: center; gap: var(--sp-1) var(--sp-2); flex-wrap: wrap; min-width: 0; min-height: var(--control-h-sm); position: relative; }
 .t-props .val > span, .t-props .prop-btn > span { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--text-strong); overflow-wrap: anywhere; }
@@ -1771,6 +1771,10 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .t-side .tdoc-acciones .mn-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
 /* Celular (captura 390): dos columnas con Asignado a todo lo ancho (cinco celdas apiladas median 770 px); la ceja pierde la liga al
    frente —el proyecto ya esta en la columna de abajo— y queda «CALYTEK · T-99» en una linea. */
+/* v0.70.0 (2026-09-16): el popover se ve entero desde cualquier celda. .t-props ya no recorta (overflow), y desde las tres celdas de la
+   derecha (Vence · Prioridad · Color) #tPop se cuelga por su borde DERECHO: a 22 rem desde el borde izquierdo de Prioridad se salia del
+   dialogo. Cubeta abre su menu (.mover), no #tPop. */
+@media (min-width: 721px) { .t-props .t-cel[data-cel="vence"] #tPop, .t-props .t-cel[data-cel="prioridad"] #tPop, .t-props .t-cel[data-cel="color"] #tPop { left: auto; right: calc(-1 * var(--sp-1)); } }   /* solo escritorio: a <=720 el popover es la hoja inferior FIJA de arriba, y esta regla (mas especifica) la pisaria */
 @media (max-width: 720px) {
   .t-props .t-cel[data-cel="asignado"] { grid-column: 1 / -1; border-right: 0; }
   .t-props .t-cel:nth-child(odd):not(:first-child) { border-right: 0; }
