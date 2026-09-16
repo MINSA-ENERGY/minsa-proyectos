@@ -1456,14 +1456,18 @@ button.hoy-g { width: 100%; min-height: 36px; background: none; border: 0; borde
 .hoy-mas:hover, .hoy-mas:focus-visible { background: var(--surface-hover); }
 button.hoy-g::after { content: "ver en su tablero →"; margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-faint); }
 button.hoy-g:hover::after, button.hoy-g:focus-visible::after { color: var(--brand-primary); }
-/* Un renglon: punto · cuerpo (titulo + subtitulo); sin avatar desde v0.61.0. Boton entero, 40 px minimo (tactil). */
-.hoy-r { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-3); align-items: center; width: 100%; min-height: 40px; padding: var(--sp-2) 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; font: inherit; color: inherit; text-align: left; border-radius: var(--r-sm); }
+/* Un renglon: FECHA en columna · cuerpo (titulo + subtitulo); sin avatar desde v0.61.0. Boton entero, 40 px minimo (tactil).
+   v0.65.0 (Carlos, 15-sep; artifact D1P9k1su, corte C): el punto de 8 px (.st) se fue; la columna izquierda es el dato en mono
+   —dia/mes de Vence, hora/dia relativo en menciones y «nuevo para ti», «—» sin fecha— y el color del estado va en el numero. */
+.hoy-r { display: grid; grid-template-columns: 46px minmax(0, 1fr); gap: var(--sp-3); align-items: center; width: 100%; min-height: 40px; padding: var(--sp-2) 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; font: inherit; color: inherit; text-align: left; border-radius: var(--r-sm); }
 .hoy-g + .hoy-r { border-top: 0; }
 button.hoy-r { cursor: pointer; }
 button.hoy-r:hover { background: var(--surface-hover); }
 button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: -2px; }
-.hoy-r .st { width: 8px; height: 8px; border-radius: 50%; background: var(--status-idle-solid); margin-left: 2px; }
-.hoy-r .st.is-danger { background: var(--status-danger-solid); } .hoy-r .st.is-warn { background: var(--status-warn-solid); } .hoy-r .st.is-info { background: var(--status-info-solid); }
+.hoy-r .k { display: grid; gap: 1px; text-align: right; font: 500 .7rem/1.1 var(--font-data); color: var(--text-faint); }
+.hoy-r .k b { font-weight: 600; font-size: .82rem; color: var(--status-idle-fg); font-variant-numeric: tabular-nums; }
+.hoy-r .k small { font-size: .68rem; }
+.hoy-r.is-danger .k b { color: var(--status-danger-fg); } .hoy-r.is-warn .k b { color: var(--status-warn-fg); } .hoy-r.is-info .k b { color: var(--status-info-fg); }
 .hoy-r .cuerpo { display: grid; min-width: 0; gap: 1px; }
 .hoy-r .t { font-size: .85rem; font-weight: 600; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
 .hoy-r .p { font-size: .75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
