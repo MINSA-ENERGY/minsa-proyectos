@@ -15,7 +15,7 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, ondaAlPulsar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
+import { $, L, VERSION, estado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
@@ -337,6 +337,7 @@ function pintarInsignias() {
  *  El filtro puesto se ve (is-on) y el segundo clic lo quita. Un equipo fuera de CONFIG.ramas cae en «Otros». */
 function pintarRailEquipos() {
     const c = $('railEquipos'); c.textContent = '';
+    const vivos = activos();   // C-07 (mejorar-app, 16-sep): una vez, no por equipo
     const ramas = [...CONFIG.ramas, ...CONFIG.equipos.map(e => e.rama || 'Otros').filter(r => !CONFIG.ramas.includes(r))];
     for (const r of ramas) {
         const eqs = CONFIG.equipos.filter(e => (e.rama || 'Otros') === r); if (!eqs.length) continue;
@@ -346,14 +347,14 @@ function pintarRailEquipos() {
             const b = boton('', on ? 'is-on' : '', () => { estado.filtroEquipo = on ? null : e.clave; if (['proyectos', 'roadmap', 'calendario', 'reportes'].includes(estado.pestana)) repintar(); else irA('proyectos'); }, { equipo: e.clave });   // v0.10.0: el filtro vive donde se puso
             b.setAttribute('aria-pressed', on ? 'true' : 'false');
             b.appendChild(iconoEquipo(e, 'sm')); b.appendChild(el('span', '', e.nombre));
-            const n = activos().filter(p => p.Equipo === e.clave).length;
+            const n = vivos.filter(p => p.Equipo === e.clave).length;
             if (n) b.appendChild(el('span', 'n', String(n)));
             c.appendChild(b);
         }
     }
     // En celular el rail es barra de pestanas y los equipos no caben: el mismo filtro es un <select> en Proyectos.
     const sel = $('filtroEquipoMovil');
-    opciones(sel, CONFIG.equipos, e => e.clave, e => { const n = activos().filter(p => p.Equipo === e.clave).length; return n ? `${e.nombre} · ${n}` : e.nombre; }, 'Todos los equipos');
+    opciones(sel, CONFIG.equipos, e => e.clave, e => { const n = vivos.filter(p => p.Equipo === e.clave).length; return n ? `${e.nombre} · ${n}` : e.nombre; }, 'Todos los equipos');
     sel.value = estado.filtroEquipo || '';
 }
 
@@ -380,20 +381,21 @@ function chipReloj(p, ts) {
  * mas: ni anillo de %, ni barra por cubeta, ni «sigue:», ni chips, ni avatares. Un frente cerrado ensena la fecha de
  * cierre en la hoja. `.pficha`, `.t`, `.cal`, `.stats`, `is-warn` y `[data-open]` los usan la E2E y el driver de capturas.
  */
-function fichaProyecto(p) {
-    const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p)); const eq = equipoDe(p);
+function fichaProyecto(p, ts) {
+    const a = avance(ts, columnasDe(p)); const eq = equipoDe(p);
     const d = p.Estado === 'activo' ? diasPara(p.Vence) : null;
     const k = p.Estado !== 'activo' ? 'cerrado' : d === null ? 'idle' : d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : 'info';
     const r = el('button', 'pficha is-' + k); r.type = 'button'; r.dataset.open = String(p.id); r.style.setProperty('--c', eq.color);
     // la hoja de calendario: el fin del frente (o el cierre, si ya cerro); sin fecha, «— ?» en gris
     const md = mesDia(p.Estado === 'activo' ? p.Vence : p.CerradoEl);
-    const cal = el('span', 'cal' + (md ? '' : ' sin')); cal.appendChild(el('span', 'mes', md ? md.mes : '—')); cal.appendChild(el('span', 'dia', md ? String(md.dia) : '?'));
+    // U-07 (mejorar-app, 16-sep): sin fecha la hoja dice «SIN / fecha» en gris — antes «— ?» y el significado solo vivia en el title, que en celular no existe
+    const cal = el('span', 'cal' + (md ? '' : ' sin')); cal.appendChild(el('span', 'mes', md ? md.mes : 'sin')); cal.appendChild(el('span', 'dia', md ? String(md.dia) : 'fecha'));
     cal.title = p.Estado !== 'activo' ? `Cerrado el ${fechaCorta(p.CerradoEl)}` : d === null ? 'Sin fin del frente' : `Fin del frente: ${fechaCorta(p.Vence)} · ${d < 0 ? `vencio hace ${-d} d` : d === 0 ? 'vence hoy' : `en ${d} d`}`;
     r.appendChild(cal);
     // icono del equipo, y en un solo bloque de texto el titulo con su etiqueta «Rama · Unidad» en linea: la etiqueta sigue al
     // titulo y envuelve con el (en columnas propias, a 820 px la etiqueta nowrap estrangulaba el titulo a 75 px — revisor 14-sep)
     const cab = el('span', 'cab'); cab.appendChild(iconoEquipo(eq, 'sm')); const tt = el('span', 'tt'); tt.appendChild(el('span', 't', p.Title));
-    tt.appendChild(el('span', 'uni', eq.rama ? `${eq.rama} · ${eq.nombre}` : eq.nombre)); cab.appendChild(tt); r.appendChild(cab);
+    tt.appendChild(el('span', 'uni', eq.rama && eq.rama !== eq.nombre ? `${eq.rama} · ${eq.nombre}` : eq.nombre)); cab.appendChild(tt); r.appendChild(cab);   // U-03 (16-sep): la rama Administración se llama como su unidad; no se repite
     // las tres cifras; «abiertas» = todo lo que no esta en la cubeta que cierra (avance: categoria hecho)
     const st = el('span', 'stats'); const venc = vencidasEn(ts);
     const cifra = (n, rot, cls) => { const s = el('span'); s.appendChild(el('b', cls || '', String(n))); s.appendChild(el('small', '', rot)); st.appendChild(s); };
@@ -402,11 +404,13 @@ function fichaProyecto(p) {
     r.addEventListener('click', () => abrirProyecto(p.id));
     return r;
 }
-/** Pinta `proyectos` (ya ordenados, C10) en `cont` como renglones. Deja `cont` vacio si no hay proyectos. */
+/** Pinta `proyectos` (ya ordenados, C10) en `cont` como renglones. Deja `cont` vacio si no hay proyectos.
+ *  C-07 (mejorar-app, 16-sep): las tareas se reparten por proyecto UNA vez aqui; antes cada ficha recorria todas (O(P·T)). */
 function pintarFichas(cont, proyectos) {
     cont.textContent = '';
     if (!proyectos.length) return;
-    const g = el('div', 'fichas'); for (const p of proyectos) g.appendChild(fichaProyecto(p)); cont.appendChild(g);
+    const porP = new Map(); for (const t of estado.tareas) { const k = Number(t.ProyectoId); if (!porP.has(k)) porP.set(k, []); porP.get(k).push(t); }
+    const g = el('div', 'fichas'); for (const p of proyectos) g.appendChild(fichaProyecto(p, porP.get(Number(p.id)) || [])); cont.appendChild(g);
 }
 /** Un renglon de mini lista (2026-09-12): cabecera = quien + cuando; debajo la frase a todo el ancho;
  *  debajo el proyecto en una linea. `texto` NO trae el nombre (lo pone la cabecera); si `texto` ES el
@@ -432,6 +436,11 @@ function abridorDe(a) {
     const p = porId(estado.proyectos, t.ProyectoId); if (!p) return null;
     return () => { if ($('dlgActividad').open) cerrarDialogo('dlgActividad'); irAHash(`#p/${p.Clave}/t/${t.id}`); };
 }
+/** C9: la tarjeta `t` se abre en su proyecto (#p/<clave>/t/<id>); sin proyecto, null. C-03 (mejorar-app, 16-sep): antes vivia
+ *  dos veces, caracter por caracter, como flecha local de pintarInicio y de pintarCola. La comparten la cola «Hoy» y «Sin movimiento». */
+function abrirTarea(t) { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; }
+/** C-07: un solo formateador de hora de Mexico para la cola (antes uno nuevo por renglon). */
+const HORA_MX = new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false });
 /**
  * v0.63.0 (Carlos, 15-sep; artifact BL8t8H9H, cortes B + G): cada renglon de actividad lleva a la izquierda un icono redondo
  * cuyo color dice QUE paso sin leer la frase — verde crear · azul nota · ambar asignar/reabrir · marca ligar/subir · rojo borrar ·
@@ -484,14 +493,16 @@ function itemActividad(a, conProyecto, extra) {
  * «Ayer · 4», «lun 14 sep · 3»), y lo que OTROS hicieron desde tu ultima visita va con punto azul y texto fuerte (es-nuevo);
  * lo de otros ya visto, atenuado (es-visto); lo propio, normal. Sin separador «ya visto»: lo propio se intercala con lo nuevo y
  * el corte quedaba con puntos azules debajo (captura 15-sep). El piso es el mismo de «Nuevo para ti» en la cola
- * (estado.nuevosInicio.desde, congelado al entrar; pintarCola ya lo fijo). «tuya» marca la accion sobre una tarjeta asignada a ti.
+ * (estado.nuevosInicio.desde, que pintarInicio congela al entrar — C-05). «tuya» marca la accion sobre una tarjeta asignada a ti.
+ * U-06 (mejorar-app, 16-sep): el contador del corte por dia se calcula sobre `todas` (la actividad visible entera), no sobre los
+ * renglones que se pintan: en celular decia «Hoy · 3» con 8 movimientos porque `lista` ya venia recortada al tope.
  */
-function pintarActividadInicio(cont, lista) {
+function pintarActividadInicio(cont, lista, todas = lista) {
     const yo = String(estado.cuenta && estado.cuenta.username || '').toLowerCase();
-    const desde = (estado.nuevosInicio && estado.nuevosInicio.desde) || inicioVistoHasta();
+    const desde = estado.nuevosInicio.desde;
     const hoy = diaDe(new Date()), ayer = sumarDias(hoy, -1);
     const rotulo = d => d === hoy ? 'Hoy' : d === ayer ? 'Ayer' : fechaLegible(d);
-    const porDia = new Map(); for (const a of lista) { const d = diaDe(a.Cuando) || '?'; porDia.set(d, (porDia.get(d) || 0) + 1); }
+    const porDia = new Map(); for (const a of todas) { const d = diaDe(a.Cuando) || '?'; porDia.set(d, (porDia.get(d) || 0) + 1); }
     const deOtro = a => String(a.Quien || '').toLowerCase() !== yo;
     const esNuevo = a => deOtro(a) && String(a.Cuando || '') > desde;
     const hayNuevos = lista.some(esNuevo);   // sin nada nuevo la tarjeta no se atenua entera (la pega del corte G para quien entra a cada rato)
@@ -519,7 +530,7 @@ function fraseMarcada(texto) {
  * v0.21.0 — Inicio «Hoy» (iteracion 3 del artifact «Seis iteraciones para ver mas facil», 13-sep). Antes Inicio media
  * 1,959 px a 1366 y repartia lo urgente en cuatro tarjetas con cuatro formatos (KPI · Nuevo para ti · Te mencionaron ·
  * Proximos vencimientos). Ahora: el titulo es el SALUDO con nombre (y la fecha, los frentes activos y el rol debajo);
- * los 5 KPI bajan a 3 de lo MIO —abiertas · vencen en 7 d · vencidas— con TENDENCIA contra ayer (reglas.js: serieKpis,
+ * los 5 KPI bajan a 3 de lo MIO —abiertas · vencen en 7 d · vencidas— con TENDENCIA contra ayer (reglas.js: serieKpis — borrada en v0.71.0, C-06,
  * reconstruida por _creado/HechoEl) y un sparkline de 8 dias; y UNA COLA por urgencia (reglas.js: gruposHoy) con el mismo
  * esqueleto por renglon —punto de estado · titulo · frente y dato · avatar · Abrir/Ver—: vencidas · hoy y manana · nuevo
  * para ti · te mencionaron · esta semana · sin dueño. «Proyectos activos» ya lo dice el saludo y «sin dueño» es un grupo
@@ -530,30 +541,34 @@ function fraseMarcada(texto) {
 function pintarInicio() {
     const ahora = new Date();
     const yo = nombreDe(estado.cuenta.username, estado.roles);
-    const nAct = activos().length;
+    const vivos = activos(), nAct = vivos.length;   // C-07 (mejorar-app, 16-sep): activos() se filtraba cuatro veces por pintado
     $('inicioSaludo').textContent = `${saludoDe(ahora)}, ${yo.split(' ')[0]}`;
-    $('inicioSub').textContent = `${fechaLarga(ahora)} · ${nAct} frente${nAct === 1 ? '' : 's'} activo${nAct === 1 ? '' : 's'} · ${estado.rol}`;
-    const idsActivos = new Set(activos().map(p => p.id));   // v0.13.1: una vez, no por cada tarjeta
+    // U-08: el rol va en su propio span; en celular la barra de arriba ya lo dice junto al logo y .rol-sub se oculta (estilo.css)
+    const sub = $('inicioSub'); sub.textContent = `${fechaLarga(ahora)} · ${nAct} frente${nAct === 1 ? '' : 's'} activo${nAct === 1 ? '' : 's'}`; sub.appendChild(el('span', 'rol-sub', ` · ${estado.rol}`));
+    const idsActivos = new Set(vivos.map(p => p.id));   // v0.13.1: una vez, no por cada tarjeta
     const abiertas = estado.tareas.filter(t => t.Columna !== 'hecho' && idsActivos.has(Number(t.ProyectoId)));
     // v0.41.0 (Carlos, 14-sep): la fila de KPI (mías abiertas · vencen en 7 d · vencidas · sin dueño · sin movimiento) SALIO
     // de Inicio. Lo mio vive en Mis tareas (y el rojo del rail), lo global en la cola y en Reportes; «sin movimiento» en su tarjeta.
     const quietas = sinMovimiento(abiertas, CONFIG.sinMovimientoDias, ahora, columnasDeTarea);
-    pintarCola(abiertas);
+    // C-05 (mejorar-app, 16-sep): el piso de «Nuevo para ti» se congela AQUI, al entrar, y la marca de visto sube AQUI — antes eran
+    // efectos colaterales de pintarCola (que se repinta con cada clic de «solo mías») y pintarActividadInicio dependia de ese orden.
+    if (!estado.nuevosInicio) estado.nuevosInicio = { desde: inicioVistoHasta() };
+    const nuevos = pintarCola(abiertas);
+    if (nuevos.length) marcarInicioVisto(nuevos[0].a.Cuando);
     const lp = $('inicioProyectos');
-    pintarFichas(lp, ordenarProyectos(activos()));   // C10 · v0.25.0: los mismos renglones «calendario de mes» que en Proyectos
-    if (!activos().length) lp.appendChild(el('p', 'vacio', PUEDE.proyecto(estado.rol) ? 'Sin proyectos activos: crea el primero en Proyectos.' : 'Sin proyectos activos todavía.'));
+    pintarFichas(lp, ordenarProyectos(vivos));   // C10 · v0.25.0: los mismos renglones «calendario de mes» que en Proyectos
+    if (!vivos.length) lp.appendChild(el('p', 'vacio', PUEDE.proyecto(estado.rol) ? 'Sin proyectos activos: crea el primero en Proyectos.' : 'Sin proyectos activos todavía.'));
     // C9: tambien estos renglones abren su tarjeta (el revisor vio la inconsistencia con la actividad).
-    const abrirT = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; };
     // v0.39.0: «Fines de frente» (v0.21.0) salio con la lateral — la hoja de calendario de cada ficha ya trae fecha y semaforo.
     const sm = $('inicioSinMov'); sm.textContent = '';
-    for (const t of quietas.slice(0, 6)) { const p = porId(estado.proyectos, t.ProyectoId); sm.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', `${-diasPara(t.Desde)} d`, 'warn', abrirT(t))); }
+    for (const t of quietas.slice(0, 6)) { const p = porId(estado.proyectos, t.ProyectoId); sm.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', `${-diasPara(t.Desde)} d`, 'warn', abrirTarea(t))); }
     $('cardSinMov').classList.toggle('oculto', quietas.length === 0);
     const act = $('inicioActividad'); act.textContent = '';
     // B3: en celular Inicio media 2,400 px; la actividad baja a 3 renglones. v0.14.0: en escritorio son 8 (la tarjeta
     // paso a la columna ancha, bajo Proyectos activos, donde antes sobraba media pantalla).
     const tope = enCelular.matches ? 3 : 8;
     const visible = actividadVisible();   // v0.11.0: sin movimientos entre cubetas
-    pintarActividadInicio(act, visible.slice(0, tope));   // C9 · v0.63.0: por dia, con icono y nuevo/visto
+    pintarActividadInicio(act, visible.slice(0, tope), visible);   // C9 · v0.63.0: por dia, con icono y nuevo/visto; U-06: el corte cuenta sobre `visible`
     if (!visible.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
     $('btnActividadInicio').hidden = visible.length <= tope;
 }
@@ -570,7 +585,8 @@ function fechaLarga(ahora) { const d = diaDe(ahora); const x = new Date(d + 'T12
  * abajo (antes eran dos tarjetas y salia en las dos, a proposito; en una sola cola seria un renglon duplicado). El piso de
  * «Nuevo para ti» se congela al ENTRAR (la marca sube al pintar sin vaciar la lista) y sale al cambiar de pantalla.
  * Los grupos por fecha obedecen al conmutador «todo el frente / solo mías» (estado.hoySoloMias, la sesion); «sin dueño»
- * es de nadie y sale siempre; «nuevo para ti» y «te mencionaron» son mios por definicion.
+ * es de nadie y sale siempre; «nuevo para ti» y «te mencionaron» son mios por definicion. Devuelve `nuevos` (C-05): quien
+ * llama decide si sube la marca de visto — pintarInicio si, el conmutador «solo mías» no.
  */
 function pintarCola(abiertas) {
     // v0.39.0: la cola va en DOS mitades (#inicioUrgente | #inicioResto) dentro de #inicioHoy; `lista` apunta a la que se
@@ -587,15 +603,13 @@ function pintarCola(abiertas) {
     const conDueno = abiertas.filter(t => String(t.Asignado || '').trim());
     const base = estado.hoySoloMias ? conDueno.filter(t => String(t.Asignado || '').toLowerCase() === yoCorreo) : conDueno;
     const g = gruposHoy(base, new Date(), CONFIG.vencePronto);
-    if (!estado.nuevosInicio) estado.nuevosInicio = { desde: inicioVistoHasta() };
     const nuevos = nuevoParaMi(estado.actividad, estado.tareas, estado.roles, estado.cuenta.username, estado.nuevosInicio.desde);
     const yaNuevos = new Set(nuevos.map(x => Number(x.a.id)));
     const menciones = mencionesA(estado.cuenta.username).filter(a => !yaNuevos.has(Number(a.id)));
     const huerfanas = sinDueno(abiertas);
     const VERBO = { asignada: 'te asignó', cambio: 'cambió tu tarjeta', nota: 'anotó en tu tarjeta', mencion: 'te mencionó' };
-    const abrirTarea = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; };
     const abrirEvento = a => { const p = porId(estado.proyectos, a.ProyectoId); return abridorDe(a) || (p ? () => irAHash(`#p/${p.Clave}/chat`) : null); };
-    const tituloDe = t => porId(estado.proyectos, t.ProyectoId) ? porId(estado.proyectos, t.ProyectoId).Title : '';
+    const tituloDe = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? p.Title : ''; };   // C-03: porId una vez, no dos
     // Un renglon: FECHA en columna · titulo (+ subtitulo); sin avatar desde v0.61.0. Es un boton entero (C9), como los .it de las mini listas;
     // el verbo «Abrir»/«Ver» a la derecha se quito en v0.25.1 (Carlos, 14-sep): el renglon entero ya lleva al pendiente.
     // v0.65.0 (Carlos, 15-sep; artifact D1P9k1su, corte C «la fecha en columna»): el punto de 8 px se fue; la marca es el dato
@@ -609,19 +623,21 @@ function pintarCola(abiertas) {
         return r;
     };
     const kFecha = iso => { const m = mesDia(iso); return m ? { a: String(m.dia), b: m.mes } : { a: '—', b: '' }; };
-    const kHora = iso => { const d = diasPara(iso), m = mesDia(iso); return { a: new Date(iso).toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false }), b: d === 0 ? 'hoy' : d === -1 ? 'ayer' : m ? `${m.dia} ${m.mes}` : '' }; };
+    const kHora = iso => { const d = diasPara(iso), m = mesDia(iso); return { a: HORA_MX.format(new Date(iso)), b: d === 0 ? 'hoy' : d === -1 ? 'ayer' : m ? `${m.dia} ${m.mes}` : '' }; };
     const grupo = (clave, texto, n, cls, alClic) => {
         const h = el(alClic ? 'button' : 'div', 'hoy-g' + (cls ? ' is-' + cls : '')); if (alClic) { h.type = 'button'; h.addEventListener('click', alClic); }
         h.dataset.grupo = clave; h.appendChild(el('span', '', texto)); h.appendChild(el('b', 'n', String(n))); lista.appendChild(h);
     };
-    const chipDias = (t, d) => d < 0 ? `venció ${fechaCorta(t.Vence)}` : d === 0 ? 'vence hoy' : d === 1 ? 'vence mañana' : `vence ${fechaCorta(t.Vence)}`;
-    const extra = t => { const q = sinMovimiento([t], CONFIG.sinMovimientoDias, new Date(), columnasDeTarea).length ? ` · sin movimiento ${-diasPara(t.Desde)} d` : ''; const n = comentariosDe(t.id).length; return `${q}${n ? ` · 💬 ${n}` : ''}`; };
-    // El dato va ANTES del frente: a 390 px el subtitulo se trunca y lo que se pierde es el nombre del proyecto, no la fecha (captura 13-sep).
-    const tarea = (t, d, cls) => renglon(cls, t.Title, `${chipDias(t, d)} · ${tituloDe(t)}${extra(t)}`, kFecha(t.Vence), abrirTarea(t), { t: String(t.id) });
+    // C-01 (mejorar-app, 16-sep): las notas de la TARJETA son notasDe(tareaId); comentariosDe(id) filtra por PROYECTO y con el id de una
+    // tarjeta contaba el hilo de otro frente (o nada). Sin asercion que lo cazara hasta v0.71.0.
+    const extra = t => { const q = sinMovimiento([t], CONFIG.sinMovimientoDias, new Date(), columnasDeTarea).length ? ` · sin movimiento ${-diasPara(t.Desde)} d` : ''; const n = notasDe(t.id).length; return `${q}${n ? ` · 💬 ${n}` : ''}`; };
+    // U-04 (mejorar-app, 16-sep): el subtitulo ya NO repite la fecha —la columna `.k` la trae y el grupo dice vencida/hoy/semana— y asi el
+    // nombre del frente cabe a 390 px (antes «venció 14/09/2026 · LAU ASEA-03-001 (Licencia A…»). Con eso se fue chipDias (C-03: era chipVence).
+    const tarea = (t, cls) => renglon(cls, t.Title, `${tituloDe(t)}${extra(t)}`, kFecha(t.Vence), abrirTarea(t), { t: String(t.id) });
     // Los grupos por fecha se recortan a `TOPE` renglones con un «+N más» que lleva a donde estan todas (Mis tareas o Calendario).
     const TOPE = 6;
     const mas = (n, texto, ir) => { const b = el('button', 'hoy-mas'); b.type = 'button'; b.textContent = `+${n} más · ${texto} →`; b.addEventListener('click', ir); lista.appendChild(b); };
-    const pintarGrupo = (arr, cls, texto, ir) => { for (const { tarea: t, dias } of arr.slice(0, TOPE)) lista.appendChild(tarea(t, dias, cls)); if (arr.length > TOPE) mas(arr.length - TOPE, texto, ir); };
+    const pintarGrupo = (arr, cls, texto, ir) => { for (const { tarea: t } of arr.slice(0, TOPE)) lista.appendChild(tarea(t, cls)); if (arr.length > TOPE) mas(arr.length - TOPE, texto, ir); };
     let total = 0;
     if (g.vencidas.length) { grupo('vencidas', 'Vencidas', g.vencidas.length, 'danger'); pintarGrupo(g.vencidas, 'danger', estado.hoySoloMias ? 'ver en Mis tareas' : 'ver en Reportes', () => { if (estado.hoySoloMias) { estado.filtroMis = 'vencidas'; irA('mis'); } else irA('reportes'); }); total += g.vencidas.length; }
     if (g.hoy.length) { grupo('hoy', 'Hoy y mañana', g.hoy.length, 'warn'); pintarGrupo(g.hoy, 'warn', 'ver en el Calendario', () => irA('calendario')); total += g.hoy.length; }
@@ -631,14 +647,13 @@ function pintarCola(abiertas) {
         for (const x of nuevos.slice(0, 8)) {
             const p = porId(estado.proyectos, x.a.ProyectoId || (x.tarea && x.tarea.ProyectoId));
             const que = x.tipo === 'mencion' || x.tipo === 'nota' ? x.a.Title : x.tarea ? x.tarea.Title : x.a.Title;
-            lista.appendChild(renglon('info', `${VERBO[x.tipo]}: «${que}»`, `${nombreDe(x.a.Quien, estado.roles).split(' ')[0]} · ${fechaHora(x.a.Cuando)}${p ? ' · ' + p.Title : ''}`, kHora(x.a.Cuando), abrirEvento(x.a), { nuevo: x.tipo }));
+            lista.appendChild(renglon('info', `${VERBO[x.tipo]}: «${que}»`, `${nombreDe(x.a.Quien, estado.roles).split(' ')[0]}${p ? ' · ' + p.Title : ''}`, kHora(x.a.Cuando), abrirEvento(x.a), { nuevo: x.tipo }));
         }
         total += nuevos.length;
     }
-    if (nuevos.length) marcarInicioVisto(nuevos[0].a.Cuando);
     if (menciones.length) {
         grupo('mencion', 'Te mencionaron', menciones.length, 'info');
-        for (const a of menciones.slice(0, 6)) { const p = porId(estado.proyectos, a.ProyectoId); lista.appendChild(renglon('info', `«${a.Title}»`, `${nombreDe(a.Quien, estado.roles).split(' ')[0]} · ${fechaHora(a.Cuando)}${p ? ' · ' + p.Title : ''}`, kHora(a.Cuando), abrirEvento(a), { mencion: String(a.id) })); }
+        for (const a of menciones.slice(0, 6)) { const p = porId(estado.proyectos, a.ProyectoId); lista.appendChild(renglon('info', `«${a.Title}»`, `${nombreDe(a.Quien, estado.roles).split(' ')[0]}${p ? ' · ' + p.Title : ''}`, kHora(a.Cuando), abrirEvento(a), { mencion: String(a.id) })); }
         total += menciones.length;
     }
     if (g.semana.length) { grupo('semana', 'Esta semana', g.semana.length, null); pintarGrupo(g.semana, null, 'ver en el Calendario', () => irA('calendario')); total += g.semana.length; }
@@ -648,13 +663,14 @@ function pintarCola(abiertas) {
     if (huerfanas.length) {
         grupo('sin-dueno', 'Sin dueño', huerfanas.length, 'warn', () => irASinDueno(huerfanas));
         lista.querySelector('[data-grupo="sin-dueno"]').dataset.kpi = 'sin-dueno';
-        for (const t of huerfanas.slice(0, 6)) { const d = diasPara(t.Vence); lista.appendChild(renglon('warn', t.Title, `sin dueño${d === null ? '' : ' · ' + chipDias(t, d)} · ${tituloDe(t)}`, kFecha(t.Vence), abrirTarea(t), { t: String(t.id), sinDueno: '1' })); }
+        for (const t of huerfanas.slice(0, 6)) lista.appendChild(renglon('warn', t.Title, `${tituloDe(t)}${extra(t)}`, kFecha(t.Vence), abrirTarea(t), { t: String(t.id), sinDueno: '1' }));   // U-04: ni «sin dueño ·» (lo dice el grupo) ni la fecha (la columna); con «sin movimiento» y «💬 N» como los demas renglones
         total += huerfanas.length;
     }
     $('nHoy').textContent = total ? String(total) : '';
     // Cada mitad vacia lo dice en su lugar; el «solo mías» sigue mandando en el texto de la izquierda.
     if (!urgente.children.length) urgente.appendChild(el('p', 'vacio', estado.hoySoloMias ? 'Nada urgente de lo tuyo: ni vencidas ni para hoy.' : 'Nada urgente: ni vencidas ni para hoy, y todo tiene dueño.'));
     if (!resto.children.length) resto.appendChild(el('p', 'vacio', estado.hoySoloMias ? 'Nada nuevo para ti ni tuyo por vencer esta semana.' : 'Nada nuevo para ti ni por vencer esta semana.'));
+    return nuevos;
 }
 /** El salto de «sin dueño» (C7): al proyecto que mas tiene, con el filtro «sin dueño» puesto ENTERO — si ese proyecto ya
  *  estaba abierto, fijarProyectoAbierto no lo limpia y un «quien» previo se combinaria dejando el tablero vacio (revisor, 12-sep).

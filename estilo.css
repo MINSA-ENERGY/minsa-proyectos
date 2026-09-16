@@ -578,11 +578,11 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .pficha.is-warn .cal .mes { background: var(--status-warn-solid); }
 .pficha.is-cerrado .cal .mes { background: var(--status-ok-solid); }
 .pficha .cal.sin .mes { background: var(--surface-sunken); color: var(--text-faint); }
-.pficha .cal.sin .dia { color: var(--text-faint); font-size: 1.1rem; }
+.pficha .cal.sin .dia { color: var(--text-faint); font-family: var(--font-data); font-size: .7rem; letter-spacing: .04em; }   /* U-07: «SIN / fecha» */
 .pficha .cab { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2); align-items: center; min-width: 0; }
 /* .tt es un bloque de texto: el titulo y la etiqueta corren en linea, y la etiqueta cae a la siguiente cuando no cabe (a 820 px con la
    etiqueta en su propia columna nowrap el titulo se estrangulaba a 75 px — revisor 14-sep). */
-.pficha .tt { min-width: 0; line-height: 1.25; }
+.pficha .tt { min-width: 0; line-height: 1.25; overflow: hidden; }   /* U-03 (16-sep): una etiqueta nowrap que no cabe se recorta, no se monta sobre las cifras */
 .pficha .t { font-weight: 600; color: var(--text-strong); font-size: .98rem; overflow-wrap: anywhere; }
 .pficha .uni { display: inline-block; margin-left: var(--sp-2); vertical-align: 1px; font-family: var(--font-data); font-size: .62rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--c, var(--text-muted)); white-space: nowrap; }
 .pficha .stats { display: flex; gap: var(--sp-3); }
@@ -1379,7 +1379,13 @@ body.sin-scroll { overflow: hidden; }
 @media (max-width: 720px) {
   .rail .rail-extra { display: none; }   /* Roadmap · Archivos · Reportes viven en el menu «···» de la barra movil */
   /* La insignia de la barra movil es absolute con right:25% (piel): sin position:relative en el boton se anclaba al rail entero y el «1» de Mis tareas caia sobre Mensajes (medido a 390 con 5 pestanas). */
-  .rail nav button { position: relative; }
+  .rail nav button { position: relative; padding: 0 2px; }
+  /* U-02 (mejorar-app, 16-sep): a 390 con 5 pestanas «MIS TAREAS» partia en dos renglones y la insignia (right: 25% de la piel) caia
+     sobre el texto: el rotulo ya no envuelve y la insignia se ancla a la esquina del icono (20 px centrado). */
+  .rail nav button > span { white-space: nowrap; letter-spacing: .02em; }
+  .rail nav .mn-rail-hot { top: 0; right: calc(50% - 30px); }
+  /* U-08: el rol ya lo dice la barra de arriba junto al logo; el del subtitulo del saludo se esconde. */
+  #inicioSub .rol-sub { display: none; }
   .titulo-ico { width: 32px; height: 32px; } .titulo-ico svg { width: 18px; height: 18px; }
   .cal-rejilla, .cal-detalle { display: none !important; }
   .cal-agenda { display: grid; gap: var(--sp-2); }

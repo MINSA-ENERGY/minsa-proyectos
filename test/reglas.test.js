@@ -1,6 +1,6 @@
 // node test/reglas.test.js — reglas puras de MINSA Proyectos (decisiones del plan 2026-09-11).
 import assert from 'node:assert/strict';
-import { ordenarLigas, direccionInicial, nombreHumano, nombreDeLiga, rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, semaforo, vencidasEn, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, agruparPorEquipo, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, vistosDe, leerVisto, fundirVisto, kpisEn, serieKpis, gruposHoy, saludoDe, hitosDe, acomodarHitos } from '../reglas.js';
+import { ordenarLigas, direccionInicial, nombreHumano, nombreDeLiga, rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, semaforo, vencidasEn, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, vistosDe, leerVisto, fundirVisto, gruposHoy, saludoDe, hitosDe, acomodarHitos } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -132,11 +132,7 @@ ok('sinDueno(): abiertas sin asignado, las hechas fuera', sinDueno(conHuerfana).
 const proys = [{ id: 1, Title: 'Zeta', Vence: '2026-10-31T18:00:00Z' }, { id: 2, Title: 'Sin fecha' }, { id: 3, Title: 'Alfa', Vence: '2026-10-31T18:00:00.000Z' }, { id: 4, Title: 'Pronto', Vence: '2026-09-18T18:00:00Z' }];
 ok('ordenarProyectos: vence antes primero, empate por nombre (mismo dia aunque el ISO difiera), sin fecha al final', ordenarProyectos(proys).map(p => p.id).join(',') === '4,3,1,2');
 ok('ordenarProyectos no muta la entrada', proys[0].id === 1);
-// v0.23.0: fichas por unidad
-{ const eqs = [{ clave: 'CALYTEK' }, { clave: 'PITEPEC' }, { clave: 'RABASA' }];
-  const g = agruparPorEquipo([{ id: 1, Equipo: 'RABASA' }, { id: 2, Equipo: 'CALYTEK' }, { id: 3, Equipo: 'X' }, { id: 4, Equipo: 'RABASA' }, { id: 5 }], eqs);
-  ok('agruparPorEquipo: grupos en el orden del catalogo, sin equipos vacios, adentro el orden de entrada, y lo que no esta en el catalogo al final con clave null', g.map(x => `${x.clave}:${x.proyectos.map(p => p.id).join('')}`).join(' ') === 'CALYTEK:2 RABASA:14 null:35');
-  ok('agruparPorEquipo: sin proyectos = sin grupos', agruparPorEquipo([], eqs).length === 0 && agruparPorEquipo(null, eqs).length === 0); }
+// v0.71.0 (C-06): agruparPorEquipo salio con sus 2 comprobaciones (codigo muerto desde v0.25.0).
 ok('filtrarProyectos por nombre, clave o descripcion sin acentos', filtrarProyectos([{ Title: 'Licencia Única', Clave: 'lau-asea', Descripcion: 'fianza' }, { Title: 'Otro', Clave: 'otro' }], 'UNICA').length === 1 && filtrarProyectos([{ Title: 'x', Clave: 'lau-asea' }], 'asea').length === 1 && filtrarProyectos([{ Title: 'x', Descripcion: 'la fianza' }], 'fianza').length === 1 && filtrarProyectos([{ Title: 'x' }], '').length === 1);
 ok('ordenarLista por vence: sin fecha al final en las dos direcciones', ordenarLista(t10, 'vence', 1).map(t => t.id).join(',') === '1,2,3,6,4,7' && ordenarLista(t10, 'vence', -1).map(t => t.id).join(',') === '6,3,2,1,4,7');
 ok('ordenarLista por columna = posicion en el tablero', ordenarLista(t10, 'columna', 1).map(t => t.Columna).join(',') === 'por-hacer,por-hacer,por-hacer,en-curso,en-revision,hecho');
@@ -301,12 +297,7 @@ ok('filtrarLigas: busca tambien por el titulo humano que se ve («propuesta tecn
     { id: 5, Asignado: 'ana@x', Columna: 'por-hacer', Vence: '2026-09-10T18:00:00Z' },   // de otra
     { id: 6, Asignado: 'YO@X', Columna: 'por-hacer' }   // sin fecha ni _creado: abierta siempre
   ];
-  const hoy = kpisEn(tk, 'yo@x', '2026-09-11'), ayer = kpisEn(tk, 'yo@x', '2026-09-10');
-  ok('kpisEn hoy: 3 abiertas (1, 2, 6), 1 pronto (2), 1 vencida (1)', hoy.abiertas === 3 && hoy.pronto === 1 && hoy.vencidas === 1);
-  ok('kpisEn ayer reconstruido: 3 abiertas (1, 3, 6: la 2 no existia y la 3 aun no estaba hecha), 2 pronto (1 vencia ese dia, 3), 0 vencidas', ayer.abiertas === 3 && ayer.pronto === 2 && ayer.vencidas === 0);
-  ok('kpisEn: correo sin mayusculas; sin tareas = ceros', kpisEn(tk, 'ANA@x', '2026-09-11').vencidas === 1 && kpisEn([], 'yo@x', '2026-09-11').abiertas === 0);
-  const serie = serieKpis(tk, 'yo@x', HOY, 8);
-  ok('serieKpis: 8 dias, hoy al final, ayer penultimo, y hace 7 dias la 4 seguia abierta', serie.length === 8 && serie[7].vencidas === 1 && serie[6].vencidas === 0 && serie[0].abiertas === 4);
+  // v0.71.0 (C-06): kpisEn y serieKpis salieron con sus 4 comprobaciones (codigo muerto desde v0.41.0); `tk` sigue alimentando gruposHoy.
   const g = gruposHoy([...tk, { id: 7, Columna: 'por-hacer', Vence: '2026-09-12T18:00:00Z' }, { id: 8, Columna: 'por-hacer', Vence: '2026-09-25T18:00:00Z' }], HOY, 7);
   ok('gruposHoy: vencidas (1, 5) · hoy y manana (7) · esta semana (2); la de 14 dias y las hechas fuera; cada una en un solo grupo', g.vencidas.map(x => x.tarea.id).join(',') === '1,5' && g.hoy.map(x => x.tarea.id).join(',') === '7' && g.semana.map(x => x.tarea.id).join(',') === '2' && g.hoy[0].dias === 1);
   ok('saludoDe por hora de Mexico: 12:00 = tardes, 08:00 = dias, 20:00 = noches', saludoDe(HOY) === 'Buenas tardes' && saludoDe(new Date('2026-09-11T14:00:00Z')) === 'Buenos días' && saludoDe(new Date('2026-09-12T02:00:00Z')) === 'Buenas noches'); }
