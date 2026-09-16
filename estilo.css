@@ -813,14 +813,19 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .kpi.is-danger b { color: var(--status-danger-fg); } .kpi.is-warn b { color: var(--status-warn-fg); }
 .kpi.is-on { border-color: var(--brand-primary); background: var(--surface-selected); }
 .kpi.is-on small { color: var(--brand-primary); }
+/* v0.67.0 (Carlos, 15-sep; artifact BSj9zHeiWcCGM1DLGQfgiK, corte B): #misLista es .bloques —una tarjeta .densa por bloque, con el
+   rotulo .rot (cifra en Saira + nombre) FUERA, arriba— y el gris de la pagina entre tarjetas hace la separacion. Sin cabecera de columnas. */
+.bloques { display: grid; gap: var(--sp-4); min-width: 0; align-content: start; }
+.bloques > .vacio { padding: var(--sp-3); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); }
+.bloq { display: grid; gap: 6px; min-width: 0; }
+.bloq .rot { display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 0 4px; font-family: var(--font-data); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--text-muted); }
+.bloq .rot b { font-family: var(--font-display); font-size: .95rem; color: var(--text-strong); letter-spacing: 0; text-transform: none; line-height: 1; }
+.bloq.is-vencida .rot b { color: var(--status-danger-fg); } .bloq.is-pronto .rot b { color: var(--status-warn-fg); }
 .densa { display: grid; background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow: hidden; min-width: 0; align-content: start; }
-.densa > .vacio { padding: var(--sp-3); }
 /* v0.66.0 (Carlos, 15-sep): la fecha va en COLUMNA a la izquierda como la cola «Hoy» de Inicio (.hoy-r .k); el filete .sem de 4 px
    y la columna «Vence» de la derecha se fueron, y proyecto / cubeta son texto plano (sin .mn-chip). */
-.densa .hd, .densa .tr { display: grid; grid-template-columns: 46px minmax(0, 1fr) 96px 120px; gap: 0 var(--sp-3); align-items: center; }
-.densa .hd { padding: 8px var(--sp-3); font-family: var(--font-data); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--text-muted); background: var(--surface-sunken); }
-.densa .hd .k { text-align: right; }
-.densa .sep { padding: 5px var(--sp-3); font-family: var(--font-data); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--text-faint); background: var(--surface-page); border-top: 1px solid var(--border-hairline); }
+.densa .tr { display: grid; grid-template-columns: 46px minmax(0, 1fr) 96px 120px; gap: 0 var(--sp-3); align-items: center; }
+.densa .tr:first-child { border-top: 0; }
 .densa .tr { padding: 7px var(--sp-3); border: 0; border-top: 1px solid var(--border-hairline); background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; min-height: 40px; min-width: 0; }
 .densa .tr:hover { background: var(--surface-sunken); }
 .densa .tr .k { display: grid; gap: 1px; text-align: right; font: 500 .7rem/1.1 var(--font-data); color: var(--text-faint); }
@@ -836,8 +841,8 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .densa .tr .eqc, .densa .tr .cu { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .78rem; color: var(--text-muted); }
 .densa .tr[data-tono]:not(.is-vencida) { background: color-mix(in srgb, var(--tono) 13%, var(--surface-card)); }   /* el color elegido tiñe el renglon como a la tarjeta; el vencido gana */
 @media (max-width: 720px) {
-  .densa .hd, .densa .tr { grid-template-columns: 40px minmax(0, 1fr); }
-  .densa .hd span:nth-child(3), .densa .hd span:nth-child(4), .densa .tr .eqc, .densa .tr .cu { display: none; }
+  .densa .tr { grid-template-columns: 40px minmax(0, 1fr); }
+  .densa .tr .eqc, .densa .tr .cu { display: none; }
   .kpi { min-width: 0; flex: 1 1 30%; padding: 6px 10px; }
   .kpi b { font-size: 1.25rem; }
 }

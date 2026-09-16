@@ -252,10 +252,10 @@
     <!-- Mis tareas -->
     <section id="p-mis" class="pantalla oculto">
       <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l4 4L19 6"/></svg></span><h1 id="misTitulo">Mis tareas</h1><p class="sub" id="misSub">Tus tarjetas abiertas, en todos los proyectos, en orden de fecha. Las vencidas arriba.</p></header>
-      <!-- v0.58.0 (Carlos, 15-sep; artifact CrSMdQaxRzctu9VFqrU1dP, corte C): lista densa con contadores — #filtroMis trae los cinco .kpi que filtran; #misLista es la tabla .densa (cabecera + separadores por bloque + un .tr por tarjeta). v0.66.0: fecha en columna a la izquierda, sin filete ni pastillas. -->
+      <!-- v0.58.0 (Carlos, 15-sep; artifact CrSMdQaxRzctu9VFqrU1dP, corte C): lista densa con contadores — #filtroMis trae los cinco .kpi que filtran; #misLista es la tabla .densa (cabecera + separadores por bloque + un .tr por tarjeta). v0.66.0: fecha en columna a la izquierda, sin filete ni pastillas. v0.67.0: #misLista es .bloques, una tarjeta .densa por bloque con su rótulo fuera. -->
       <div class="resumen" id="filtroMis"></div>
       <input id="textoMis" class="buscador" type="search" placeholder="Buscar en mis tareas" aria-label="Buscar en mis tareas" autocomplete="off">
-      <div class="densa" id="misLista"></div>
+      <div class="bloques" id="misLista"></div>
     </section>
 
     <p class="pie mn-mono" id="pie"></p>

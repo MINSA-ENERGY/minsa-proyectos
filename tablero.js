@@ -343,6 +343,9 @@ export function pintarLista(proyecto) {
  * v0.66.0 (Carlos, 15-sep): la FECHA va en columna a la IZQUIERDA como la cola «Hoy» de Inicio (día fuerte + mes tenue,
  * «—» sin fecha; el color del estado en el número), el filete semáforo de 4 px se fue, y proyecto y cubeta son texto plano
  * —sin pastillas—. La columna «Vence» de la derecha y `fechaDensa` («12/09 · −3») salieron con ella (recuperables en git).
+ * v0.67.0 (Carlos, 15-sep; artifact BSj9zHeiWcCGM1DLGQfgiK, corte B «una tarjeta por bloque»): cada bloque es su propia
+ * tarjeta `.bloq[data-bloque]` —rótulo `.rot` con la cifra fuera, arriba, y su `.densa` de renglones— separadas por el gris
+ * de la página; la cabecera de columnas `.hd` y los separadores `.sep` dentro de la tabla ya no existen.
  */
 const FILTROS_MIS = [[null, 'abiertas'], ['vencidas', 'vencidas'], ['pronto', 'vencen en 7 días'], ['sinfecha', 'sin fecha'], ['delegadas', 'las que delegué']];   // v0.15.0: quien reparte no las pierde de vista; v0.58.0: «sin fecha» nace con los contadores
 export function pintarMisTareas() {
@@ -373,14 +376,18 @@ export function pintarMisTareas() {
         : estado.filtroMis === 'pronto' ? conTexto.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn')
         : estado.filtroMis === 'sinfecha' ? conTexto.filter(t => !t.Vence) : conTexto;
     if (!mias.length) { cont.appendChild(el('p', 'vacio', todas.length ? (q ? 'Ninguna con ese texto.' : 'Nada con ese filtro.') : delego ? 'No has delegado ninguna tarjeta abierta: las que crees o asignes a otros salen aquí.' : 'Sin tareas abiertas asignadas a ti.')); return; }
-    const hd = el('div', 'hd'); hd.setAttribute('aria-hidden', 'true');
-    for (const [c, x] of [['k', 'Vence'], ['', 'Tarea'], ['', 'Proyecto'], ['', 'Cubeta']]) hd.appendChild(el('span', c, x));
-    cont.appendChild(hd);
-    let bloque = '';
+    // v0.67.0: una tarjeta por bloque. `mias` viene en orden de fecha, asi que los bloques salen contiguos y en el orden fijo.
+    let bloque = '', densa = null;
     for (const t of mias) {
         const b = bloqueDe(t);
-        if (b !== bloque) { bloque = b; const s = el('div', 'sep', b); s.dataset.bloque = BLOQUES[b]; cont.appendChild(s); }
-        cont.appendChild(renglonDenso(t, delego));
+        if (b !== bloque) {
+            bloque = b;
+            const n = mias.filter(x => bloqueDe(x) === b).length;
+            const sec = el('section', 'bloq' + (b === 'Vencidas' ? ' is-vencida' : b === 'Esta semana' ? ' is-pronto' : '')); sec.dataset.bloque = BLOQUES[b];
+            const rot = el('h3', 'rot'); rot.appendChild(el('b', '', String(n))); rot.appendChild(document.createTextNode(' ' + b)); sec.appendChild(rot);
+            densa = el('div', 'densa'); sec.appendChild(densa); cont.appendChild(sec);
+        }
+        densa.appendChild(renglonDenso(t, delego));
     }
 }
 const BLOQUES = { 'Vencidas': 'vencidas', 'Esta semana': 'semana', 'Después': 'despues', 'Sin fecha': 'sinfecha' };
