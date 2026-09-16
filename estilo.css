@@ -444,16 +444,44 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .dlg-avisos .mensaje { box-shadow: none; }
 .deny { background: var(--status-danger-bg); color: var(--status-danger-fg); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); font-size: .85rem; }
 
-/* ---- entrada */
-.entrada { min-height: 80vh; display: grid; place-items: center; }
-.entrada-caja { width: min(26rem, 100%); background: var(--ink-900); color: #ffffff; border-radius: var(--r-lg); padding: var(--sp-6) var(--sp-5); display: grid; gap: var(--sp-3); }
-.entrada-caja .logo { width: 180px; height: auto; }
-.entrada-titulo { margin: var(--sp-3) 0 0; font-family: var(--font-display); font-weight: 600; font-size: 2rem; line-height: 1.05; letter-spacing: -.02em; }
-.entrada-titulo em { font-style: normal; color: var(--green-500); }
-.entrada .lema { margin: 0 0 var(--sp-3); color: var(--slate-300); }
-.entrada .mn-btn.is-primary, .entrada .mn-btn.is-primary:hover:not(:disabled), .entrada .mn-btn.is-primary:focus-visible { background: var(--sky-400); color: var(--slate-950); border-color: transparent; box-shadow: none; }   /* v0.30.0: la entrada conserva su boton lleno en reposo, hover y foco (el hover verde de .is-primary es (0,4,0) y le ganaba) */
+/* ---- entrada
+   v0.62.0 (Carlos, 15-sep; artifact FYiwQWrm «1 Literal» + escritorio «B Dos columnas»): el plano de ingenieria de calytek-planta-app
+   (estilo.css de la planta, iteracion F2 del 5-sep) — navy #04123d, rejilla de 28 px con brillo cielo, lockup oscuro, boton verde.
+   Un solo tema a proposito (no sigue prefers-color-scheme): el lockup oscuro es el unico legible sobre navy. Los colores van
+   LITERALES, no por token, porque la pantalla es la misma en claro y oscuro. En celular es la de la planta tal cual; de 721 px
+   en adelante son dos columnas: lockup grande a la izquierda, texto y boton a la derecha, brillo detras del lockup. */
+body:has(#pantallaEntrar:not(.oculto)) { background: #04123d; overflow: hidden; height: 100dvh; }
+body:has(#pantallaEntrar:not(.oculto)) .contenido { padding: 0; }
+body:has(#pantallaEntrar:not(.oculto)) .app { grid-template-columns: 1fr; }   /* con el rail oculto pero sin .sin-sesion (el arnés de capturas) el contenido caía en la pista de 232 px */
+body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
+.entrada { position: relative; height: 100dvh; display: flex; flex-direction: column; background: #04123d; color: #f2f6ff; overflow: hidden; }
+.entrada-rejilla {
+  position: absolute; inset: 0; pointer-events: none;
+  background-image: linear-gradient(rgba(195, 213, 251, .10) 1px, transparent 1px), linear-gradient(90deg, rgba(195, 213, 251, .10) 1px, transparent 1px), radial-gradient(90% 45% at 50% -5%, rgba(105, 198, 255, .35), transparent 65%);
+  background-size: 28px 28px, 28px 28px, 100% 100%;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 45%, transparent 85%); mask-image: linear-gradient(180deg, #000 0%, #000 45%, transparent 85%);
+}
+.entrada-caja { position: relative; flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 24rem; margin: 0 auto; padding: calc(1.5rem + env(safe-area-inset-top)) 1.5rem calc(1.75rem + env(safe-area-inset-bottom)); }
+.entrada-arriba { flex: 1; display: grid; place-items: center; padding: 2rem 0; }
+.entrada-arriba .logo { width: 15rem; max-width: 78vw; height: auto; }
+.entrada-abajo { display: flex; flex-direction: column; align-items: flex-start; gap: .8rem; }
+.entrada-titulo { margin: 0; font-family: var(--font-display); font-weight: 600; font-size: 2.1rem; line-height: 1.05; letter-spacing: .02em; color: #f2f6ff; text-wrap: balance; }
+.entrada-titulo em { font-style: normal; color: #61cd6a; }
+.entrada .lema { margin: 0; color: rgba(242, 246, 255, .62); max-width: 30ch; text-wrap: balance; }
+.entrada .mn-btn.is-primary, .entrada .mn-btn.is-primary:hover:not(:disabled), .entrada .mn-btn.is-primary:focus-visible { margin-top: .4rem; background: #61cd6a; color: #04123d; border-color: transparent; border-radius: .4rem; box-shadow: none; }   /* v0.30.0: la entrada conserva su boton lleno en reposo, hover y foco (el hover verde de .is-primary es (0,4,0) y le ganaba) */
 .entrada .mn-btn.is-primary:hover:not(:disabled) { filter: brightness(1.06); }
-.entrada .mn-label { color: var(--slate-400); min-height: 1.2em; }
+.entrada .pista { align-self: center; margin: 0; min-height: 1.2em; color: rgba(242, 246, 255, .5); font-family: var(--font-data); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; }
+@media (min-width: 721px) {
+  .entrada-caja { max-width: 64rem; flex-direction: row; align-items: center; gap: 4rem; padding: 2.5rem 3.5rem; }
+  .entrada-arriba { flex: 1 1 0; padding: 0; }
+  .entrada-arriba .logo { width: 24rem; max-width: 100%; }
+  .entrada-abajo { flex: 0 0 24rem; }
+  .entrada-titulo { font-size: 2.6rem; }
+  .entrada-rejilla {
+    background-image: linear-gradient(rgba(195, 213, 251, .10) 1px, transparent 1px), linear-gradient(90deg, rgba(195, 213, 251, .10) 1px, transparent 1px), radial-gradient(60% 70% at 25% 50%, rgba(105, 198, 255, .32), transparent 65%);
+    -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 50%, rgba(0, 0, 0, .25) 100%); mask-image: linear-gradient(90deg, #000 0%, #000 50%, rgba(0, 0, 0, .25) 100%);
+  }
+}
 
 /* ---- cabeceras y pantallas */
 .pantalla { display: grid; gap: var(--sp-4); align-content: start; }

@@ -57,13 +57,19 @@
     <div id="sinRed" class="sin-red-banda oculto" role="status">Sin conexión: puedes ver, no guardar. Se vuelve a leer solo cuando regrese la red.</div>
 
     <!-- Entrar -->
+    <!-- v0.62.0 (Carlos, 15-sep; artifact FYiwQWrm): el «plano de ingenieria» de calytek-planta-app (navy + rejilla de 28 px), literal en celular
+         (lockup al centro, texto abajo) y en DOS COLUMNAS en escritorio (lockup grande a la izquierda, texto y boton a la derecha). Un solo tema
+         a proposito, como en la planta: el lockup oscuro es el unico legible sobre navy. Sin etiquetas de equipo (Carlos las quito). -->
     <section id="pantallaEntrar" class="entrada">
+      <div class="entrada-rejilla" aria-hidden="true"></div>
       <div class="entrada-caja">
-        <img class="logo" src="./marca/lockup-oscuro.svg" alt="MINSA ENERGY" width="724" height="256">
-        <h1 class="entrada-titulo">Un frente,<br>un <em>tablero.</em></h1>
-        <p class="lema">Proyectos, tareas asignadas y documentos, para todo el equipo.</p>
-        <button id="btnEntrar" class="mn-btn is-primary is-block" type="button">Entrar con mi cuenta de MINSA</button>
-        <p id="textoEntrar" class="mn-label"></p>
+        <div class="entrada-arriba"><img class="logo" src="./marca/lockup-oscuro.svg" alt="MINSA ENERGY" width="724" height="256"></div>
+        <div class="entrada-abajo">
+          <h1 class="entrada-titulo">Un frente,<br>un <em>tablero.</em></h1>
+          <p class="lema">Proyectos, tareas asignadas y documentos, para todo el equipo.</p>
+          <button id="btnEntrar" class="mn-btn is-primary is-block" type="button">Entrar con mi cuenta de MINSA</button>
+          <p id="textoEntrar" class="mn-label pista">MINSA · Proyectos</p>
+        </div>
       </div>
     </section>
 
