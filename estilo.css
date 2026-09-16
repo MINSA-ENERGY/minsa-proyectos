@@ -748,7 +748,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .col:not(.is-activa) { display: none; }
 }
 .col { background: var(--surface-sunken); border-radius: var(--r-md); padding: var(--sp-2); display: grid; gap: var(--sp-2); align-content: start; min-height: 200px; }
-.col h3 { margin: 0; font-family: var(--font-display); font-size: .82rem; font-weight: 600; color: var(--text-strong); display: flex; gap: var(--sp-2); align-items: center; padding: var(--sp-1) var(--sp-1) 0; }
+.col h3 { margin: 0; font-family: var(--font-display); font-size: .82rem; font-weight: 600; color: var(--text-strong); display: flex; gap: var(--sp-2); align-items: center; padding: var(--sp-1) var(--sp-1) 6px; border-bottom: 2px solid var(--cub); }   /* v0.64.0: el filete lleva el color de la cubeta (--cub) */
 .col h3 .n { margin-left: auto; font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); font-weight: 500; }
 .col .vacio { color: var(--text-faint); font-size: .78rem; padding: var(--sp-1); }
 .tarjeta { background: var(--surface-card); border: 1px solid var(--border-hairline); border-left-width: 3px; border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-3); display: grid; gap: var(--sp-1); text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0; }   /* auditoria #10: sin sombra, como .mn-card y .doc; la piel lo dice */
@@ -786,9 +786,17 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tablero.is-compacto .tarjeta .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; font-size: .84rem; }
 .tablero.is-compacto .tarjeta .f { flex-wrap: nowrap; }
 .tablero.is-compacto .tarjeta .f > :not(.vence) { display: none; }
-.tablero.is-compacto .tarjeta .f .mn-chip { padding: 0 6px; font-size: .68rem; }
+.tablero.is-compacto .tarjeta .f .mn-chip { padding: 0; font-size: .68rem; }
+.tablero.is-compacto .tarjeta .f .mn-chip::before { content: none; }   /* v0.64.0: en compacto el chip va solo, sin el «·» */
 .tarjeta .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; line-height: 1.3; }
 .tarjeta .f { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; font-size: .75rem; color: var(--text-muted); }
+/* v0.64.0 (Carlos, 15-sep; artifact WFuYDBHS): en la cara de la tarjeta las pastillas («en el buzón», «vence …», y en Mis tareas la clave y la
+   cubeta) son TEXTO PLANO con «·» delante; el color se queda solo donde es semaforo (ambar/rojo de vence) o informacion (azul del buzon).
+   Siguen siendo .mn-chip: fuera de .tarjeta (Docs, cabecera del proyecto) la pastilla no cambia. */
+.tarjeta .f .mn-chip { background: none; padding: 0; border-radius: 0; font-weight: 500; letter-spacing: 0; color: var(--text-muted); }
+.tarjeta .f .mn-chip::before { content: "·"; color: var(--text-faint); }
+.tarjeta .f .mn-chip.is-warn { color: var(--status-warn-fg); font-weight: 600; } .tarjeta .f .mn-chip.is-danger { color: var(--status-danger-fg); font-weight: 600; }
+.tarjeta .f .mn-chip.is-info { color: var(--status-info-fg); } .tarjeta .f .mn-chip.is-ok { color: var(--status-ok-fg); }
 .tarjeta .stale { color: var(--status-warn-fg); font-weight: 600; }
 /* La caja de la tarjeta se conserva (Mis tareas y la E2E la usan); desde v0.11.0 ya no lleva el atajo «→ siguiente». */
 .tarjeta-caja { display: grid; gap: 2px; min-width: 0; }
@@ -1025,15 +1033,16 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* ---- insignias en la cara de la tarjeta (Trello): notas y documentos, sin abrirla. */
 .insig { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-data); font-size: .7rem; color: var(--text-muted); }
 .insig svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-/* ---- punto de color en la cabecera de cada columna = la barra segmentada de la lista de proyectos (misma leyenda). */
-.col h3 .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--border-default); flex: none; }
+/* ---- v0.64.0 (Carlos, 15-sep; artifact WFuYDBHS, corte E «filete bajo el título»): el color de la cubeta es `--cub`, que .col h3 pinta como
+   FILETE de 2 px bajo la cabecera; el punto de 8 px a la izquierda del nombre se fue. Mismo color que la barra segmentada de la lista de proyectos. */
+.col { --cub: var(--border-default); }
 /* v0.11.0: el color va por POSICION de la cubeta (data-cls: p primera · c segunda · r demas · h hecho), no por su nombre. */
-.col[data-cls="c"] h3 .punto { background: var(--brand-primary); }
-.col[data-cls="r"] h3 .punto { background: var(--status-info-solid); }
-.col[data-cls="h"] h3 .punto { background: var(--status-ok-solid); }
+.col[data-cls="c"] { --cub: var(--brand-primary); }
+.col[data-cls="r"] { --cub: var(--status-info-solid); }
+.col[data-cls="h"] { --cub: var(--status-ok-solid); }
 /* Cubeta huerfana (una tarjeta quedo en una cubeta que ya no existe): se ve, marcada, hasta que alguien la mueva. */
 .col.is-huerfana { outline: 1px dashed var(--status-warn-fg); outline-offset: -1px; }
-.col.is-huerfana h3 .punto { background: var(--status-warn-fg); }
+.col.is-huerfana { --cub: var(--status-warn-fg); }
 /* v0.47.0: el numero de columnas (1 a 8) lo da `--n` en .tablero, arriba; los renglones por data-n=5..8 se retiraron. */
 /* ---- editor de cubetas (v0.11.0) */
 .cubetas { display: grid; gap: var(--sp-2); margin-bottom: var(--sp-2); }
@@ -1386,9 +1395,9 @@ body.sin-scroll { overflow: hidden; }
 [data-tono="azul"] { --tono: var(--tono-azul); } [data-tono="celeste"] { --tono: var(--tono-celeste); } [data-tono="verde"] { --tono: var(--tono-verde); }
 [data-tono="ambar"] { --tono: var(--tono-ambar); } [data-tono="rojo"] { --tono: var(--tono-rojo); } [data-tono="morado"] { --tono: var(--tono-morado); }
 [data-tono="rosa"] { --tono: var(--tono-rosa); } [data-tono="gris"] { --tono: var(--tono-gris); }
-/* Donde se ve: el punto y el fondo de la columna, el punto del editor, el segmento de barra/anillo/leyenda, y la tarjeta. */
-.col[data-tono] { background: color-mix(in srgb, var(--tono) 9%, var(--surface-sunken)); }
-.col[data-tono] h3 .punto, .cubeta .punto[data-tono], .leyenda span[data-tono] i { background: var(--tono); }
+/* Donde se ve: el filete y el fondo de la columna, el punto del editor, el segmento de barra/anillo/leyenda, y la tarjeta. */
+.col[data-tono] { background: color-mix(in srgb, var(--tono) 9%, var(--surface-sunken)); --cub: var(--tono); }
+.cubeta .punto[data-tono], .leyenda span[data-tono] i { background: var(--tono); }
 .segbar i[data-tono] { background: var(--tono); }
 .anillo .seg[data-tono] { stroke: var(--tono); }
 .tarjeta[data-tono] { background: color-mix(in srgb, var(--tono) 13%, var(--surface-card)); border-color: color-mix(in srgb, var(--tono) 38%, var(--border-hairline)); }

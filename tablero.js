@@ -274,9 +274,9 @@ export function pintarTablero(proyecto) {
     pintarDensidad();
     for (const [i, c] of columnas.entries()) {
         const col = el('div', 'col' + (estado.colMovil === c.clave ? ' is-activa' : '') + (c.huerfana ? ' is-huerfana' : '')); col.dataset.col = c.clave;
-        col.dataset.cls = claseDeColumna(c.clave, columnas);   // v0.11.0: el color del punto va por POSICION, no por nombre
+        col.dataset.cls = claseDeColumna(c.clave, columnas);   // v0.11.0: el color del filete va por POSICION, no por nombre
         if (c.color) col.dataset.tono = c.color;   // v0.12.0: salvo que la cubeta tenga color elegido
-        const h = el('h3'); h.appendChild(el('i', 'punto')); h.appendChild(el('span', '', c.nombre));   // v0.8.0: el punto lleva el color de la barra segmentada
+        const h = el('h3'); h.appendChild(el('span', '', c.nombre));   // v0.64.0: sin punto — el color de la cubeta es el FILETE bajo la cabecera (estilo.css: --cub)
         if (c.huerfana) h.title = 'Esta cubeta ya no existe en el proyecto: mueve sus tarjetas a otra.';
         let cs = ordenar(ts.filter(t => t.Columna === c.clave));
         // v0.20.0: el contador se pone rojo y dice cuantas vencidas trae la cubeta (mockup de la iteracion 2).
