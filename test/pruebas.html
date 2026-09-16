@@ -503,6 +503,9 @@ try {
         await esperar(() => $('tNotasLista').textContent.includes('Esperando el original'), 'nota pintada');
         R.ok('la nota se pinta en la tarjeta con quién la escribió', $('tNotasLista').textContent.includes('Persona de Prueba') && $('tNota').value === '');
         R.ok('la tarjeta ofrece Ligar / Subir', !!document.querySelector(`#tDocs [data-ligar="${t.id}"]`) && !!document.querySelector(`#tDocs [data-subir="${t.id}"]`));
+        // v0.69.0 (Carlos, 16-sep): los tres botones cortos con icono en UNA fila (Ligar · Subir · Enlace); «Quitar» es una tachita con el texto solo en aria-label; el estado del documento sin pastilla (fondo transparente, sin «·»).
+        { const acc = [...document.querySelectorAll('#tDocs .tdoc-acciones .mn-btn')];
+          R.ok('v0.69.0 (A2): Ligar · Subir · Enlace cortos con icono en UNA fila', acc.map(b => b.textContent).join(',') === 'Ligar,Subir,Enlace' && acc.every(b => b.querySelector('svg') && b.title) && new Set(acc.map(b => b.getBoundingClientRect().top)).size === 1, acc.map(b => b.textContent).join(',')); }
         document.querySelector(`#tDocs [data-ligar="${t.id}"]`).click(); await esperar(() => $('dlgLigar').open, 'ligar desde la tarjeta');
         R.ok('Ligar desde la tarjeta: la tarjeta ya va puesta y el diálogo de tarjeta se cerró', $('lgTarea').value === String(t.id) && !$('dlgTarea').open && $('lgNota').classList.contains('oculto'));
         await esperar(() => location.hash === `#p/${CLAVE}`, 'hash sin tarjeta');
@@ -750,8 +753,10 @@ try {
           clic('tPopCancelar'); }
         // v0.50.0 (Carlos, 15-sep; artifact 1mTr2BGa, 1A + 2B + 3A): las propiedades son RENGLONES rótulo · valor (sin .mn-chip); la cubeta abre el menú #tMover
         // (que vive dentro de su renglón, con «1 de 2» y las flechas al lado); la prioridad es un segmentado con barras y un input oculto con el id de siempre.
-        { const rotulos = [...$('tChips').querySelectorAll(':scope > b')].map(b => b.textContent);
-          R.ok('v0.50.0 + v0.53.0: cinco renglones rótulo · valor (Asignado · Cubeta · Vence · Prioridad · Color) y ningún chip', rotulos.join(',') === 'Asignado,Cubeta,Vence,Prioridad,Color' && !$('tChips').querySelector('.mn-chip') && $('tChips').classList.contains('t-props'), rotulos.join(','));
+        // v0.69.0 (A2): cada propiedad va en su CELDA .t-cel (rótulo arriba, valor abajo) de una franja; los rótulos se leen de ahí.
+        { const rotulos = [...$('tChips').querySelectorAll(':scope > .t-cel > b')].map(b => b.textContent);
+          R.ok('v0.50.0 + v0.53.0 → v0.69.0: cinco CELDAS rótulo / valor (Asignado · Cubeta · Vence · Prioridad · Color) en la franja .t-props y ningún chip', rotulos.join(',') === 'Asignado,Cubeta,Vence,Prioridad,Color' && !$('tChips').querySelector('.mn-chip') && $('tChips').classList.contains('t-props') && $('tChips').querySelectorAll(':scope > .t-cel').length === 5, rotulos.join(','));
+          R.ok('v0.69.0 (A2): la cabecera lleva la ceja del frente (equipo por icono · liga al proyecto · T-id) fuera de #tTitulo, y el diálogo la banda del equipo (--t-eq)', !!$('tCeja').querySelector('.eqi') && !!$('tCeja').querySelector('a[data-proyecto]') && /^T-\d+$/.test($('tCeja').querySelector('.id').textContent) && !$('tTitulo').contains($('tCeja')) && $('dlgTarea').style.getPropertyValue('--t-eq') !== '', $('tCeja').textContent);
           const abre = $('tChips').querySelector('[data-abre-mover]');
           R.ok('v0.50.0: #tMover y #tOrden viven dentro del renglón de la cubeta, y el menú arranca cerrado', !!abre && $('tChips').contains($('tMover')) && $('tChips').contains($('tOrden')) && $('tMover').classList.contains('oculto') && abre.getAttribute('aria-expanded') === 'false');
           abre.click(); await dormir(20);
@@ -1153,6 +1158,9 @@ try {
             await abrirLau(); await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tarjeta');
             document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
             R.ok('la tarjeta lista el enlace y ofrece pegar otro', $('tDocs').textContent.includes('Oficio ASEA') && !!document.querySelector(`#tDocs [data-enlace="${t.id}"]`));
+            // v0.69.0 (Carlos, 16-sep): «Quitar» es una tachita (texto solo en aria-label) y el estado del documento va sin pastilla (fondo transparente, sin el «·» de v0.68.0).
+            { const q = document.querySelector('#tDocs .tdoc .quitar'); const st = document.querySelector('#tDocs .tdoc .t .mn-chip');
+              R.ok('v0.69.0 (A2): tachita «Quitar» sin texto visible y estado del documento sin pastilla', !!q && q.getAttribute('aria-label') === 'Quitar' && q.textContent === '' && !!q.querySelector('svg') && !$('tDocs').textContent.includes('Quitar') && !!st && getComputedStyle(st).backgroundColor === 'rgba(0, 0, 0, 0)' && getComputedStyle(st, '::before').content === 'none', `quitar=${!!q} · estado=${st && st.textContent}`); }
             R.ok('gerencia puede borrar', !$('tBorrar').disabled);
             // C5 (v0.5.0): el orden del diálogo sigue la frecuencia de uso: Mover antes que Notas y Documentos,
             // y «Borrar tarjeta» deja de ser lo único fijo al pie — vive dentro de «Editar la tarjeta».

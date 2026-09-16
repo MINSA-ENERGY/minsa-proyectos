@@ -453,20 +453,39 @@ function pintarFicha(t) {
         b.addEventListener('click', () => abrirPop('titulo', tit.closest('.mn-dialog-head'), b));
         tit.appendChild(b);
     } else tit.textContent = t.Title;
+    // v0.69.0 (Carlos, 16-sep; artifact 2BTfe3Yo, opcion A2): la CEJA sobre el titulo dice de quien es la tarjeta sin leer la
+    // columna derecha —icono + nombre del equipo · liga al frente · T-id—, y el dialogo lleva una BANDA del color del equipo en
+    // el borde izquierdo (--t-eq). Sin proyecto (huerfana), solo el id y la banda gris.
+    const ceja = $('tCeja'); ceja.textContent = '';
+    const eqCeja = equipoDe(p);
+    $('dlgTarea').style.setProperty('--t-eq', p ? eqCeja.color : 'var(--status-idle-solid)');
+    if (p) {
+        ceja.appendChild(iconoEquipo(eqCeja, 'sm'));
+        ceja.appendChild(el('span', 'eq', eqCeja.nombre));
+        ceja.appendChild(el('span', 'sep', '·'));
+        const a = el('a', '', p.Title); a.href = `#p/${p.Clave}`; a.dataset.proyecto = p.Clave;
+        a.addEventListener('click', ev => { ev.preventDefault(); cerrarDialogo('dlgTarea'); irAHash(`#p/${p.Clave}`); });
+        ceja.appendChild(a);
+        ceja.appendChild(el('span', 'sep', '·'));
+    }
+    ceja.appendChild(el('span', 'id mn-mono', `T-${t.id}`));
     // #tMover y #tOrden viven DENTRO del renglon de la cubeta desde la primera apertura: se toman antes de vaciar los renglones,
     // o el vaciado se los lleva (la E2E lo cazo: null en la segunda apertura).
     const mv = $('tMover'), or = $('tOrden');
     const props = $('tChips'); props.textContent = '';
+    // v0.69.0 (A2): cada propiedad es una CELDA (.t-cel: rotulo arriba, valor abajo) de UNA franja con divisores, no un renglon
+    // rotulo · valor; el DOM de adentro (b + .val, data-chip, .prop-btn) es el mismo, solo cambia el envoltorio.
     const renglon = (rotulo, nodo, clave, campo) => {
         nodo.dataset.chip = clave;
-        props.appendChild(el('b', '', rotulo));
+        const cel = el('div', 't-cel'); cel.dataset.cel = clave; props.appendChild(cel);
+        cel.appendChild(el('b', '', rotulo));
         const celda = el('span', 'val');
-        if (!campo || !puedeEditar) { celda.appendChild(nodo); props.appendChild(celda); return celda; }
+        if (!campo || !puedeEditar) { celda.appendChild(nodo); cel.appendChild(celda); return celda; }
         const b = el('button', 'prop-btn is-edita'); b.type = 'button'; b.title = TITULO_EDITA[campo] || `Cambiar ${rotulo.toLowerCase()}`; b.dataset.edita = campo;
         b.setAttribute('aria-haspopup', 'dialog'); b.setAttribute('aria-expanded', 'false');
         b.appendChild(nodo); b.appendChild(iconoSvg(TRAZOS.lapiz, 'lapiz'));
         b.addEventListener('click', () => abrirPop(campo, celda, b));
-        celda.appendChild(b); props.appendChild(celda);
+        celda.appendChild(b); cel.appendChild(celda);
         return celda;
     };
     const quien = el('span', t.Asignado ? '' : 'default', t.Asignado ? nombreDe(t.Asignado, estado.roles) : 'Sin asignar');
@@ -476,7 +495,9 @@ function pintarFicha(t) {
     const ev = estadoVence(t, CONFIG.vencePronto);   // null en «hecho»: ya no vence
     const vence = el('span', !t.Vence ? 'default' : ev === 'danger' ? 'is-danger' : ev === 'warn' ? 'is-warn' : '',
         !t.Vence ? (puedeEditar ? 'Poner fecha' : 'Sin fecha') : ev === 'danger' ? `venció ${fechaCorta(t.Vence)}` : ev === 'warn' && diasPara(t.Vence) === 0 ? 'hoy' : fechaCorta(t.Vence));
-    renglon('Vence', vence, 'vence', 'vence');
+    const celdaVence = renglon('Vence', vence, 'vence', 'vence');
+    // v0.69.0 (A2): «en N d» al lado de la fecha, fuera del boton (el data-chip sigue diciendo solo la fecha); vencida u hoy ya lo dicen.
+    if (t.Vence && ev !== 'danger' && diasPara(t.Vence) > 0) celdaVence.appendChild(el('span', 'rel mn-mono', `en ${diasPara(t.Vence)} d`));
     const prio = el('span', t.Prioridad === 'alta' || t.Prioridad === 'baja' ? '' : 'default'); prio.appendChild(barrasPrioridad(t.Prioridad)); prio.appendChild(document.createTextNode(t.Prioridad === 'alta' ? 'Alta' : t.Prioridad === 'baja' ? 'Baja' : 'Normal'));
     renglon('Prioridad', prio, 'prioridad', 'prioridad');
     // v0.53.0: Color es un renglon mas (antes solo vivia en el editor): la muestra redonda con el nombre del tono; sin color, gris tenue.
@@ -616,26 +637,37 @@ function pintarDocsDeTarjeta(t, p) {
     $('tDocsN').textContent = ligas.length ? String(ligas.length) : '';   // v0.24.0: «Documentos · 2»
     const puede = puedeLigarEn(p);
     for (const l of ligas) {
+        // v0.69.0 (Carlos, 16-sep; artifact 2BTfe3Yo, A2): cada documento es una TARJETA (icono · nombre con el estado debajo · ✕).
+        // El estado sigue siendo chip() (.mn-chip, lo que la E2E y Docs conocen); la piel lo pinta como texto plano sin pastilla
+        // (estilo.css v0.68.0 + v0.69.0). «Quitar» es una tachita con el texto en aria-label/title.
         const fila = el('div', 'tdoc');
         fila.appendChild(iconoArchivo(l.Ruta || l.Title, l.Tipo, 'sm'));   // v0.8.0
+        const cuerpo = el('div', 't');
         const a = el('a', '', l.Title); const href = hrefSeguro(l.Url); if (href) { a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; }   // v0.13.1: solo http(s)
-        fila.appendChild(a);
-        fila.appendChild(chip(l.Tipo === 'buzon' ? 'en el buzón' : l.Tipo === 'enlace' ? 'enlace' : 'archivado', l.Tipo === 'buzon' ? 'info' : l.Tipo === 'enlace' ? null : 'ok'));
-        if (puede || (l.Tipo === 'enlace' && puedeEnlazarEn(p))) fila.appendChild(boton('Quitar', 'mn-btn is-ghost is-sm', async () => { if (await quitarLiga(l)) pintarDocsDeTarjeta(t, p); }, { quitar: String(l.id) }));
+        cuerpo.appendChild(a);
+        cuerpo.appendChild(chip(l.Tipo === 'buzon' ? 'en el buzón' : l.Tipo === 'enlace' ? 'enlace' : 'archivado', l.Tipo === 'buzon' ? 'info' : l.Tipo === 'enlace' ? null : 'ok'));
+        fila.appendChild(cuerpo);
+        if (puede || (l.Tipo === 'enlace' && puedeEnlazarEn(p))) {
+            const q = boton('', 'mn-btn is-ghost is-sm is-icono quitar', async () => { if (await quitarLiga(l)) pintarDocsDeTarjeta(t, p); }, { quitar: String(l.id) });
+            q.title = 'Quitar este documento de la tarjeta'; q.setAttribute('aria-label', 'Quitar'); q.appendChild(iconoSvg(TRAZOS.cerrar));
+            fila.appendChild(q);
+        }
         c.appendChild(fila);
     }
+    // v0.69.0: los tres botones cortos con icono en UNA fila (Ligar · Subir · Enlace), como en la opcion B del artifact; el texto largo va en title.
+    const accion = (texto, titulo, trazos, alClic, atributos) => { const b = boton('', 'mn-btn is-sm', alClic, atributos); b.title = titulo; b.appendChild(iconoSvg(trazos)); b.appendChild(el('span', '', texto)); return b; };
     if (!ligas.length) c.appendChild(el('span', 'vacio', puede ? 'Sin documentos: liga uno de la biblioteca, sube al buzón o pega un enlace.' : puedeEnlazarEn(p) ? 'Sin documentos: pega un enlace.' : 'Sin documentos.'));
     if (puede) {
         const acciones = el('div', 'tdoc-acciones');
         const volver = () => abrirTarjeta(t.id);
-        acciones.appendChild(boton('Ligar archivo', 'mn-btn is-sm', () => { cerrarDialogo('dlgTarea'); abrirLigar({ proyecto: p, tareaId: t.id, alTerminar: volver }); }, { ligar: String(t.id) }));
-        acciones.appendChild(boton('Subir al buzón', 'mn-btn is-sm', () => { cerrarDialogo('dlgTarea'); abrirSubir({ proyecto: p, tareaId: t.id, alTerminar: volver }); }, { subir: String(t.id) }));
+        acciones.appendChild(accion('Ligar', 'Ligar un archivo de la biblioteca', TRAZOS.liga, () => { cerrarDialogo('dlgTarea'); abrirLigar({ proyecto: p, tareaId: t.id, alTerminar: volver }); }, { ligar: String(t.id) }));
+        acciones.appendChild(accion('Subir', 'Subir al buzón de la unidad', TRAZOS.subir, () => { cerrarDialogo('dlgTarea'); abrirSubir({ proyecto: p, tareaId: t.id, alTerminar: volver }); }, { subir: String(t.id) }));
         c.appendChild(acciones);
     }
     // F4: un enlace no necesita biblioteca; se ofrece aunque el equipo no tenga una en el piloto.
     if (puedeEnlazarEn(p)) {
         const acc = c.querySelector('.tdoc-acciones') || c.appendChild(el('div', 'tdoc-acciones'));
-        acc.appendChild(boton('Pegar un enlace', 'mn-btn is-sm', () => { cerrarDialogo('dlgTarea'); abrirEnlace({ proyecto: p, tareaId: t.id, alTerminar: () => abrirTarjeta(t.id) }); }, { enlace: String(t.id) }));
+        acc.appendChild(accion('Enlace', 'Pegar un enlace', TRAZOS.globo, () => { cerrarDialogo('dlgTarea'); abrirEnlace({ proyecto: p, tareaId: t.id, alTerminar: () => abrirTarjeta(t.id) }); }, { enlace: String(t.id) }));
     }
 }
 

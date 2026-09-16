@@ -1502,7 +1502,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
    se consulta (frente, documentos) sobre fondo hundido, y «Editar la tarjeta» cruza las dos abajo (su formulario no cabe
    en 280 px). El cuerpo pierde su padding y cada columna trae el suyo, para que el fondo de la derecha llegue al borde.
    Bajo 900 px (tableta y celular) se apila: primero la izquierda, luego la derecha, en el orden del DOM. */
-#dlgTarea { width: min(860px, calc(100vw - var(--sp-5))); }
+#dlgTarea { width: min(860px, calc(100vw - var(--sp-5))); border-left: 5px solid var(--t-eq, var(--status-idle-solid)); }   /* v0.69.0: banda del color del equipo (--t-eq la pone tablero.js) */
 #dlgTarea .t-cuerpo { padding: 0; display: grid; grid-template-columns: minmax(0, 1fr) 280px; align-items: start; }
 #dlgTarea .dlg-avisos { grid-column: 1 / -1; margin: var(--sp-3) var(--sp-4) 0; }
 .t-main { padding: var(--sp-4); min-width: 0; }
@@ -1641,9 +1641,9 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
    chevron; lo que esta en su valor por DEFAULT («Sin asignar», «Poner fecha», «Normal») va en gris tenue. El semaforo de la fecha
    tine el texto (vencio en rojo, hoy/pronto en ambar). Descartadas en el artifact: 1B linea de metadatos · 1C controles con
    caja · 1D solo lo que no es default — no re-proponer. */
-.t-props { display: grid; grid-template-columns: 82px minmax(0, 1fr); gap: 2px var(--sp-3); align-items: center; font-size: .86rem; margin-bottom: var(--sp-3); }
-.t-props > b { color: var(--text-muted); font-weight: 500; font-size: .8rem; }
-.t-props .val { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; min-width: 0; min-height: var(--control-h-sm); position: relative; }
+.t-props { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.1fr) minmax(0, 1.05fr) minmax(0, .9fr) minmax(0, 1.2fr); font-size: .86rem; margin-bottom: var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-page); overflow: hidden; }   /* v0.69.0 (A2): UNA franja de celdas con divisores (las reglas de .t-cel en el bloque v0.69.0 al final) */
+.t-props .t-cel > b { color: var(--text-muted); font-weight: 500; font-size: .72rem; font-family: var(--font-display); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }   /* v0.69.0: «PRIORIDAD» (70 px) se salia de una celda de 57 px interiores (revisor): celdas parejas y padding corto */
+.t-props .val { display: flex; align-items: center; gap: var(--sp-1) var(--sp-2); flex-wrap: wrap; min-width: 0; min-height: var(--control-h-sm); position: relative; }
 .t-props .val > span, .t-props .prop-btn > span { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--text-strong); overflow-wrap: anywhere; }
 .t-props .val .default { color: var(--text-faint); }   /* .val .x pesa mas que «.prop-btn > span», que pinta text-strong (la captura lo cazo: «venció» salia negro) */
 .t-props .val .is-danger { color: var(--status-danger-fg); font-weight: 600; }
@@ -1686,7 +1686,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .densa .tr .t .barras { flex: none; }
 .t-props .barras { margin-right: 2px; }
 /* 4 — «Proyecto (moverla a otro frente)» salio del editor: Descripcion toma las dos columnas de la rejilla de v0.31.0. */
-@media (max-width: 720px) { .t-props { grid-template-columns: 72px minmax(0, 1fr); } .prio button { font-size: .82rem; gap: var(--sp-1); } }
+@media (max-width: 720px) { .t-props { grid-template-columns: repeat(2, minmax(0, 1fr)); } .prio button { font-size: .82rem; gap: var(--sp-1); } }
 
 /* ==== v0.53.0 (2026-09-15): la ficha se edita EN SITIO con un popover por propiedad (Carlos; artifact CMmGTirt, opcion D) ==== */
 /* El acordeon «Editar la tarjeta» (v0.24.0-v0.52.0) se fue. Cada valor editable de la ficha —titulo, asignado, vence, prioridad,
@@ -1705,7 +1705,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 #tTitulo .prop-btn.is-titulo .lapiz { display: inline; vertical-align: middle; width: 15px; height: 15px; margin-left: var(--sp-1); }
 #dlgTarea .mn-dialog-head { position: relative; }   /* ancla del popover del titulo */
 /* Descripcion: el lapiz al final del texto; vacia, «Agregar descripción» en gris tenue. */
-.t-desc-caja { position: relative; margin: 0 0 var(--sp-3); }
+.t-desc-caja { position: relative; margin: 0 0 var(--sp-3); padding: var(--sp-2) var(--sp-3); border-left: 3px solid var(--border-default); background: var(--surface-page); border-radius: 0 var(--r-sm) var(--r-sm) 0; }   /* v0.69.0: en su caja con filete */
 .t-desc-caja .t-desc { margin: 0; }
 .t-desc .prop-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1); font: inherit; font-size: .86rem; color: var(--text-strong); border: 0; background: none; cursor: pointer; padding: 0 var(--sp-1); margin: -4px 0; min-height: var(--control-h-sm); min-width: var(--control-h-sm); border-radius: var(--r-sm); vertical-align: middle; }   /* 32 / 40 tactil, como los demas lapices (el revisor lo cazo en 23x24) */
 .t-desc .prop-btn.default { color: var(--text-faint); }
@@ -1732,4 +1732,48 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 @media (max-width: 720px) {
   #tPop, #dlgTarea .mn-dialog-head > #tPop, .t-desc-caja > #tPop { position: fixed; left: 0; right: 0; bottom: 0; top: auto; width: auto; border-radius: var(--r-md) var(--r-md) 0 0; padding: var(--sp-4) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -8px 24px rgba(0, 0, 0, .18); }
   #tPop .pop-pie .mn-btn { flex: 1; }
+}
+
+/* ==== v0.69.0 (2026-09-16): la ficha de tarjeta «A2 · Franja» (Carlos; artifact 2BTfe3Yo, eligio A2 de cuatro iteraciones sobre la A de GdMzdUEx) ==== */
+/* Lo que cambia: (1) BANDA del color del equipo en el borde izquierdo del dialogo (--t-eq la pone tablero.js) y CEJA sobre el
+   titulo (icono + equipo · frente · T-id); (2) las cinco propiedades son CELDAS de una franja con divisores (rotulo en versalitas
+   arriba, valor abajo), «en N d» junto a la fecha; (3) la descripcion en su caja con filete; (4) cada nota en su caja gris;
+   (5) cada documento es una tarjeta (icono · nombre / estado en texto plano · tachita), y Ligar · Subir · Enlace son tres
+   botones cortos con icono en UNA fila. Pedidos literales de Carlos: sin avatar junto al asignado, sin pastilla «archivado»,
+   tachita en vez de «Quitar», botones como en la opcion B. Descartadas en el artifact: A1 (solo los cuatro cambios) ·
+   A3 sin cajas · A4 banda arriba; y de la primera ronda B chips · C portada navy · D expediente — no re-proponer. */
+#dlgTarea .mn-dialog-head { align-items: flex-start; }
+.t-titular { flex: 1; min-width: 0; display: grid; gap: 4px; }
+.t-ceja { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); font-size: .78rem; color: var(--text-muted); min-height: 0; }
+.t-ceja:empty { display: none; }
+.t-ceja .eq { font-family: var(--font-display); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; font-size: .72rem; color: var(--text-body); }
+.t-ceja .sep { color: var(--text-faint); }
+.t-ceja a { color: var(--text-link); text-decoration: none; font-weight: 500; overflow-wrap: anywhere; }
+.t-ceja a:hover { text-decoration: underline; }
+.t-ceja .id { color: var(--text-faint); font-size: .74rem; }
+.t-props .t-cel { display: grid; gap: 2px; align-content: start; padding: var(--sp-2); border-right: 1px solid var(--border-hairline); min-width: 0; }
+.t-props .t-cel:last-child { border-right: 0; }
+.t-props .t-cel .val > span, .t-props .t-cel .prop-btn > span { overflow-wrap: normal; }   /* en una celda estrecha «anywhere» partia «Sin color» letra por letra (captura 1366): parte entre palabras, nunca dentro */
+#dlgTarea .orden > span { white-space: nowrap; }
+.t-props .val .rel { color: var(--text-faint); font-size: .74rem; }
+.t-desc-caja:has(> .t-desc > .prop-btn.default) { padding: 0; border-left: 0; background: none; }   /* sin descripcion, «Agregar descripción» va sin caja */
+.notas .nota { padding: var(--sp-2) var(--sp-3); background: var(--surface-page); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); }
+.t-side .tdoc { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); }
+.t-side .tdoc .fico { flex: none; }
+.t-side .tdoc .t { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.t-side .tdoc .t .mn-chip { color: var(--text-muted); font-weight: 500; font-size: .76rem; }
+.t-side .tdoc .t .mn-chip::before { content: none; }   /* v0.68.0 le puso el «·» delante; dentro de la tarjeta va en su renglon */
+.t-side .tdoc .quitar { margin-left: auto; flex: none; color: var(--text-faint); }
+.t-side .tdoc .quitar:hover { color: var(--status-danger-fg); }
+.t-side .tdoc .quitar svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.t-side .tdoc-acciones { display: flex; gap: var(--sp-1); flex-wrap: nowrap; margin-top: var(--sp-2); }
+.t-side .tdoc-acciones .mn-btn { flex: 1; justify-content: center; gap: var(--sp-1); font-weight: 500; font-size: .8rem; padding-inline: var(--sp-1); }
+.t-side .tdoc-acciones .mn-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+/* Celular (captura 390): dos columnas con Asignado a todo lo ancho (cinco celdas apiladas median 770 px); la ceja pierde la liga al
+   frente —el proyecto ya esta en la columna de abajo— y queda «CALYTEK · T-99» en una linea. */
+@media (max-width: 720px) {
+  .t-props .t-cel[data-cel="asignado"] { grid-column: 1 / -1; border-right: 0; }
+  .t-props .t-cel:nth-child(odd):not(:first-child) { border-right: 0; }
+  .t-props .t-cel:not(:nth-last-child(-n+2)) { border-bottom: 1px solid var(--border-hairline); }
+  .t-ceja a, .t-ceja a + .sep { display: none; }
 }

@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion } from './reglas.js';
 
-export const VERSION = '0.68.0';
+export const VERSION = '0.69.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -456,7 +456,12 @@ export const TRAZOS = {
     enviar: ['M22 2L11 13', 'M22 2l-7 20-4-9-9-4z'],
     tarjeta: ['M4 5h16v14H4z', 'M8 10h8M8 14h5'],
     basura: ['M4 7h16', 'M10 11v6M14 11v6', 'M6 7l1 13h10l1-13', 'M9 7V4h6v3'],   // v0.9.0: borrar comentario/nota
-    lapiz: ['M12 20h9', 'M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z']   // v0.53.0: el valor editable de la ficha
+    lapiz: ['M12 20h9', 'M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z'],   // v0.53.0: el valor editable de la ficha
+    // v0.69.0: los Documentos de la ficha — la tachita de «Quitar» y los tres botones cortos (Ligar · Subir · Enlace)
+    cerrar: ['M18 6L6 18', 'M6 6l12 12'],
+    liga: ['M10 13a5 5 0 0 0 7.5.5l2-2a5 5 0 0 0-7-7l-1 1', 'M14 11a5 5 0 0 0-7.5-.5l-2 2a5 5 0 0 0 7 7l1-1'],
+    subir: ['M12 16V4', 'M6 10l6-6 6 6', 'M4 20h16'],
+    globo: ['M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z', 'M3 12h18', 'M12 3a14 14 0 0 1 0 18', 'M12 3a14 14 0 0 0 0 18']
 };
 /** Insignia «icono + numero» para la cara de la tarjeta (Trello): notas, documentos, menciones. */
 export function insignia(trazos, n, titulo, clase = '') {
