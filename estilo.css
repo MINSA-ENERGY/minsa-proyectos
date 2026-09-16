@@ -792,11 +792,16 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tarjeta .f { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; font-size: .75rem; color: var(--text-muted); }
 /* v0.64.0 (Carlos, 15-sep; artifact WFuYDBHS): en la cara de la tarjeta las pastillas («en el buzón», «vence …», y en Mis tareas la clave y la
    cubeta) son TEXTO PLANO con «·» delante; el color se queda solo donde es semaforo (ambar/rojo de vence) o informacion (azul del buzon).
-   Siguen siendo .mn-chip: fuera de .tarjeta (Docs, cabecera del proyecto) la pastilla no cambia. */
-.tarjeta .f .mn-chip { background: none; padding: 0; border-radius: 0; font-weight: 500; letter-spacing: 0; color: var(--text-muted); }
-.tarjeta .f .mn-chip::before { content: "·"; color: var(--text-faint); }
-.tarjeta .f .mn-chip.is-warn { color: var(--status-warn-fg); font-weight: 600; } .tarjeta .f .mn-chip.is-danger { color: var(--status-danger-fg); font-weight: 600; }
-.tarjeta .f .mn-chip.is-info { color: var(--status-info-fg); } .tarjeta .f .mn-chip.is-ok { color: var(--status-ok-fg); }
+   Siguen siendo .mn-chip: fuera de estos tres sitios (pestaña Docs, cabecera del proyecto) la pastilla no cambia.
+   v0.68.0 (Carlos, 15-sep: «remueve la burbuja dentro de las tarjetas, p. ej. "archivado"; que siga diciéndolo pero no en modo
+   burbuja»): la misma regla alcanza a los Documentos de la ficha de la tarjeta (`.tdoc`: «archivado» · «en el buzón» · «enlace»)
+   y al «en el buzón» del renglón denso de Mis tareas (`.densa .tr`). */
+.tarjeta .f .mn-chip, .tdoc .mn-chip, .densa .tr .mn-chip { background: none; padding: 0; border-radius: 0; font-weight: 500; letter-spacing: 0; color: var(--text-muted); }
+.tarjeta .f .mn-chip::before, .tdoc .mn-chip::before, .densa .tr .mn-chip::before { content: "·"; color: var(--text-faint); }
+.tarjeta .f .mn-chip.is-warn, .tdoc .mn-chip.is-warn, .densa .tr .mn-chip.is-warn { color: var(--status-warn-fg); font-weight: 600; }
+.tarjeta .f .mn-chip.is-danger, .tdoc .mn-chip.is-danger, .densa .tr .mn-chip.is-danger { color: var(--status-danger-fg); font-weight: 600; }
+.tarjeta .f .mn-chip.is-info, .tdoc .mn-chip.is-info, .densa .tr .mn-chip.is-info { color: var(--status-info-fg); }
+.tarjeta .f .mn-chip.is-ok, .tdoc .mn-chip.is-ok, .densa .tr .mn-chip.is-ok { color: var(--status-ok-fg); }
 .tarjeta .stale { color: var(--status-warn-fg); font-weight: 600; }
 /* La caja de la tarjeta se conserva (Mis tareas y la E2E la usan); desde v0.11.0 ya no lleva el atajo «→ siguiente». */
 .tarjeta-caja { display: grid; gap: 2px; min-width: 0; }
