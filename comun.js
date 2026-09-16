@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion } from './reglas.js';
 
-export const VERSION = '0.65.0';
+export const VERSION = '0.66.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 

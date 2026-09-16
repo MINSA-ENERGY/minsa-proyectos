@@ -815,27 +815,28 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .kpi.is-on small { color: var(--brand-primary); }
 .densa { display: grid; background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow: hidden; min-width: 0; align-content: start; }
 .densa > .vacio { padding: var(--sp-3); }
-.densa .hd, .densa .tr { display: grid; grid-template-columns: 4px minmax(0, 1fr) 96px 120px 92px; gap: 0 var(--sp-3); align-items: center; }
-.densa .hd { padding: 8px var(--sp-3) 8px 0; font-family: var(--font-data); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--text-muted); background: var(--surface-sunken); }
-.densa .hd .v { text-align: right; }
+/* v0.66.0 (Carlos, 15-sep): la fecha va en COLUMNA a la izquierda como la cola «Hoy» de Inicio (.hoy-r .k); el filete .sem de 4 px
+   y la columna «Vence» de la derecha se fueron, y proyecto / cubeta son texto plano (sin .mn-chip). */
+.densa .hd, .densa .tr { display: grid; grid-template-columns: 46px minmax(0, 1fr) 96px 120px; gap: 0 var(--sp-3); align-items: center; }
+.densa .hd { padding: 8px var(--sp-3); font-family: var(--font-data); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--text-muted); background: var(--surface-sunken); }
+.densa .hd .k { text-align: right; }
 .densa .sep { padding: 5px var(--sp-3); font-family: var(--font-data); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--text-faint); background: var(--surface-page); border-top: 1px solid var(--border-hairline); }
-.densa .tr { padding: 7px var(--sp-3) 7px 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; min-height: 40px; min-width: 0; }
+.densa .tr { padding: 7px var(--sp-3); border: 0; border-top: 1px solid var(--border-hairline); background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; min-height: 40px; min-width: 0; }
 .densa .tr:hover { background: var(--surface-sunken); }
-.densa .tr .sem { align-self: stretch; }
-.densa .tr.is-vencida .sem { background: var(--status-danger-solid); } .densa .tr.is-pronto .sem { background: var(--status-warn-solid); }
+.densa .tr .k { display: grid; gap: 1px; text-align: right; font: 500 .7rem/1.1 var(--font-data); color: var(--text-faint); }
+.densa .tr .k b { font-weight: 600; font-size: .82rem; color: var(--status-idle-fg); font-variant-numeric: tabular-nums; }
+.densa .tr .k small { font-size: .68rem; }
+.densa .tr.is-vencida .k b { color: var(--status-danger-fg); } .densa .tr.is-pronto .k b { color: var(--status-warn-fg); }
 .densa .tr.is-vencida { background: color-mix(in srgb, var(--status-danger-bg) 55%, transparent); }
 .densa .tr.is-vencida:hover { background: color-mix(in srgb, var(--status-danger-bg) 80%, transparent); }
 .densa .tr .t { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; font-weight: 600; color: var(--text-strong); font-size: .88rem; }
 .densa .tr .t .tit { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* el titulo largo se corta: el completo vive en el title */
 .densa .tr .t .quien { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; font-size: .75rem; color: var(--text-muted); white-space: nowrap; }
 .densa .tr .t .insig, .densa .tr .t .mn-chip { flex: none; }
-.densa .tr .eqc, .densa .tr .cu { min-width: 0; overflow: hidden; }
-.densa .tr .cu .mn-chip { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
-.densa .tr .v { font-family: var(--font-data); font-size: .75rem; font-variant-numeric: tabular-nums; color: var(--text-muted); text-align: right; white-space: nowrap; }
-.densa .tr.is-vencida .v { color: var(--status-danger-fg); font-weight: 600; } .densa .tr.is-pronto .v { color: var(--status-warn-fg); font-weight: 600; }
+.densa .tr .eqc, .densa .tr .cu { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .78rem; color: var(--text-muted); }
 .densa .tr[data-tono]:not(.is-vencida) { background: color-mix(in srgb, var(--tono) 13%, var(--surface-card)); }   /* el color elegido tiñe el renglon como a la tarjeta; el vencido gana */
 @media (max-width: 720px) {
-  .densa .hd, .densa .tr { grid-template-columns: 4px minmax(0, 1fr) 76px; }
+  .densa .hd, .densa .tr { grid-template-columns: 40px minmax(0, 1fr); }
   .densa .hd span:nth-child(3), .densa .hd span:nth-child(4), .densa .tr .eqc, .densa .tr .cu { display: none; }
   .kpi { min-width: 0; flex: 1 1 30%; padding: 6px 10px; }
   .kpi b { font-size: 1.25rem; }

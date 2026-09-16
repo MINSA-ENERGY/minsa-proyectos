@@ -8,7 +8,7 @@
 
 import { CONFIG } from './config.js';
 import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas } from './reglas.js';
-import { $, L, estado, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea } from './comun.js';
+import { $, L, estado, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
 import { engancharSelectorMenciones } from './chat.js';
@@ -340,6 +340,9 @@ export function pintarLista(proyecto) {
  * renglón vencido tintado. Sustituye a la agenda por día de v0.57.x (rótulo a la izquierda + renglones; recuperable
  * en git) y antes al bloque «Urgentes» en rejilla (v0.2.0-v0.56.0). Cabecera en versalitas mono como la Lista del tablero.
  * El renglón NO es tarjeta(): es un `button.tr[data-t]` propio (clic abre la ficha) con las columnas fijas de la tabla.
+ * v0.66.0 (Carlos, 15-sep): la FECHA va en columna a la IZQUIERDA como la cola «Hoy» de Inicio (día fuerte + mes tenue,
+ * «—» sin fecha; el color del estado en el número), el filete semáforo de 4 px se fue, y proyecto y cubeta son texto plano
+ * —sin pastillas—. La columna «Vence» de la derecha y `fechaDensa` («12/09 · −3») salieron con ella (recuperables en git).
  */
 const FILTROS_MIS = [[null, 'abiertas'], ['vencidas', 'vencidas'], ['pronto', 'vencen en 7 días'], ['sinfecha', 'sin fecha'], ['delegadas', 'las que delegué']];   // v0.15.0: quien reparte no las pierde de vista; v0.58.0: «sin fecha» nace con los contadores
 export function pintarMisTareas() {
@@ -371,7 +374,7 @@ export function pintarMisTareas() {
         : estado.filtroMis === 'sinfecha' ? conTexto.filter(t => !t.Vence) : conTexto;
     if (!mias.length) { cont.appendChild(el('p', 'vacio', todas.length ? (q ? 'Ninguna con ese texto.' : 'Nada con ese filtro.') : delego ? 'No has delegado ninguna tarjeta abierta: las que crees o asignes a otros salen aquí.' : 'Sin tareas abiertas asignadas a ti.')); return; }
     const hd = el('div', 'hd'); hd.setAttribute('aria-hidden', 'true');
-    for (const [c, x] of [['', ''], ['', 'Tarea'], ['', 'Proyecto'], ['', 'Cubeta'], ['v', 'Vence']]) hd.appendChild(el('span', c, x));
+    for (const [c, x] of [['k', 'Vence'], ['', 'Tarea'], ['', 'Proyecto'], ['', 'Cubeta']]) hd.appendChild(el('span', c, x));
     cont.appendChild(hd);
     let bloque = '';
     for (const t of mias) {
@@ -383,19 +386,14 @@ export function pintarMisTareas() {
 const BLOQUES = { 'Vencidas': 'vencidas', 'Esta semana': 'semana', 'Después': 'despues', 'Sin fecha': 'sinfecha' };
 /** El bloque de la tabla: por el mismo umbral que el chip («Esta semana» = hasta `vencePronto` días, hoy incluido). */
 function bloqueDe(t) { const e = estadoVence(t, CONFIG.vencePronto); return e === 'danger' ? 'Vencidas' : e === 'warn' ? 'Esta semana' : t.Vence ? 'Después' : 'Sin fecha'; }
-/** Columna «Vence», mono y sin año («12/09 · −3», «hoy», «18/09 · 3d», «15/10», «—»): el bloque y el color ya dicen si venció. */
-function fechaDensa(t) {
-    const d = diasPara(t.Vence); if (d === null) return '—';
-    if (d === 0) return 'hoy';
-    const f = fechaCorta(t.Vence).replace(/\/\d{4}$/, '');
-    return d < 0 ? `${f} · −${-d}` : d <= CONFIG.vencePronto ? `${f} · ${d}d` : f;
-}
-/** Un renglón de la tabla densa: filete semáforo · título (punto de prioridad, insignias; en «delegué», a quién) · proyecto · cubeta · vence. */
+/** Un renglón de la tabla densa: fecha en columna · título (barras de prioridad, insignias; en «delegué», a quién) · proyecto · cubeta. */
 function renglonDenso(t, conQuien) {
     const sem = semaforo(t, CONFIG.semaforoDias);
     const b = el('button', 'tr' + (sem ? ' is-' + sem : '') + (t.Prioridad === 'alta' ? ' alta' : '')); b.type = 'button'; b.dataset.t = String(t.id);
     if (colorValido(t.Color)) b.dataset.tono = colorValido(t.Color);
-    b.appendChild(el('span', 'sem'));
+    // v0.66.0: la fecha a la izquierda, como `.hoy-r .k` de Inicio: dia fuerte + mes tenue; «—» sin fecha.
+    const m = mesDia(t.Vence); const k = el('span', 'k'); k.setAttribute('aria-hidden', 'true');
+    k.appendChild(el('b', '', m ? String(m.dia) : '—')); k.appendChild(el('small', '', m ? m.mes : '')); b.appendChild(k);
     const tt = el('span', 't');
     tt.appendChild(el('span', 'tit', t.Title));
     tt.appendChild(marcaPrioridad(t.Prioridad));   // v0.60.0: a la derecha del titulo
@@ -405,9 +403,8 @@ function renglonDenso(t, conQuien) {
     if (nDocs) tt.appendChild(insignia(TRAZOS.clip, nDocs, `${nDocs} documento${nDocs === 1 ? '' : 's'}`, 'is-docs'));
     if (buzonPorTarea().get(t.id)) tt.appendChild(chip('en el buzón', 'info'));
     b.appendChild(tt);
-    const p = porId(estado.proyectos, t.ProyectoId); const eq = el('span', 'eqc'); if (p) eq.appendChild(chip(p.Clave)); b.appendChild(eq);
-    const cu = el('span', 'cu'); cu.appendChild(chipColumna(t)); b.appendChild(cu);
-    b.appendChild(el('span', 'v', fechaDensa(t)));
+    const p = porId(estado.proyectos, t.ProyectoId); b.appendChild(el('span', 'eqc', p ? p.Clave : ''));   // v0.66.0: texto plano, sin pastilla
+    b.appendChild(el('span', 'cu', nombreColumna(t)));
     // El título se corta con puntos suspensivos si es largo (artifact C): el completo vive en el title, con lo que la fila no enseña.
     b.title = [t.Title, t.Prioridad === 'alta' ? 'Prioridad alta' : '', p ? p.Title : '', t.Vence ? 'vence ' + fechaCorta(t.Vence) : 'sin fecha'].filter(Boolean).join(' · ');
     b.addEventListener('click', () => abrirTarjeta(t.id));
