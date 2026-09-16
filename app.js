@@ -14,8 +14,8 @@
 
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
-import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe } from './reglas.js';
-import { $, L, VERSION, estado, el, boton, ondaAlPulsar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
+import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias } from './reglas.js';
+import { $, L, VERSION, estado, el, boton, ondaAlPulsar, chip, chipVence, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
@@ -432,10 +432,78 @@ function abridorDe(a) {
     const p = porId(estado.proyectos, t.ProyectoId); if (!p) return null;
     return () => { if ($('dlgActividad').open) cerrarDialogo('dlgActividad'); irAHash(`#p/${p.Clave}/t/${t.id}`); };
 }
-/** Un renglon de actividad para las listas (Inicio, lateral, Toda la actividad). */
-function itemActividad(a, conProyecto) {
+/**
+ * v0.63.0 (Carlos, 15-sep; artifact BL8t8H9H, cortes B + G): cada renglon de actividad lleva a la izquierda un icono redondo
+ * cuyo color dice QUE paso sin leer la frase — verde crear · azul nota · ambar asignar/reabrir · marca ligar/subir · rojo borrar ·
+ * gris editar/cerrar/desligar. La clase sale de la Accion (y del verbo «asignó», que es editar-tarea en la bitacora).
+ */
+const ICONO_ACCION = {
+    crear: 'M12 5v14M5 12h14',
+    nota: 'M21 12a8 8 0 0 1-8 8H8l-4 3v-5a8 8 0 1 1 17-6z',
+    asignar: 'M5 12h14M13 6l6 6-6 6',
+    editar: 'M4 20h4l10-10-4-4L4 16zM13 7l4 4',
+    liga: 'M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',
+    subir: 'M12 16V4M6 10l6-6 6 6M4 20h16',
+    cerrar: 'M5 12l5 5L20 7',
+    reabrir: 'M3 12a9 9 0 1 0 3-6.7M3 4v5h5',
+    borrar: 'M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13'
+};
+function claseAccion(a) {
+    const k = String(a.Accion || '');
+    if (k.startsWith('crear')) return 'crear';
+    if (k === 'comentar') return 'nota';
+    if (k === 'editar-tarea' && /^asign/i.test(String(a.Title || ''))) return 'asignar';
+    if (k.startsWith('borrar')) return 'borrar';
+    if (k === 'ligar') return 'liga';
+    if (k === 'subir') return 'subir';
+    if (k === 'cerrar-proyecto') return 'cerrar';
+    if (k === 'reabrir-proyecto') return 'reabrir';
+    return 'editar';
+}
+function iconoAccion(a) {
+    const k = claseAccion(a);
+    const s = el('span', 'ico is-' + k); s.setAttribute('aria-hidden', 'true');
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('viewBox', '0 0 24 24');
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path'); path.setAttribute('d', ICONO_ACCION[k]); svg.appendChild(path); s.appendChild(svg);
+    return s;
+}
+/** Un renglon de actividad para las listas (Inicio, lateral, Toda la actividad). Con icono de accion desde v0.63.0; la hora
+ *  es relativa dentro de las 24 h («hace 12 min»). `extra` (Inicio): { nuevo, tuya } — ver pintarActividadInicio. */
+function itemActividad(a, conProyecto, extra) {
     const p = porId(estado.proyectos, a.ProyectoId);
-    return itemMini(a.Quien, queHizo(a), conProyecto && p ? p.Title : '', fechaHora(a.Cuando), null, abridorDe(a));
+    const it = itemMini(a.Quien, queHizo(a), conProyecto && p ? p.Title : '', haceCuanto(a.Cuando), null, abridorDe(a));
+    it.classList.add('con-ico'); it.prepend(iconoAccion(a));
+    if (extra) {
+        if (extra.nuevo) it.classList.add('es-nuevo'); else if (extra.visto) it.classList.add('es-visto');
+        if (extra.tuya) { const q = it.querySelector('.q'); const s = el('span', 'tuya', 'tuya'); s.title = 'Sobre una tarjeta asignada a ti'; q.after(s); }
+    }
+    return it;
+}
+/**
+ * v0.63.0: la tarjeta «Actividad reciente» de Inicio (artifact BL8t8H9H, B + G). Los renglones van cortados por DIA («Hoy · 6»,
+ * «Ayer · 4», «lun 14 sep · 3»), y lo que OTROS hicieron desde tu ultima visita va con punto azul y texto fuerte (es-nuevo);
+ * lo de otros ya visto, atenuado (es-visto); lo propio, normal. Sin separador «ya visto»: lo propio se intercala con lo nuevo y
+ * el corte quedaba con puntos azules debajo (captura 15-sep). El piso es el mismo de «Nuevo para ti» en la cola
+ * (estado.nuevosInicio.desde, congelado al entrar; pintarCola ya lo fijo). «tuya» marca la accion sobre una tarjeta asignada a ti.
+ */
+function pintarActividadInicio(cont, lista) {
+    const yo = String(estado.cuenta && estado.cuenta.username || '').toLowerCase();
+    const desde = (estado.nuevosInicio && estado.nuevosInicio.desde) || inicioVistoHasta();
+    const hoy = diaDe(new Date()), ayer = sumarDias(hoy, -1);
+    const rotulo = d => d === hoy ? 'Hoy' : d === ayer ? 'Ayer' : fechaLegible(d);
+    const porDia = new Map(); for (const a of lista) { const d = diaDe(a.Cuando) || '?'; porDia.set(d, (porDia.get(d) || 0) + 1); }
+    const deOtro = a => String(a.Quien || '').toLowerCase() !== yo;
+    const esNuevo = a => deOtro(a) && String(a.Cuando || '') > desde;
+    const hayNuevos = lista.some(esNuevo);   // sin nada nuevo la tarjeta no se atenua entera (la pega del corte G para quien entra a cada rato)
+    let diaPintado = null;
+    for (const a of lista) {
+        const d = diaDe(a.Cuando) || '?';
+        if (d !== diaPintado) { const h = el('div', 'dia'); h.appendChild(el('span', '', rotulo(d))); h.appendChild(el('b', '', String(porDia.get(d)))); cont.appendChild(h); diaPintado = d; }
+        const nuevo = esNuevo(a), visto = hayNuevos && deOtro(a) && !nuevo;
+        const t = a.TareaId ? porId(estado.tareas, a.TareaId) : null;
+        const tuya = !!t && String(t.Asignado || '').toLowerCase() === yo && String(a.Quien || '').toLowerCase() !== yo;
+        cont.appendChild(itemActividad(a, true, { nuevo, visto, tuya }));
+    }
 }
 /** Parte «verbo «titulo» resto» en tres: el titulo en <b> (2 lineas, integro en title) y el resto en linea
  *  propia; «de X a Y» sale como «X → Y». Sin «…» (un titulo de tarjeta), texto plano. Nunca innerHTML. */
@@ -485,7 +553,7 @@ function pintarInicio() {
     // paso a la columna ancha, bajo Proyectos activos, donde antes sobraba media pantalla).
     const tope = enCelular.matches ? 3 : 8;
     const visible = actividadVisible();   // v0.11.0: sin movimientos entre cubetas
-    for (const a of visible.slice(0, tope)) act.appendChild(itemActividad(a, true));   // C9
+    pintarActividadInicio(act, visible.slice(0, tope));   // C9 · v0.63.0: por dia, con icono y nuevo/visto
     if (!visible.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
     $('btnActividadInicio').hidden = visible.length <= tope;
 }

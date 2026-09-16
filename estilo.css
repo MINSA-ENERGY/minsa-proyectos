@@ -676,7 +676,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
    (verbo, titulo y complemento seguidos) y el proyecto va a la derecha en la misma cabecera; el acomodo apilado
    de 3-4 renglones era para la lateral de 340 px. Por debajo de 900 px la tarjeta vuelve a ser angosta y aplica lo de arriba. */
 @media (min-width: 901px) {
-  #inicioActividad .it { grid-template-columns: minmax(0, 1fr); padding: var(--sp-2) 0; }
+  #inicioActividad .it { grid-template-columns: 26px minmax(0, 1fr); padding: var(--sp-2) 0; }   /* v0.63.0: la columna del icono */
   #inicioActividad .it .cab { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: baseline; }
   #inicioActividad .it .cab .q { white-space: nowrap; }
   #inicioActividad .it .f { display: block; }
@@ -684,6 +684,27 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   #inicioActividad .it .f .sino { display: inline; margin-left: var(--sp-1); }
   #inicioActividad .it .w { font-size: .78rem; }
 }
+/* v0.63.0 (Carlos, 15-sep; artifact BL8t8H9H, cortes B + G): icono redondo por accion a la izquierda de cada renglon de
+   actividad (las tres listas), corte por dia y estado nuevo/visto en la de Inicio. El color del icono es el estado semantico
+   de la accion, no el del equipo: verde crear · azul nota · ambar asignar/reabrir · marca ligar/subir · rojo borrar · gris el resto. */
+.mini .it.con-ico { grid-template-columns: 26px minmax(0, 1fr); }
+.mini .ico { width: 26px; height: 26px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--idle-bg); color: var(--idle-fg); margin-top: 1px; }
+.mini .ico svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.mini .ico.is-crear { background: var(--ok-bg); color: var(--ok-fg); }
+.mini .ico.is-nota { background: var(--info-bg); color: var(--info-fg); }
+.mini .ico.is-asignar, .mini .ico.is-reabrir { background: var(--warn-bg); color: var(--warn-fg); }
+.mini .ico.is-liga, .mini .ico.is-subir { background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--brand); }
+.mini .ico.is-borrar { background: var(--bad-bg); color: var(--bad-fg); }
+.mini .dia { font: 600 .68rem var(--f-data); letter-spacing: .08em; text-transform: uppercase; color: var(--tx-faint); display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) 0 var(--sp-1); }
+.mini .dia:first-child { padding-top: 0; }
+.mini .dia::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
+.mini .dia b { font-weight: 500; color: var(--tx-mute); letter-spacing: 0; }
+.mini .dia + .it { border-top: 0; }
+.mini .it.es-nuevo .q { color: var(--tx); }
+.mini .it.es-nuevo .q::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent); margin-right: var(--sp-2); vertical-align: middle; }
+.mini .it.es-visto { opacity: .62; }
+.mini .it.es-visto:hover { opacity: 1; }
+.mini .tuya { font: 500 .64rem var(--f-data); color: var(--warn-fg); background: var(--warn-bg); padding: 1px 5px; border-radius: 4px; margin-left: var(--sp-2); vertical-align: middle; }
 /* C9 (v0.6.0): el renglon de actividad con tarjeta es un boton que la abre (mismo acomodo que el div). */
 .mini button.it { width: 100%; background: none; border: 0; border-top: 1px solid var(--border-hairline); font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: var(--r-sm); }
 .mini button.it:first-child { border-top: 0; }

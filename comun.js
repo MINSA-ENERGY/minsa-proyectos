@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion } from './reglas.js';
 
-export const VERSION = '0.62.0';
+export const VERSION = '0.63.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -253,6 +253,15 @@ export function fechaHora(iso) {
     if (!iso) return '—';
     const d = new Date(iso);
     return d.toLocaleString('es-MX', { timeZone: 'America/Mexico_City', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+/** v0.63.0: «hace 12 min» / «hace 3 h» dentro de las ultimas 24 h; mas viejo, fechaHora. Para las listas de actividad. */
+export function haceCuanto(iso, ahora = new Date()) {
+    if (!iso) return '—';
+    const t = ahora - new Date(iso);
+    if (!(t >= 0) || t >= 86400000) return fechaHora(iso);
+    if (t < 60000) return 'ahora';
+    if (t < 3600000) return `hace ${Math.round(t / 60000)} min`;
+    return `hace ${Math.round(t / 3600000)} h`;
 }
 /** Acepta dd/mm/aaaa y aaaa-mm-dd. Vacio = null; otra cosa es un error que se muestra, nunca una fecha adivinada. */
 export function aIsoDia(texto) {
