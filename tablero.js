@@ -610,7 +610,7 @@ function abrirPop(campo, ancla, desde) {
     if (campo === 'asignado') { opciones($('ftAsignado'), personas(), x => x, x => nombreDe(x, estado.roles), 'sin asignar'); $('ftAsignado').value = String(t.Asignado || '').toLowerCase(); }
     if (campo === 'prioridad') ponerPrioridad('ftPrioridad', t.Prioridad);
     if (campo === 'color') selectorTonos($('ftColor'), t.Color, null, 'Color de la tarjeta');   // v0.12.0
-    if (campo === 'vence') { $('ftVence').value = diaInput(t.Vence); atajosFecha('ftVence', 'ftAtajos', p && p.Vence); $('ftQuitarFecha').hidden = !t.Vence; }   // C2 + D1
+    if (campo === 'vence') { $('ftVence').value = diaInput(t.Vence); atajosFecha('ftVence', 'ftAtajos', p && p.Vence); }   // C2 + D1. v0.70.1: sin «Quitar la fecha» (Carlos, 16-sep); vaciar el input y Guardar sigue dejando Vence en null
     if (campo === 'descripcion') $('ftDesc').value = t.Descripcion || '';
     ancla.appendChild(pop); pop.classList.remove('oculto');
     if (desde) desde.setAttribute('aria-expanded', 'true');
@@ -1053,7 +1053,6 @@ export function engancharTablero() {
     $('tPop').addEventListener('submit', guardarEdicion);
     $('tPopCancelar').addEventListener('click', () => cerrarPop());
     $('ftDesc').addEventListener('keydown', e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); $('tPop').requestSubmit(); } });
-    $('ftQuitarFecha').addEventListener('click', () => { $('ftVence').value = ''; $('tPop').requestSubmit(); });
     $('tMenu').addEventListener('toggle', () => { if ($('tMenu').open) { cerrarPop(); alternarMover(false); } });
     for (const seg of document.querySelectorAll('.prio[data-prio-de]')) selectorPrioridad(seg);
     $('tCompartir').addEventListener('click', compartirTarjeta);

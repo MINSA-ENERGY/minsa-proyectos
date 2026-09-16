@@ -1720,7 +1720,6 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 #tPop .pop-campo { margin: 0; }
 #tPop .pop-campo > label { font-size: .78rem; }
 #tPop .pop-campo .tonos { min-height: var(--control-h-sm); }
-#tPop #ftQuitarFecha { justify-self: start; margin-top: var(--sp-1); }
 #tPop .pop-pie { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-1); }
 /* «···» de la cabecera: el mismo details.fila-menu de Docs, alineado con los otros dos botones. */
 .head-botones .fila-menu > summary { letter-spacing: .1em; }
@@ -1774,7 +1773,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 /* v0.70.0 (2026-09-16): el popover se ve entero desde cualquier celda. .t-props ya no recorta (overflow), y desde las tres celdas de la
    derecha (Vence · Prioridad · Color) #tPop se cuelga por su borde DERECHO: a 22 rem desde el borde izquierdo de Prioridad se salia del
    dialogo. Cubeta abre su menu (.mover), no #tPop. */
-@media (min-width: 721px) { .t-props .t-cel[data-cel="vence"] #tPop, .t-props .t-cel[data-cel="prioridad"] #tPop, .t-props .t-cel[data-cel="color"] #tPop { left: auto; right: calc(-1 * var(--sp-1)); } }   /* solo escritorio: a <=720 el popover es la hoja inferior FIJA de arriba, y esta regla (mas especifica) la pisaria */
+@media (min-width: 721px) { .t-props .t-cel[data-cel="prioridad"] #tPop, .t-props .t-cel[data-cel="color"] #tPop { left: auto; right: calc(-1 * var(--sp-1)); } }   /* solo escritorio: a <=720 el popover es la hoja inferior FIJA de arriba, y esta regla (mas especifica) la pisaria. v0.70.1: Vence (la celda de en medio) vuelve a colgar por la IZQUIERDA — colgado por la derecha topaba con la esquina izquierda del dialogo (Carlos, 16-sep) */
 @media (max-width: 720px) {
   .t-props .t-cel[data-cel="asignado"] { grid-column: 1 / -1; border-right: 0; }
   .t-props .t-cel:nth-child(odd):not(:first-child) { border-right: 0; }

@@ -460,11 +460,12 @@ try {
         editar('descripcion');
         R.ok('v0.53.0: reabrir la descripción deja el caret al FINAL sin seleccionar el texto (un tecleo no lo borra)', document.activeElement === $('ftDesc') && $('ftDesc').selectionStart === $('ftDesc').value.length && $('ftDesc').selectionEnd === $('ftDesc').selectionStart, `${$('ftDesc').selectionStart}-${$('ftDesc').selectionEnd}/${$('ftDesc').value.length}`);
         clic('tPopCancelar');
-        // Vence: «Quitar la fecha» guarda null.
+        // Vence: vaciar el input y Guardar deja null (v0.70.1: el boton «Quitar la fecha» ya no existe — Carlos, 16-sep).
         editar('vence');
-        R.ok('v0.53.0: el popover de Vence trae el input, los atajos y «Quitar la fecha» (hay fecha)', popAbierto() === 'vence' && $('ftVence').value === String(t.fields.Vence).slice(0, 10) && $('ftAtajos').querySelectorAll('button').length >= 3 && !$('ftQuitarFecha').hidden, $('ftVence').value);
-        clic('ftQuitarFecha'); await esperar(() => t.fields.Vence == null, 'fecha quitada');
-        R.ok('v0.53.0: «Quitar la fecha» guarda Vence = null y el renglón dice «Poner fecha»', $('tChips').querySelector('[data-chip="vence"]').textContent === 'Poner fecha');
+        { const rp = $('tPop').getBoundingClientRect(), rd = $('dlgTarea').getBoundingClientRect();
+          R.ok('v0.70.1: el popover de Vence trae el input y los atajos, SIN «Quitar la fecha», y no toca la esquina del diálogo', popAbierto() === 'vence' && $('ftVence').value === String(t.fields.Vence).slice(0, 10) && $('ftAtajos').querySelectorAll('button').length >= 3 && !$('ftQuitarFecha') && (matchMedia('(max-width: 720px)').matches || (rp.left > rd.left + 8 && rp.right < rd.right - 8)), JSON.stringify({ pop: [rp.left, rp.right], dlg: [rd.left, rd.right] })); }
+        $('ftVence').value = ''; clic('btnGuardarTarea'); await esperar(() => t.fields.Vence == null, 'fecha quitada');
+        R.ok('v0.70.1: vaciar la fecha y Guardar deja Vence = null y el renglón dice «Poner fecha»', $('tChips').querySelector('[data-chip="vence"]').textContent === 'Poner fecha');
         editar('vence'); $('ftAtajos').querySelector('button[data-fecha]').click(); const fechaAtajo = $('ftVence').value; clic('btnGuardarTarea');
         await esperar(() => String(t.fields.Vence || '').startsWith(fechaAtajo), 'fecha por atajo');
         R.ok('v0.53.0: un atajo de fecha + Guardar escribe Vence', String(t.fields.Vence).startsWith(fechaAtajo) && !popAbierto() && actividad('editar-tarea').length === 6);
