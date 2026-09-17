@@ -1118,6 +1118,17 @@ try {
         DB.carpetas = DB.carpetas.filter(c => c !== carpeta); DB.archivos = DB.archivos.filter(a => !a.ruta.startsWith(carpeta.ruta + '/'));
         clic('btnActualizar'); await esperar(() => $('docsLista').textContent.includes('ya lo acomodó la skill'), '404 del buzón');
         R.ok('404 del buzón = «ya lo acomodó la skill»', true);
+        // C-03 (v0.85.1, mejorar-app archivos): la cola del buzon vive en marcarBuzonEnVivo y SALE si el contenedor que pinto su
+        // generacion ya no esta en el documento. Control: se desmonta #docsLista en cuanto arranca la pintada (la consulta del buzon
+        // queda en vuelo) — sin la guarda el chip se escribiria igual dentro del nodo suelto; con ella el nodo vuelve sin chip.
+        { const docs = await import('../docs.js'); const modC = await import('../comun.js'); const cont = $('docsLista'); const padre = cont.parentNode; const sig = cont.nextSibling;
+          const chips = () => [...cont.querySelectorAll('.estado')].filter(n => n.textContent.includes('ya lo acomodó la skill')).length;
+          modC.estado.buzonExiste = {}; const pr = docs.pintarDocs(modC.estado.proyectoAbierto); padre.removeChild(cont); await pr; await dormir(80);
+          const sueltos = chips(); padre.insertBefore(cont, sig);
+          R.ok('C-03 (v0.85.1): si #docsLista se desmonta con la consulta del buzón en vuelo, marcarBuzonEnVivo NO escribe el chip en el nodo suelto (cont.isConnected)', sueltos === 0 && cont.querySelectorAll('.doc').length === 2, `chips en el nodo suelto=${sueltos}`);
+          modC.estado.buzonExiste = {}; docs.pintarDocs(modC.estado.proyectoAbierto); docs.pintarDocs(modC.estado.proyectoAbierto);
+          await esperar(() => chips() === 1, '404 tras dos pintadas'); await dormir(80);
+          R.ok('C-03 (v0.85.1): dos pintarDocs solapados con la caché vacía dejan UN «ya lo acomodó la skill» y UN «Buscar el archivado»', chips() === 1 && cont.querySelectorAll('[data-buscar]').length === 1, `chips=${chips()} · buscar=${cont.querySelectorAll('[data-buscar]').length}`); }
         // Subida a medias: la 2a pieza falla -> se borra la carpeta y no queda liga.
         DB.fallas.push({ metodo: 'PUT', incluye: 'nota.txt', status: 403, veces: 1 });
         clic('btnSubir'); await esperar(() => $('dlgSubir').open, 'subir'); poner('sbConcepto', 'A medias'); archivosFalsos(); clic('sbGuardar');

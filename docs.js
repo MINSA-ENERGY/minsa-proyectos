@@ -121,14 +121,23 @@ export async function pintarDocs(p) {
     $('docsAbrirTodo').onclick = () => { estado.abiertasDocs = new Set(hayVacias ? [...llaves, -1] : llaves); pintarDocs(p); };
     $('docsPlegarTodo').onclick = () => { estado.abiertasDocs = new Set(); pintarDocs(p); };
     cont.appendChild(tabla);
-    // «En el buzon» en vivo: una consulta por liga de tipo buzon, cacheada por carga.
-    if (bib) try {
+    if (bib) await marcarBuzonEnVivo(p, ligas, cont, gen, bib, puede);
+}
+
+/** C-03 (mejorar-app archivos, 17-sep): la cola async del buzon, fuera de pintarDocs. Recibe el contenedor que pinto la
+ *  generacion `gen` y SALE en cuanto esa pintada ya no es la vigente (`gen !== pintadaDocs`) o el contenedor ya no esta en el
+ *  documento (`!cont.isConnected`, p. ej. se cerro el proyecto): la garantia de que un repintado en medio no deja un chip
+ *  duplicado ya no depende de que `n.textContent = ''` la cubra por accidente. Una consulta por liga de tipo buzon, cacheada
+ *  por carga en `estado.buzonExiste`. Es la unica que escribe sobre un DOM que otra pintada pudo reemplazar. */
+async function marcarBuzonEnVivo(p, ligas, cont, gen, bib, puede) {
+    const vigente = () => gen === pintadaDocs && cont.isConnected;
+    try {
         const s = await sitioDe(bib);
-        if (gen !== pintadaDocs) return;
+        if (!vigente()) return;
         if (s.id) for (const l of ligas.filter(x => x.Tipo === 'buzon' && x.Ruta)) {
             if (estado.buzonExiste[l.Ruta] === undefined) estado.buzonExiste[l.Ruta] = estado.cliente.existeRuta(s.id, l.Ruta).catch(() => { delete estado.buzonExiste[l.Ruta]; return undefined; });
             const existe = await estado.buzonExiste[l.Ruta];   // promesa (en vuelo) o valor (ya resuelto): await sirve a los dos
-            if (gen !== pintadaDocs) return;
+            if (!vigente()) return;
             if (existe === undefined) continue;
             estado.buzonExiste[l.Ruta] = existe;
             const n = cont.querySelector(`[data-liga="${l.id}"] .estado`);
@@ -140,8 +149,8 @@ export async function pintarDocs(p) {
             }
         }
     } catch (e) {
-        if (gen !== pintadaDocs) return;
-        if (!estado.buzonAvisado) { estado.buzonAvisado = true; avisar('No se pudo consultar el buzón: el estado «en el buzón» puede estar atrasado hasta la próxima relectura.', 'ojo'); }   // C-03: una sola vez por carga
+        if (!vigente()) return;
+        if (!estado.buzonAvisado) { estado.buzonAvisado = true; avisar('No se pudo consultar el buzón: el estado «en el buzón» puede estar atrasado hasta la próxima relectura.', 'ojo'); }   // C-03 (proyecto): una sola vez por carga
         console.warn('Docs: no se pudo consultar el buzón.', e && e.message ? e.message : e);
     }
 }
