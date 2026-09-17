@@ -1101,7 +1101,10 @@ export function engancharTablero() {
     document.addEventListener('click', e => { const m = document.querySelector('#filtroChips .menu-quien[open]'); if (m && !(e.target.closest && e.target.closest('.menu-quien'))) m.open = false; });
     document.addEventListener('keydown', e => { if (e.key === 'Escape') { const m = document.querySelector('#filtroChips .menu-quien[open]'); if (m) { m.open = false; m.querySelector('summary').focus(); } } });
     $('tCerrar').addEventListener('click', () => cerrarDialogo('dlgTarea'));
-    $('dlgTarea').addEventListener('close', () => { fijarHash(hashDe()); });   // al cerrar (boton, Esc o Atras) el hash vuelve a la pantalla
+    // Al cerrar (boton, Esc o Atras) el hash vuelve a la pantalla. El evento `close` es ASINCRONO: si entre el close() y su evento ya se
+    // abrio OTRA tarjeta (cerrar una y tocar la siguiente), pisaba el hash `/t/<id>` de la nueva con el de la pantalla — la E2E lo veia
+    // como el intermitente «U-03: el texto de al lado abre la tarjeta de su barra» (3 veces, 16-17 sep). Solo se repone si sigue cerrado.
+    $('dlgTarea').addEventListener('close', () => { if (!$('dlgTarea').open) fijarHash(hashDe()); });
     // v0.50.0 (2B): el menu de cubetas se cierra con clic fuera (por ancestro, como el menu «Quién») y con Esc — Esc con el menu
     // abierto NO cierra el dialogo. Los segmentados de prioridad (3A) se pintan una vez: el input oculto conserva el valor.
     $('dlgTarea').addEventListener('click', e => { if (!$('tMover').classList.contains('oculto') && !(e.target.closest && e.target.closest('#tMover, [data-abre-mover]'))) alternarMover(false); });

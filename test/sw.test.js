@@ -23,6 +23,16 @@ assert.ok(m && m[1] === version, `comun.js VERSION (${m && m[1]}) debe ser igual
 // la red podia pisar _salida-dev.json por POST /guardar. Se lee el archivo porque la E2E lo arranca fuera de este proceso.
 assert.ok(/servidor\.listen\(PUERTO,\s*'127\.0\.0\.1'/.test(readFileSync(join(raiz, 'servidor-local.js'), 'utf8')),
   "servidor-local.js debe escuchar solo en '127.0.0.1'");
+// S-10 (v0.82.1): /guardar solo con Origin del propio servidor, y .git/ y _salida-dev.json responden 403.
+{
+  const srv = readFileSync(join(raiz, 'servidor-local.js'), 'utf8');
+  assert.ok(srv.includes('ORIGENES.has(req.headers.origin)') && srv.includes('|| rutaVedada(destino)'), 'servidor-local.js debe filtrar Origin en /guardar y las rutas vedadas sobre el destino resuelto');
+  const { rutaVedada } = await import('../servidor-local.js');   // importarlo NO levanta el servidor (solo escucha como programa principal)
+  const { resolve } = await import('node:path');
+  // Las mismas URL que el servidor recibe (rel ya decodificado), resueltas como lo hace el: los tres huecos del revisor de v0.82.1 incluidos.
+  for (const [rel, esperado] of [['/.git/HEAD', true], ['/.gitignore', true], ['/_salida-dev.json', true], ['/_SALIDA-DEV.JSON', true], ['/x/../.git/HEAD', true], ['/test/../_salida-dev.json', true], ['/\\.git/HEAD', process.platform === 'win32'], ['/index.html', false], ['/test/pruebas.html', false], ['/vendor/x.js', false], ['/README.md', false]])
+    assert.equal(rutaVedada(resolve(raiz, '.' + rel), raiz), esperado, `rutaVedada(${rel})`);
+}
 // S-07 (v0.76.0): el <script> de MSAL lleva integrity; si alguien sube el vendor y no toca el atributo, el navegador
 // lo rechaza en silencio y la app no arranca. Aqui se coteja contra los bytes del archivo, en los tres HTML que lo cargan.
 import { createHash } from 'node:crypto';

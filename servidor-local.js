@@ -38,11 +38,30 @@ const TIPOS = {
     '.ico':  'image/x-icon'
 };
 
+// S-10 (v0.82.1): S-08 cerro la Wi-Fi, pero una pestaña AJENA abierta en el mismo navegador seguia pudiendo hacer
+// POST /guardar (pisar la salida de la E2E) y leer .git/ o _salida-dev.json bajo la raiz. Ahora /guardar exige un
+// Origin de este mismo servidor —el navegador lo manda en todo POST y una pagina no lo puede falsear— y toda
+// ruta cuyo primer segmento empiece por «.» (.git, .gitignore) o sea _salida-dev.json responde 403.
+// Se juzga sobre el DESTINO YA RESUELTO relativo a RAIZ, no sobre la URL: el revisor de v0.82.1 sirvio .git/HEAD por
+// `/x/../.git/HEAD`, `/%5C.git/HEAD` (path.resolve toma `\` como separador en Windows) y `/_SALIDA-DEV.JSON` (el FS
+// no distingue mayusculas) con la version que miraba el primer segmento de la URL.
+const ORIGENES = new Set(['http://localhost:8080', 'http://127.0.0.1:8080']);
+const RESERVADOS = ['_salida-dev.json'];
+export function rutaVedada(destino, raiz = RAIZ) {
+    const primero = (path.relative(raiz, destino).split(path.sep)[0] || '').toLowerCase();
+    return primero.startsWith('.') || RESERVADOS.includes(primero);
+}
+
 const servidor = http.createServer((req, res) => {
     // Buzon de ida y vuelta para las herramientas de desarrollo: la pagina manda lo que
     // encontro y aterriza en un archivo local, para no tener que copiar y pegar a mano.
     // Solo existe en este servidor de pruebas; no es parte de la app.
     if (req.method === 'POST' && req.url === '/guardar') {
+        if (!ORIGENES.has(req.headers.origin)) {
+            console.log(`  403  POST /guardar desde origen ${req.headers.origin || '(sin Origin)'}`);
+            res.writeHead(403, { 'Content-Type': 'text/plain' }).end('403');
+            return;
+        }
         let cuerpo = '';
         req.on('data', d => { cuerpo += d; if (cuerpo.length > 5e6) req.destroy(); });
         req.on('end', () => {
@@ -64,7 +83,8 @@ const servidor = http.createServer((req, res) => {
         // al final importa: sin el, un directorio HERMANO cuyo nombre empiece igual
         // ('app-x' junto a 'app') pasaria la comprobacion por puro prefijo.
         destino = path.resolve(RAIZ, '.' + rel);
-        if (!destino.startsWith(RAIZ + path.sep)) {
+        if (!destino.startsWith(RAIZ + path.sep) || rutaVedada(destino)) {
+            console.log(`  403  ${rel}`);
             res.writeHead(403).end('403');
             return;
         }
@@ -84,7 +104,9 @@ const servidor = http.createServer((req, res) => {
 
 // S-08 (v0.80.0): solo la interfaz local. Sin host, Node abre 0.0.0.0/:: y cualquier equipo de la misma
 // Wi-Fi leia la app servida y podia hacer POST /guardar y pisar _salida-dev.json mientras corria la E2E.
-servidor.listen(PUERTO, '127.0.0.1', () => {
+// S-10: solo escucha como programa principal; importado (sw.test.js prueba rutaVedada) no abre el puerto.
+const esPrincipal = !!process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (esPrincipal) servidor.listen(PUERTO, '127.0.0.1', () => {
     console.log('');
     console.log(`Sirviendo ${RAIZ}`);
     console.log(`Indice: ${INDICE}`);

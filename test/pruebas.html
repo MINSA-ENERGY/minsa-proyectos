@@ -1662,6 +1662,11 @@ try {
             document.querySelector(`#tab-roadmap [data-roadmap="${tHoy.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde el roadmap');
             R.ok('v0.10.0: la barra de la tarjeta abre su diálogo', $('dlgTarea').open && $('tTitulo').textContent === 'Vence hoy para el calendario');
             clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+            // v0.82.1: cerrar una tarjeta y abrir OTRA en el mismo tick — el evento `close` (asincrono) de la primera llegaba con la segunda ya
+            // abierta y reponia el hash de la pantalla encima de `/t/<id>`; era el intermitente «U-03 … abre la tarjeta de su barra».
+            { document.querySelector(`#tab-roadmap [data-roadmap="${tHoy.id}"]`).click(); clic('tCerrar'); document.querySelector(`#tab-roadmap [data-roadmap="${tHoy.id}"]`).click(); await dormir(80);
+              R.ok('v0.82.1: cerrar y reabrir una tarjeta en el mismo tick deja el hash en la tarjeta (el `close` tardío no lo pisa)', $('dlgTarea').open && location.hash.endsWith(`/t/${tHoy.id}`), `hash ${location.hash}`);
+              clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada'); }
             // U-03 (v0.78.0): la barra corta tiene objetivo tactil de 36 px (::after) y su texto de al lado abre la misma tarjeta
             { const corta = document.querySelector('#tab-roadmap button.g-barra.is-corta'); const txt = corta && corta.parentElement.querySelector('.g-txt.g-fuera.is-clic');
               R.ok('U-03 (v0.78.0): una barra corta lleva ::after de -7/-6 px (36 px de alto) y un texto de al lado con is-clic que recibe el clic', !!corta && getComputedStyle(corta, '::after').top === '-7px' && getComputedStyle(corta, '::after').left === '-6px' && !!txt && getComputedStyle(txt).pointerEvents === 'auto', `corta=${!!corta} txt=${!!txt}`);
