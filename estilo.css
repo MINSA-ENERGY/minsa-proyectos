@@ -1249,6 +1249,14 @@ button.g-barra.is-corta { overflow: visible; } button.g-barra.is-corta::after { 
 /* v0.26.0: la linea de tiempo a pantalla completa. La tarjeta se fija a la ventana entera por encima del rail (z-pop),
    la cabecera del gantt sigue pegada arriba al hacer scroll, y el gantt crece a todo el ancho (su min-width solo manda
    cuando la caja es mas angosta). El body pierde el scroll mientras dure, para que la rueda no mueva la pagina de atras. */
+/* U-04 (v0.79.0): la hoja inferior de un rombo en tactil (nombre completo · estado · quien; en un grupo, una fila por tarjeta). Misma forma que #tPop a 390. */
+.g-pop { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-pop); display: grid; gap: var(--sp-1); max-height: 70dvh; overflow-y: auto; padding: var(--sp-3) var(--sp-4) calc(var(--sp-4) + env(safe-area-inset-bottom, 0px)); background: var(--surface-card); border-top: 1px solid var(--border-default); border-radius: var(--r-md) var(--r-md) 0 0; box-shadow: 0 -8px 24px rgba(0, 0, 0, .18); }
+.g-pop-cab { margin: 0 0 var(--sp-1); font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--text-muted); }
+.g-pop-it { display: flex; align-items: center; gap: var(--sp-3); min-height: 44px; padding: var(--sp-1) var(--sp-2); border: 0; border-radius: var(--r-sm); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.g-pop-it:hover, .g-pop-it:active { background: var(--surface-hover); }
+.g-pop-it .g-rombo-mini { flex: none; margin-left: 3px; }
+.g-pop-it .cuerpo { display: grid; min-width: 0; } .g-pop-it b { font-weight: 600; overflow-wrap: anywhere; } .g-pop-it .m { font-size: .78rem; color: var(--text-muted); font-family: var(--font-data); }
+.g-pop-pie { display: flex; gap: var(--sp-2); margin-top: var(--sp-1); } .g-pop-pie .mn-btn { flex: 1; }
 #roadmapLinea.is-full { position: fixed; inset: 0; z-index: var(--z-pop); border-radius: 0; overflow: auto; padding: var(--sp-3) var(--sp-4); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--sp-2); }
 #roadmapLinea.is-full .gantt-caja { overflow: auto; min-height: 0; }
 #roadmapLinea.is-full .gantt { width: 100%; }
@@ -1388,7 +1396,7 @@ body.sin-scroll { overflow: hidden; }
 .rep-cols .col-s small { font-family: var(--font-data); font-size: .6rem; color: var(--text-faint); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 /* ---- avance del proyecto: el anillo junto a la barra en la lateral */
 .avance-anillo { display: flex; justify-content: center; margin-bottom: var(--sp-2); }
-@media print { .cal-nav, #btnImprimirReportes, .archivos-filtros { display: none !important; } .gantt-caja { overflow: visible; } }
+@media print { .cal-nav, #btnImprimirReportes, .archivos-filtros { display: none !important; } .gantt-caja { overflow: visible; max-height: none !important; } }   /* max-height: none !important (v0.79.0, va ANTES del @media de 720 y perderia sin el): que el tope de U-06 (celular) no recorte la impresion desde un viewport angosto */
 /* ---- celular */
 @media (max-width: 720px) {
   .rail .rail-extra { display: none; }   /* Roadmap · Archivos · Reportes viven en el menu «···» de la barra movil */
@@ -1409,6 +1417,9 @@ body.sin-scroll { overflow: hidden; }
   .cal-ag.is-pasado { opacity: .75; }
   .cal-ag .cal-it { font-size: .82rem; padding: 6px 8px; min-height: 40px; }
   .gantt { --eti: 150px; min-width: 520px; }
+  /* U-06 (v0.79.0): la cabecera de meses/semanas no se pegaba al bajar: .gantt-caja (overflow-x: auto) ya era el scrollport y solo se movia a lo ancho. En celular la caja toma tambien el scroll vertical (tope: la ventana menos cabecera y barra), y el sticky top: 0 de .g-cab ya tiene contra que pegarse. Mas corta que eso, no hay scroll interno y nada cambia. Revertir = borrar este renglon. */
+  .gantt-caja { max-height: calc(100dvh - 200px); overflow: auto; }
+  #roadmapLinea.is-full .gantt-caja { max-height: none; }   /* U-06 (revisor): en pantalla completa la caja ya es la ventana; el tope la dejaba 200 px corta */
   .g-proy .m { font-size: .64rem; }   /* U-09 (v0.78.0): «7/17 · fin 31/10» son 16 caracteres y el cuerpo mide ~102 px; a .72rem no cabian */
   .rep-rejilla { grid-template-columns: 1fr; }
   .rep-fila { grid-template-columns: 1fr; gap: var(--sp-1); }

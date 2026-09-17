@@ -14,7 +14,7 @@
 
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
-import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias } from './reglas.js';
+import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias } from './reglas.js';
 import { $, L, VERSION, estado, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
@@ -379,8 +379,7 @@ function chipReloj(p, ts) {
     if (p.Estado !== 'activo' || !p.Vence) return null;
     const d = diasPara(p.Vence); if (d === null || d > CONFIG.vencePronto) return null;
     const faltan = ts.filter(t => t.Columna !== 'hecho').length;
-    const reloj = d < 0 ? `venció hace ${-d} d` : d === 0 ? 'vence hoy' : `vence en ${d} d`;
-    const c = chip(`${reloj} · faltan ${faltan}`, d < 0 ? 'danger' : 'warn'); c.dataset.reloj = String(p.id);
+    const c = chip(`${fraseVence(d, 'dias')} · faltan ${faltan}`, claseVence(d, CONFIG.vencePronto)); c.dataset.reloj = String(p.id);   // C-04 (v0.79.0)
     return c;
 }
 /**
@@ -395,13 +394,13 @@ function chipReloj(p, ts) {
 function fichaProyecto(p, ts) {
     const a = avance(ts, columnasDe(p)); const eq = equipoDe(p);
     const d = p.Estado === 'activo' ? diasPara(p.Vence) : null;
-    const k = p.Estado !== 'activo' ? 'cerrado' : d === null ? 'idle' : d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : 'info';
+    const k = p.Estado !== 'activo' ? 'cerrado' : claseVence(d, CONFIG.vencePronto, 'info');   // C-04 (v0.79.0)
     const r = el('button', 'pficha is-' + k); r.type = 'button'; r.dataset.open = String(p.id); r.style.setProperty('--c', eq.color);
     // la hoja de calendario: el fin del frente (o el cierre, si ya cerro); sin fecha, «— ?» en gris
     const md = mesDia(p.Estado === 'activo' ? p.Vence : p.CerradoEl);
     // U-07 (mejorar-app, 16-sep): sin fecha la hoja dice «SIN / fecha» en gris — antes «— ?» y el significado solo vivia en el title, que en celular no existe
     const cal = el('span', 'cal' + (md ? '' : ' sin')); cal.appendChild(el('span', 'mes', md ? md.mes : 'sin')); cal.appendChild(el('span', 'dia', md ? String(md.dia) : 'fecha'));
-    cal.title = p.Estado !== 'activo' ? `Cerrado el ${fechaCorta(p.CerradoEl)}` : d === null ? 'Sin fin del frente' : `Fin del frente: ${fechaCorta(p.Vence)} · ${d < 0 ? `vencio hace ${-d} d` : d === 0 ? 'vence hoy' : `en ${d} d`}`;
+    cal.title = p.Estado !== 'activo' ? `Cerrado el ${fechaCorta(p.CerradoEl)}` : d === null ? 'Sin fin del frente' : `Fin del frente: ${fechaCorta(p.Vence)} · ${fraseVence(d, 'dias')}`;   // C-04 (v0.79.0): antes decia «vencio» sin acento y «en N d» sin verbo
     r.appendChild(cal);
     // icono del equipo, y en un solo bloque de texto el titulo con su etiqueta «Rama · Unidad» en linea: la etiqueta sigue al
     // titulo y envuelve con el (en columnas propias, a 820 px la etiqueta nowrap estrangulaba el titulo a 75 px — revisor 14-sep)
@@ -888,7 +887,7 @@ function pintarProyecto() {
     for (const k of quienes) q.appendChild(itemMini(k, nombreDe(k, estado.roles), `${ts.filter(t => String(t.Asignado || '').toLowerCase() === k && t.Columna !== 'hecho').length} abiertas`, ''));
     if (!quienes.length) q.appendChild(el('p', 'vacio', 'Nadie asignado todavía.'));
     const v = $('pVence'); v.textContent = '';
-    for (const { tarea: t, dias } of proximos(ts, 5)) v.appendChild(itemMini(t.Asignado, t.Title, '', fechaCorta(t.Vence), dias < 0 ? 'danger' : dias <= CONFIG.vencePronto ? 'warn' : null, () => irAHash(`#p/${p.Clave}/t/${t.id}`)));   // C9
+    for (const { tarea: t, dias } of proximos(ts, 5)) v.appendChild(itemMini(t.Asignado, t.Title, '', fechaCorta(t.Vence), claseVence(dias, CONFIG.vencePronto, null), () => irAHash(`#p/${p.Clave}/t/${t.id}`)));   // C9
     if (!v.childNodes.length) v.appendChild(el('p', 'vacio', 'Nada por vencer.'));
     const act = $('pActividad'); act.textContent = '';
     const deP = actividadVisible().filter(x => Number(x.ProyectoId) === p.id);   // v0.11.0: sin movimientos

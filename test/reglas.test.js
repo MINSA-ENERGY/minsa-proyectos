@@ -1,6 +1,6 @@
 // node test/reglas.test.js — reglas puras de MINSA Proyectos (decisiones del plan 2026-09-11).
 import assert from 'node:assert/strict';
-import { ordenarLigas, direccionInicial, nombreHumano, nombreDeLiga, rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, semaforo, vencidasEn, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, activosDe, proyectosVisibles, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, vistosDe, leerVisto, fundirVisto, gruposHoy, saludoDe, hitosDe, acomodarHitos } from '../reglas.js';
+import { ordenarLigas, direccionInicial, nombreHumano, nombreDeLiga, rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, claseVence, fraseVence, semaforo, vencidasEn, sinMovimiento, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, activosDe, proyectosVisibles, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, vistosDe, leerVisto, fundirVisto, gruposHoy, saludoDe, hitosDe, acomodarHitos } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -56,6 +56,16 @@ ok('tareasDe filtra por proyecto', del10.length === 5 && tareasDe(11, tareas).le
 const a = avance(del10);
 ok('avance cuenta hechas y pct', a.hechas === 1 && a.total === 5 && a.pct === 20 && a.porColumna['por-hacer'] === 2);
 ok('avance vacio = 0%', avance([]).pct === 0);
+// C-04 (v0.79.0): la clase y la frase del reloj salen de reglas, no de 9 ternas a mano
+ok('claseVence: vencida danger · hoy y hasta `pronto` warn · lejos lo que pida el sitio · sin fecha idle',
+    claseVence(-1, 7) === 'danger' && claseVence(0, 7) === 'warn' && claseVence(7, 7) === 'warn' && claseVence(8, 7) === 'idle'
+    && claseVence(8, 7, 'info') === 'info' && claseVence(8, 7, '') === '' && claseVence(null, 7, 'info') === 'idle' && claseVence(undefined) === 'idle');
+ok('fraseVence: las cuatro formas, con acento, y vacia sin fecha',
+    fraseVence(-3, 'corta', '12/09/26') === 'venció hace 3 d' && fraseVence(0, 'corta', 'x') === 'vence hoy' && fraseVence(4, 'corta', '20/09/26') === 'vence 20/09/26'
+    && fraseVence(-3, 'larga', '12/09/26') === 'venció hace 3 d (12/09/26)' && fraseVence(4, 'larga', '20/09/26') === 'vence 20/09/26 (en 4 d)' && fraseVence(0, 'larga', 'x') === 'vence hoy'
+    && fraseVence(-3, 'dias') === 'venció hace 3 d' && fraseVence(4, 'dias') === 'vence en 4 d' && fraseVence(0, 'dias') === 'vence hoy'
+    && fraseVence(-3, 'chip') === 'hace 3 d' && fraseVence(0, 'chip') === 'hoy' && fraseVence(4, 'chip') === 'en 4 d'
+    && fraseVence(null, 'corta', 'x') === '' && fraseVence(undefined, 'chip') === '');
 const px = proximos(tareas, 3, HOY);
 ok('proximos: vencida primero, luego por fecha, hechas fuera', px.map(x => x.tarea.id).join(',') === '2,5,3' && px[0].dias === -2);
 ok('estadoVence: vencida / pronto / lejos / hecha / sin fecha',

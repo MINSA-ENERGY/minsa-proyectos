@@ -6,7 +6,7 @@
 // graficos son SVG por DOM o cajas con ancho en %.
 
 import { CONFIG } from './config.js';
-import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
+import { tareasDe, avance, avanceGlobal, estadoVence, claseVence, fraseVence, diasPara, nombreDe, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
 import { $, estado, activos, visibles, nombreEquipoFiltrado, el, boton, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, columnasDeTarea, avisar } from './comun.js';
 import { pintarChat } from './chat.js';   // v0.42.0: Mensajes pinta el hilo del frente elegido en su propia columna
 import { tablaDocs, filaRaiz, filasDeExpediente, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden; v0.36.0: y el mismo arbol
@@ -37,7 +37,7 @@ const svgEl = (tag, attrs = {}) => { const e = document.createElementNS(SVG_NS, 
  * `opts.umbralTxt` es el % minimo de espacio libre para que un rombo lleve su titulo debajo.
  */
 function gantt(cont, filas, rango, opts = {}) {
-    cont.textContent = '';
+    cont.textContent = ''; cerrarPopHito();
     const conHitos = filas.some(f => f.hitos || f.fin);
     const g = el('div', 'gantt' + (conHitos ? ' is-hitos' : '')); g.style.setProperty('--dias', String(rango.dias));
     // cabecera: meses arriba, semanas abajo
@@ -82,7 +82,7 @@ function gantt(cont, filas, rango, opts = {}) {
                 const grupo = a.hitos.length > 1;
                 const r = el('button', 'g-rombo' + (a.clase ? ' is-' + a.clase : '') + (grupo ? ' is-grupo' : '')); r.type = 'button'; r.style.left = a.left + '%';
                 r.title = a.titulo || ''; r.setAttribute('aria-label', a.titulo || ''); r.dataset.hito = a.hitos.map(h => h.tarea.id).join(',');
-                if (f.abrirHito) r.addEventListener('click', e => { e.stopPropagation(); f.abrirHito(a); });
+                if (f.abrirHito) r.addEventListener('click', e => { e.stopPropagation(); if (tactil()) popHito(a, f); else f.abrirHito(a); });   // U-04 (v0.79.0): en tactil el title no existe: el toque abre la hoja con lo que decia
                 pista.appendChild(r);
                 // el titulo cabe si hay espacio hasta el siguiente rombo o la raya del fin; un grupo siempre dice «+N»
                 if (grupo || a.espacio >= (opts.umbralTxt ?? 6)) { const t = el('span', 'g-rombo-txt' + (grupo ? ' is-grupo' : ''), grupo ? `+${a.hitos.length}` : a.hitos[0].tarea.Title); t.style.left = a.left + '%'; if (!grupo) t.style.maxWidth = `calc(${a.espacio}% - ${a.topado ? 44 : 8}px)`; pista.appendChild(t); }   // topado: la fecha del fin (dd/mm, ~36 px) vive a la izquierda de su raya
@@ -104,12 +104,40 @@ function etiquetaTarea(t) {
     return b;
 }
 const CLASE_BARRA = { h: 'ok', r: 'info', c: 'brand', p: 'idle' };
-const claseVence = t => t.Columna === 'hecho' ? 'ok' : estadoVence(t, CONFIG.vencePronto) === 'danger' ? 'danger' : CLASE_BARRA[claseDeColumna(t.Columna, columnasDeTarea(t))];
-/** v0.22.0: el title (y aria-label) de un rombo: titulo · estado con fecha · quien. */
-function tituloHito(h) {
-    const t = h.tarea; const d = diasPara(t.Vence);
-    const estado_ = h.clase === 'hecha' ? `hecha ${fechaCorta(t.HechoEl || t.Vence)}` : d < 0 ? `venció hace ${-d} d (${fechaCorta(t.Vence)})` : d === 0 ? 'vence hoy' : `vence ${fechaCorta(t.Vence)} (en ${d} d)`;
-    return `${t.Title} · ${estado_}${t.Asignado ? ' · ' + nombreDe(t.Asignado, estado.roles) : ''}`;
+const claseBarraTarea = t => t.Columna === 'hecho' ? 'ok' : estadoVence(t, CONFIG.vencePronto) === 'danger' ? 'danger' : CLASE_BARRA[claseDeColumna(t.Columna, columnasDeTarea(t))];
+/** v0.22.0: lo que dice un rombo: estado con fecha y quien (el title lo junta con el titulo; la hoja tactil lo pinta aparte). */
+function partesHito(h) {
+    const t = h.tarea;
+    const estado_ = h.clase === 'hecha' ? `hecha ${fechaCorta(t.HechoEl || t.Vence)}` : fraseVence(diasPara(t.Vence), 'larga', fechaCorta(t.Vence));
+    return { estado: estado_, quien: t.Asignado ? nombreDe(t.Asignado, estado.roles) : '' };
+}
+function tituloHito(h) { const p = partesHito(h); return `${h.tarea.Title} · ${p.estado}${p.quien ? ' · ' + p.quien : ''}`; }
+/**
+ * U-04 (v0.79.0): en celular no hay hover, asi que el title de un rombo (nombre completo · estado · quien) y el «+N» de un
+ * grupo no se leian sin navegar. En tactil el toque abre una HOJA INFERIOR (#gPop, como #tPop del tablero) con una fila por
+ * tarjeta —cada una abre SU tarjeta— y, en un grupo, el boton al roadmap del frente. En escritorio el clic sigue abriendo
+ * directo. `estado.tactil` lo fuerza la E2E (headless no cambia de viewport).
+ */
+const tactil = () => estado.tactil ?? matchMedia('(hover: none)').matches;
+function cerrarPopHito() { const p = document.getElementById('gPop'); if (p) p.remove(); document.removeEventListener('pointerdown', fueraDelPop, true); }
+function fueraDelPop(e) { const p = document.getElementById('gPop'); if (p && !p.contains(e.target)) cerrarPopHito(); }
+function popHito(a, f) {
+    cerrarPopHito();
+    const pop = el('div', 'g-pop'); pop.id = 'gPop'; pop.setAttribute('role', 'dialog'); pop.setAttribute('aria-label', a.hitos.length > 1 ? `${a.hitos.length} tarjetas` : a.hitos[0].tarea.Title);
+    if (a.hitos.length > 1) pop.appendChild(el('p', 'g-pop-cab', `${a.hitos.length} tarjetas del ${fechaCorta(a.dia)} al ${fechaCorta(a.hasta)}`));
+    for (const h of a.hitos) {
+        const b = el('button', 'g-pop-it'); b.type = 'button'; b.dataset.popT = String(h.tarea.id);
+        b.appendChild(el('i', 'g-rombo-mini' + (h.clase ? ' is-' + h.clase : '')));
+        const c = el('span', 'cuerpo'); const pr = partesHito(h); c.appendChild(el('b', '', h.tarea.Title)); c.appendChild(el('span', 'm', pr.estado + (pr.quien ? ' · ' + pr.quien : ''))); b.appendChild(c);
+        b.addEventListener('click', () => { cerrarPopHito(); irTarjetaId(h.tarea.id); });
+        pop.appendChild(b);
+    }
+    const pie = el('div', 'g-pop-pie');
+    if (a.hitos.length > 1) pie.appendChild(boton('Ver el roadmap del frente', 'mn-btn is-primary', () => { cerrarPopHito(); f.abrirHito(a); }, { popFrente: '1' }));
+    pie.appendChild(boton('Cerrar', 'mn-btn', cerrarPopHito, { popCerrar: '1' }));
+    pop.appendChild(pie);
+    document.body.appendChild(pop);
+    setTimeout(() => document.addEventListener('pointerdown', fueraDelPop, true), 0);   // no el mismo toque que la abrio
 }
 
 /**
@@ -132,8 +160,8 @@ export function pintarRoadmapProyecto(p) {
         filas.push({ grupo: true, etiqueta: cab });
         for (const t of de.sort((a, b) => String(lapsoDe.get(a.id).fin || '9').localeCompare(String(lapsoDe.get(b.id).fin || '9')) || a.id - b.id)) {
             const l = lapsoDe.get(t.id); const d = t.Vence ? diasPara(t.Vence) : null;
-            const texto = l.fin ? (t.Columna === 'hecho' ? `hecha ${fechaCorta(t.HechoEl || t.Vence)}` : d < 0 ? `venció hace ${-d} d` : d === 0 ? 'vence hoy' : `vence ${fechaCorta(t.Vence)}`) : '';
-            filas.push({ etiqueta: etiquetaTarea(t), lapso: l, clase: claseVence(t), texto, titulo: `${t.Title} · ${texto}`, abrir: () => irTarjetaId(t.id, 'roadmap'), dataset: { roadmap: String(t.id) }, sinFecha: 'sin fecha de vencimiento' });
+            const texto = l.fin ? (t.Columna === 'hecho' ? `hecha ${fechaCorta(t.HechoEl || t.Vence)}` : fraseVence(d, 'corta', fechaCorta(t.Vence))) : '';   // C-04 (v0.79.0)
+            filas.push({ etiqueta: etiquetaTarea(t), lapso: l, clase: claseBarraTarea(t), texto, titulo: `${t.Title} · ${texto}`, abrir: () => irTarjetaId(t.id, 'roadmap'), dataset: { roadmap: String(t.id) }, sinFecha: 'sin fecha de vencimiento' });
         }
     }
     if (p.Vence && lp.fin) {
@@ -178,12 +206,12 @@ export function pintarRoadmap() {
             const eti = el('button', 'g-proy'); eti.type = 'button'; eti.dataset.roadmapP = String(p.id); eti.title = p.Title;
             eti.appendChild(iconoEquipo(equipoDe(p), 'sm')); const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', p.Title)); const m = el('span', 'm'); m.appendChild(el('span', 'k', `${a.hechas}/${a.total}${window.innerWidth <= 720 ? '' : ' hechas'}`)); m.appendChild(el('span', 'f', p.Vence ? `\u00a0· fin ${fechaCorta(p.Vence).slice(0, 5)}` : '\u00a0· sin fin'));   c.appendChild(m);   eti.appendChild(c);   // nbsp en «f»: un espacio normal al inicio de un item flex se colapsa. v0.40.0: el subtitulo va sin el % (Carlos, 14-sep) — el avance ya es el relleno de la barra. U-09 (v0.78.0): sigue en un renglon; bajo 720 px va sin «hechas» (cabe en 150 px, medido a 390) y si aun no cabe la elipsis se come el conteo, nunca la fecha
             eti.addEventListener('click', () => irFrenteId(p.id, 'roadmap'));   // U-05 (v0.78.0): el drill-down natural es el roadmap del frente, no su tablero
-            const textoFin = !p.Vence ? 'sin fin de frente' : d < 0 ? `venció hace ${-d} d` : d === 0 ? 'vence hoy' : `vence ${fechaCorta(p.Vence)}`;
+            const textoFin = !p.Vence ? 'sin fin de frente' : fraseVence(d, 'corta', fechaCorta(p.Vence));   // C-04 (v0.79.0)
             // la fecha del fin ya la dice su raya: adentro de la barra queda solo el avance (el title trae todo)
             const fin = p.Vence && lapsos[i].fin ? { left: (diasEntre(rango.desde, lapsos[i].fin) + 1) * 100 / rango.dias, texto: fechaCorta(p.Vence).slice(0, 5), titulo: `Fin del frente: ${fechaCorta(p.Vence)}` } : null;
             const hitos = acomodarHitos(hitosPs[i], rango, umbral, fin ? fin.left : 100);
-            for (const h of hitos) h.titulo = h.hitos.length > 1 ? `${h.hitos.length} tarjetas del ${fechaCorta(h.dia)} al ${fechaCorta(h.hasta)}: ${h.hitos.map(x => x.tarea.Title).join(' · ')} — abre el roadmap del frente` : tituloHito(h.hitos[0]);
-            return { etiqueta: eti, lapso: lapsos[i], clase: !p.Vence ? 'idle' : d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : 'brand', pct: a.pct, texto: p.Vence ? `${a.pct}%` : `${a.pct}% · sin fin de frente`, titulo: `${p.Title} · ${textoFin} · ${a.pct}% · ${hitos.reduce((n, h) => n + h.hitos.length, 0)} hito(s)`, abrir: () => irFrenteId(p.id, 'roadmap'), dataset: { roadmapBarra: String(p.id) }, sinFecha: 'sin fechas', fin, hitos, abrirHito: h => h.hitos.length > 1 ? irFrenteId(p.id, 'roadmap') : irTarjetaId(h.hitos[0].tarea.id) };
+            for (const h of hitos) h.titulo = h.hitos.length > 1 ? `${h.hitos.length} tarjetas del ${fechaCorta(h.dia)} al ${fechaCorta(h.hasta)}: ${h.hitos.map(x => x.tarea.Title).join(' · ')} — ${tactil() ? 'toca para verlas' : 'abre el roadmap del frente'}` : tituloHito(h.hitos[0]);
+            return { etiqueta: eti, lapso: lapsos[i], clase: !p.Vence ? 'idle' : claseVence(d, CONFIG.vencePronto, 'brand'), pct: a.pct, texto: p.Vence ? `${a.pct}%` : `${a.pct}% · sin fin de frente`, titulo: `${p.Title} · ${textoFin} · ${a.pct}% · ${hitos.reduce((n, h) => n + h.hitos.length, 0)} hito(s)`, abrir: () => irFrenteId(p.id, 'roadmap'), dataset: { roadmapBarra: String(p.id) }, sinFecha: 'sin fechas', fin, hitos, abrirHito: h => h.hitos.length > 1 ? irFrenteId(p.id, 'roadmap') : irTarjetaId(h.hitos[0].tarea.id) };
         });
         gantt(caja, filas, rango, { rotulo: 'Frente', umbralTxt });
         // leyenda: las cuatro clases del rombo y que es cada cosa (la N de «pronto» sale de CONFIG, como en el tablero)
@@ -196,10 +224,10 @@ export function pintarRoadmap() {
     const hitos = ps.filter(p => p.Vence && diasPara(p.Vence) <= 60).sort((a, b) => String(a.Vence).localeCompare(String(b.Vence)));
     for (const p of hitos) {
         const d = diasPara(p.Vence); const ts = tsDe.get(p.id); const faltan = ts.filter(t => t.Columna !== 'hecho').length; const dia = diaDe(p.Vence);   // C-02 (v0.78.0): el dia corta por hora de Mexico, como el resto de la app
-        const it = el('button', 'hito' + (d < 0 ? ' is-danger' : d <= CONFIG.vencePronto ? ' is-warn' : '')); it.type = 'button'; it.dataset.hito = String(p.id);
+        const kv = claseVence(d, CONFIG.vencePronto, ''); const it = el('button', 'hito' + (kv ? ' is-' + kv : '')); it.type = 'button'; it.dataset.hito = String(p.id);   // C-04 (v0.79.0)
         const f = el('span', 'fecha'); f.appendChild(el('small', '', MESES_CORTOS[+dia.slice(5, 7) - 1])); f.appendChild(el('b', '', String(+dia.slice(8, 10)))); it.appendChild(f);
         const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', p.Title)); c.appendChild(el('span', 'm', `${equipoDe(p).nombre} · ${faltan ? `faltan ${faltan}` : 'todo hecho'}`)); it.appendChild(c);
-        it.appendChild(chip(d < 0 ? `hace ${-d} d` : d === 0 ? 'hoy' : `en ${d} d`, d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : 'info'));
+        it.appendChild(chip(fraseVence(d, 'chip'), claseVence(d, CONFIG.vencePronto, 'info')));
         it.addEventListener('click', () => irFrenteId(p.id)); h.appendChild(it);
     }
     if (!hitos.length) h.appendChild(el('p', 'vacio', 'Ningún fin de frente en los próximos 60 días.'));
@@ -289,6 +317,7 @@ export function engancharRoadmap() {
     const revisarAncho = () => { const w = caja.clientWidth; if (w && estado.pestana === 'roadmap' && String(w) !== caja.dataset.anchoPintado) pintarRoadmap(); };
     if (typeof ResizeObserver === 'function') new ResizeObserver(revisarAncho).observe(caja);
     window.addEventListener('resize', revisarAncho);
+    window.addEventListener('hashchange', cerrarPopHito);   // U-04 (v0.79.0, revisor): «Atrás» cambia de pantalla sin repintar el gantt y la hoja fija se quedaba encima
     $('btnRoadmapFull').addEventListener('click', () => roadmapFull());
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('roadmapLinea').classList.contains('is-full')) roadmapFull(false); });
 }
@@ -520,7 +549,7 @@ export function pintarReportes() {
     for (const p of ordenarProyectos(ps)) {
         const ap = avance(tareasDe(p, estado.tareas), columnasDe(p)); const d = diasPara(p.Vence);
         const fila = el('button', 'rep-fila'); fila.type = 'button'; fila.dataset.repP = String(p.id); fila.addEventListener('click', () => irAHash(`#p/${p.Clave}`));
-        const eti = el('span', 'eti'); eti.appendChild(iconoEquipo(equipoDe(p), 'sm')); eti.appendChild(el('span', 't', p.Title)); eti.appendChild(el('span', 'm', p.Vence ? (d < 0 ? `venció hace ${-d} d` : `vence ${fechaCorta(p.Vence)}`) : 'sin fin de frente')); fila.appendChild(eti);
+        const eti = el('span', 'eti'); eti.appendChild(iconoEquipo(equipoDe(p), 'sm')); eti.appendChild(el('span', 't', p.Title)); eti.appendChild(el('span', 'm', p.Vence ? fraseVence(d, 'corta', fechaCorta(p.Vence)) : 'sin fin de frente')); fila.appendChild(eti);   // C-04 (v0.79.0): ahora tambien dice «vence hoy»
         fila.appendChild(barraSeg(ap)); pp.appendChild(fila);
     }
     if (!ps.length) pp.appendChild(el('p', 'vacio', 'Sin proyectos activos.'));
@@ -555,7 +584,7 @@ export function pintarReportes() {
         const cab = el('div', 'grupo'); cab.textContent = `${p.Title} · ${vs.length}`; tv.appendChild(cab);
         for (const t of vs.sort((x, y) => String(x.Vence).localeCompare(String(y.Vence)))) {
             const b = el('button', 'it clic'); b.type = 'button'; b.dataset.repV = String(t.id); b.addEventListener('click', () => irTarjeta(t));
-            const c = el('div'); const cab2 = el('div', 'cab'); cab2.appendChild(el('span', 'q', t.Asignado ? nombreDe(t.Asignado, estado.roles).split(' ')[0] : 'sin dueño')); cab2.appendChild(el('span', 'd is-danger', `hace ${-diasPara(t.Vence)} d`)); c.appendChild(cab2); c.appendChild(el('div', 'f', t.Title)); b.appendChild(c); tv.appendChild(b);
+            const c = el('div'); const cab2 = el('div', 'cab'); cab2.appendChild(el('span', 'q', t.Asignado ? nombreDe(t.Asignado, estado.roles).split(' ')[0] : 'sin dueño')); cab2.appendChild(el('span', 'd is-danger', fraseVence(diasPara(t.Vence), 'chip'))); c.appendChild(cab2); c.appendChild(el('div', 'f', t.Title)); b.appendChild(c); tv.appendChild(b);   // C-04 (v0.79.0, revisor)
         }
     }
     if (!venc.length) tv.appendChild(el('p', 'vacio', 'Nada vencido.'));

@@ -208,14 +208,38 @@ export function proximos(tareas, n = 6, hoy = new Date()) {
         .slice(0, n);
 }
 
+/**
+ * C-04 (v0.79.0): la clase y la frase del reloj de una fecha viven AQUI, una vez. Antes estaban reescritas a mano en
+ * vistas.js (x5) y app.js (x4) y ya se habian separado solas (un «vencio» sin acento en un title, un «vence hoy» que
+ * faltaba en Reportes). `d` es lo que devuelve diasPara(): null sin fecha.
+ * claseVence: 'danger' vencida · 'warn' vence hoy o en `pronto` dias · `lejos` (lo que pinte cada sitio: idle/info/brand)
+ * · 'idle' sin fecha.
+ */
+export function claseVence(d, pronto = 7, lejos = 'idle') {
+    if (d === null || d === undefined) return 'idle';
+    return d < 0 ? 'danger' : d <= pronto ? 'warn' : lejos;
+}
+/**
+ * fraseVence: la frase segun la `forma` del sitio (`fecha` es la fecha ya formateada, dd/mm/aa, porque fechaCorta vive en comun.js):
+ *   'corta' → «venció hace 3 d» · «vence hoy» · «vence 20/09/26»
+ *   'larga' → «venció hace 3 d (12/09/26)» · «vence hoy» · «vence 20/09/26 (en 4 d)»   (el title de un rombo)
+ *   'dias'  → «venció hace 3 d» · «vence hoy» · «vence en 4 d»                       (el chip del reloj, sin fecha)
+ *   'chip'  → «hace 3 d» · «hoy» · «en 4 d»                                          (el chip de «Fines de frente»)
+ * Sin fecha devuelve '' — el sitio decide que decir («sin fin de frente»).
+ */
+export function fraseVence(d, forma = 'corta', fecha = '') {
+    if (d === null || d === undefined) return '';
+    if (forma === 'chip') return d < 0 ? `hace ${-d} d` : d === 0 ? 'hoy' : `en ${d} d`;
+    if (d === 0) return 'vence hoy';
+    if (d < 0) return `venció hace ${-d} d` + (forma === 'larga' && fecha ? ` (${fecha})` : '');
+    if (forma === 'dias') return `vence en ${d} d`;
+    return `vence ${fecha}` + (forma === 'larga' ? ` (en ${d} d)` : '');
+}
 /** Clase de estado de una fecha de vencimiento: 'danger' vencida · 'warn' vence en `pronto` dias · 'idle' lejos · null sin fecha o hecha. */
 export function estadoVence(tarea, pronto = 7, hoy = new Date()) {
     if (!tarea || tarea.Columna === 'hecho') return null;
     const d = diasPara(tarea.Vence, hoy);
-    if (d === null) return null;
-    if (d < 0) return 'danger';
-    if (d <= pronto) return 'warn';
-    return 'idle';
+    return d === null ? null : claseVence(d, pronto);
 }
 
 /**

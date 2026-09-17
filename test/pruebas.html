@@ -228,7 +228,9 @@
 
 <script type="module">
 import { diasPara, diaDe } from '../reglas.js';
+import { estado as ESTADO } from '../comun.js';   // U-04 (v0.79.0): forzar «tactil» (headless no cambia de viewport)
 const R = window.__PRUEBAS;
+const TACTIL = matchMedia('(hover: none)').matches;   // U-04 (v0.79.0): a 390 el driver emula touch y el rombo abre la hoja, no la tarjeta
 const DB = window.__DB;
 const params = new URLSearchParams(location.search);
 const ROL = params.get('rol') || 'gerencia';
@@ -1465,13 +1467,41 @@ try {
                 R.ok('v0.22.0: el frente con fecha lleva la raya de fin con su dd/mm, y la barra dice solo el avance', (!!filas('proyectos').find(p => p.id === proyectoId).fields.Vence) === !!fila.querySelector('.g-fin') && (!fila.querySelector('.g-fin') || /^\d\d\/\d\d$/.test(fila.querySelector('.g-fin b').textContent)) && (fila.querySelector('.g-barra').classList.contains('is-corta') ? !fila.querySelector('.g-txt') : /^\d+%$/.test(fila.querySelector('.g-barra .g-txt').textContent)) && / \d+% · \d+ hito/.test(fila.querySelector('.g-barra').title), `fin=${fila.querySelector('.g-fin b')?.textContent} txt=${fila.querySelector('.g-txt')?.textContent} title=${fila.querySelector('.g-barra').title}`);
                 R.ok('v0.22.0: la raya de hoy lleva etiqueta «hoy · d mes» en la cabecera, los meses alternan fondo y la leyenda dice las 4 clases con la N de CONFIG', /^hoy · \d{1,2} [a-z]{3}$/.test(document.querySelector('#roadmapCaja .g-cab .g-hoy b')?.textContent || '') && /linear-gradient/.test(document.querySelector('#roadmapCaja .gantt').style.getPropertyValue('--bandas')) && document.querySelectorAll('#roadmapLeyenda .g-rombo-mini').length === 4 && $('roadmapLeyenda').textContent.includes('en 7 días') && !$('roadmapLeyenda').classList.contains('oculto'));
                 const rV = rombos.find(r => r.dataset.hito === String(tHechaVieja.id));
-                rV.click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde el rombo');
+                rV.click(); if (TACTIL) { await esperar(() => document.getElementById('gPop'), 'hoja del rombo'); document.querySelector('#gPop .g-pop-it').click(); } await esperar(() => $('dlgTarea').open, 'tarjeta desde el rombo');   // U-04: en tactil pasa por la hoja
                 R.ok('v0.22.0: el rombo suelto abre SU tarjeta', $('tTitulo').textContent === 'Hito hecho hace 20 días' && location.hash.endsWith(`/t/${tHechaVieja.id}`));
                 clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
                 irHash('#roadmap'); await esperar(() => visible('p-roadmap') && document.querySelector('#roadmapCaja .g-rombo.is-grupo'), 'roadmap');
-                document.querySelector(`#roadmapCaja .g-fila:has([data-roadmap-barra="${proyectoId}"]) .g-rombo.is-grupo`).click(); await esperar(() => visible('tab-roadmap') && location.hash === `#p/${CLAVE}/roadmap`, 'roadmap del frente desde el grupo');
+                document.querySelector(`#roadmapCaja .g-fila:has([data-roadmap-barra="${proyectoId}"]) .g-rombo.is-grupo`).click(); if (TACTIL) { await esperar(() => document.getElementById('gPop'), 'hoja del grupo'); document.querySelector('#gPop [data-pop-frente]').click(); } await esperar(() => visible('tab-roadmap') && location.hash === `#p/${CLAVE}/roadmap`, 'roadmap del frente desde el grupo');
                 R.ok('v0.22.0: el grupo «+N» abre la pestaña Roadmap del frente, donde cada tarjeta tiene su carril', location.hash === `#p/${CLAVE}/roadmap` && visible('tab-roadmap'));
                 irHash('#roadmap'); await esperar(() => visible('p-roadmap') && document.querySelector('#roadmapCaja .g-rombo'), 'roadmap');
+                // U-04 (v0.79.0): en tactil el toque sobre un rombo abre la hoja #gPop con lo que decia el title; el «+N» lista sus tarjetas
+                ESTADO.tactil = true;
+                try {
+                    const rG = document.querySelector(`#roadmapCaja .g-fila:has([data-roadmap-barra="${proyectoId}"]) .g-rombo.is-grupo`); const idsG = rG.dataset.hito.split(',');
+                    rG.click(); await esperar(() => document.getElementById('gPop'), 'hoja del grupo');
+                    const pop = document.getElementById('gPop'); const its = [...pop.querySelectorAll('.g-pop-it')];
+                    R.ok('U-04 (v0.79.0): en táctil el «+N» NO navega: abre una hoja inferior con una fila por tarjeta (nombre completo · estado · quién) y el botón al roadmap del frente', location.hash === '#roadmap' && pop.getAttribute('role') === 'dialog' && its.length === idsG.length && its.every(b => idsG.includes(b.dataset.popT) && b.querySelector('b').textContent.length > 3 && /hecha|vence|venció/.test(b.querySelector('.m').textContent)) && !!pop.querySelector('[data-pop-frente]') && !!pop.querySelector('[data-pop-cerrar]') && getComputedStyle(pop).position === 'fixed', `${its.length} filas / ${idsG.length} ids · ${pop.textContent.slice(0, 80)}`);
+                    R.ok('U-04 (v0.79.0): la fila de la tarjeta que vence hoy dice su estado completo y quién', (() => { const b = its.find(x => x.dataset.popT === String(tHoy.id)); return !!b && b.querySelector('b').textContent === tHoy.fields.Title && /vence hoy/.test(b.querySelector('.m').textContent) && b.querySelector('.m').textContent.includes(' · '); })(), its.map(b => b.querySelector('.m').textContent).join(' | '));
+                    pop.querySelector('[data-pop-cerrar]').click(); await esperar(() => !document.getElementById('gPop'), 'hoja cerrada');
+                    R.ok('U-04 (v0.79.0): «Cerrar» quita la hoja sin navegar', !document.getElementById('gPop') && location.hash === '#roadmap');
+                    rG.click(); await esperar(() => document.getElementById('gPop'), 'hoja del grupo 2');
+                    document.querySelector('#gPop [data-pop-frente]').click(); await esperar(() => visible('tab-roadmap') && location.hash === `#p/${CLAVE}/roadmap`, 'roadmap del frente desde la hoja');
+                    R.ok('U-04 (v0.79.0): «Ver el roadmap del frente» abre el roadmap del frente y cierra la hoja', location.hash === `#p/${CLAVE}/roadmap` && !document.getElementById('gPop'));
+                    irHash('#roadmap'); await esperar(() => visible('p-roadmap') && document.querySelector('#roadmapCaja .g-rombo'), 'roadmap');
+                    const rV2 = [...document.querySelectorAll('#roadmapCaja .g-rombo')].find(r => r.dataset.hito === String(tHechaVieja.id));
+                    rV2.click(); await esperar(() => document.getElementById('gPop'), 'hoja del rombo suelto');
+                    R.ok('U-04 (v0.79.0): el rombo suelto abre una hoja de UNA fila, sin el botón del frente', document.querySelectorAll('#gPop .g-pop-it').length === 1 && !document.querySelector('#gPop [data-pop-frente]') && document.querySelector('#gPop .g-pop-it b').textContent === 'Hito hecho hace 20 días');
+                    document.querySelector('#gPop .g-pop-it').click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde la hoja');
+                    R.ok('U-04 (v0.79.0): la fila abre SU tarjeta y la hoja se va', $('tTitulo').textContent === 'Hito hecho hace 20 días' && !document.getElementById('gPop'));
+                    clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+                    irHash('#roadmap'); await esperar(() => visible('p-roadmap') && document.querySelector('#roadmapCaja .g-rombo'), 'roadmap');
+                } finally { delete ESTADO.tactil; }
+                [...document.querySelectorAll('#roadmapCaja .g-rombo')].find(r => r.dataset.hito === String(tHechaVieja.id)).click();
+                if (TACTIL) { await esperar(() => document.getElementById('gPop'), 'hoja por media query'); R.ok('U-04 (v0.79.0): con (hover: none) real —el driver a 390— el rombo abre la hoja sin forzar estado.tactil', !!document.getElementById('gPop') && !$('dlgTarea').open); document.querySelector('#gPop [data-pop-cerrar]').click(); await esperar(() => !document.getElementById('gPop'), 'hoja cerrada'); }
+                else { await esperar(() => $('dlgTarea').open, 'tarjeta directa'); R.ok('U-04 (v0.79.0): sin táctil (escritorio) el rombo sigue abriendo directo, sin hoja', !document.getElementById('gPop') && $('dlgTarea').open); clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada'); }
+                irHash('#roadmap'); await esperar(() => visible('p-roadmap') && document.querySelector('#roadmapCaja .g-rombo'), 'roadmap');
+                // U-06 (v0.79.0): bajo 720 px la caja del gantt toma el scroll vertical (max-height) para que .g-cab sticky tenga contra que pegarse
+                R.ok('U-06 (v0.79.0): la hoja de estilo trae, bajo 720 px, .gantt-caja con overflow: auto y max-height en dvh (el sticky top: 0 de la cabecera necesita ese scrollport)', (() => { for (const h of document.styleSheets) { let rs; try { rs = h.cssRules; } catch (e) { continue; } for (const r of rs) if (r.media && /max-width:\s*720px/.test(r.media.mediaText)) for (const q of r.cssRules) if (q.selectorText === '.gantt-caja' && q.style.overflow === 'auto' && /dvh/.test(q.style.maxHeight)) return true; } return false; })() && getComputedStyle(document.querySelector('#roadmapCaja .g-cab')).position === 'sticky' && getComputedStyle(document.querySelector('#roadmapCaja .g-cab')).top === '0px');
             }
             // v0.26.0: la linea de tiempo a pantalla completa —clase is-full en la tarjeta, boton con aria-pressed, Esc la cierra y la barra sigue ahi—
             $('btnRoadmapFull').click();
