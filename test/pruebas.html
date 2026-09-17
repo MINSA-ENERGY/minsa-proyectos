@@ -1361,6 +1361,9 @@ try {
             const pc = filas('proyectos')[0];
             R.ok('proyecto cerrado con sello', pc.fields.CerradoPor === YO && !!pc.fields.CerradoEl && actividad('cerrar-proyecto').length === 1);
             R.ok('cerrado: sin Nueva tarea y sale de activos', $('btnNuevaTarea').disabled && $('pEstado').textContent === 'Cerrado');   // v0.12.0: el chip «Cerrado» donde iba el %
+            tab('chat'); await esperar(() => visible('tab-chat'), 'chat del cerrado'); await dormir(20);
+            R.ok('v0.84.0 (C-05): el chat de un proyecto CERRADO esconde el redactor y dice que la conversación queda como registro', $('formChat').classList.contains('oculto') && !$('chatSoloLectura').classList.contains('oculto') && $('chatSoloLectura').textContent.includes('queda como registro'), $('chatSoloLectura').textContent);
+            tab('tablero'); await esperar(() => visible('tab-tablero'), 'tablero');
             pestana('proyectos'); await esperar(() => $('listaCerrados').textContent.includes('LAU ASEA'), 'en cerrados');
             R.ok('Proyectos: el cerrado aparece en «cerrados» y no en activos', !$('listaProyectos').textContent.includes('LAU ASEA'));
             { const fc = document.querySelector('#listaCerrados .pficha'); R.ok('v0.25.0: el cerrado lleva la hoja de calendario en verde (is-cerrado) con el día de su cierre y las tres cifras', !!fc && fc.classList.contains('is-cerrado') && /^\d{1,2}$/.test(fc.querySelector('.cal .dia').textContent) && !fc.querySelector('.cal').classList.contains('sin') && fc.querySelectorAll('.stats b').length === 3, fc ? fc.className + ' · ' + fc.querySelector('.cal').textContent : 'sin renglón'); }
@@ -1394,9 +1397,10 @@ try {
             const yoAlias = 'persona';   // nombreDe(YO) = «Persona de Prueba» -> alias «persona»
             // Un comentario ajeno que me menciona, sembrado directo: es lo que Inicio tiene que enseñar en «Te mencionaron».
             filas('actividad').push({ id: DB.siguienteId++, fields: { Title: `@${yoAlias} ¿ya viste el oficio?`, Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date(Date.now() - 2 * 86400000).toISOString(), ProyectoId: proyectoId } });   // hace 2 días: dentro de mencionesDias
+            filas('actividad').push({ id: DB.siguienteId++, fields: { Title: 'esto fue ayer', Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date(Date.now() - 86400000).toISOString(), ProyectoId: proyectoId } });   // C-05 (v0.84.0): para el rótulo «ayer»
             await recargarYEsperar();
             await abrirLau(); await esperar(() => visible('p-proyecto'), 'proyecto');
-            const notasAntes = filas('actividad').filter(a => a.fields.Accion === 'comentar' && Number(a.fields.ProyectoId) === proyectoId).length;
+            let notasAntes = filas('actividad').filter(a => a.fields.Accion === 'comentar' && Number(a.fields.ProyectoId) === proyectoId).length;
             R.ok('v0.8.0: la pestaña Chat existe y cuenta los comentarios del proyecto (notas de tarjeta incluidas)', !!document.querySelector('.tab[data-tab="chat"]') && !$('nChatTab').hidden && $('nChatTab').textContent === String(notasAntes), `${$('nChatTab').textContent}/${notasAntes}`);
             R.ok('v0.8.0: la pestaña Documentos cuenta las ligas', $('nDocsTab').textContent === String(filas('ligas').filter(l => Number(l.fields.ProyectoId) === proyectoId).length));
             tab('chat'); await esperar(() => visible('tab-chat'), 'chat');
@@ -1405,6 +1409,23 @@ try {
             R.ok('v0.8.0: la nota de una tarjeta sale en el hilo con su chip que la nombra', !!document.querySelector('#chatHilo .msg .ref[data-tarjeta]') && document.querySelector('#chatHilo .msg .ref[data-tarjeta] span').textContent.length > 0);
             R.ok('v0.8.0: la mención a mí se pinta como chip «is-yo» con el nombre en el title', !!document.querySelector('#chatHilo .mencion.is-yo') && document.querySelector('#chatHilo .mencion.is-yo').title === 'Persona de Prueba');
             R.ok('v0.8.0: hay separadores de día y el redactor está a la vista para quien escribe', document.querySelectorAll('#chatHilo .dia').length >= 1 && !$('formChat').classList.contains('oculto') && $('chatSoloLectura').classList.contains('oculto'));
+            // C-05 (v0.84.0): el rótulo de día dice «ayer» para lo de ayer y «<día> <n> <mes>» para lo de antier; el chip de una tarjeta borrada queda deshabilitado.
+            { const dias = [...document.querySelectorAll('#chatHilo .dia')].map(d => d.textContent);
+              R.ok('v0.84.0 (C-05): el rótulo de día del hilo dice «ayer» y, para antier, «<día> <n> <mes>»', dias.includes('ayer') && dias.some(d => /^(lunes|martes|miércoles|jueves|viernes|sábado|domingo) \d{1,2} (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)/.test(d)), JSON.stringify(dias));
+              const refB = document.querySelector('#chatHilo .msg .ref:disabled');
+              R.ok(`v0.84.0 (C-05): la nota de una tarjeta borrada sale con chip «tarjeta borrada» deshabilitado (${gerencia ? 'gerencia la borró' : 'colaborador: no aplica'})`, !gerencia || (!!refB && refB.textContent === 'tarjeta borrada' && refB.title === 'La tarjeta ya no existe')); }
+            // C-05 (v0.84.0) + C-01 (v0.83.0): el hilo desbordado conserva el scroll al refrescar y no marca visto lo que no se vio.
+            { const chat = await import('../chat.js'), mod = await import('../comun.js'); const hilo = $('chatHilo'); const pAb = mod.estado.proyectoAbierto;
+              hilo.style.maxHeight = '120px'; hilo.style.height = '120px';
+              hilo.scrollTop = hilo.scrollHeight; chat.pintarChat(pAb);
+              R.ok('v0.84.0 (C-05): con el hilo desbordado y al fondo, repintar aterriza al fondo', hilo.scrollHeight > hilo.clientHeight && hilo.scrollTop + hilo.clientHeight >= hilo.scrollHeight - 40, `${hilo.scrollTop}/${hilo.scrollHeight}/${hilo.clientHeight}`);
+              hilo.scrollTop = 0; const vistoAntes = mod.chatVistoHasta(pAb.id);
+              filas('actividad').push({ id: DB.siguienteId++, fields: { Title: 'llegó mientras leías arriba', Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date().toISOString(), ProyectoId: proyectoId } }); notasAntes++;
+              await recargarYEsperar(); await dormir(30);
+              R.ok('v0.84.0 (C-05) / C-01: leyendo arriba, el refresco conserva el scroll en 0 y NO sube la marca de visto', hilo.scrollTop === 0 && !!vistoAntes && mod.chatVistoHasta(pAb.id) === vistoAntes, `${hilo.scrollTop} · ${mod.chatVistoHasta(pAb.id)} vs ${vistoAntes}`);
+              hilo.scrollTop = hilo.scrollHeight; hilo.dispatchEvent(new Event('scroll')); await dormir(20);
+              R.ok('v0.83.0 (C-01): llegar al fondo por scroll sube la marca de visto', mod.chatVistoHasta(pAb.id) > vistoAntes, mod.chatVistoHasta(pAb.id));
+              hilo.style.maxHeight = ''; hilo.style.height = ''; chat.pintarChat(pAb); }
             // Selector de menciones: teclear «@col» ofrece a Colega Demo; Enter lo mete como «@colega ».
             poner('chatTexto', 'favor de checar @col'); $('chatTexto').setSelectionRange(20, 20); $('chatTexto').dispatchEvent(new Event('input', { bubbles: true })); await dormir(30);
             R.ok('v0.8.0: al teclear @col aparece el selector con Colega Demo (y sin uno mismo)', !$('chatSelector').classList.contains('oculto') && !!document.querySelector('#chatSelector [data-mencionar="colega@example.invalid"]') && !document.querySelector(`#chatSelector [data-mencionar="${YO}"]`));
@@ -1416,6 +1437,7 @@ try {
             clic('chatEnviar'); await esperar(() => document.querySelectorAll('#chatHilo .msg').length === notasAntes + 1, 'comentario enviado');
             const com = filas('actividad').filter(a => a.fields.Accion === 'comentar').pop();
             R.ok('v0.8.0: el comentario es un renglón comentar del proyecto SIN tarjeta, con quién y cuándo', com.fields.Title === 'favor de checar @colega' && Number(com.fields.ProyectoId) === proyectoId && com.fields.TareaId === undefined && com.fields.Quien === YO && !!com.fields.Cuando, JSON.stringify(com.fields));
+            R.ok('v0.84.0 (C-05): el último rótulo de día del hilo es «hoy»', [...document.querySelectorAll('#chatHilo .dia')].pop().textContent === 'hoy');
             R.ok('v0.8.0: se pinta abajo, como mío, con la mención a Colega como chip y el redactor vacío', [...document.querySelectorAll('#chatHilo .msg')].pop().classList.contains('is-mio') && !!document.querySelector('#chatHilo .msg:last-child .mencion[data-mencion="colega@example.invalid"]') && $('chatTexto').value === '' && $('nChatTab').textContent === String(notasAntes + 1));
             // Ctrl+Enter envía; el botón «@» mete la arroba y abre el selector.
             poner('chatTexto', 'segundo mensaje'); $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true }));
@@ -1423,6 +1445,19 @@ try {
             R.ok('v0.8.0: Ctrl+Enter envía y dos míos seguidos se agrupan (el segundo sin avatar ni cabecera)', [...document.querySelectorAll('#chatHilo .msg')].pop().classList.contains('is-seguido') && !document.querySelector('#chatHilo .msg:last-child .cab'));
             clic('chatArroba'); await dormir(30);
             R.ok('v0.8.0: el botón «@» escribe la arroba y abre el selector con toda la gente', $('chatTexto').value === '@' && !$('chatSelector').classList.contains('oculto') && document.querySelectorAll('#chatSelector button').length >= 2);
+            $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })); await dormir(10);
+            R.ok('v0.84.0 (C-05): ↓ marca la segunda opción (is-on, aria-selected, aria-activedescendant)', document.querySelectorAll('#chatSelector button')[1].classList.contains('is-on') && document.querySelectorAll('#chatSelector button')[1].getAttribute('aria-selected') === 'true' && $('chatTexto').getAttribute('aria-activedescendant') === 'chatSelector-op-1');
+            $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true, cancelable: true })); await dormir(10);
+            R.ok('v0.84.0 (C-05): ↑ vuelve a la primera', document.querySelectorAll('#chatSelector button')[0].classList.contains('is-on') && $('chatTexto').getAttribute('aria-activedescendant') === 'chatSelector-op-0');
+            // Enter y Tab con la SEGUNDA marcada meten ESA persona (s.opciones[s.i] con i ≠ 0: la rama que un refactor rompe callado; revisor 17-sep).
+            { const aliasSeg = document.querySelectorAll('#chatSelector button')[1].querySelector('.a').textContent;
+              $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })); $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await dormir(20);
+              R.ok('v0.84.0 (C-05): ↓ + Enter mete la SEGUNDA persona (no la primera) y cierra el selector', $('chatTexto').value === aliasSeg + ' ' && $('chatSelector').classList.contains('oculto'), JSON.stringify($('chatTexto').value));
+              poner('chatTexto', ''); clic('chatArroba'); await dormir(30);
+              $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true, cancelable: true })); $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true })); await dormir(20);
+              R.ok('v0.84.0 (C-05): ↓ + Tab elige igual que Enter', $('chatTexto').value === aliasSeg + ' ' && $('chatSelector').classList.contains('oculto'), JSON.stringify($('chatTexto').value));
+              poner('chatTexto', ''); clic('chatArroba'); await dormir(30); }   // de vuelta al «@» con el selector abierto, como lo esperan las pruebas de abajo
+            R.ok('v0.8.0 (bis): el selector sigue abierto tras el teclado', $('chatTexto').value === '@' && !$('chatSelector').classList.contains('oculto') && document.querySelectorAll('#chatSelector button').length >= 2);
             $('chatTexto').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await dormir(20);
             R.ok('v0.8.0: Esc cierra el selector sin borrar el texto', $('chatSelector').classList.contains('oculto') && $('chatTexto').value === '@');
             clic('chatArroba'); await dormir(30);
@@ -1700,6 +1735,9 @@ try {
             R.ok('v0.42.0: el renglón abre el hilo del frente DENTRO de Mensajes (#mensajes/f/<clave>), alojando el mismo #tab-chat, y la insignia se apaga al leerlo', visible('p-mensajes') && visible('tab-chat') && $('tab-chat').parentNode === $('mensajesHilo') && $('nMensajes').hidden && $('chatHilo').textContent.includes('mensaje nuevo para la bandeja') && document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`).classList.contains('is-on'), location.hash);
             R.ok('v0.83.0 (U-01): el hilo dentro de Mensajes lleva cabecera con el icono de la unidad y el título del frente, que liga a #p/<clave>', visible('mensajesTitulo') && !!$('mensajesTitulo').querySelector('.msj-titulo-frente .eqi') && $('mensajesTitulo').querySelector('.msj-titulo-frente .t').textContent === filas('proyectos').find(r => r.id === proyectoId).fields.Title && $('mensajesTitulo').querySelector('a').getAttribute('href') === `#p/${CLAVE}`, $('mensajesTitulo').textContent);
             R.ok('v0.83.0 (C-09): el #chatHilo ya no lleva su estado en dataset/expandos (vive en chat.js)', !$('chatHilo').dataset.proyecto && !$('chatHilo').dataset.pintado && $('chatHilo')._nuevos === undefined && $('chatTexto')._selector === undefined);
+            clic('mensajesVolver'); await esperar(() => location.hash === '#mensajes' && !visible('mensajesHilo'), '← Bandeja'); await dormir(20);
+            R.ok('v0.84.0 (C-05): «← Bandeja» vuelve a #mensajes, esconde el hilo y la cabecera, y ningún renglón queda marcado', location.hash === '#mensajes' && !visible('mensajesHilo') && !visible('mensajesTitulo') && !document.querySelector('#mensajesLista .msg-proy.is-on'));
+            document.querySelector(`#mensajesLista [data-mensajes="${proyectoId}"]`).click(); await esperar(() => visible('tab-chat') && location.hash === `#mensajes/f/${CLAVE}`, 'hilo de vuelta'); await dormir(30);
             R.ok('v0.43.0: la bandeja va en dos secciones —Frentes · Sin conversación (plegada)—; Personas salió (solo chat por frente)', [...document.querySelectorAll('#mensajesLista .msj-sec')].map(d => d.dataset.sec).join(',') === 'frentes,sin' && !document.querySelector('#mensajesLista .msj-sec[data-sec="sin"]').open && !document.querySelector('#mensajesLista [data-persona]') && !$('mensajesFicha'));
             // v0.49.0 (Carlos, 15-sep; artifact C8meacEE, opcion B): ni la bandeja ni el hilo llevan avatar — el renglon conserva el icono chico de la unidad en el titulo y el preview nombra a quien escribio.
             R.ok('v0.49.0: los renglones de la bandeja no traen avatar ni icono grande (solo el icono chico de la unidad dentro del título) y el hilo alojado tampoco', document.querySelectorAll('#mensajesLista .msg-proy').length > 0 && !document.querySelector('#mensajesLista .msg-proy > .av') && [...document.querySelectorAll('#mensajesLista .msg-proy')].every(b => b.firstElementChild.classList.contains('cuerpo') && !!b.querySelector('.t .eqi')) && document.querySelectorAll('#chatHilo .msg').length > 0 && !document.querySelector('#chatHilo .msg .av, #chatHilo .msg .av-hueco') && [...document.querySelectorAll('#chatHilo .msg')].every(m => m.firstElementChild.classList.contains('cuerpo')), `${document.querySelectorAll('#mensajesLista .msg-proy').length} renglones · ${document.querySelectorAll('#chatHilo .msg').length} mensajes`);

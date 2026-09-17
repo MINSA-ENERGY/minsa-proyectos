@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.83.0';
+export const VERSION = '0.84.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -623,7 +623,11 @@ export async function borrarComentario(c, p) {
 const LLAVE_VISTO = pid => `proy.chatVisto.${pid}`;
 const LLAVE_VISTO_INICIO = 'proy.inicioVisto';
 const leerLocal = k => { try { return localStorage.getItem(k) || ''; } catch (_) { return ''; } };
-const guardarLocal = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {} };
+let vistoLocalVersion = 0;   // C-04: cada escritura local invalida el indice de nuevos por proyecto
+const guardarLocal = (k, v) => { vistoLocalVersion++; try { localStorage.setItem(k, v); } catch (_) {} };
+// ...y la escritura de OTRA pestaña del mismo navegador llega por `storage` (revisor 17-sep: sin esto la insignia contaba «nuevos»
+// ya leidos en la otra pestaña hasta el siguiente refresco). El evento no se dispara en la pestaña que escribe.
+if (typeof window !== 'undefined') window.addEventListener('storage', e => { if (e.key && e.key.startsWith('proy.')) vistoLocalVersion++; });
 /**
  * v0.15.0: la marca es COMPARTIDA entre los dispositivos de la misma persona. Vive en su renglon de
  * PROY_Roles (columna Visto, JSON) y localStorage queda como cache: se lee la fecha mayor de las dos y se
@@ -687,6 +691,31 @@ export function comentariosNuevos(pid, desde = chatVistoHasta(pid)) {
     const yo = String(estado.cuenta && estado.cuenta.username || '').toLowerCase();
     return comentariosDe(pid).filter(c => String(c.Cuando || '') > desde && String(c.Quien || '').toLowerCase() !== yo);
 }
+// C-04 (mensajes, 17-sep): Map pid -> cuantos comentarios nuevos, calculado UNA vez por pintada con el patron de indice():
+// pintarMensajes lo preguntaba 3 veces por proyecto y pintarInsignias otra en toda pantalla, y cada pregunta leia localStorage,
+// parseaba el Visto compartido y filtraba+ordenaba toda la actividad. La llave: identidad y largo de la actividad, la cuenta, la
+// celda Visto de mi renglon y el contador de escrituras locales — todo lo que mueve el resultado. Cuenta, no lista: el hilo,
+// que necesita los ids (la raya «nuevos»), sigue con comentariosNuevos al entrar.
+let idxNuevos = { lista: null, n: -1, llave: '', mapa: new Map() };
+export function nuevosPorProyecto() {
+    const lista = estado.actividad; const r = miRenglonRol();
+    const llave = `${vistoLocalVersion}|${String(estado.cuenta && estado.cuenta.username || '')}|${r ? String(r.Visto || '') : ''}`;
+    if (idxNuevos.lista !== lista || idxNuevos.n !== lista.length || idxNuevos.llave !== llave) {
+        idxNuevos = { lista, n: lista.length, llave, mapa: new Map() };
+        const yo = String(estado.cuenta && estado.cuenta.username || '').toLowerCase();
+        const comp = vistoCompartido().chat, desde = new Map();
+        for (const a of lista) {
+            if (a.Accion !== 'comentar' || String(a.Quien || '').toLowerCase() === yo) continue;
+            const pid = Number(a.ProyectoId); if (!pid) continue;
+            if (!desde.has(pid)) { const local = leerLocal(LLAVE_VISTO(pid)), c = comp[String(pid)] || ''; desde.set(pid, c > local ? c : local); }
+            const d = desde.get(pid); if (!d || !(String(a.Cuando || '') > d)) continue;
+            idxNuevos.mapa.set(pid, (idxNuevos.mapa.get(pid) || 0) + 1);
+        }
+    }
+    return idxNuevos.mapa;
+}
+/** Cuantos comentarios nuevos tiene el proyecto (del indice de arriba). */
+export const nuevosDe = pid => nuevosPorProyecto().get(Number(pid)) || 0;
 /**
  * El hilo de un proyecto (chat, v0.8.0): TODOS los renglones Accion=comentar del proyecto —los del
  * proyecto entero (sin TareaId) y las notas de sus tarjetas—, del mas viejo al mas nuevo. Es una sola

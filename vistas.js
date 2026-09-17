@@ -7,7 +7,7 @@
 
 import { CONFIG } from './config.js';
 import { tareasDe, avance, avanceGlobal, estadoVence, claseVence, fraseVence, diasPara, nombreDe, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
-import { $, estado, activos, visibles, nombreEquipoFiltrado, el, boton, chip, fechaCorta, fechaHora, fechaBandeja, porId, proyectoPorClave, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, columnasDeTarea, avisar } from './comun.js';
+import { $, estado, activos, visibles, nombreEquipoFiltrado, el, boton, chip, fechaCorta, fechaHora, fechaBandeja, porId, proyectoPorClave, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, nuevosDe, verboComentario, opciones, columnasDeTarea, avisar } from './comun.js';
 import { pintarChat } from './chat.js';   // v0.42.0: Mensajes pinta el hilo del frente elegido en su propia columna
 import { tablaDocs, filaRaiz, filasDeExpediente, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden; v0.36.0: y el mismo arbol
 
@@ -366,7 +366,7 @@ export function pintarMensajes() {
         return d;
     };
     const renglon = (p, ultimo) => {
-        const nuevos = comentariosNuevos(p.id).length; nuevosTotal += nuevos;
+        const nuevos = nuevosDe(p.id); nuevosTotal += nuevos;   // C-04: del indice, una vez por pintada
         const on = sel && sel.t === 'f' && sel.k === p.Clave;
         const b = el('button', 'msg-proy' + (nuevos ? ' is-nuevo' : '') + (ultimo ? '' : ' is-vacio') + (on ? ' is-on' : '')); b.type = 'button'; b.dataset.mensajes = String(p.id);
         b.setAttribute('aria-current', on ? 'true' : 'false');
@@ -392,7 +392,7 @@ export function pintarMensajes() {
     const sinChat = ordenarProyectos(activos().filter(p => !conChatIds.has(p.id)));   // C-07: una vez, para la seccion y el rail
     const sin = sinChat.filter(p => coincide(q, p.Title, p.Clave));
     // el conteo de nuevos es de TODOS los frentes con chat, no solo los que pasan el buscador
-    for (const x of ult) if (!con.some(y => y.p.id === x.proyectoId) && porId(estado.proyectos, x.proyectoId)) nuevosTotal += comentariosNuevos(x.proyectoId).length;
+    for (const x of ult) if (!con.some(y => y.p.id === x.proyectoId) && porId(estado.proyectos, x.proyectoId)) nuevosTotal += nuevosDe(x.proyectoId);
     lista.appendChild(seccion('Frentes', con.length, true, con.map(x => renglon(x.p, x.ultimo)), 'frentes', 'Ningún frente tiene conversación todavía: abre uno en «Sin conversación».'));
     lista.appendChild(seccion('Sin conversación', sin.length, !!q, sin.map(p => renglon(p, null)), 'sin', 'Todos los frentes activos ya tienen conversación.'));
     // v0.56.0 (Carlos, 15-sep; artifact MHCmeJw5, opción C): la bandeja PLEGADA es un botón por frente —icono de la unidad,
@@ -400,7 +400,7 @@ export function pintarMensajes() {
     // no la filtra: plegada no hay buscador a la vista, y esconder un frente ahí sería esconderlo sin avisar.
     const rail = $('mensajesRailFrentes'); rail.textContent = '';
     const frenteRail = (p, conChat) => {
-        const nuevos = comentariosNuevos(p.id).length; const on = sel && sel.t === 'f' && sel.k === p.Clave;
+        const nuevos = nuevosDe(p.id); const on = sel && sel.t === 'f' && sel.k === p.Clave;
         const b = el('button', 'msj-frente' + (conChat ? '' : ' is-vacio') + (on ? ' is-on' : '')); b.type = 'button'; b.dataset.mensajesRail = String(p.id);
         b.title = p.Title + (nuevos ? ` · ${nuevos} nuevo${nuevos === 1 ? '' : 's'}` : conChat ? '' : ' · sin conversación'); b.setAttribute('aria-label', b.title); b.setAttribute('aria-current', on ? 'true' : 'false');
         b.appendChild(iconoEquipo(equipoDe(p)));
@@ -438,7 +438,7 @@ export function mensajesNuevos() {
     // v0.42.0: tambien el frente cuyo hilo esta abierto en Mensajes.
     const sel = estado.pestana === 'mensajes' ? proyectoDeMensajes() : null;
     const leyendo = estado.pestana === 'proyecto' && estado.tab === 'chat' && estado.proyectoAbierto ? estado.proyectoAbierto.id : sel ? sel.id : null;
-    return activos().reduce((n, p) => n + (p.id === leyendo ? 0 : comentariosNuevos(p.id).length), 0);
+    return activos().reduce((n, p) => n + (p.id === leyendo ? 0 : nuevosDe(p.id)), 0);   // C-04
 }
 // ---------------------------------------------------------------- archivos
 
