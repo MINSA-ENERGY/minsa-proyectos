@@ -1556,6 +1556,14 @@ try {
                   const nuevos = its.filter(it => it.classList.contains('es-nuevo')), ajenosViejos = its.filter(it => !deYo(it) && !it.classList.contains('es-nuevo'));
                   R.ok('v0.72.0 (C-04): el comentario ajeno posterior es el UNICO es-nuevo, todo lo ajeno anterior pintado va es-visto (hay al menos uno) y lo mio sin clase', nuevos.length === 1 && nuevos[0].textContent.includes('posterior a la marca') && ajenosViejos.length > 0 && ajenosViejos.every(it => it.classList.contains('es-visto')) && its.filter(deYo).every(it => !it.classList.contains('es-nuevo') && !it.classList.contains('es-visto')), its.map(it => `${it.querySelector('.q').textContent}:${[...it.classList].filter(c => c.startsWith('es-')).join('/') || '-'}`).join(' | '));
                   DB.listas.actividad.items = filas('actividad').filter(a => a.id !== cPost.id); await recargarYEsperar(); }
+                // v0.73.0 (S-04): un 403 PERMANENTE al escribir Visto (Miembros en solo lectura sobre PROY_Roles, la guarda contra subirse
+                // de rol) apaga la escritura compartida en esta carga: la segunda marca ya no manda PATCH y la marca sigue por dispositivo.
+                { const idRol = miRol().id; const patches = () => DB.llamadas.filter(l => l.startsWith('PATCH') && l.includes(`/items/${idRol}/fields`)).length;
+                  DB.fallas.push({ metodo: 'PATCH', incluye: `/items/${idRol}/fields`, status: 403, veces: 99 });
+                  const antes = patches(); mod.marcarInicioVisto(new Date(Date.now() + 7000).toISOString()); const escribio = await mod.guardarVisto(); const tras1 = patches();
+                  mod.marcarInicioVisto(new Date(Date.now() + 8000).toISOString()); await mod.guardarVisto(); const tras2 = patches();
+                  R.ok('v0.73.0 (S-04): un 403 al escribir Visto apaga la escritura compartida (1 PATCH, no 2) y la marca sigue en localStorage', escribio === false && mod.vistoCompartidoApagado() && tras1 === antes + 1 && tras2 === tras1 && localStorage.getItem('proy.inicioVisto') > '', `patches ${antes}/${tras1}/${tras2} apagado=${mod.vistoCompartidoApagado()}`);
+                  DB.fallas = DB.fallas.filter(f => !(f.status === 403 && f.incluye === `/items/${idRol}/fields`)); }
                 // Las que delegué: una tarjeta de OTRO que yo asigné sale en Mis tareas con ese filtro; sin el filtro no.
                 const tAjena = { id: DB.siguienteId++, fields: { Title: 'Tarjeta delegada a Colega', ProyectoId: proyectoId, Columna: 'por-hacer', Asignado: 'colega@example.invalid', Prioridad: 'normal' } }; filas('tareas').push(tAjena);
                 filas('actividad').push({ id: DB.siguienteId++, fields: { Title: `asignó «${tAjena.fields.Title}» a Colega Demo`, Accion: 'editar-tarea', Quien: YO, Cuando: new Date().toISOString(), ProyectoId: Number(tAjena.fields.ProyectoId), TareaId: tAjena.id } });

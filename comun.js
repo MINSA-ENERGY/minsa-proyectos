@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion } from './reglas.js';
 
-export const VERSION = '0.72.0';
+export const VERSION = '0.73.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -594,7 +594,8 @@ const guardarLocal = (k, v) => { try { localStorage.setItem(k, v); } catch (_) {
 /**
  * v0.15.0: la marca es COMPARTIDA entre los dispositivos de la misma persona. Vive en su renglon de
  * PROY_Roles (columna Visto, JSON) y localStorage queda como cache: se lee la fecha mayor de las dos y se
- * escribe en las dos. La escritura al tenant se agrupa (1.5 s) y es best-effort: sin la columna (400) se
+ * escribe en las dos. La escritura al tenant se agrupa (1.5 s) y es best-effort: sin la columna (400) o sin permiso
+ * sobre el renglon (403: Miembros en solo lectura sobre PROY_Roles, la guarda contra subirse de rol; v0.73.0, S-04) se
  * apaga para esta carga y todo sigue por dispositivo, como en v0.9.0.
  */
 export const miRenglonRol = () => { const yo = String(estado.cuenta && estado.cuenta.username || '').toLowerCase(); return (estado.roles || []).find(r => String(r.Title || '').toLowerCase() === yo) || null; };
@@ -620,7 +621,7 @@ export async function guardarVisto() {
         try { const res = await estado.cliente.actualizarRenglon(estado.siteId, L.roles, r.id, { Visto: celda }, undefined, fresco._etag); aplicar(r, { Visto: celda }, res && res._etag); return true; }
         catch (e) {
             if (e && e.status === 412 && intento === 0) continue;
-            if (e && e.status === 400) vistoApagado = true;
+            if (e && (e.status === 400 || e.status === 403)) vistoApagado = true;
             console.warn('la marca de lectura compartida no se guardó:', e && e.message ? e.message : e); return false;
         }
     }

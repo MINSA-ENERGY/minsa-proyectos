@@ -6,6 +6,22 @@ de la casa, y **documentos** ligados a la biblioteca de la unidad. Diez cuentas 
 mueven sus tarjetas desde el celular; el estado vive en listas de SharePoint del sitio
 Administración, no en la app.
 
+**v0.73.0** (2026-09-16) — **Tanda 3 de `/mejorar-app proyectos`: `_seguridad` S-01 · S-04 · S-05; S-02 retirado** (OK de Carlos a
+la tanda y a la recomendación el 16-sep; artifact `AiRuynWP`). **S-01** (decisión): `PROY_Roles` se queda con Miembros en solo lectura —
+el token es delegado, así que un colaborador debe recibir 403 al escribir su `Visto` y por eso mismo no puede escribir su `Rol`;
+**razonado, no medido contra el tenant** (la herencia cortada consta en `docs/setup-carlos.md`, «listo» de Carlos 13-sep; el 403
+con una cuenta colaborador no se ha visto)—; la regla queda en «Lo que la app NO protege» y en `docs/setup-carlos.md`, y la marca
+compartida funciona solo para quien edita esa lista. Lo revisó el `revisor-entregable` (4 de fondo: la premisa escrita como hecho
+sin medir, dos enunciados viejos de v0.15.0 sin superar, «19 ids» por 15, y la regla dentro del registro de v0.13.1 y no en la
+sección viva) — los cuatro corregidos. **S-04** `guardarVisto` se apaga
+también con **403** (`comun.js`; antes solo con 400: un 403 permanente reintentaba el PATCH a `PROY_Roles` en cada marca, 1.5 s después
+de cada lectura). **S-05** el renglón «`localStorage` solo guarda tema y visto» estaba rancio: dice ya lo que guarda (tema, rail,
+bandeja, cabecera, densidad y las marcas de visto). **S-02 retirado, no aplicado**: los «2 correos del tenant» de `_salida-dev.json`
+en `ae69fb8` son `colaborador@example.invalid` y `colega@example.invalid`, fixtures de la E2E — no hay nada que purgar del historial.
+Sin cambio de esquema. SW `minsa-proyectos-v86`. E2E: 1 aserción nueva (403 inyectado en el PATCH del renglón propio de `PROY_Roles`:
+1 PATCH y no 2, `vistoCompartidoApagado()`, la marca sigue en localStorage). Con esto los 15 ids de `inicio` + 3 de `_seguridad` quedan `hecho`
+en `docs/mejoras/` (18; S-02 en sospechas).
+
 **v0.72.0** (2026-09-16) — **Tanda 2 de `/mejorar-app proyectos inicio`: C-02 y C-04 (severidad media, esfuerzo M)** (OK de Carlos a la tanda el 16-sep; artifact `AiRuynWP`). **C-02** `pintarCola` medía 84 líneas (app.js:591-674 de v0.71.0; el artifact decía 87) con diez constructores como flechas locales, `VERBO` y dos punteros mutables (`lista`, `total`); ahora son piezas a nivel de módulo —`renglonCola` · `grupoCola` · `extraCola` · `renglonTarea` · `renglonEvento` · `masCola` · `pintarGrupoCola` · `pintarFiltroCola`, más `kFecha` · `kHora` · `tituloFrenteDe` · `abrirEvento` · `VERBO_NUEVO` · `TOPE_COLA`— y `pintarCola` queda en 41 líneas como orquestador: calcula los seis grupos y pinta cada mitad diciendo en qué contenedor va cada uno; el total es la suma de los grupos. Sin cambio de comportamiento: la captura de Inicio a 1366 es la misma (Hoy · 14, los seis grupos en su mitad y orden). **C-04** lo que Inicio hacía sin aserción ya tiene 9 R.ok en `pruebas.html` (el `revisor-entregable` cazó dos vacías en la primera pasada —un solo corte «Hoy», ningún `es-visto` en el DOM— y se rehicieron con estado sembrado): el corte por día de «Actividad reciente» (con la actividad reducida a 3 de hoy + 2 de ayer + 1 de hace 5 días: «Hoy · 3», «Ayer · 2», «<fecha> · 1»; en celular solo «Hoy · 3»), el estado nuevo/visto/tuya (la asignación de Jefa sobre mi tarjeta va `es-nuevo` + «tuya» y lo mío sin clase; al volver con la marca subida ninguno; y un comentario ajeno posterior a la marca es el único `es-nuevo` mientras todo lo ajeno anterior pintado va `es-visto`), el clic de «+N más» (7 vencidas sembradas de otro → «+N más · ver en Reportes →» con N = total − 6, exactamente 6 renglones bajo el encabezado, y aterriza en `#reportes`), los renglones de «Sin movimiento» (título, frente y «20 d», hasta 6) y los sufijos «· sin movimiento 20 d · 💬 1» del renglón de la cola tras el frente; las sembradas se recogen y se comprueba que la cola vuelve a caber. **Arnés (obs. 601):** `driver.js` borra la marca de visto otra vez después de la recarga de la siembra (localStorage + `estado.roles` + la lista falsa), porque si la E2E previa dejó la pestaña en Inicio el repintado ya la había subido y la captura a 390 salía sin «Nuevo para ti» según el ancho —parecía regresión de la app—; `_mediciones.txt` imprime `nuevos=N` para leerlo como dato del arnés. Medido: `nuevos=4` a 390 y a 1366. E2E 454 · 406 · 27 ok, 0 fallas; `npm test` verde (159 reglas). Sin cambio de esquema: solo push. Quedan la tanda 3 (`_seguridad`: S-01 · S-02 · S-04 · S-05), sin OK.
 
 **v0.71.0** (2026-09-16) — **Tanda 1 de `/mejorar-app proyectos inicio`: los 13 hallazgos de severidad alta o esfuerzo S** (Carlos marcó 19/19 en «tomar» en el artifact `AiRuynWP`; OK a la tanda el 16-sep). **Correctos:** **C-01** el «💬 N» de la cola contaba con `comentariosDe(t.id)` —que filtra por PROYECTO— y con el id de una tarjeta traía el hilo de otro frente o nada; ahora `notasDe(tareaId)` (`comun.js`), y los renglones «Sin dueño» lo llevan también. **C-05** el piso de «Nuevo para ti» se congela en `pintarInicio` al entrar y la marca de visto sube ahí (`pintarCola` devuelve `nuevos`); antes eran efectos colaterales del pintado, repetidos con cada clic de «solo mías», y `pintarActividadInicio` dependía de ese orden con un fallback silencioso. **U-06** el contador de cada corte por día de «Actividad reciente» cuenta la actividad visible entera («Hoy · 8»), no los 3 renglones del celular. **Menos código:** **C-03** `abrirTarea` una sola vez a nivel de módulo (vivía dos veces, carácter por carácter), `tituloDe` un `porId` en vez de dos, y `chipDias` se fue con U-04; **C-06** `kpisEn`, `serieKpis` (v0.21.0, sin llamador desde v0.41.0) y `agruparPorEquipo` (v0.23.0, sin llamador desde v0.25.0) salen de `reglas.js` con sus 6 comprobaciones (159 quedan); **C-07** un solo `Intl.DateTimeFormat` (`HORA_MX`) para la cola, `activos()` una vez por pintado (era ×4, y por equipo en el rail) y `pintarFichas` reparte las tareas por proyecto UNA vez (`fichaProyecto(p, ts)`; antes O(P·T)). **UI:** **U-04** el subtítulo de la cola ya no repite la fecha —va en la columna `.k` y el grupo dice vencida/hoy/semana— ni «sin dueño ·» bajo el grupo SIN DUEÑO: a 390 el nombre del frente cabe entero; en «Nuevo para ti» y «Te mencionaron» tampoco repite la hora. **U-02** a 390 el rótulo del rail no envuelve («MIS TAREAS» partía en dos) y la insignia se ancla a la esquina del icono (`estilo.css`, dentro del `@media`; la piel no se toca). **U-03** «Administración · Administración» → «Administración» (rama = unidad) y `.pficha .tt { overflow: hidden }` para que una etiqueta que no quepa se recorte en vez de montarse sobre las cifras. **U-05** la insignia de Proyectos lleva `is-info` (azul: cuenta frentes activos, no vencidas). **U-07** la hoja sin fin del frente dice «SIN / fecha» en gris en vez de «— ?» (el significado solo vivía en el title). **U-08** el rol del subtítulo del saludo va en `.rol-sub` y en celular se esconde (la barra de arriba ya lo dice). **U-01** (arnés) la vista `menu-rail` de `driver.js` desplaza la sesión al viewport antes de abrir el menú (la columna del rail mide lo que la página, 1708 px en Inicio, y el menú quedaba fuera del encuadre: la captura era idéntica a Inicio) y a ≤ 720 px se declara NO APLICA (la sesión no se pinta; ahí es `menu-movil`). Sin cambio de esquema. SW `minsa-proyectos-v84`. **E2E** (`e2e.ps1`): gerencia **446** · colaborador **398** · lectura 27, 0 fallas — 3 aserciones nuevas (C-01: «💬 N» = notas de ESA tarjeta contra la DB falsa, para todo renglón `[data-t]`; U-06: la suma de los contadores por día ≥ renglones pintados y > cuando hay «ver toda»; U-08: `.rol-sub` oculto solo en celular) y 3 reescritas (U-04: el subtítulo ya sin «venc…», la fecha en `.k b`; U-07 ×2: «sinfecha» en vez de «—?»/«?»). Capturas `inicio` · `proyectos` a 390 y 1366 y `menu-rail` a 1366 (5 vistas; a 390 es NO APLICA): 0 desborde en las 5. `npm test` verde. Fuera de la tanda y sin tocar: la cola pinta o no «Nuevo para ti» según la marca de visto que deje la E2E previa (a 390 hoy no salió, con el código viejo tampoco: es del arnés, no de esta versión). Los 13 ids quedan `hecho` en `docs/mejoras/inicio.json`; la tanda 2 (C-02 · C-04) y `_seguridad` (S-01/02/04/05) esperan OK.
@@ -164,8 +180,8 @@ sesión. **CON cambio de esquema (v2)** → correr `provisionar.html` con rol `m
   cada chat y de Inicio vive en el renglón PROPIO de `PROY_Roles` (columna `Visto`, JSON `{inicio, chat:{pid: iso}}`);
   localStorage queda como caché y gana la fecha mayor de las dos. La escritura al tenant se agrupa 1.5 s, se empuja al
   ocultarse la página, **relee el renglón y manda If-Match** (dos dispositivos de la misma persona no se pisan; un 412 se
-  reintenta una vez — lo cazó el revisor), y es best-effort (un 400 la apaga para esa carga). Con esto el celular y la laptop de la misma persona
-  dicen lo mismo. Sigue sin haber «leído» de los DEMÁS: eso es el ✓.
+  reintenta una vez — lo cazó el revisor), y es best-effort (un 400 la apaga para esa carga; **desde v0.73.0 también un 403**, S-04). Con esto el celular y la laptop de la misma persona
+  dicen lo mismo — **superado en v0.73.0 (S-01): solo para quien edita `PROY_Roles`; con Miembros en solo lectura el colaborador queda por dispositivo**. Sigue sin haber «leído» de los DEMÁS: eso es el ✓.
 - **✓ visto en el chat** (`chat.js`, `comun.js: alternarVisto`): bajo cada mensaje ajeno un botón ✓ (36 × 40 px en táctil);
   marcarlo escribe un renglón `Accion=visto` con `Title` = id del comentario (uno por persona, sin `TareaId`) y volver a
   pulsar lo borra; borrar el comentario se lleva sus ✓. Debajo del mensaje se lee «✓ Colega, Jefa» con la hora en el `title`. Los ✓ **no son actividad**: no
@@ -179,7 +195,8 @@ sesión. **CON cambio de esquema (v2)** → correr `provisionar.html` con rol `m
   enseñar «hecho» en Actividad reabriría la decisión de v0.11.0 · los 5 KPI de Inicio a 390 siguen en 4 + 1 (B3, a propósito).
 - **Superficie de escritura nueva, declarada:** es la primera versión que **escribe en `PROY_Roles`** (la celda `Visto` del
   renglón propio). La restricción «solo el propio» vive en el cliente: con `Sites.Selected write` cualquier cuenta puede
-  escribir el `Visto` —o el `Rol`— de otra por Graph fuera de la app, y firmar un ✓ con otro `Quien`, como ya pasaba con
+  escribir el `Visto` —o el `Rol`— de otra por Graph fuera de la app **[superado en v0.73.0, S-01: `PROY_Roles` sin herencia con
+  Miembros en solo lectura desde el 13-sep — el token delegado no alcanza; ver «Lo que la app NO protege»]**, y firmar un ✓ con otro `Quien`, como ya pasaba con
   `comentar` (README, «Riesgos»). Y la caída a 400 sin provisionar está razonada, **no medida contra el tenant**.
 
 Medido: `npm test` verde (122 reglas, +7), E2E **288 / 252 / 27** (+26 / +25 / +1: marca compartida en `PROY_Roles` y
@@ -241,11 +258,18 @@ que esté bien en seguridad»). Sin cambio de esquema: solo push.
   navegador no los trae; es cinturón).
 - **Revisado y correcto sin cambios**: CSP estricta sin inline; cero `innerHTML`/`eval`; hash de navegación validado por regex; claves
   y filtros OData con valores numéricos o escapados; MSAL en `sessionStorage`; guarda `window.self !== window.top`; SW cachea solo el
-  armazón (nunca Graph ni login); `localStorage` solo guarda tema y «visto hasta» del chat; vendor con hash verificado; el repo público
+  armazón (nunca Graph ni login); `localStorage` solo guarda preferencias de pantalla —tema, rail, bandeja, cabecera, densidad— y la marca
+  «visto hasta» de Inicio y del chat (S-05, v0.73.0: nunca un token, un nombre ni un dato de las listas); vendor con hash verificado; el repo público
   sin correos ni secretos (`datos.test.js`).
 - **Riesgo aceptado, no arreglable desde la app** (decisión 3 del plan): los roles de `PROY_Roles` son cinturón en pantalla; quien puede
   escribir de verdad lo decide SharePoint. Un `colaborador` con escritura en el sitio puede, con su propio token, hacer un PATCH que la
   app le niega. El control real es el permiso del sitio y la traza `Creado/Modificado por`.
+- **`PROY_Roles` se queda con Miembros en solo lectura, aunque eso apague el `Visto` compartido** (S-01, v0.73.0, decisión de Carlos
+  16-sep): el token es delegado (`Sites.Selected`), así que un colaborador debe recibir **403** al escribir su propio `Visto` y por lo
+  mismo no puede escribir su `Rol` — razonado, **no medido contra el tenant** con una cuenta colaborador. Es la única guarda contra subirse de rol solo; abrir la lista «para que funcione el Visto» la deshace. La
+  marca compartida entre dispositivos funciona solo para quien edita esa lista (hoy, Carlos); para los demás queda por dispositivo
+  (localStorage), como en v0.9.0, y la app deja de reintentar al primer 403 (S-04). Si algún día se quiere el Visto compartido para
+  colaboradores, la marca se muda a una lista propia (esquema nuevo con `manage`), nunca se abre `PROY_Roles`.
 
 *Lo que queda declarado sin aplicar:* `PROY_Tareas` y `PROY_Ligas` sí se bajan enteras (crecen con proyectos cerrados: ~300
 tarjetas/año al ritmo del piloto = 1 página; a partir de ~1,000 conviene el mismo patrón de ventana + completar el abierto). El
@@ -1048,6 +1072,12 @@ mismo que en v0.2.0, medido: **cambiar el esquema exige rol `manage`**, con `wri
 El rol de `PROY_Roles` no es un permiso: SharePoint decide quién escribe. Por eso las listas llevan
 historial de versiones activado y `PROY_Roles` no hereda permisos (Miembros = lectura). Si un día
 un rol debe ser inviolable, es permiso por lista en SharePoint, no código aquí.
+
+**Y `PROY_Roles` se queda así aunque eso apague el `Visto` compartido** (S-01, v0.73.0, decisión de Carlos 16-sep): la marca de
+lectura de v0.15.0 escribe en esa misma lista, y con token delegado un colaborador debe recibir 403 —la app lo tolera y la marca
+queda por dispositivo (S-04)—. Nunca abrir la lista a Miembros «para que funcione el Visto»: es la única guarda contra subirse de
+rol. Si algún día se quiere el Visto compartido para colaboradores, la marca se muda a una lista propia. El 403 está razonado, no
+medido con una cuenta colaborador.
 
 ## Licencias
 
