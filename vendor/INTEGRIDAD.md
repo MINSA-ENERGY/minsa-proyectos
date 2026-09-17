@@ -16,3 +16,13 @@ curl -sL https://cdn.jsdelivr.net/npm/@azure/msal-browser@4.29.0/lib/msal-browse
 
 Los dos hashes deben coincidir entre sí y con la tabla. Al subir de versión: nueva fila, nunca
 sobrescribir la anterior (la vieja prueba qué se corrió hasta esa fecha).
+
+**Desde v0.76.0 (S-07) el hash también va en el `<script>`** como `integrity="sha256-<base64>"` en los
+tres HTML que cargan el vendor (`app/index.html`, `herramientas-dev/provisionar.html`,
+`herramientas-dev/sembrar.html`): el navegador rechaza el archivo si no cuadra, y `test/sw.test.js`
+coteja el atributo contra los bytes del archivo en cada `npm test`. Al subir de versión, los tres
+atributos se regeneran con:
+
+```
+openssl dgst -sha256 -binary minsa-proyectos-app/app/vendor/msal-browser.min.js | openssl base64 -A
+```

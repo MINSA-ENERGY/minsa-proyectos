@@ -19,4 +19,13 @@ assert.ok(!/graph\.microsoft\.com|login\.microsoftonline\.com/.test(sw), 'el sw 
 const version = JSON.parse(readFileSync(join(raiz, 'package.json'), 'utf8')).version;
 const m = /export const VERSION = '([^']+)'/.exec(readFileSync(join(raiz, 'comun.js'), 'utf8'));
 assert.ok(m && m[1] === version, `comun.js VERSION (${m && m[1]}) debe ser igual a package.json version (${version})`);
+// S-07 (v0.76.0): el <script> de MSAL lleva integrity; si alguien sube el vendor y no toca el atributo, el navegador
+// lo rechaza en silencio y la app no arranca. Aqui se coteja contra los bytes del archivo, en los tres HTML que lo cargan.
+import { createHash } from 'node:crypto';
+const sri = 'sha256-' + createHash('sha256').update(readFileSync(join(raiz, 'vendor', 'msal-browser.min.js'))).digest('base64');
+for (const html of ['index.html', '../herramientas-dev/provisionar.html', '../herramientas-dev/sembrar.html']) {
+  const tag = /<script src="\.\/vendor\/msal-browser\.min\.js"([^>]*)>/.exec(readFileSync(join(raiz, html), 'utf8'));
+  assert.ok(tag, `${html} carga el vendor de MSAL`);
+  assert.ok(tag[1].includes(`integrity="${sri}"`), `${html}: integrity del vendor de MSAL debe ser ${sri}`);
+}
 console.log('sw: ok');
