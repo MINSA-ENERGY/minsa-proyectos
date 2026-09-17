@@ -344,7 +344,11 @@ export function pintarLista(proyecto) {
         r.appendChild(el('td', '', t.Title));
         r.appendChild(el('td', '', t.Asignado ? nombreDe(t.Asignado, estado.roles) : '—'));
         r.appendChild(el('td', '', nombreColumna(t)));   // v0.59.0: texto plano, sin chip (Carlos, 15-sep) — el chip sigue en tarjeta y Mis tareas
-        r.appendChild(el('td', 'mn-mono', fechaCorta(t.Vence)));
+        // U-09 (mejorar-app proyecto, 17-sep): bajo 720 px el CSS acomoda el renglon como FICHA y enseña la fecha corta («15 sep»);
+        // la larga (con año) es la de la tabla. Van las dos en el DOM y el CSS elige; textContent del td trae ambas.
+        const tdv = el('td', 'mn-mono'); const md = t.Vence ? mesDia(t.Vence) : null;
+        tdv.appendChild(el('span', 'fecha-larga', fechaCorta(t.Vence))); tdv.appendChild(el('span', 'fecha-corta', md ? `${md.dia} ${md.mes}` : '—'));
+        r.appendChild(tdv);
         r.addEventListener('click', () => abrirTarjeta(t.id));
         r.tabIndex = 0; r.setAttribute('role', 'button'); r.setAttribute('aria-label', t.Title);   // U-10 (17-sep): el renglon se alcanza con Tab y abre con Enter/Espacio
         r.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); abrirTarjeta(t.id); } });
@@ -461,17 +465,37 @@ export function abrirTarjeta(id) {
 
 const TITULO_EDITA = { asignado: 'Cambiar el asignado', vence: 'Cambiar la fecha', prioridad: 'Cambiar la prioridad', color: 'Cambiar el color' };
 /** v0.53.0: pinta la ficha de `t` en #dlgTarea sin abrirlo ni tocar el hash — abrirTarjeta la usa, y guardarEdicion la re-pinta
- *  tras cada PATCH sin que abrirDialogo mande el scroll arriba. */
+ *  tras cada PATCH sin que abrirDialogo mande el scroll arriba.
+ *  C-05 (mejorar-app proyecto, 17-sep): eran 153 lineas con seis responsabilidades; ahora cada pieza de #dlgTarea la pinta su
+ *  funcion (titulo · ceja · propiedades · descripcion · kv · permisos · mover · orden) y esta solo ensambla. El orden es el de antes salvo
+ *  el bloque «solo lectura / cerrado / Borrar», que iba al final y ahora va en pintarPermisosFicha antes de mover/orden: DOM disjunto, sin efecto. */
 function pintarFicha(t) {
     const p = porId(estado.proyectos, t.ProyectoId);
+    const puedeEditar = PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';
+    cerrarPop();   // si se re-pinta con el popover abierto (conflicto, relectura), se cierra sin guardar
+    pintarTituloFicha(t, puedeEditar);
+    pintarCejaFicha(t, p);
+    // #tMover y #tOrden viven DENTRO del renglon de la cubeta desde la primera apertura: se toman antes de vaciar los renglones,
+    // o el vaciado se los lleva (la E2E lo cazo: null en la segunda apertura).
+    const mv = $('tMover'), or = $('tOrden');
+    const celdaCubeta = pintarPropiedadesFicha(t, puedeEditar);
+    pintarDescripcionFicha(t, puedeEditar);
+    pintarKvFicha(t, p);
+    pintarDocsDeTarjeta(t, p);
+    pintarNotas(t, p);
+    pintarPermisosFicha(p);
+    pintarMoverFicha(t, p, celdaCubeta, mv);
+    pintarOrdenFicha(t, p, celdaCubeta, or);
+}
+
+/** El titulo: boton con lapiz que abre el popover «titulo» si se puede editar; texto plano si no. */
+function pintarTituloFicha(t, puedeEditar) {
     // v0.24.0 (iteracion 6) puso asignado · cubeta · vence · prioridad como CHIPS bajo el titulo. v0.50.0 (Carlos, 15-sep;
     // artifact 1mTr2BGa, opcion 1A) los vuelve RENGLONES rotulo · valor —el mismo kv de la columna derecha—, porque cuatro
     // pastillas del mismo peso decian cosas de peso distinto («normal» y «sin fecha» son el default). Regla: lo que esta en
     // su valor por defecto va en gris tenue. v0.53.0 (Carlos, 15-sep; artifact CMmGTirt, opcion D): el valor de asignado / vence /
     // prioridad / color es un boton con LAPIZ que abre el popover #tPop de ESE campo ahi mismo (antes mandaba al acordeon
     // «Editar la tarjeta», que ya no existe); el de cubeta abre el menu #tMover (opcion 2B). El titulo y la descripcion tambien.
-    const puedeEditar = PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';
-    cerrarPop();   // si se re-pinta con el popover abierto (conflicto, relectura), se cierra sin guardar
     const tit = $('tTitulo'); tit.textContent = '';
     if (puedeEditar) {
         const b = el('button', 'prop-btn is-titulo'); b.type = 'button'; b.title = 'Cambiar el título'; b.dataset.edita = 'titulo';
@@ -480,6 +504,10 @@ function pintarFicha(t) {
         b.addEventListener('click', () => abrirPop('titulo', tit.closest('.mn-dialog-head'), b));
         tit.appendChild(b);
     } else tit.textContent = t.Title;
+}
+
+/** La ceja sobre el titulo (equipo · frente · T-id) y la banda de color del dialogo. */
+function pintarCejaFicha(t, p) {
     // v0.69.0 (Carlos, 16-sep; artifact 2BTfe3Yo, opcion A2): la CEJA sobre el titulo dice de quien es la tarjeta sin leer la
     // columna derecha —icono + nombre del equipo · liga al frente · T-id—, y el dialogo lleva una BANDA del color del equipo en
     // el borde izquierdo (--t-eq). Sin proyecto (huerfana), solo el id y la banda gris.
@@ -496,9 +524,11 @@ function pintarFicha(t) {
         ceja.appendChild(el('span', 'sep', '·'));
     }
     ceja.appendChild(el('span', 'id mn-mono', `T-${t.id}`));
-    // #tMover y #tOrden viven DENTRO del renglon de la cubeta desde la primera apertura: se toman antes de vaciar los renglones,
-    // o el vaciado se los lleva (la E2E lo cazo: null en la segunda apertura).
-    const mv = $('tMover'), or = $('tOrden');
+}
+
+/** La franja de propiedades (#tChips): Asignado · Cubeta · Vence · Prioridad · Color. Devuelve la celda de la cubeta, donde
+ *  pintarMoverFicha y pintarOrdenFicha cuelgan #tMover y #tOrden. */
+function pintarPropiedadesFicha(t, puedeEditar) {
     const props = $('tChips'); props.textContent = '';
     // v0.69.0 (A2): cada propiedad es una CELDA (.t-cel: rotulo arriba, valor abajo) de UNA franja con divisores, no un renglon
     // rotulo · valor; el DOM de adentro (b + .val, data-chip, .prop-btn) es el mismo, solo cambia el envoltorio.
@@ -531,7 +561,11 @@ function pintarFicha(t) {
     const tono = COLORES.find(c => c.clave === colorValido(t.Color));
     const color = el('span', tono ? '' : 'default'); const muestra = el('i', 'muestra'); if (tono) muestra.dataset.tono = tono.clave; color.appendChild(muestra); color.appendChild(document.createTextNode(tono ? tono.nombre : 'Sin color'));
     renglon('Color', color, 'color', 'color');
-    // Descripcion: texto (pre-line) con lapiz al final si se puede editar; vacia, «Agregar descripción» en gris tenue (o nada en lectura).
+    return celdaCubeta;
+}
+
+/** La descripcion (#tDescCaja): texto pre-line con lapiz al final si se puede editar; vacia, «Agregar descripción» en gris tenue (o nada en lectura). */
+function pintarDescripcionFicha(t, puedeEditar) {
     const caja = $('tDescCaja'); caja.textContent = '';
     const desc = el('p', 't-desc', t.Descripcion || ''); desc.id = 'tDesc';
     if (puedeEditar) {
@@ -543,8 +577,10 @@ function pintarFicha(t) {
         desc.appendChild(b);
     } else desc.classList.toggle('oculto', !t.Descripcion);
     caja.appendChild(desc);
+}
 
-    // La columna derecha: lo que se consulta del frente (Proyecto · Hecho por · Creada · Último cambio).
+/** La columna derecha (#tKv): lo que se consulta del frente (Proyecto · Hecho por · Creada · Último cambio). */
+function pintarKvFicha(t, p) {
     const kv = $('tKv'); kv.textContent = '';
     const par = (k, v, clase) => { kv.appendChild(el('b', '', k)); const s = el('span', clase || '', typeof v === 'string' ? v : null); if (typeof v !== 'string') s.appendChild(v); kv.appendChild(s); return s; };
     // D2 (v0.6.0): desde Mis tareas, «Proyecto» era texto plano; ahora lleva al tablero y trae el chip del equipo.
@@ -561,10 +597,10 @@ function pintarFicha(t) {
     if (t._creado) par('Creada', `${t._creadoPor ? nombreDe(t._creadoPor, estado.roles) + ' · ' : ''}${fechaHora(t._creado)}`, 'creada');
     // SharePoint no dice QUIEN modifico (graph.js solo trae lastModifiedDateTime); si coincide con la creacion, no se repite.
     if (t._modificado && t._modificado !== t._creado) par('Último cambio', fechaHora(t._modificado), 'creada');
-    pintarDocsDeTarjeta(t, p);
-    pintarNotas(t, p);
+}
 
-    const puedeMover = PUEDE.mover(estado.rol) && !!p && p.Estado === 'activo';
+/** Lo que el rol y el estado del proyecto dejan hacer: la linea «solo lectura», la banda «cerrado» y el menu «···» con Borrar. */
+function pintarPermisosFicha(p) {
     // C6 (v0.6.0): con rol lectura la tarjeta decia lo mismo tres veces (cuatro botones apagados, la
     // banda roja y «Borrar» apagado). Ahora: sin «Mover a…», y una linea gris de una frase. La banda
     // roja se queda para el proyecto CERRADO, que si es una alarma. Los botones se siguen armando
@@ -574,6 +610,16 @@ function pintarFicha(t) {
     const cerrado = !!p && p.Estado !== 'activo';
     $('tDeny').classList.toggle('oculto', !cerrado);   // tambien lectura ve «cerrado»
     $('tDeny').textContent = cerrado ? 'El proyecto está cerrado: sus tarjetas quedan como registro.' : '';
+    // v0.53.0: «Borrar tarjeta» vive en el menu «···» de la cabecera (Carlos, 15-sep). El menu entero se esconde a quien no puede
+    // borrar (un menu con su unico renglon apagado no dice nada); el boton sigue disabled por si alguien lo fuerza — borrarTarea se niega sola.
+    $('tBorrar').disabled = !PUEDE.borrar(estado.rol);
+    $('tBorrar').title = PUEDE.borrar(estado.rol) ? '' : 'Solo gerencia borra tarjetas';
+    $('tMenu').classList.toggle('oculto', !PUEDE.borrar(estado.rol)); $('tMenu').open = false;
+}
+
+/** El menu «Mover a…» (#tMover) colgado del renglon de la cubeta, con un boton por cubeta del proyecto. */
+function pintarMoverFicha(t, p, celdaCubeta, mv) {
+    const puedeMover = PUEDE.mover(estado.rol) && !!p && p.Estado === 'activo';
     // v0.50.0 (opcion 2B): #tMover es un MENU colgado del renglon «Cubeta»: el valor es un boton con chevron que lo abre,
     // y dentro va un boton por cubeta (data-move, como siempre). Con rol lectura el valor es texto y el menu queda oculto;
     // los botones se siguen armando: moverTarea se niega sola aunque alguien los fuerce (la E2E lo prueba).
@@ -597,7 +643,11 @@ function pintarFicha(t) {
         b.disabled = !puedeMover || aqui || !!c.huerfana;
         mv.appendChild(b);
     }
-    // F11: Subir / Bajar dentro de la columna (renumera Orden en el orden visual). v0.50.0: va en el mismo renglon de la cubeta.
+}
+
+/** F11: Subir / Bajar dentro de la columna (#tOrden, renumera Orden en el orden visual). v0.50.0: va en el mismo renglon de la cubeta. */
+function pintarOrdenFicha(t, p, celdaCubeta, or) {
+    const puedeMover = PUEDE.mover(estado.rol) && !!p && p.Estado === 'activo';
     or.textContent = '';
     celdaCubeta.appendChild(or);
     if (puedeMover) {
@@ -609,11 +659,6 @@ function pintarFicha(t) {
             const dn = boton('↓', 'mn-btn is-ghost is-sm', () => reordenarTarea(t.id, 1), { orden: 'bajar' }); dn.disabled = i >= hermanas.length - 1; dn.title = 'Bajar un lugar'; dn.setAttribute('aria-label', 'Bajar'); or.appendChild(dn);
         }
     }
-    // v0.53.0: «Borrar tarjeta» vive en el menu «···» de la cabecera (Carlos, 15-sep). El menu entero se esconde a quien no puede
-    // borrar (un menu con su unico renglon apagado no dice nada); el boton sigue disabled por si alguien lo fuerza — borrarTarea se niega sola.
-    $('tBorrar').disabled = !PUEDE.borrar(estado.rol);
-    $('tBorrar').title = PUEDE.borrar(estado.rol) ? '' : 'Solo gerencia borra tarjetas';
-    $('tMenu').classList.toggle('oculto', !PUEDE.borrar(estado.rol)); $('tMenu').open = false;
 }
 
 // ---------------------------------------------------------------- popover de edicion (v0.53.0, opcion D)

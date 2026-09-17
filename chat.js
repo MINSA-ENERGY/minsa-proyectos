@@ -108,10 +108,31 @@ export function pintarChat(p) {
     $('chatSoloLectura').classList.toggle('oculto', puede);
     $('chatSoloLectura').textContent = !p || p.Estado !== 'activo' ? 'El proyecto está cerrado: la conversación queda como registro.' : 'Solo lectura · tu rol no escribe en el chat.';
     contar();
+    ajustarHilo();   // U-06: antes de aterrizar al fondo, que el alto del hilo ya sea el definitivo
     // El hilo se lee como chat: lo ultimo abajo, y al entrar se aterriza ahi.
     hilo.dataset.pintado = '1';
     hilo.scrollTop = estabaAlFondo ? hilo.scrollHeight : scrollAntes;
 }
+// U-06 (mejorar-app proyecto, 17-sep): en celular el hilo media 40vh fijos y quedaban ~100 px vacios bajo «Enviar» (el hueco
+// que .chat reserva al FAB, que en el chat no existe, mas lo que sobraba del viewport). Ahora el hilo toma lo que queda del
+// viewport descontando lo que tiene ARRIBA (cabecera + pestañas, que varian con el largo del titulo: por eso se mide y no se
+// fija en CSS) y ABAJO (la forma o la linea «solo lectura», y el hueco de la barra fija): «Enviar» queda pegado al hueco de la
+// barra (los ~49 px que la pagina sigue desplazando bajo la barra son de fuera de la pestaña, y estaban antes). Arriba
+// de 720 px manda el CSS (min(62vh, 640px)); el valor va en --hilo-alto y el CSS lo lee con un 40vh de respaldo.
+const enCelular = window.matchMedia('(max-width: 720px)');
+function ajustarHilo() {
+    const hilo = $('chatHilo'); if (!hilo) return;
+    if (!enCelular.matches) { hilo.style.removeProperty('--hilo-alto'); return; }
+    if (hilo.offsetParent === null) return;   // pestaña oculta: sin medida que valga; la proxima pintada vuelve a pasar por aqui
+    const arriba = hilo.getBoundingClientRect().top + window.scrollY;
+    const forma = $('formChat').classList.contains('oculto') ? $('chatSoloLectura').offsetHeight : $('formChat').offsetHeight;
+    const contenido = hilo.closest('.contenido');
+    const abajo = contenido ? parseFloat(getComputedStyle(contenido).paddingBottom) || 0 : 0;
+    const hueco = parseFloat(getComputedStyle(hilo.parentElement).rowGap) || 8;   // el gap de .chat entre hilo y forma
+    hilo.style.setProperty('--hilo-alto', Math.max(160, Math.floor(window.innerHeight - arriba - hueco - forma - abajo)) + 'px');
+}
+window.addEventListener('resize', ajustarHilo);
+
 /** v0.9.0: app.js lo llama cuando el chat deja de estar en pantalla; la proxima pintada cuenta como «entrar». */
 export function salirDelChat() { proyectoChat = null; const h = $('chatHilo'); if (h) { delete h.dataset.proyecto; delete h.dataset.pintado; h._nuevos = null; } }
 /** Tras enviar, siempre al fondo (es mi mensaje). */

@@ -1017,6 +1017,15 @@ try {
               R.ok('C-07: releer con el hilo leído desde arriba deja scrollTop en 0 (no aterriza al fondo)', h.scrollHeight > h.clientHeight + 40 && h.scrollTop === 0, `scrollTop ${h.scrollTop} · ${h.scrollHeight}/${h.clientHeight} (antes ${antes})`);
               h.scrollTop = h.scrollHeight; await dormir(30); await recargarYEsperar(); await dormir(60);
               R.ok('C-07: releer estando al fondo aterriza en lo último', Math.abs(h.scrollTop + h.clientHeight - h.scrollHeight) <= 2, `scrollTop ${h.scrollTop}`); h._sembrados = sembrados; }
+            // U-06 (v0.82.0): a ≤ 720 px el hilo toma lo que queda del viewport (--hilo-alto medido por chat.js) y «Enviar» queda
+            // pegado a la barra: el pie de la forma no rebasa el viewport ni deja mas de 4 px sobre el hueco de la barra. Arriba de 720 no hay variable.
+            // El <pre id="resultados"> del arnés va ARRIBA de la app y crece con cada prueba: se esconde para medir como en la app real, y se devuelve.
+            { const h = $('chatHilo'); const pre = $('resultados'); const preAntes = pre.style.display; pre.style.display = 'none'; window.scrollTo(0, 0); window.dispatchEvent(new Event('resize')); await dormir(30);
+              const alto = h.style.getPropertyValue('--hilo-alto'); const f = $('formChat').getBoundingClientRect();
+              const pad = parseFloat(getComputedStyle(h.closest('.contenido')).paddingBottom) || 0; const libre = window.innerHeight - pad - f.bottom;
+              const maxH = getComputedStyle(h).maxHeight; pre.style.display = preAntes; window.dispatchEvent(new Event('resize'));
+              if (window.innerWidth <= 720) R.ok('U-06 (v0.82.0): a ≤ 720 el hilo lleva --hilo-alto en px y «Enviar» acaba a ≤ 4 px del hueco de la barra, sin salirse del viewport', /^\d+px$/.test(alto) && libre >= -1 && libre <= 4 && parseFloat(maxH) === parseFloat(alto), `--hilo-alto ${alto} · libre ${libre} · max-height ${maxH}`);
+              else R.ok('U-06 (v0.82.0): arriba de 720 el hilo no lleva --hilo-alto (manda el CSS)', alto === '' && getComputedStyle(h).maxHeight !== '40vh', `--hilo-alto «${alto}»`); }
             // U-07: el botón de visto no pulsado lleva palabra («¿visto?»); el pulsado sigue «✓ visto».
             { const vb = document.querySelector('#chatHilo .visto-btn:not(.is-on)'); R.ok('U-07: el botón de visto sin pulsar dice «¿visto?» (no un ✓ mudo)', !escribe || (!!vb && vb.textContent === '¿visto?'), vb && vb.textContent); }
             { const h = $('chatHilo'); const ids = new Set(h._sembrados || []); DB.listas.actividad.items = filas('actividad').filter(a => !ids.has(a.id)); await recargarYEsperar(); await dormir(30); }
@@ -1049,6 +1058,11 @@ try {
         tab('lista'); await esperar(() => document.querySelector('#tab-lista tr.clic'), 'lista');
         R.ok('v0.11.0: la pestaña Lista ya no trae la columna «Origen en la KB» (el dato sigue en la lista) y la cabecera dice «Cubeta»', !document.querySelector('#tab-lista td.src') && ![...document.querySelectorAll('#tab-lista th')].some(x => x.textContent.includes('Origen')) && [...document.querySelectorAll('#tab-lista th')].some(x => x.textContent === 'Cubeta') && t.fields.Origen.includes('#renglon-7'));
         R.ok('v0.59.0: la columna Cubeta de la Lista es texto plano (sin .mn-chip) y los renglones pares llevan la banda gris', !document.querySelector('#tab-lista tbody .mn-chip') && (document.querySelectorAll('#tab-lista tbody tr').length < 2 || getComputedStyle(document.querySelector('#tab-lista tbody tr:nth-child(2) td')).backgroundColor !== getComputedStyle(document.querySelector('#tab-lista tbody tr:nth-child(1) td')).backgroundColor), String(document.querySelectorAll('#tab-lista tbody tr').length));
+        // U-09 (v0.82.0): bajo 720 px el renglon es una FICHA (grid) con la fecha corta («15 sep»); arriba, tabla con la fecha larga (dd/mm/aaaa).
+        { const r = document.querySelector('#tab-lista tbody tr[data-t]'); const larga = r.querySelector('.fecha-larga'), corta = r.querySelector('.fecha-corta'); const vis = e => getComputedStyle(e).display !== 'none';
+          const conFecha = [...document.querySelectorAll('#tab-lista tbody tr[data-t] .fecha-corta')].find(s => s.textContent !== '—');
+          if (window.innerWidth <= 720) R.ok('U-09 (v0.82.0): a ≤ 720 el renglón de la Lista es grid, la cabecera no muestra «P», se ve la fecha corta «d mes» y no la larga', getComputedStyle(r).display === 'grid' && !vis(document.querySelector('#tab-lista th.col-p')) && vis(corta) && !vis(larga) && !!conFecha && /^\d{1,2} [a-z]{3}$/.test(conFecha.textContent), `display ${getComputedStyle(r).display} · corta «${conFecha && conFecha.textContent}»`);
+          else R.ok('U-09 (v0.82.0): arriba de 720 la Lista sigue siendo tabla con la fecha larga', getComputedStyle(r).display === 'table-row' && vis(larga) && !vis(corta) && /^\d{2}\/\d{2}\/\d{4}$/.test(r.querySelector('.fecha-larga').textContent) || r.querySelector('.fecha-larga').textContent === '—', `display ${getComputedStyle(r).display} · larga «${larga.textContent}»`); }
         document.querySelector(`#tab-lista tr[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde la lista');
         R.ok('v0.11.0: la tarjeta no enseña «Origen»', !$('tKv').textContent.includes('Origen') && !$('tKv').textContent.includes('#renglon-7'));
         clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
