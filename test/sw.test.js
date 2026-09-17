@@ -19,6 +19,10 @@ assert.ok(!/graph\.microsoft\.com|login\.microsoftonline\.com/.test(sw), 'el sw 
 const version = JSON.parse(readFileSync(join(raiz, 'package.json'), 'utf8')).version;
 const m = /export const VERSION = '([^']+)'/.exec(readFileSync(join(raiz, 'comun.js'), 'utf8'));
 assert.ok(m && m[1] === version, `comun.js VERSION (${m && m[1]}) debe ser igual a package.json version (${version})`);
+// S-08 (v0.80.0): el servidor de la E2E solo escucha en la interfaz local; sin host Node abre 0.0.0.0 y un vecino de
+// la red podia pisar _salida-dev.json por POST /guardar. Se lee el archivo porque la E2E lo arranca fuera de este proceso.
+assert.ok(/servidor\.listen\(PUERTO,\s*'127\.0\.0\.1'/.test(readFileSync(join(raiz, 'servidor-local.js'), 'utf8')),
+  "servidor-local.js debe escuchar solo en '127.0.0.1'");
 // S-07 (v0.76.0): el <script> de MSAL lleva integrity; si alguien sube el vendor y no toca el atributo, el navegador
 // lo rechaza en silencio y la app no arranca. Aqui se coteja contra los bytes del archivo, en los tres HTML que lo cargan.
 import { createHash } from 'node:crypto';
