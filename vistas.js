@@ -21,6 +21,9 @@ const hoyDia = () => diaDe(new Date());
 const nombreMes = mes => `${MESES[+mes.slice(5, 7) - 1]} ${mes.slice(0, 4)}`;
 // `tab`: desde la pestana Roadmap del proyecto se conserva la pestana (sin ella el router vuelve al tablero).
 const irTarjeta = (t, tab = '') => { const p = porId(estado.proyectos, t.ProyectoId); if (p) irAHash(`#p/${p.Clave}${tab ? '/' + tab : ''}/t/${t.id}`); };
+// C-05 (v0.78.0): los handlers del roadmap resuelven por id al clic (regla v0.4.0) — el objeto capturado en el closure queda viejo tras un repintado.
+const irTarjetaId = (id, tab = '') => { const t = porId(estado.tareas, id); if (t) irTarjeta(t, tab); };
+const irFrenteId = (id, tab = '') => { const p = porId(estado.proyectos, id); if (p) irAHash(`#p/${p.Clave}${tab ? '/' + tab : ''}`); };
 const svgEl = (tag, attrs = {}) => { const e = document.createElementNS(SVG_NS, tag); for (const k in attrs) e.setAttribute(k, String(attrs[k])); return e; };
 
 // ---------------------------------------------------------------- roadmap (gantt)
@@ -64,13 +67,13 @@ function gantt(cont, filas, rango, opts = {}) {
             const b = f.lapso ? barraEn(f.lapso, rango) : null;
             if (b) {
                 const barra = el(f.abrir ? 'button' : 'span', 'g-barra is-' + (f.clase || 'idle')); if (f.abrir) { barra.type = 'button'; barra.addEventListener('click', f.abrir); }
-                barra.style.left = b.left + '%'; barra.style.width = b.width + '%'; barra.title = f.titulo || f.texto || '';
+                barra.style.left = b.left + '%'; barra.style.width = b.width + '%'; barra.title = f.titulo || f.texto || ''; barra.setAttribute('aria-label', f.titulo || f.texto || '');   // U-10 (v0.78.0): el nombre accesible es el titulo, no el «41 %» de adentro
                 if (f.pct !== undefined) { const p = el('i', 'g-pct'); p.style.width = f.pct + '%'; barra.appendChild(p); }
                 if (f.hito) barra.classList.add('is-hito');
                 if (f.dataset) for (const k in f.dataset) barra.dataset[k] = f.dataset[k];
                 pista.appendChild(barra);
                 // Una barra de pocos dias no tiene donde escribir: el texto va afuera, a su derecha (o a la izquierda si toca el borde).
-                if (b.width < 14 && !f.hito) { barra.classList.add('is-corta'); barra.setAttribute('aria-label', f.titulo || f.texto || ''); const t = el('span', 'g-txt g-fuera', f.texto || ''); if (b.left + b.width > 80) { t.classList.add('is-izq'); t.style.right = (100 - b.left) + '%'; } else t.style.left = (b.left + b.width) + '%'; if (!conHitos) pista.appendChild(t); }   // v0.22.0: con rombos el texto de afuera chocaria con ellos; la etiqueta y el title ya lo dicen
+                if (b.width < 14 && !f.hito) { barra.classList.add('is-corta'); const t = el('span', 'g-txt g-fuera', f.texto || ''); if (b.left + b.width > 80) { t.classList.add('is-izq'); t.style.right = (100 - b.left) + '%'; } else t.style.left = (b.left + b.width) + '%'; if (f.abrir) { t.classList.add('is-clic'); t.addEventListener('click', f.abrir); } if (!conHitos) pista.appendChild(t); }   // U-03 (v0.78.0): el texto de al lado tambien abre (la barra de 12 px no es objetivo tactil)   // v0.22.0: con rombos el texto de afuera chocaria con ellos; la etiqueta y el title ya lo dicen
                 else barra.appendChild(el('span', 'g-txt', f.texto || ''));
             } else if (!f.hitos || !f.hitos.length) pista.appendChild(el('span', 'g-sinfecha', f.sinFecha || 'sin fecha'));   // v0.22.0: un frente sin fin pero con hitos pinta solo sus rombos
             // v0.22.0: la raya del fin de frente (se ve aunque la barra vaya en 0 %) y los rombos de las tarjetas con fecha
@@ -88,13 +91,16 @@ function gantt(cont, filas, rango, opts = {}) {
         fila.appendChild(pista); g.appendChild(fila);
     }
     cont.appendChild(g);
+    // U-01 (v0.78.0): si la pista desborda la caja (celular), el scroll arranca con la raya de hoy a un tercio de la pista VISIBLE
+    // (lo que queda a la derecha de la etiqueta pegada, U-02), no en el pasado. Medido a 390: con el 35 % de la caja entera la raya caia debajo de la etiqueta.
+    if (hoyPct >= 0 && hoyPct <= 100 && cont.scrollWidth > cont.clientWidth + 1) { cont.scrollLeft = 0; const eti = eje.getBoundingClientRect().left - cont.getBoundingClientRect().left; const x = eti + eje.clientWidth * hoyPct / 100; cont.scrollLeft = Math.max(0, Math.round(x - eti - (cont.clientWidth - eti) * 0.35)); }
 }
 
 /** Fila-etiqueta de una tarjeta en el roadmap del proyecto: titulo (abre la tarjeta). */
 function etiquetaTarea(t) {
     const b = el('button', 'g-tarea'); b.type = 'button'; b.dataset.t = String(t.id); b.title = t.Title;
     b.appendChild(el('span', 't', t.Title));
-    b.addEventListener('click', () => irTarjeta(t, 'roadmap'));
+    b.addEventListener('click', () => irTarjetaId(b.dataset.t, 'roadmap'));
     return b;
 }
 const CLASE_BARRA = { h: 'ok', r: 'info', c: 'brand', p: 'idle' };
@@ -114,7 +120,7 @@ function tituloHito(h) {
 export function pintarRoadmapProyecto(p) {
     const cont = $('tab-roadmap'); cont.textContent = '';
     const ts = tareasDe(p, estado.tareas);
-    const lapsos = ts.map(lapsoTarea); const lp = lapsoProyecto(p, estado.tareas);
+    const lapsos = ts.map(lapsoTarea); const lp = lapsoProyecto(p, estado.tareas); const lapsoDe = new Map(ts.map((t, i) => [t.id, lapsos[i]]));   // C-06 (v0.78.0): un lapso por tarjeta, no uno por comparacion del sort
     const rango = rangoRoadmap([...lapsos, lp], new Date());
     const filas = []; const cols = columnasDe(p);
     // v0.11.0: un carril por cubeta del proyecto (mas las huerfanas), en el orden del tablero.
@@ -124,10 +130,10 @@ export function pintarRoadmapProyecto(p) {
         if (!de.length) continue;
         const cab = el('span', 'g-grupo'); cab.appendChild(el('i', 'punto is-' + claseDeColumna(col, cols))); cab.appendChild(el('b', '', nombre)); cab.appendChild(el('span', 'n', String(de.length)));
         filas.push({ grupo: true, etiqueta: cab });
-        for (const t of de.sort((a, b) => String(lapsoTarea(a).fin || '9').localeCompare(String(lapsoTarea(b).fin || '9')) || a.id - b.id)) {
-            const l = lapsoTarea(t); const d = t.Vence ? diasPara(t.Vence) : null;
+        for (const t of de.sort((a, b) => String(lapsoDe.get(a.id).fin || '9').localeCompare(String(lapsoDe.get(b.id).fin || '9')) || a.id - b.id)) {
+            const l = lapsoDe.get(t.id); const d = t.Vence ? diasPara(t.Vence) : null;
             const texto = l.fin ? (t.Columna === 'hecho' ? `hecha ${fechaCorta(t.HechoEl || t.Vence)}` : d < 0 ? `venció hace ${-d} d` : d === 0 ? 'vence hoy' : `vence ${fechaCorta(t.Vence)}`) : '';
-            filas.push({ etiqueta: etiquetaTarea(t), lapso: l, clase: claseVence(t), texto, titulo: `${t.Title} · ${texto}`, abrir: () => irTarjeta(t, 'roadmap'), dataset: { roadmap: String(t.id) }, sinFecha: 'sin fecha de vencimiento' });
+            filas.push({ etiqueta: etiquetaTarea(t), lapso: l, clase: claseVence(t), texto, titulo: `${t.Title} · ${texto}`, abrir: () => irTarjetaId(t.id, 'roadmap'), dataset: { roadmap: String(t.id) }, sinFecha: 'sin fecha de vencimiento' });
         }
     }
     if (p.Vence && lp.fin) {
@@ -135,7 +141,7 @@ export function pintarRoadmapProyecto(p) {
         filas.push({ etiqueta: eti, lapso: { inicio: lp.fin, fin: lp.fin }, clase: diasPara(p.Vence) < 0 ? 'danger' : 'hito', hito: true, texto: fechaCorta(p.Vence), titulo: `Fin del frente: ${fechaCorta(p.Vence)}` });
     }
     if (!ts.length) { cont.appendChild(el('p', 'vacio', 'Sin tarjetas todavía: el roadmap se dibuja con las fechas de vencimiento.')); return; }
-    const res = el('p', 'g-resumen', `${rango.dias} días en el eje · ${lapsos.filter(l => l.fin).length} de ${ts.length} tarjetas con fecha · la barra va de «en esta columna desde» (o creación) al vencimiento; las hechas, hasta que se hicieron.`);
+    const res = el('p', 'g-resumen', `${rango.dias} días en el eje · ${lapsos.filter(l => l.fin).length} de ${ts.length} tarjetas con fecha · barra = entrada a la columna (o creación) → vencimiento; hecha → cuando se hizo.`);   // U-08 (v0.78.0): un renglon
     cont.appendChild(res);
     const caja = el('div', 'gantt-caja'); cont.appendChild(caja);
     gantt(caja, filas, rango, { rotulo: 'Tarjeta' });
@@ -149,8 +155,10 @@ export function pintarRoadmapProyecto(p) {
 export function pintarRoadmap() {
     // El filtro por equipo del rail aplica PAREJO: filas e hitos (el revisor vio cifras globales con «2 frentes de CALYTEK» arriba).
     const ps = ordenarProyectos(visibles());   // C-03: la regla del rail vive en reglas.js
-    $('roadmapSub').textContent = estado.filtroEquipo ? `${ps.length} frente(s) de ${nombreEquipoFiltrado()}; quita el filtro en el rail para ver todos.` : `${ps.length} frente(s) activo(s), del que vence antes al que vence después. La barra va de la creación del proyecto a su fin de frente; el relleno es el avance.`;
-    const caja = $('roadmapCaja'); caja.textContent = '';
+    const n = ps.length, frentes = n === 1 ? '1 frente' : `${n} frentes`;   // U-08 (v0.78.0): plural real, y lo que es la barra lo dice la leyenda, no dos veces
+    $('roadmapSub').textContent = estado.filtroEquipo ? `${frentes} de ${nombreEquipoFiltrado()}; quita el filtro en el rail para ver todos.` : `${frentes} activo${n === 1 ? '' : 's'}, del que vence antes al que vence después.`;
+    const tsDe = new Map(ps.map(p => [p.id, tareasDe(p, estado.tareas)]));   // C-06 (v0.78.0): las tarjetas de cada frente se filtran UNA vez (antes tres: hitos, fila e hito de fin)
+    const caja = $('roadmapCaja'); caja.textContent = ''; caja.dataset.anchoPintado = String(caja.clientWidth);   // C-01 (v0.78.0): el umbral de agrupado sale de este ancho; si cambia, se repinta
     const ley = $('roadmapLeyenda'); ley.textContent = ''; ley.classList.toggle('oculto', !ps.length);
     if (!ps.length) { caja.appendChild(el('p', 'vacio', 'Sin proyectos activos.')); }
     else {
@@ -159,23 +167,23 @@ export function pintarRoadmap() {
         // caja aun no mide (pantalla oculta) se toma 2 % del eje. El titulo del rombo se pinta si hay ~56 px libres.
         const anchoPista = caja.clientWidth ? Math.max(caja.clientWidth, window.innerWidth <= 720 ? 520 : 640) - (window.innerWidth <= 720 ? 150 : 230) : 0;
         const umbral = anchoPista ? 18 * 100 / anchoPista : 2, umbralTxt = anchoPista ? 56 * 100 / anchoPista : 6;
-        const hitosPs = ps.map(p => hitosDe(tareasDe(p, estado.tareas), CONFIG.vencePronto));
+        const hitosPs = ps.map(p => hitosDe(tsDe.get(p.id), CONFIG.vencePronto));
         // Un frente sin ninguna fecha (ni fin ni tarjetas con vencimiento) se dibuja de su creacion a hoy, en gris; uno sin
         // fin de frente pero con tarjetas con fecha lleva la barra gris hasta su ultima tarjeta con fecha (lapsoProyecto), con
         // los rombos encima — el mockup los pintaba sin barra, pero la barra es lo que abre el frente y lo que la E2E cuenta.
         const lapsos = ps.map(p => { const l = lapsoProyecto(p, estado.tareas); return l.fin ? l : { inicio: l.inicio || hoyDia(), fin: hoyDia() }; });
         const rango = rangoRoadmap([...lapsos, ...hitosPs.flat().map(h => ({ inicio: h.dia, fin: h.dia }))], new Date(), 84);
         const filas = ps.map((p, i) => {
-            const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p)); const d = diasPara(p.Vence);
+            const ts = tsDe.get(p.id); const a = avance(ts, columnasDe(p)); const d = diasPara(p.Vence);
             const eti = el('button', 'g-proy'); eti.type = 'button'; eti.dataset.roadmapP = String(p.id); eti.title = p.Title;
-            eti.appendChild(iconoEquipo(equipoDe(p), 'sm')); const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', p.Title)); c.appendChild(el('span', 'm', `${a.hechas}/${a.total} hechas${p.Vence ? ` · fin ${fechaCorta(p.Vence).slice(0, 5)}` : ' · sin fin de frente'}`));   eti.appendChild(c);   // v0.40.0: el subtitulo va sin el % (Carlos, 14-sep) — el avance ya es el relleno de la barra
-            eti.addEventListener('click', () => irAHash(`#p/${p.Clave}`));
+            eti.appendChild(iconoEquipo(equipoDe(p), 'sm')); const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', p.Title)); const m = el('span', 'm'); m.appendChild(el('span', 'k', `${a.hechas}/${a.total}${window.innerWidth <= 720 ? '' : ' hechas'}`)); m.appendChild(el('span', 'f', p.Vence ? `\u00a0· fin ${fechaCorta(p.Vence).slice(0, 5)}` : '\u00a0· sin fin'));   c.appendChild(m);   eti.appendChild(c);   // nbsp en «f»: un espacio normal al inicio de un item flex se colapsa. v0.40.0: el subtitulo va sin el % (Carlos, 14-sep) — el avance ya es el relleno de la barra. U-09 (v0.78.0): sigue en un renglon; bajo 720 px va sin «hechas» (cabe en 150 px, medido a 390) y si aun no cabe la elipsis se come el conteo, nunca la fecha
+            eti.addEventListener('click', () => irFrenteId(p.id, 'roadmap'));   // U-05 (v0.78.0): el drill-down natural es el roadmap del frente, no su tablero
             const textoFin = !p.Vence ? 'sin fin de frente' : d < 0 ? `venció hace ${-d} d` : d === 0 ? 'vence hoy' : `vence ${fechaCorta(p.Vence)}`;
             // la fecha del fin ya la dice su raya: adentro de la barra queda solo el avance (el title trae todo)
             const fin = p.Vence && lapsos[i].fin ? { left: (diasEntre(rango.desde, lapsos[i].fin) + 1) * 100 / rango.dias, texto: fechaCorta(p.Vence).slice(0, 5), titulo: `Fin del frente: ${fechaCorta(p.Vence)}` } : null;
             const hitos = acomodarHitos(hitosPs[i], rango, umbral, fin ? fin.left : 100);
             for (const h of hitos) h.titulo = h.hitos.length > 1 ? `${h.hitos.length} tarjetas del ${fechaCorta(h.dia)} al ${fechaCorta(h.hasta)}: ${h.hitos.map(x => x.tarea.Title).join(' · ')} — abre el roadmap del frente` : tituloHito(h.hitos[0]);
-            return { etiqueta: eti, lapso: lapsos[i], clase: !p.Vence ? 'idle' : d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : 'brand', pct: a.pct, texto: p.Vence ? `${a.pct}%` : `${a.pct}% · sin fin de frente`, titulo: `${p.Title} · ${textoFin} · ${a.pct}% · ${hitos.reduce((n, h) => n + h.hitos.length, 0)} hito(s)`, abrir: () => irAHash(`#p/${p.Clave}`), dataset: { roadmapBarra: String(p.id) }, sinFecha: 'sin fechas', fin, hitos, abrirHito: h => h.hitos.length > 1 ? irAHash(`#p/${p.Clave}/roadmap`) : irTarjeta(h.hitos[0].tarea) };
+            return { etiqueta: eti, lapso: lapsos[i], clase: !p.Vence ? 'idle' : d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : 'brand', pct: a.pct, texto: p.Vence ? `${a.pct}%` : `${a.pct}% · sin fin de frente`, titulo: `${p.Title} · ${textoFin} · ${a.pct}% · ${hitos.reduce((n, h) => n + h.hitos.length, 0)} hito(s)`, abrir: () => irFrenteId(p.id, 'roadmap'), dataset: { roadmapBarra: String(p.id) }, sinFecha: 'sin fechas', fin, hitos, abrirHito: h => h.hitos.length > 1 ? irFrenteId(p.id, 'roadmap') : irTarjetaId(h.hitos[0].tarea.id) };
         });
         gantt(caja, filas, rango, { rotulo: 'Frente', umbralTxt });
         // leyenda: las cuatro clases del rombo y que es cada cosa (la N de «pronto» sale de CONFIG, como en el tablero)
@@ -187,12 +195,12 @@ export function pintarRoadmap() {
     const h = $('roadmapHitos'); h.textContent = '';
     const hitos = ps.filter(p => p.Vence && diasPara(p.Vence) <= 60).sort((a, b) => String(a.Vence).localeCompare(String(b.Vence)));
     for (const p of hitos) {
-        const d = diasPara(p.Vence); const ts = tareasDe(p, estado.tareas); const faltan = ts.filter(t => t.Columna !== 'hecho').length;
+        const d = diasPara(p.Vence); const ts = tsDe.get(p.id); const faltan = ts.filter(t => t.Columna !== 'hecho').length; const dia = diaDe(p.Vence);   // C-02 (v0.78.0): el dia corta por hora de Mexico, como el resto de la app
         const it = el('button', 'hito' + (d < 0 ? ' is-danger' : d <= CONFIG.vencePronto ? ' is-warn' : '')); it.type = 'button'; it.dataset.hito = String(p.id);
-        const f = el('span', 'fecha'); f.appendChild(el('small', '', MESES_CORTOS[new Date(p.Vence).getUTCMonth()])); f.appendChild(el('b', '', String(new Date(p.Vence).getUTCDate()))); it.appendChild(f);
+        const f = el('span', 'fecha'); f.appendChild(el('small', '', MESES_CORTOS[+dia.slice(5, 7) - 1])); f.appendChild(el('b', '', String(+dia.slice(8, 10)))); it.appendChild(f);
         const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', p.Title)); c.appendChild(el('span', 'm', `${equipoDe(p).nombre} · ${faltan ? `faltan ${faltan}` : 'todo hecho'}`)); it.appendChild(c);
         it.appendChild(chip(d < 0 ? `hace ${-d} d` : d === 0 ? 'hoy' : `en ${d} d`, d < 0 ? 'danger' : d <= CONFIG.vencePronto ? 'warn' : 'info'));
-        it.addEventListener('click', () => irAHash(`#p/${p.Clave}`)); h.appendChild(it);
+        it.addEventListener('click', () => irFrenteId(p.id)); h.appendChild(it);
     }
     if (!hitos.length) h.appendChild(el('p', 'vacio', 'Ningún fin de frente en los próximos 60 días.'));
 }
@@ -273,6 +281,14 @@ export function roadmapFull(activar) {
     pintarRoadmap();   // el umbral de los rombos depende del ancho real de la pista
 }
 export function engancharRoadmap() {
+    // C-01 (v0.78.0): el umbral de agrupado de los rombos sale del ancho real de la pista; si la caja cambia de ancho con la
+    // pantalla visible (rotar el celular, plegar el rail, pantalla completa, redimensionar), se repinta. Cuando esta oculta mide 0 y no se toca.
+    // El ResizeObserver cubre el rail y la pantalla completa (la ventana no cambia); `resize` cubre rotar y redimensionar, y es lo que la E2E dispara:
+    // bajo tiempo virtual el observer no entrega en todas las corridas (medido 2026-09-16: 1 de 3).
+    const caja = $('roadmapCaja');
+    const revisarAncho = () => { const w = caja.clientWidth; if (w && estado.pestana === 'roadmap' && String(w) !== caja.dataset.anchoPintado) pintarRoadmap(); };
+    if (typeof ResizeObserver === 'function') new ResizeObserver(revisarAncho).observe(caja);
+    window.addEventListener('resize', revisarAncho);
     $('btnRoadmapFull').addEventListener('click', () => roadmapFull());
     document.addEventListener('keydown', e => { if (e.key === 'Escape' && $('roadmapLinea').classList.contains('is-full')) roadmapFull(false); });
 }

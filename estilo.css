@@ -1175,9 +1175,12 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 #p-roadmap .mn-card { min-width: 0; }
 .gantt { --eti: 230px; display: grid; gap: 0; min-width: 640px; font-size: .82rem; }
 .g-fila { display: grid; grid-template-columns: var(--eti) minmax(0, 1fr); align-items: stretch; border-top: 1px solid var(--border-hairline); }
-.g-cab { display: grid; grid-template-columns: var(--eti) minmax(0, 1fr); align-items: stretch; position: sticky; top: 0; background: var(--surface-card); z-index: 1; }
-.g-cab .g-eti { align-self: end; padding-bottom: var(--sp-1); }
-.g-eje { position: relative; height: 40px; }
+.g-cab { display: grid; grid-template-columns: var(--eti) minmax(0, 1fr); align-items: stretch; position: sticky; top: 0; background: var(--surface-card); z-index: 6; }   /* U-02 (v0.78.0): por encima de las etiquetas pegadas (z 5) */
+/* U-02 (v0.78.0): la columna del nombre se queda pegada a la izquierda al desplazar la pista (a 390 el gantt mide 520 en una tarjeta de 342). */
+.g-fila .g-eti, .g-cab .g-eti { position: sticky; left: 0; z-index: 5; background: var(--surface-card); }
+.g-fila.is-grupo .g-eti { background: var(--surface-sunken); }
+.g-cab .g-eti { align-items: flex-end; padding-bottom: var(--sp-1); }   /* U-02 (v0.78.0): la celda ocupa toda la cabecera (antes align-self: end) para que los meses ya desplazados no asomen debajo de ella */
+.g-eje { position: relative; height: 56px; }   /* U-07 (v0.78.0): 20 meses + 20 semanas + 16 para la etiqueta de hoy, que antes tapaba el numero de la semana */
 .g-meses { position: absolute; left: 0; right: 0; height: 20px; }
 .g-semanas { position: absolute; left: 0; right: 0; height: 20px; top: 20px; }
 .g-meses span, .g-semanas span { position: absolute; top: 0; height: 20px; line-height: 20px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding-left: 4px; box-sizing: border-box; border-left: 1px solid var(--border-default); }
@@ -1193,18 +1196,19 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .g-tarea, .g-proy { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; width: 100%; min-height: 36px; padding: 2px 4px; border: 0; border-radius: var(--r-sm); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .g-tarea:hover, .g-proy:hover { background: var(--surface-hover); }
 .g-tarea .t, .g-proy .t { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-.g-proy .cuerpo { display: grid; min-width: 0; } .g-proy .m { font-size: .72rem; color: var(--text-faint); font-family: var(--font-data); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }   /* v0.40.0: un renglon, como el titulo */
+.g-proy .cuerpo { display: grid; min-width: 0; } .g-proy .m { display: flex; min-width: 0; font-size: .72rem; color: var(--text-faint); font-family: var(--font-data); white-space: nowrap; }   /* v0.40.0: un renglon, como el titulo */
+.g-proy .m .k { min-width: 0; overflow: hidden; text-overflow: ellipsis; } .g-proy .m .f { flex: none; }   /* U-09 (v0.78.0): si no cabe, cede el conteo; la fecha del fin siempre se lee */
 .g-pista { position: relative; min-height: 36px; background: var(--bandas, none); }   /* v0.22.0: los meses alternan fondo (gradiente calculado del rango en gantt()) */
 .g-sem { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--border-hairline); }
 .g-hoy { position: absolute; top: 0; bottom: 0; border-left: 2px solid var(--status-danger-solid); z-index: 1; }
 /* v0.22.0 (iteracion 4): la raya de hoy lleva etiqueta en la cabecera (sobre la fila de semanas, fija al hacer scroll); cerca del borde derecho se lee hacia la izquierda */
 .g-cab .g-hoy { top: 20px; z-index: 2; }
-.g-cab .g-hoy b { position: absolute; top: 2px; left: 3px; font-family: var(--font-data); font-size: .62rem; font-weight: 600; line-height: 16px; padding: 0 5px; border-radius: 3px; background: linear-gradient(var(--status-danger-bg), var(--status-danger-bg)), var(--surface-card); color: var(--status-danger-fg); white-space: nowrap; }   /* fondo opaco: el token es translucido y en oscuro se leia el numero de la semana detras */
+.g-cab .g-hoy b { position: absolute; top: 20px; left: 3px; font-family: var(--font-data); font-size: .62rem; font-weight: 600; line-height: 16px; padding: 0 5px; border-radius: 3px; background: linear-gradient(var(--status-danger-bg), var(--status-danger-bg)), var(--surface-card); color: var(--status-danger-fg); white-space: nowrap; }   /* fondo opaco: el token es translucido y en oscuro se leia el numero de la semana detras */
 .g-cab .g-hoy.is-der b { left: auto; right: 3px; }
 /* v0.22.0: el gantt con hitos (el global) es mas alto —56 px por fila— para que quepan los rombos sobre la barra y su titulo debajo */
 .gantt.is-hitos .g-pista { min-height: 56px; }
 .gantt.is-hitos .g-barra { top: 10px; justify-content: flex-end; }   /* el avance va al final de la barra: al principio lo taparian los rombos */
-.gantt.is-hitos .g-txt.g-fuera, .gantt.is-hitos .g-sinfecha { top: 13px; }
+.gantt.is-hitos .g-txt.g-fuera { top: 13px; } .gantt.is-hitos .g-sinfecha { margin-top: 13px; }
 .g-rombo { position: absolute; top: 14px; width: 14px; height: 14px; padding: 0; box-sizing: border-box; border: 2px solid var(--brand-primary); border-radius: 2px; background: var(--surface-card); transform: translateX(-50%) rotate(45deg); cursor: pointer; z-index: 3; }
 .g-rombo:hover { transform: translateX(-50%) rotate(45deg) scale(1.25); }
 .g-rombo::after { content: ""; position: absolute; inset: -11px; }   /* objetivo tactil de 36 px sin agrandar el rombo */
@@ -1235,7 +1239,11 @@ button.g-barra { cursor: pointer; } button.g-barra:hover { filter: brightness(.9
 .g-barra.is-hito::before { content: ""; position: absolute; left: -2px; top: 5px; width: 12px; height: 12px; transform: rotate(45deg); background: var(--brand-primary); border-radius: 2px; }
 .g-barra.is-hito.is-danger::before { background: var(--status-danger-solid); }
 .g-txt.g-fuera { position: absolute; top: 10px; padding: 0 6px; font-size: .72rem; font-weight: 500; color: var(--text-muted); white-space: nowrap; pointer-events: none; }
-.g-sinfecha { position: absolute; left: 6px; top: 10px; font-size: .72rem; color: var(--text-faint); font-style: italic; }
+/* U-03 (v0.78.0): una barra de pocos dias mide 12-26 px; el texto de al lado abre lo mismo y la barra gana un objetivo tactil de 36 px (::after, como el rombo). */
+.g-txt.g-fuera.is-clic { pointer-events: auto; cursor: pointer; } .g-txt.g-fuera.is-clic:hover { color: var(--text-strong); }
+button.g-barra.is-corta { overflow: visible; } button.g-barra.is-corta::after { content: ""; position: absolute; top: -7px; bottom: -7px; left: -6px; right: -6px; }
+/* v0.78.0 (revisor): «sin fecha» va pegado al borde visible de la pista (sticky a --eti + 6 px), no absoluto en su inicio: con el scroll inicial en hoy (U-01) el inicio queda bajo la etiqueta pegada (U-02) y solo se leia «a de vencimiento». */
+.g-sinfecha { position: sticky; left: calc(var(--eti) + 6px); display: inline-block; margin: 10px 0 0 6px; font-size: .72rem; line-height: 16px; color: var(--text-faint); font-style: italic; }
 .g-resumen { margin: 0; font-size: .8rem; color: var(--text-muted); }
 #tab-roadmap { display: grid; gap: var(--sp-3); min-width: 0; }
 /* v0.26.0: la linea de tiempo a pantalla completa. La tarjeta se fija a la ventana entera por encima del rail (z-pop),
@@ -1401,6 +1409,7 @@ body.sin-scroll { overflow: hidden; }
   .cal-ag.is-pasado { opacity: .75; }
   .cal-ag .cal-it { font-size: .82rem; padding: 6px 8px; min-height: 40px; }
   .gantt { --eti: 150px; min-width: 520px; }
+  .g-proy .m { font-size: .64rem; }   /* U-09 (v0.78.0): «7/17 · fin 31/10» son 16 caracteres y el cuerpo mide ~102 px; a .72rem no cabian */
   .rep-rejilla { grid-template-columns: 1fr; }
   .rep-fila { grid-template-columns: 1fr; gap: var(--sp-1); }
   .msg-proy .t { font-size: .9rem; }
