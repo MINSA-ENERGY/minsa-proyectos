@@ -28,4 +28,10 @@ for (const html of ['index.html', '../herramientas-dev/provisionar.html', '../he
   assert.ok(tag, `${html} carga el vendor de MSAL`);
   assert.ok(tag[1].includes(`integrity="${sri}"`), `${html}: integrity del vendor de MSAL debe ser ${sri}`);
 }
+// S-06 (v0.77.0): la version que declara la cabecera del vendor y la que registra la primera fila de INTEGRIDAD.md
+// son la misma; el cotejo contra npm (por red) vive en `npm run vendor:vigente`, fuera de esta suite.
+const cab = /^\/\*! @azure\/msal-browser v(\d+\.\d+\.\d+) /.exec(readFileSync(join(raiz, 'vendor', 'msal-browser.min.js'), 'utf8'));
+assert.ok(cab, 'el vendor de MSAL declara su version en la cabecera');
+const fila = /\| `msal-browser\.min\.js` \| @azure\/msal-browser (\d+\.\d+\.\d+) \|/.exec(readFileSync(join(raiz, 'vendor', 'INTEGRIDAD.md'), 'utf8'));
+assert.ok(fila && fila[1] === cab[1], `INTEGRIDAD.md registra ${fila && fila[1]} y el vendor es ${cab[1]}`);
 console.log('sw: ok');

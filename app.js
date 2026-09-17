@@ -28,7 +28,7 @@ const pca = new msal.PublicClientApplication({
         authority: `https://login.microsoftonline.com/${CONFIG.tenantId}`,
         redirectUri: new URL('./', window.location.href).href
     },
-    cache: { cacheLocation: 'sessionStorage', storeAuthStateInCookie: false }
+    cache: { cacheLocation: 'sessionStorage' }
 });
 
 $('pie').textContent = `MINSA Proyectos v${VERSION}`;
@@ -87,18 +87,30 @@ async function salir() {
     try { await pca.logoutRedirect({ account: estado.cuenta }); }
     catch (_) { sessionStorage.clear(); window.location.reload(); }
 }
-async function refrescarCliente() {
-    try {
-        estado.token = await token();
-    } catch (e) {
-        const pideInteraccion = (typeof msal !== 'undefined' && msal.InteractionRequiredAuthError && e instanceof msal.InteractionRequiredAuthError)
-            || (e && e.errorCode === 'interaction_required');
-        if (pideInteraccion) { avisar('La sesión caducó: volviendo a entrar…', 'ojo'); await pca.acquireTokenRedirect({ scopes: CONFIG.scopes, account: pca.getAllAccounts()[0] }); }
+// S-06 (v0.77.0, MSAL 5.x): sin pagina de «redirect bridge» el silencioso ya no puede renovar por iframe oculto
+// cuando el refresh token vencio (24 h) con la pestaña viva: espera `iframeBridgeTimeout` (10 s) y falla con
+// redirect_bridge_timeout en vez de interaction_required. Se tratan igual y se va por redirect, que si completa
+// sin puente (redirect-bridge.md de msal-browser: «Redirect flows can work without the redirect bridge only if
+// your redirectUri points to a page that directly processes the authentication response»). Una pestaña nueva
+// nunca pasa por aqui: sessionStorage vacio → loginRedirect.
+function pideInteraccion(e) {
+    return (typeof msal !== 'undefined' && msal.InteractionRequiredAuthError && e instanceof msal.InteractionRequiredAuthError)
+        || (e && ['interaction_required', 'redirect_bridge_timeout'].includes(e.errorCode));
+}
+async function tokenOReentrar() {
+    try { return await token(); }
+    catch (e) {
+        if (pideInteraccion(e)) { avisar('La sesión caducó: volviendo a entrar…', 'ojo'); await pca.acquireTokenRedirect({ scopes: CONFIG.scopes, account: pca.getAllAccounts()[0] }); }
         throw e;
     }
+}
+async function refrescarCliente() {
+    estado.token = await tokenOReentrar();
     // v0.13.1 (auditoria de seguridad): el cliente pide el token VIGENTE en cada peticion (MSAL lo renueva en
     // silencio y lo cachea, asi que es barato); si la renovacion falla se usa el ultimo leido y el 401 lo dice.
-    estado.cliente = crearCliente(CONFIG.graph, async () => { try { estado.token = await token(); } catch (_) { /* se queda el ultimo */ } return estado.token; });
+    // S-06: salvo cuando lo que falla es la sesion — ahi se va por redirect (revisor de v0.77.0: antes cada
+    // peticion esperaba los 10 s del iframe, se tragaba el error y salia con el token viejo a un 401).
+    estado.cliente = crearCliente(CONFIG.graph, async () => { try { estado.token = await tokenOReentrar(); } catch (_) { /* se queda el ultimo */ } return estado.token; });
 }
 /* A5 (2026-09-12): el correo + rol en un solo span se partia a media palabra («gerenci / a»).
    Ahora: nombre en negrita, correo en el title. v0.48.0: el rol es un ROTULO DE DATOS (`.rol`, mono y

@@ -5,16 +5,17 @@ autor, sin confiar en el nombre (amarillo 7 del auditor-repo, 2026-09-11).
 
 | Archivo | Versión | Origen | sha256 | Verificado |
 |---|---|---|---|---|
-| `msal-browser.min.js` | @azure/msal-browser 4.29.0 | `https://cdn.jsdelivr.net/npm/@azure/msal-browser@4.29.0/lib/msal-browser.min.js` | `d822083e23e729bd49248c54b68c51b6d5dbcff276a5ab3ab46f57b295de9cb7` | 2026-09-11, descarga fresca del origen = mismo hash; byte-idéntico al de `calytek-planta-app` |
+| `msal-browser.min.js` | @azure/msal-browser 5.22.0 | `https://cdn.jsdelivr.net/npm/@azure/msal-browser@5.22.0/lib/msal-browser.min.js` | `5ce42b98842c06a0d00233253f46684f43dd398b46cb7dd5e1441f1bfd9caa6d` | 2026-09-16, dos descargas frescas del origen = mismo hash (S-06, v0.77.0); `integrity` = `sha256-XOQrmIQsBqDQAjMlP0ZoT0PdOYtGy33V4UQfG/2cqm0=`. **Sustituye** a la fila de abajo |
+| `msal-browser.min.js` | @azure/msal-browser 4.29.0 | `https://cdn.jsdelivr.net/npm/@azure/msal-browser@4.29.0/lib/msal-browser.min.js` | `d822083e23e729bd49248c54b68c51b6d5dbcff276a5ab3ab46f57b295de9cb7` | 2026-09-11, descarga fresca del origen = mismo hash; byte-idéntico al de `calytek-planta-app`. **Se corrió hasta v0.76.0**; planta sigue en esta |
 
 Cómo re-verificar (desde la raíz de `proyectos/`):
 
 ```
 sha256sum minsa-proyectos-app/app/vendor/msal-browser.min.js
-curl -sL https://cdn.jsdelivr.net/npm/@azure/msal-browser@4.29.0/lib/msal-browser.min.js | sha256sum
+curl -sL https://cdn.jsdelivr.net/npm/@azure/msal-browser@5.22.0/lib/msal-browser.min.js | sha256sum
 ```
 
-Los dos hashes deben coincidir entre sí y con la tabla. Al subir de versión: nueva fila, nunca
+Los dos hashes deben coincidir entre sí y con la tabla. Al subir de versión: nueva fila ARRIBA (la primera es la vigente; `sw.test.js` la coteja), nunca
 sobrescribir la anterior (la vieja prueba qué se corrió hasta esa fecha).
 
 **Desde v0.76.0 (S-07) el hash también va en el `<script>`** como `integrity="sha256-<base64>"` en los
