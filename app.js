@@ -578,6 +578,67 @@ const MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'ju
 /** «domingo 13 de septiembre», por el dia de Mexico (diaDe). */
 function fechaLarga(ahora) { const d = diaDe(ahora); const x = new Date(d + 'T12:00:00Z'); return `${DIAS_LARGOS[x.getUTCDay()]} ${x.getUTCDate()} de ${MESES_LARGOS[x.getUTCMonth()]}`; }
 
+// ---------------------------------------------------------------- la cola «Hoy» de Inicio: sus piezas (C-02, mejorar-app 16-sep)
+// v0.72.0 (C-02): pintarCola media 87 lineas con nueve constructores como flechas locales y dos punteros mutables (`lista`, `total`).
+// Las piezas viven aqui a nivel de modulo —cada una probable sola— y pintarCola queda como orquestador: calcula los seis grupos y
+// pinta cada mitad diciendo EN QUE contenedor va cada grupo; el total es la suma de los grupos, no un acumulador.
+const VERBO_NUEVO = { asignada: 'te asignó', cambio: 'cambió tu tarjeta', nota: 'anotó en tu tarjeta', mencion: 'te mencionó' };
+/** Titulo del frente de una tarjeta ('' si el proyecto no esta cargado). C-03: porId una vez, no dos. */
+const tituloFrenteDe = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? p.Title : ''; };
+/** Abridor de un renglon que viene de la bitacora: su tarjeta si la tiene, si no el chat del frente. */
+const abrirEvento = a => { const p = porId(estado.proyectos, a.ProyectoId); return abridorDe(a) || (p ? () => irAHash(`#p/${p.Clave}/chat`) : null); };
+/** La columna `.k` de una tarjeta: dia en fuerte + mes en tenue del Vence; «—» sin fecha (v0.65.0). */
+const kFecha = iso => { const m = mesDia(iso); return m ? { a: String(m.dia), b: m.mes } : { a: '—', b: '' }; };
+/** La columna `.k` de un evento de la bitacora: hora de Mexico en fuerte + «hoy» / «ayer» / «dia mes» en tenue. */
+const kHora = iso => { const d = diasPara(iso), m = mesDia(iso); return { a: HORA_MX.format(new Date(iso)), b: d === 0 ? 'hoy' : d === -1 ? 'ayer' : m ? `${m.dia} ${m.mes}` : '' }; };
+/**
+ * Un renglon de la cola: FECHA en columna · titulo (+ subtitulo); sin avatar desde v0.61.0. Es un boton entero (C9), como los .it
+ * de las mini listas; el verbo «Abrir»/«Ver» a la derecha se quito en v0.25.1 (Carlos, 14-sep): el renglon entero ya lleva al pendiente.
+ * v0.65.0 (Carlos, 15-sep; artifact D1P9k1su, corte C «la fecha en columna»): el punto de 8 px se fue; la marca es el dato —dia y mes
+ * de Vence en las tarjetas, hora + dia relativo en lo que viene de la bitacora, «—» sin fecha— y el color del estado lo lleva el
+ * numero (`.k b`), no un circulo. `k` = { a: linea fuerte, b: linea tenue }; `datos` van a data-*.
+ */
+function renglonCola(estadoCls, titulo, sub, k, abrir, datos) {
+    const r = el(abrir ? 'button' : 'div', 'hoy-r' + (estadoCls ? ' is-' + estadoCls : '')); if (abrir) { r.type = 'button'; r.addEventListener('click', abrir); }
+    const f = el('span', 'k'); f.setAttribute('aria-hidden', 'true'); f.appendChild(el('b', '', k.a)); f.appendChild(el('small', '', k.b)); r.appendChild(f);
+    const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', titulo)); c.appendChild(el('span', 'p', sub)); c.querySelector('.t').title = titulo; r.appendChild(c);
+    for (const [kk, v] of Object.entries(datos || {})) r.dataset[kk] = v;
+    return r;
+}
+/** El encabezado de un grupo («Vencidas · 3»); con `alClic` es boton. Devuelve el elemento ya colgado de `lista`. */
+function grupoCola(lista, clave, texto, n, cls, alClic) {
+    const h = el(alClic ? 'button' : 'div', 'hoy-g' + (cls ? ' is-' + cls : '')); if (alClic) { h.type = 'button'; h.addEventListener('click', alClic); }
+    h.dataset.grupo = clave; h.appendChild(el('span', '', texto)); h.appendChild(el('b', 'n', String(n))); lista.appendChild(h);
+    return h;
+}
+/** Sufijos del subtitulo de una tarjeta: « · sin movimiento N d» (CONFIG.sinMovimientoDias) y « · 💬 N» con sus notas.
+ *  C-01 (mejorar-app, 16-sep): las notas de la TARJETA son notasDe(tareaId); comentariosDe(id) filtra por PROYECTO. */
+function extraCola(t, ahora = new Date()) {
+    const q = sinMovimiento([t], CONFIG.sinMovimientoDias, ahora, columnasDeTarea).length ? ` · sin movimiento ${-diasPara(t.Desde)} d` : '';
+    const n = notasDe(t.id).length; return `${q}${n ? ` · 💬 ${n}` : ''}`;
+}
+/** El renglon de una tarjeta. U-04: el subtitulo ya NO repite la fecha —la columna `.k` la trae y el grupo dice vencida/hoy/semana—
+ *  y asi el nombre del frente cabe a 390 px. `datos` extra (p. ej. sinDueno) se suman al data-t. */
+const renglonTarea = (t, cls, datos) => renglonCola(cls, t.Title, `${tituloFrenteDe(t)}${extraCola(t)}`, kFecha(t.Vence), abrirTarea(t), { t: String(t.id), ...datos });
+/** El renglon de un evento de la bitacora (nuevo para ti / te mencionaron): quien (nombre de pila) y el frente en el subtitulo. */
+const renglonEvento = (a, titulo, datos, pid = a.ProyectoId) => { const p = porId(estado.proyectos, pid); return renglonCola('info', titulo, `${nombreDe(a.Quien, estado.roles).split(' ')[0]}${p ? ' · ' + p.Title : ''}`, kHora(a.Cuando), abrirEvento(a), datos); };
+/** Los grupos por fecha se recortan a TOPE_COLA renglones con un «+N más» que lleva a donde estan todas (Mis tareas, Reportes o Calendario). */
+const TOPE_COLA = 6;
+function masCola(lista, n, texto, ir) { const b = el('button', 'hoy-mas'); b.type = 'button'; b.textContent = `+${n} más · ${texto} →`; b.addEventListener('click', ir); lista.appendChild(b); return b; }
+/** Un grupo por fecha entero: encabezado, hasta TOPE_COLA tarjetas y el «+N más». `arr` viene de gruposHoy ({ tarea, dias }). */
+function pintarGrupoCola(lista, clave, texto, arr, cls, textoMas, ir) {
+    grupoCola(lista, clave, texto, arr.length, cls);
+    for (const { tarea: t } of arr.slice(0, TOPE_COLA)) lista.appendChild(renglonTarea(t, cls));
+    if (arr.length > TOPE_COLA) masCola(lista, arr.length - TOPE_COLA, textoMas, ir);
+}
+/** Los dos botones «todo el frente / solo mías» (estado.hoySoloMias, la sesion). `alCambiar` repinta la cola. */
+function pintarFiltroCola(alCambiar) {
+    const fil = $('hoyFiltro'); fil.textContent = '';
+    for (const [texto, mias] of [['todo el frente', false], ['solo mías', true]]) {
+        const b = boton(texto, !!estado.hoySoloMias === mias ? 'is-on' : '', () => { estado.hoySoloMias = mias; alCambiar(); }, { hoy: mias ? 'mias' : 'todo' });
+        b.setAttribute('aria-pressed', String(!!estado.hoySoloMias === mias)); fil.appendChild(b);
+    }
+}
 /**
  * v0.21.0: la cola «Hoy». Seis grupos en orden de urgencia; cada tarjeta con fecha entra UNA vez (en el mas urgente).
  * «Nuevo para ti» (lo que OTROS hicieron sobre lo tuyo desde tu ultima visita; marca compartida en PROY_Roles.Visto,
@@ -587,18 +648,13 @@ function fechaLarga(ahora) { const d = diaDe(ahora); const x = new Date(d + 'T12
  * Los grupos por fecha obedecen al conmutador «todo el frente / solo mías» (estado.hoySoloMias, la sesion); «sin dueño»
  * es de nadie y sale siempre; «nuevo para ti» y «te mencionaron» son mios por definicion. Devuelve `nuevos` (C-05): quien
  * llama decide si sube la marca de visto — pintarInicio si, el conmutador «solo mías» no.
+ * v0.39.0: la cola va en DOS mitades (#inicioUrgente | #inicioResto) dentro de #inicioHoy. Izquierda: vencidas · hoy y mañana ·
+ * sin dueño. Derecha: nuevo para ti · te mencionaron · esta semana. C-02: las piezas viven arriba; aqui solo el orden.
  */
 function pintarCola(abiertas) {
-    // v0.39.0: la cola va en DOS mitades (#inicioUrgente | #inicioResto) dentro de #inicioHoy; `lista` apunta a la que se
-    // esta llenando. Izquierda: vencidas · hoy y mañana · sin dueño. Derecha: nuevo para ti · te mencionaron · esta semana.
     const urgente = $('inicioUrgente'), resto = $('inicioResto'); urgente.textContent = ''; resto.textContent = '';
-    let lista = urgente;
     const yoCorreo = estado.cuenta.username.toLowerCase();
-    const fil = $('hoyFiltro'); fil.textContent = '';
-    for (const [texto, mias] of [['todo el frente', false], ['solo mías', true]]) {
-        const b = boton(texto, !!estado.hoySoloMias === mias ? 'is-on' : '', () => { estado.hoySoloMias = mias; pintarCola(abiertas); }, { hoy: mias ? 'mias' : 'todo' });
-        b.setAttribute('aria-pressed', String(!!estado.hoySoloMias === mias)); fil.appendChild(b);
-    }
+    pintarFiltroCola(() => pintarCola(abiertas));
     // Las sin dueño NO entran a los grupos por fecha (tienen el suyo): cada tarjeta sale UNA vez y el total la cuenta una vez (revisor, 13-sep).
     const conDueno = abiertas.filter(t => String(t.Asignado || '').trim());
     const base = estado.hoySoloMias ? conDueno.filter(t => String(t.Asignado || '').toLowerCase() === yoCorreo) : conDueno;
@@ -607,65 +663,29 @@ function pintarCola(abiertas) {
     const yaNuevos = new Set(nuevos.map(x => Number(x.a.id)));
     const menciones = mencionesA(estado.cuenta.username).filter(a => !yaNuevos.has(Number(a.id)));
     const huerfanas = sinDueno(abiertas);
-    const VERBO = { asignada: 'te asignó', cambio: 'cambió tu tarjeta', nota: 'anotó en tu tarjeta', mencion: 'te mencionó' };
-    const abrirEvento = a => { const p = porId(estado.proyectos, a.ProyectoId); return abridorDe(a) || (p ? () => irAHash(`#p/${p.Clave}/chat`) : null); };
-    const tituloDe = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? p.Title : ''; };   // C-03: porId una vez, no dos
-    // Un renglon: FECHA en columna · titulo (+ subtitulo); sin avatar desde v0.61.0. Es un boton entero (C9), como los .it de las mini listas;
-    // el verbo «Abrir»/«Ver» a la derecha se quito en v0.25.1 (Carlos, 14-sep): el renglon entero ya lleva al pendiente.
-    // v0.65.0 (Carlos, 15-sep; artifact D1P9k1su, corte C «la fecha en columna»): el punto de 8 px se fue; la marca es el dato
-    // —dia y mes de Vence en las tarjetas, hora + dia relativo en lo que viene de la bitacora, «—» sin fecha— y el color del
-    // estado lo lleva el numero (`.k b`), no un circulo. `k` = { a: linea fuerte, b: linea tenue }.
-    const renglon = (estadoCls, titulo, sub, k, abrir, datos) => {
-        const r = el(abrir ? 'button' : 'div', 'hoy-r' + (estadoCls ? ' is-' + estadoCls : '')); if (abrir) { r.type = 'button'; r.addEventListener('click', abrir); }
-        const f = el('span', 'k'); f.setAttribute('aria-hidden', 'true'); f.appendChild(el('b', '', k.a)); f.appendChild(el('small', '', k.b)); r.appendChild(f);
-        const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', titulo)); c.appendChild(el('span', 'p', sub)); c.querySelector('.t').title = titulo; r.appendChild(c);
-        for (const [kk, v] of Object.entries(datos || {})) r.dataset[kk] = v;
-        return r;
-    };
-    const kFecha = iso => { const m = mesDia(iso); return m ? { a: String(m.dia), b: m.mes } : { a: '—', b: '' }; };
-    const kHora = iso => { const d = diasPara(iso), m = mesDia(iso); return { a: HORA_MX.format(new Date(iso)), b: d === 0 ? 'hoy' : d === -1 ? 'ayer' : m ? `${m.dia} ${m.mes}` : '' }; };
-    const grupo = (clave, texto, n, cls, alClic) => {
-        const h = el(alClic ? 'button' : 'div', 'hoy-g' + (cls ? ' is-' + cls : '')); if (alClic) { h.type = 'button'; h.addEventListener('click', alClic); }
-        h.dataset.grupo = clave; h.appendChild(el('span', '', texto)); h.appendChild(el('b', 'n', String(n))); lista.appendChild(h);
-    };
-    // C-01 (mejorar-app, 16-sep): las notas de la TARJETA son notasDe(tareaId); comentariosDe(id) filtra por PROYECTO y con el id de una
-    // tarjeta contaba el hilo de otro frente (o nada). Sin asercion que lo cazara hasta v0.71.0.
-    const extra = t => { const q = sinMovimiento([t], CONFIG.sinMovimientoDias, new Date(), columnasDeTarea).length ? ` · sin movimiento ${-diasPara(t.Desde)} d` : ''; const n = notasDe(t.id).length; return `${q}${n ? ` · 💬 ${n}` : ''}`; };
-    // U-04 (mejorar-app, 16-sep): el subtitulo ya NO repite la fecha —la columna `.k` la trae y el grupo dice vencida/hoy/semana— y asi el
-    // nombre del frente cabe a 390 px (antes «venció 14/09/2026 · LAU ASEA-03-001 (Licencia A…»). Con eso se fue chipDias (C-03: era chipVence).
-    const tarea = (t, cls) => renglon(cls, t.Title, `${tituloDe(t)}${extra(t)}`, kFecha(t.Vence), abrirTarea(t), { t: String(t.id) });
-    // Los grupos por fecha se recortan a `TOPE` renglones con un «+N más» que lleva a donde estan todas (Mis tareas o Calendario).
-    const TOPE = 6;
-    const mas = (n, texto, ir) => { const b = el('button', 'hoy-mas'); b.type = 'button'; b.textContent = `+${n} más · ${texto} →`; b.addEventListener('click', ir); lista.appendChild(b); };
-    const pintarGrupo = (arr, cls, texto, ir) => { for (const { tarea: t } of arr.slice(0, TOPE)) lista.appendChild(tarea(t, cls)); if (arr.length > TOPE) mas(arr.length - TOPE, texto, ir); };
-    let total = 0;
-    if (g.vencidas.length) { grupo('vencidas', 'Vencidas', g.vencidas.length, 'danger'); pintarGrupo(g.vencidas, 'danger', estado.hoySoloMias ? 'ver en Mis tareas' : 'ver en Reportes', () => { if (estado.hoySoloMias) { estado.filtroMis = 'vencidas'; irA('mis'); } else irA('reportes'); }); total += g.vencidas.length; }
-    if (g.hoy.length) { grupo('hoy', 'Hoy y mañana', g.hoy.length, 'warn'); pintarGrupo(g.hoy, 'warn', 'ver en el Calendario', () => irA('calendario')); total += g.hoy.length; }
-    lista = resto;
-    if (nuevos.length) {
-        grupo('nuevo', 'Nuevo para ti', nuevos.length, 'info');
-        for (const x of nuevos.slice(0, 8)) {
-            const p = porId(estado.proyectos, x.a.ProyectoId || (x.tarea && x.tarea.ProyectoId));
-            const que = x.tipo === 'mencion' || x.tipo === 'nota' ? x.a.Title : x.tarea ? x.tarea.Title : x.a.Title;
-            lista.appendChild(renglon('info', `${VERBO[x.tipo]}: «${que}»`, `${nombreDe(x.a.Quien, estado.roles).split(' ')[0]}${p ? ' · ' + p.Title : ''}`, kHora(x.a.Cuando), abrirEvento(x.a), { nuevo: x.tipo }));
-        }
-        total += nuevos.length;
-    }
-    if (menciones.length) {
-        grupo('mencion', 'Te mencionaron', menciones.length, 'info');
-        for (const a of menciones.slice(0, 6)) { const p = porId(estado.proyectos, a.ProyectoId); lista.appendChild(renglon('info', `«${a.Title}»`, `${nombreDe(a.Quien, estado.roles).split(' ')[0]}${p ? ' · ' + p.Title : ''}`, kHora(a.Cuando), abrirEvento(a), { mencion: String(a.id) })); }
-        total += menciones.length;
-    }
-    if (g.semana.length) { grupo('semana', 'Esta semana', g.semana.length, null); pintarGrupo(g.semana, null, 'ver en el Calendario', () => irA('calendario')); total += g.semana.length; }
+    // Izquierda: vencidas · hoy y mañana · sin dueño.
+    if (g.vencidas.length) pintarGrupoCola(urgente, 'vencidas', 'Vencidas', g.vencidas, 'danger', estado.hoySoloMias ? 'ver en Mis tareas' : 'ver en Reportes', () => { if (estado.hoySoloMias) { estado.filtroMis = 'vencidas'; irA('mis'); } else irA('reportes'); });
+    if (g.hoy.length) pintarGrupoCola(urgente, 'hoy', 'Hoy y mañana', g.hoy, 'warn', 'ver en el Calendario', () => irA('calendario'));
     // C7 (v0.6.0): las tarjetas sin dueño no salen en Mis tareas de NADIE. El grupo solo existe si hay alguna; su encabezado
     // aterriza en el proyecto que mas tiene con el filtro «sin dueño» puesto (el mismo salto que tenia el KPI).
-    lista = urgente;
     if (huerfanas.length) {
-        grupo('sin-dueno', 'Sin dueño', huerfanas.length, 'warn', () => irASinDueno(huerfanas));
-        lista.querySelector('[data-grupo="sin-dueno"]').dataset.kpi = 'sin-dueno';
-        for (const t of huerfanas.slice(0, 6)) lista.appendChild(renglon('warn', t.Title, `${tituloDe(t)}${extra(t)}`, kFecha(t.Vence), abrirTarea(t), { t: String(t.id), sinDueno: '1' }));   // U-04: ni «sin dueño ·» (lo dice el grupo) ni la fecha (la columna); con «sin movimiento» y «💬 N» como los demas renglones
-        total += huerfanas.length;
+        grupoCola(urgente, 'sin-dueno', 'Sin dueño', huerfanas.length, 'warn', () => irASinDueno(huerfanas)).dataset.kpi = 'sin-dueno';
+        for (const t of huerfanas.slice(0, TOPE_COLA)) urgente.appendChild(renglonTarea(t, 'warn', { sinDueno: '1' }));   // U-04: ni «sin dueño ·» (lo dice el grupo) ni la fecha (la columna)
     }
+    // Derecha: nuevo para ti · te mencionaron · esta semana.
+    if (nuevos.length) {
+        grupoCola(resto, 'nuevo', 'Nuevo para ti', nuevos.length, 'info');
+        for (const x of nuevos.slice(0, 8)) {
+            const que = x.tipo === 'mencion' || x.tipo === 'nota' ? x.a.Title : x.tarea ? x.tarea.Title : x.a.Title;
+            resto.appendChild(renglonEvento(x.a, `${VERBO_NUEVO[x.tipo]}: «${que}»`, { nuevo: x.tipo }, x.a.ProyectoId || (x.tarea && x.tarea.ProyectoId)));
+        }
+    }
+    if (menciones.length) {
+        grupoCola(resto, 'mencion', 'Te mencionaron', menciones.length, 'info');
+        for (const a of menciones.slice(0, TOPE_COLA)) resto.appendChild(renglonEvento(a, `«${a.Title}»`, { mencion: String(a.id) }));
+    }
+    if (g.semana.length) pintarGrupoCola(resto, 'semana', 'Esta semana', g.semana, null, 'ver en el Calendario', () => irA('calendario'));
+    const total = g.vencidas.length + g.hoy.length + huerfanas.length + nuevos.length + menciones.length + g.semana.length;
     $('nHoy').textContent = total ? String(total) : '';
     // Cada mitad vacia lo dice en su lugar; el «solo mías» sigue mandando en el texto de la izquierda.
     if (!urgente.children.length) urgente.appendChild(el('p', 'vacio', estado.hoySoloMias ? 'Nada urgente de lo tuyo: ni vencidas ni para hoy.' : 'Nada urgente: ni vencidas ni para hoy, y todo tiene dueño.'));
