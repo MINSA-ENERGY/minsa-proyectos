@@ -15,11 +15,11 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias } from './reglas.js';
-import { $, L, VERSION, estado, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
+import { $, L, VERSION, estado, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, proyectoPorClave, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, repintarFicha, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
-import { pintarRoadmap, pintarRoadmapProyecto, roadmapFull, engancharRoadmap, pintarCalendario, engancharCalendario, pintarMensajes, engancharMensajes, devolverChat, mensajesNuevos, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
+import { pintarRoadmap, pintarRoadmapProyecto, roadmapFull, engancharRoadmap, pintarCalendario, engancharCalendario, pintarMensajes, engancharMensajes, devolverChat, mensajesNuevos, proyectoDeMensajes, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
 const pca = new msal.PublicClientApplication({
@@ -269,7 +269,7 @@ function aplicarHash() {
     if (!m) { irA('inicio'); return; }
     const [, pantalla, msjTipo, msjClave, clave, tabHash, tareaId] = m;
     if (clave) {
-        const p = estado.proyectos.find(x => String(x.Clave || '') === clave);
+        const p = proyectoPorClave(clave);   // C-07 (mensajes, 17-sep)
         if (!p) { irA('inicio'); avisar(`No hay un proyecto con la clave «${clave}».`, 'ojo'); return; }
         const tab = tabHash || 'tablero';
         if (estado.pestana !== 'proyecto' || !estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id || estado.tab !== tab) {
@@ -278,7 +278,7 @@ function aplicarHash() {
     } else if (pantalla === 'mensajes') {
         // /f/<clave> solo vale aqui; un sufijo en otra pantalla se ignora (el regex lo admite para no partir la ruta)
         let sel = null;
-        if (msjTipo === 'f') { const p = estado.proyectos.find(x => String(x.Clave || '') === msjClave); if (p) { sel = { t: 'f', k: p.Clave }; if (p.Estado === 'activo' || comentariosDe(p.id).length) asegurarActividadDe(p.id).then(hubo => { if (hubo && estado.pestana === 'mensajes') repintar(); }); } else avisar(`No hay un frente con la clave «${msjClave}».`, 'ojo'); }
+        if (msjTipo === 'f') { const p = proyectoPorClave(msjClave); if (p) { sel = { t: 'f', k: p.Clave }; if (p.Estado === 'activo' || comentariosDe(p.id).length) asegurarActividadDe(p.id).then(hubo => { if (hubo && estado.pestana === 'mensajes') repintar(); }); } else avisar(`No hay un frente con la clave «${msjClave}».`, 'ojo'); }
         else if (msjTipo === 'd') avisar('El chat por persona ya no está en la app (v0.43.0): escríbele por Teams.', 'ojo');
         const cambio = JSON.stringify(sel) !== JSON.stringify(estado.mensajesSel || null);
         estado.mensajesSel = sel;
@@ -306,7 +306,7 @@ function fijarProyectoAbierto(p) {
 }
 function repintar() {
     // v0.42.0: el hilo tambien vive en Mensajes (#mensajes/f/<clave>); ahi el chat esta «en pantalla» y no se sale de el.
-    const chatEnMensajes = estado.pestana === 'mensajes' && !!(estado.mensajesSel && estado.mensajesSel.t === 'f');
+    const chatEnMensajes = estado.pestana === 'mensajes' && !!proyectoDeMensajes();   // C-07 (17-sep)
     if (!(estado.pestana === 'proyecto' && estado.tab === 'chat') && !chatEnMensajes) salirDelChat();   // v0.9.0: la proxima vez que se vea el chat cuenta como «entrar»
     if (estado.pestana !== 'mensajes') devolverChat();   // v0.42.0: #tab-chat vuelve a la pestana del proyecto
     if (estado.pestana !== 'inicio') estado.nuevosInicio = null;   // v0.15.0: la proxima visita a Inicio fija otro conjunto de «Nuevo para ti»
@@ -1071,7 +1071,8 @@ function aplicarBandeja(plegada) {
 }
 try { aplicarBandeja(localStorage.getItem('bandeja') === 'plegada'); } catch (_) { aplicarBandeja(false); }
 function fijarBandeja(plegada) {
-    try { if (plegada) localStorage.setItem('bandeja', 'plegada'); else localStorage.removeItem('bandeja'); } catch (_) {}
+    // U-02 (17-sep): en ≤ 900 px el pliegue no aplica (el CSS ignora la clase) y la preferencia NO se guarda: el «‹» ahi ni se ve.
+    if (!matchMedia('(max-width: 900px)').matches) { try { if (plegada) localStorage.setItem('bandeja', 'plegada'); else localStorage.removeItem('bandeja'); } catch (_) {} }
     aplicarBandeja(plegada);
 }
 $('mensajesPlegar').addEventListener('click', () => fijarBandeja(true));

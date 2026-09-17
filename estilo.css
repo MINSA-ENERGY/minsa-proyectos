@@ -1330,6 +1330,11 @@ body.sin-scroll { overflow: hidden; }
 .msj-volver { display: none; justify-self: start; }
 .msj-vacio { color: var(--text-faint); font-size: .9rem; margin: 0; padding: var(--sp-4); border: 1px dashed var(--border-default); border-radius: var(--r-md); }
 .msj-hilo .chat { padding-bottom: 0; }   /* el hueco del FAB es de la pestana del proyecto, no de aqui */
+/* U-01 (17-sep): la cabecera del hilo — icono de la unidad + titulo del frente, que liga al frente. */
+.msj-titulo { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
+.msj-titulo-frente { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; min-height: 44px; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; color: var(--text-strong); text-decoration: none; }   /* 44 px: objetivo tactil (revisor 17-sep: 25 px) */
+.msj-titulo-frente:hover .t { color: var(--brand-primary); text-decoration: underline; }
+.msj-titulo-frente .t { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .msj-sec > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) 0 var(--sp-1); font-family: var(--font-data); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); min-height: 36px; }
 .msj-sec > summary::-webkit-details-marker { display: none; }
 .msj-sec > summary::before { content: "▾"; font-size: .8rem; color: var(--text-faint); width: 10px; }
@@ -1360,6 +1365,7 @@ body.sin-scroll { overflow: hidden; }
 }
 @media (max-width: 900px) {
   .msj { grid-template-columns: 1fr; }
+  .msj-plegar { display: none; }   /* U-02 (17-sep): el pliegue no aplica aqui; el boton solo confundia */
   .msj.is-hilo .msj-izq { display: none; }
   .msj:not(.is-hilo) .msj-der { display: none; }
   .msj.is-hilo .msj-volver { display: inline-flex; }
@@ -1376,10 +1382,6 @@ body.sin-scroll { overflow: hidden; }
 .msg-proy.is-nuevo .m, .msg-proy.is-nuevo .t { color: var(--text-strong); } .msg-proy.is-nuevo .m { font-weight: 500; }
 .msg-proy.is-vacio .m { color: var(--text-faint); font-style: italic; }
 .msg-proy .lado { display: inline-flex; gap: var(--sp-1); align-items: center; }
-.msg-men { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-1) var(--sp-3); align-items: start; width: 100%; padding: var(--sp-2) 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; font: inherit; font-size: .85rem; color: inherit; text-align: left; cursor: pointer; border-radius: var(--r-sm); }
-.msg-men:first-child { border-top: 0; } .msg-men:hover { background: var(--surface-hover); }
-.msg-men .cuerpo { display: grid; min-width: 0; } .msg-men .cab { display: flex; justify-content: space-between; gap: var(--sp-2); } .msg-men .q { font-weight: 600; color: var(--text-strong); } .msg-men .d { font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); }
-.msg-men .w { color: var(--text-faint); font-size: .75rem; }
 /* ---- archivos */
 .archivos-filtros { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
 .archivos-filtros .buscador { flex: 1 1 240px; }

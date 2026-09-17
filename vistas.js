@@ -7,7 +7,7 @@
 
 import { CONFIG } from './config.js';
 import { tareasDe, avance, avanceGlobal, estadoVence, claseVence, fraseVence, diasPara, nombreDe, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
-import { $, estado, activos, visibles, nombreEquipoFiltrado, el, boton, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, columnasDeTarea, avisar } from './comun.js';
+import { $, estado, activos, visibles, nombreEquipoFiltrado, el, boton, chip, fechaCorta, fechaHora, fechaBandeja, porId, proyectoPorClave, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, columnasDeTarea, avisar } from './comun.js';
 import { pintarChat } from './chat.js';   // v0.42.0: Mensajes pinta el hilo del frente elegido en su propia columna
 import { tablaDocs, filaRaiz, filasDeExpediente, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden; v0.36.0: y el mismo arbol
 
@@ -358,11 +358,11 @@ export function pintarMensajes() {
     const ult = ultimoComentarioPorProyecto(estado.actividad);
     const lista = $('mensajesLista'); lista.textContent = '';
     let nuevosTotal = 0;
-    const seccion = (titulo, n, abierta, hijos, clave) => {
+    const seccion = (titulo, n, abierta, hijos, clave, vacio) => {
         const d = el('details', 'msj-sec'); d.open = abierta; d.dataset.sec = clave;
         const s = el('summary'); s.appendChild(el('span', '', titulo)); s.appendChild(el('span', 'cnt mn-mono', String(n))); d.appendChild(s);
         for (const h of hijos) d.appendChild(h);
-        if (!hijos.length) d.appendChild(el('p', 'vacio', q ? 'Nada coincide.' : '—'));
+        if (!hijos.length) d.appendChild(el('p', 'vacio', q ? 'Nada coincide.' : vacio));   // U-06 (17-sep): un estado vacio que diga que hacer, no «—»
         return d;
     };
     const renglon = (p, ultimo) => {
@@ -374,7 +374,8 @@ export function pintarMensajes() {
         // trae el icono chico de la unidad y el preview nombra a quien escribio; la bolita repetia las dos cosas.
         const c = el('span', 'cuerpo');
         const cab = el('span', 'cab'); const t = el('span', 't'); t.appendChild(iconoEquipo(equipoDe(p), 'sm')); t.appendChild(el('span', '', p.Title)); cab.appendChild(t);
-        cab.appendChild(el('span', 'd', ultimo ? fechaHora(ultimo.Cuando) : '')); c.appendChild(cab);
+        if (ultimo) { const d = el('span', 'd', fechaBandeja(ultimo.Cuando)); d.title = fechaHora(ultimo.Cuando); cab.appendChild(d); }   // U-04: relativa; la completa en el title
+        c.appendChild(cab);
         const m = el('span', 'm');
         if (ultimo) { m.appendChild(el('b', '', (String(ultimo.Quien || '').toLowerCase() === yo ? 'Tú' : nombreDe(ultimo.Quien, estado.roles).split(' ')[0]) + (ultimo.TareaId ? ' (nota): ' : ': '))); m.appendChild(textoConMenciones(ultimo.Title, undefined, false)); }
         else m.textContent = p.Estado === 'activo' ? 'Sin conversación todavía.' : 'Cerrado · sin conversación.';
@@ -387,11 +388,13 @@ export function pintarMensajes() {
         return b;
     };
     const con = ult.map(x => ({ p: porId(estado.proyectos, x.proyectoId), ultimo: x.ultimo })).filter(x => x.p && coincide(q, x.p.Title, x.p.Clave, x.ultimo.Title, nombreDe(x.ultimo.Quien, estado.roles)));
-    const sin = ordenarProyectos(activos().filter(p => !ult.some(x => x.proyectoId === p.id))).filter(p => coincide(q, p.Title, p.Clave));
+    const conChatIds = new Set(ult.map(x => x.proyectoId));
+    const sinChat = ordenarProyectos(activos().filter(p => !conChatIds.has(p.id)));   // C-07: una vez, para la seccion y el rail
+    const sin = sinChat.filter(p => coincide(q, p.Title, p.Clave));
     // el conteo de nuevos es de TODOS los frentes con chat, no solo los que pasan el buscador
     for (const x of ult) if (!con.some(y => y.p.id === x.proyectoId) && porId(estado.proyectos, x.proyectoId)) nuevosTotal += comentariosNuevos(x.proyectoId).length;
-    lista.appendChild(seccion('Frentes', con.length, true, con.map(x => renglon(x.p, x.ultimo)), 'frentes'));
-    lista.appendChild(seccion('Sin conversación', sin.length, !!q, sin.map(p => renglon(p, null)), 'sin'));
+    lista.appendChild(seccion('Frentes', con.length, true, con.map(x => renglon(x.p, x.ultimo)), 'frentes', 'Ningún frente tiene conversación todavía: abre uno en «Sin conversación».'));
+    lista.appendChild(seccion('Sin conversación', sin.length, !!q, sin.map(p => renglon(p, null)), 'sin', 'Todos los frentes activos ya tienen conversación.'));
     // v0.56.0 (Carlos, 15-sep; artifact MHCmeJw5, opción C): la bandeja PLEGADA es un botón por frente —icono de la unidad,
     // título en el title, insignia de nuevos— en el MISMO orden de la lista (con conversación primero, luego sin). El buscador
     // no la filtra: plegada no hay buscador a la vista, y esconder un frente ahí sería esconderlo sin avisar.
@@ -406,16 +409,25 @@ export function pintarMensajes() {
         return b;
     };
     for (const x of ult) { const p = porId(estado.proyectos, x.proyectoId); if (p) rail.appendChild(frenteRail(p, true)); }
-    for (const p of ordenarProyectos(activos().filter(p => !ult.some(x => x.proyectoId === p.id)))) rail.appendChild(frenteRail(p, false));
-    $('mensajesSub').textContent = `${con.length} conversación(es) · ${nuevosTotal ? `${nuevosTotal} mensaje(s) nuevo(s) desde tu última visita` : 'nada nuevo desde tu última visita'}. Un chat por frente; escribe @nombre para avisarle a alguien.`;
-    // ---- derecha: hilo del frente o el aviso de elegir
-    const p = sel && sel.t === 'f' ? estado.proyectos.find(x => String(x.Clave || '') === sel.k) : null;
+    for (const p of sinChat) rail.appendChild(frenteRail(p, false));
+    // U-03 (17-sep): solo la cifra, con plural real; la instruccion del @ ya vive en el placeholder del cuadro de texto.
+    $('mensajesSub').textContent = `${con.length} ${con.length === 1 ? 'conversación' : 'conversaciones'} · ${nuevosTotal ? `${nuevosTotal} ${nuevosTotal === 1 ? 'mensaje nuevo' : 'mensajes nuevos'} desde tu última visita` : 'nada nuevo desde tu última visita'}.`;
+    // ---- derecha: hilo del frente (con su cabecera, U-01) o el aviso de elegir
+    const p = proyectoDeMensajes(sel);
     $('msj').classList.toggle('is-hilo', !!p);
     $('mensajesVacio').classList.toggle('oculto', !!p);
     $('mensajesHilo').classList.toggle('oculto', !p);
-    if (p) { alojarChat($('mensajesHilo')); pintarChat(p); }
-    else alojarChat(null);
+    const cab = $('mensajesTitulo'); cab.textContent = ''; cab.classList.toggle('oculto', !p);
+    if (p) {
+        // U-01 (17-sep): en celular el hilo arrancaba sin decir de que frente era; la cabecera lo nombra y liga al frente.
+        const a = el('a', 'msj-titulo-frente'); a.href = `#p/${p.Clave}`; a.title = 'Abrir el frente';
+        a.appendChild(iconoEquipo(equipoDe(p), 'sm')); a.appendChild(el('span', 't', p.Title)); cab.appendChild(a);
+        if (p.Estado !== 'activo') cab.appendChild(chip('cerrado'));
+        alojarChat($('mensajesHilo')); pintarChat(p);
+    } else alojarChat(null);
 }
+/** C-07 (17-sep): el frente que Mensajes tiene elegido ({t:'f', k: clave}), o null. app.js y mensajesNuevos lo usan tambien. */
+export const proyectoDeMensajes = (sel = estado.mensajesSel) => sel && sel.t === 'f' ? proyectoPorClave(sel.k) : null;
 export function engancharMensajes() {
     $('mensajesBusca').addEventListener('input', () => { estado.buscaMensajes = $('mensajesBusca').value; pintarMensajes(); });
     $('mensajesVolver').addEventListener('click', () => irAHash('#mensajes'));
@@ -424,7 +436,7 @@ export function engancharMensajes() {
 export function mensajesNuevos() {
     // El chat que esta en pantalla ya se esta leyendo: no cuenta (la pestana Chat tampoco lo pinta en ambar, app.js).
     // v0.42.0: tambien el frente cuyo hilo esta abierto en Mensajes.
-    const sel = estado.pestana === 'mensajes' && estado.mensajesSel && estado.mensajesSel.t === 'f' ? estado.proyectos.find(x => String(x.Clave || '') === estado.mensajesSel.k) : null;
+    const sel = estado.pestana === 'mensajes' ? proyectoDeMensajes() : null;
     const leyendo = estado.pestana === 'proyecto' && estado.tab === 'chat' && estado.proyectoAbierto ? estado.proyectoAbierto.id : sel ? sel.id : null;
     return activos().reduce((n, p) => n + (p.id === leyendo ? 0 : comentariosNuevos(p.id).length), 0);
 }

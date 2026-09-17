@@ -3,9 +3,9 @@
 // la bitacora PROY_Actividad.
 
 import { CONFIG } from './config.js';
-import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion, activosDe, proyectosVisibles } from './reglas.js';
+import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.82.1';
+export const VERSION = '0.83.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -103,6 +103,8 @@ export function tonoDe(correo) {
 export function chip(texto, estado2) { return el('span', 'mn-chip' + (estado2 ? ' is-' + estado2 : ''), texto); }
 export function limpiar(obj) { const o = {}; for (const k in obj) if (obj[k] !== undefined && obj[k] !== '') o[k] = obj[k]; return o; }
 export function porId(coleccion, id) { return coleccion.find(x => x.id === Number(id)) || null; }
+/** C-07 (mensajes, 17-sep): el frente por su clave del hash, en UN sitio (antes app.js x2 y vistas.js x2 repetian el find). */
+export const proyectoPorClave = clave => estado.proyectos.find(x => String(x.Clave || '') === String(clave || '')) || null;
 
 // ---------------------------------------------------------------- avisos
 
@@ -254,6 +256,23 @@ export function fechaHora(iso) {
     if (!iso) return '—';
     const d = new Date(iso);
     return d.toLocaleString('es-MX', { timeZone: 'America/Mexico_City', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', hour12: false });
+}
+/** U-04 (mensajes, 17-sep): la fecha de la bandeja — solo la hora si es de hoy, «ayer», y dd/mm (con año si no es este) para lo
+ *  demas: la fecha completa se comia el titulo del frente en 390 px. Fecha invalida: «—». */
+export function fechaBandeja(iso, hoy = new Date()) {
+    const r = rotuloDia(iso, hoy); if (r === '—' || r === 'ayer') return r;
+    if (r === 'hoy') return new Date(iso).toLocaleTimeString('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false });
+    const d = diaDe(iso); return `${d.slice(8, 10)}/${d.slice(5, 7)}${d.slice(0, 4) !== fechaMexico(hoy).slice(0, 4) ? '/' + d.slice(0, 4) : ''}`;
+}
+const DIAS_LARGOS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+/** «hoy» · «ayer» · «martes 9 sep» (con año si no es este): el separador de dia del hilo, en hora de Mexico. Vivia en chat.js;
+ *  C-06/U-04 (17-sep): un solo sitio decide que es hoy y ayer (diaDe/fechaMexico de reglas.js); fecha invalida → «—». */
+export function rotuloDia(iso, hoy = new Date()) {
+    const d = diaDe(iso); if (!d) return '—';
+    const h = fechaMexico(hoy), a = fechaMexico(new Date(hoy.getTime() - 86400000));
+    if (d === h) return 'hoy'; if (d === a) return 'ayer';
+    const x = new Date(d + 'T12:00:00Z');
+    return `${DIAS_LARGOS[x.getUTCDay()]} ${x.getUTCDate()} ${MESES[x.getUTCMonth()]}${d.slice(0, 4) !== h.slice(0, 4) ? ' ' + x.getUTCFullYear() : ''}`;
 }
 /** v0.63.0: «hace 12 min» / «hace 3 h» dentro de las ultimas 24 h; mas viejo, fechaHora. Para las listas de actividad. */
 export function haceCuanto(iso, ahora = new Date()) {
@@ -658,7 +677,7 @@ export async function alternarVisto(c, p) {
         if (mio) { await estado.cliente.borrarRenglon(estado.siteId, L.actividad, mio.id, m => avisar(m, 'ojo')); estado.actividad = estado.actividad.filter(a => a.id !== mio.id); }
         else {
             const n = await estado.cliente.crearRenglon(estado.siteId, L.actividad, { Title: String(c.id), Accion: 'visto', Quien: estado.cuenta.username, Cuando: new Date().toISOString(), ProyectoId: Number(p.id) }, m => avisar(m, 'ojo'));
-            estado.actividad.unshift(n);
+            fusionarActividad([n]);   // C-03 (mensajes, 17-sep): un refresco a medio POST ya lo pudo traer; unshift lo duplicaba
         }
         return true;
     } catch (e) { avisar('No se pudo marcar: ' + (e && e.message ? e.message : e), 'error'); return false; }

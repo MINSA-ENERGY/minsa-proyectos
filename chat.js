@@ -8,8 +8,8 @@
 // la parte local del correo, sin acentos). Se pintan como chip, la propia lleva `is-yo`, e Inicio
 // junta «Te mencionaron». El selector aparece al teclear @ (tambien en la nota de la tarjeta).
 
-import { PUEDE, mencionEnCurso, aliasDe, aliasParaMencion, nombreDe, sinAcentos } from './reglas.js';
-import { $, L, estado, el, boton, tonoDe, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos, vistosDeComentario, miVistoDe, puedeMarcarVisto, alternarVisto, personasActivas, contadorTexto } from './comun.js';
+import { PUEDE, mencionEnCurso, aliasDe, aliasParaMencion, nombreDe, sinAcentos, diaDe } from './reglas.js';
+import { $, L, estado, el, boton, tonoDe, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos, vistosDeComentario, miVistoDe, puedeMarcarVisto, alternarVisto, personasActivas, contadorTexto, fusionarActividad, rotuloDia } from './comun.js';
 
 let alCambiar = () => {};
 export function alCambiarChat(fn) { alCambiar = fn; }
@@ -22,22 +22,16 @@ const COMENTARIO_MAX = 250, COMENTARIO_AVISO = 200;
 // el frente elegido AHI, que no es el abierto. La ultima pintada fija el destino; salirDelChat lo suelta.
 let proyectoChat = null;
 export const proyectoDelChat = () => proyectoChat;
+// C-09 (mensajes, 17-sep): el estado de «entre al chat» (que proyecto pinta el hilo, si ya se pinto, la raya de nuevos) vive
+// aqui y no como expandos/dataset del #chatHilo, que alojarChat mueve entre padres. El selector de @ igual: un WeakMap por textarea.
+const hiloEstado = { proyecto: null, pintado: false, nuevos: null, ultimo: null };   // ultimo: el Cuando del comentario mas nuevo pintado
+const selectores = new WeakMap();
 const personas = personasActivas;   // C-06 (17-sep): la copia vive en comun.js
 export const puedeComentarEn = p => PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';
 
 // ---------------------------------------------------------------- pintar
 
-const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-/** «hoy» · «ayer» · «martes 9 sep»: el separador de dia del hilo, en hora de Mexico. */
-function rotuloDia(iso, hoy = new Date()) {
-    const f = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' });
-    const d = f.format(new Date(iso)), h = f.format(hoy), a = f.format(new Date(hoy.getTime() - 86400000));
-    if (d === h) return 'hoy'; if (d === a) return 'ayer';
-    const x = new Date(d + 'T12:00:00Z');
-    return `${DIAS[x.getUTCDay()]} ${x.getUTCDate()} ${MESES[x.getUTCMonth()]}${x.getUTCFullYear() !== hoy.getFullYear() ? ' ' + x.getUTCFullYear() : ''}`;
-}
-const diaDe = iso => new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Mexico_City', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(iso));
+// El separador de dia del hilo (rotuloDia) vive en comun.js desde el 17-sep (C-06/U-04): la bandeja lo usa tambien.
 
 export function pintarChat(p) {
     const hilo = $('chatHilo');
@@ -46,12 +40,12 @@ export function pintarChat(p) {
     const cs = comentariosDe(p.id);
     // El refresco automatico (120 s) repinta el hilo: si la persona estaba leyendo arriba, se queda donde
     // estaba; solo si estaba al fondo (o es la primera pintada) se aterriza en lo ultimo (revisor, 12-sep).
-    const estabaAlFondo = !hilo.dataset.pintado || hilo.scrollTop + hilo.clientHeight >= hilo.scrollHeight - 40;
+    const estabaAlFondo = !hiloEstado.pintado || alFondoDe(hilo);
     const scrollAntes = hilo.scrollTop;
     // v0.9.0: la raya «nuevos» se fija al ENTRAR al chat de este proyecto (no en cada repintado: el refresco de
-    // 120 s la movería sola). La marca de visto sube al final de cada pintada.
-    if (hilo.dataset.proyecto !== String(p.id)) { hilo.dataset.proyecto = String(p.id); delete hilo.dataset.pintado; hilo._nuevos = new Set(comentariosNuevos(p.id, chatVistoHasta(p.id)).map(c => c.id)); }
-    const nuevos = hilo._nuevos || new Set();   // fijado al entrar: lo que llegue durante el refresco no se suma a «tu ultima visita»
+    // 120 s la movería sola). La marca de visto sube al final de la pintada que aterriza al fondo (C-01).
+    if (hiloEstado.proyecto !== p.id) { hiloEstado.proyecto = p.id; hiloEstado.pintado = false; hiloEstado.nuevos = new Set(comentariosNuevos(p.id, chatVistoHasta(p.id)).map(c => c.id)); }
+    const nuevos = hiloEstado.nuevos || new Set();   // fijado al entrar: lo que llegue durante el refresco no se suma a «tu ultima visita»
     hilo.textContent = '';
     if (!cs.length) hilo.appendChild(el('p', 'vacio', puedeComentarEn(p) ? 'Nadie ha escrito todavía. Aquí va lo que el equipo necesita leer del frente; con @nombre avisas a alguien.' : 'Nadie ha escrito todavía.'));
     let dia = null; let anterior = null; let rayaPuesta = false;
@@ -79,21 +73,23 @@ export function pintarChat(p) {
         if (seguido) texto.title = fechaHora(c.Cuando);
         cuerpo.appendChild(texto);
         // v0.15.0: ✓ visto — quienes ya lo vieron y, en lo ajeno, el boton para marcarlo (contesta «¿ya viste?» sin escribir).
-        const vs = vistosDeComentario(c);
+        // C-02 (17-sep): los handlers resuelven comentario y proyecto POR ID al clic (el hilo se repinta cada 120 s: el objeto
+        // capturado seria el de una pintada vieja). U-05: la lista de quien lo vio nombra a los DEMAS; el propio ya lo dice el chip.
+        const vs = vistosDeComentario(c); const mio = miVistoDe(c);
+        const otros = mio ? vs.filter(a => a.id !== mio.id) : vs;
         if (vs.length || puedeMarcarVisto(c, p)) {
             const fila = el('div', 'vistos');
             if (puedeMarcarVisto(c, p)) {
-                const mio = miVistoDe(c);
-                const b = boton(mio ? '✓ visto' : '¿visto?', 'visto-btn' + (mio ? ' is-on' : ''), async () => { if (await alternarVisto(c, p)) { pintarChat(p); alCambiar(); } }, { visto: String(c.id) });   // U-07 (17-sep): el no pulsado lleva palabra (en tactil no hay title)
+                const b = boton(mio ? '✓ visto' : '¿visto?', 'visto-btn' + (mio ? ' is-on' : ''), () => alClic(c.id, p.id, alternarVisto), { visto: String(c.id) });   // U-07 (17-sep): el no pulsado lleva palabra (en tactil no hay title)
                 b.title = mio ? 'Quitar tu visto' : 'Marcar como visto'; b.setAttribute('aria-pressed', mio ? 'true' : 'false'); fila.appendChild(b);
             }
-            if (vs.length) { const q = el('span', 'q', '✓ ' + vs.map(a => nombreDe(a.Quien, estado.roles).split(' ')[0]).join(', ')); q.title = vs.map(a => `${nombreDe(a.Quien, estado.roles)} · ${fechaHora(a.Cuando)}`).join(' · '); fila.appendChild(q); }
+            if (otros.length) { const q = el('span', 'q', '✓ ' + otros.map(a => nombreDe(a.Quien, estado.roles).split(' ')[0]).join(', ')); q.title = otros.map(a => `${nombreDe(a.Quien, estado.roles)} · ${fechaHora(a.Cuando)}`).join(' · '); fila.appendChild(q); }
             cuerpo.appendChild(fila);
         }
         m.appendChild(cuerpo);
         // v0.9.0: borrar — lo propio, o cualquiera si gerencia; el boton vive en el mensaje y se ve al pasar el raton (siempre en tactil).
         if (puedeBorrarComentario(c, p)) {
-            const b = boton('', 'borrar-msg', async () => { if (await borrarComentario(c, p)) { pintarChat(p); alCambiar(); } }, { borrar: String(c.id) });
+            const b = boton('', 'borrar-msg', () => alClic(c.id, p.id, borrarComentario), { borrar: String(c.id) });
             b.title = c.TareaId ? 'Borrar esta nota' : 'Borrar este comentario'; b.setAttribute('aria-label', b.title);
             b.appendChild(iconoSvg(TRAZOS.basura));
             m.classList.add('has-borrar'); m.appendChild(b);
@@ -101,8 +97,10 @@ export function pintarChat(p) {
         hilo.appendChild(m);
         anterior = c;
     }
-    // v0.9.0: lo que ya estuvo en pantalla deja de ser nuevo (la raya se queda hasta salir del chat).
-    if (cs.length) marcarChatVisto(p.id, cs[cs.length - 1].Cuando);
+    // v0.9.0: lo que ya estuvo en pantalla deja de ser nuevo (la raya se queda hasta salir del chat). C-01 (17-sep): solo si la
+    // pintada aterriza al fondo; leyendo arriba, el refresco no marca visto lo que no se vio (lo marca el scroll al llegar abajo).
+    hiloEstado.ultimo = cs.length ? cs[cs.length - 1].Cuando : null;
+    if (hiloEstado.ultimo && estabaAlFondo) marcarChatVisto(p.id, hiloEstado.ultimo);
     const puede = puedeComentarEn(p);
     $('formChat').classList.toggle('oculto', !puede);
     $('chatSoloLectura').classList.toggle('oculto', puede);
@@ -110,8 +108,20 @@ export function pintarChat(p) {
     contar();
     ajustarHilo();   // U-06: antes de aterrizar al fondo, que el alto del hilo ya sea el definitivo
     // El hilo se lee como chat: lo ultimo abajo, y al entrar se aterriza ahi.
-    hilo.dataset.pintado = '1';
+    hiloEstado.pintado = true;
     hilo.scrollTop = estabaAlFondo ? hilo.scrollHeight : scrollAntes;
+}
+const alFondoDe = h => h.scrollTop + h.clientHeight >= h.scrollHeight - 40;
+/** C-02: el clic resuelve comentario y proyecto por id contra el estado de AHORA; si alguno ya no existe, no hace nada. */
+async function alClic(cid, pid, accion) {
+    const c = porId(estado.actividad, cid), p = porId(estado.proyectos, pid);
+    if (c && p && await accion(c, p)) { pintarChat(p); alCambiar(); }
+}
+/** C-01: llegar al fondo por scroll (leyendo lo que el refresco trajo) es verlo: sube la marca y avisa para que la bandeja lo refleje. */
+function alDesplazarHilo() {
+    const u = hiloEstado.ultimo; if (!proyectoChat || !u || !alFondoDe($('chatHilo'))) return;
+    if (!(u > chatVistoHasta(proyectoChat.id))) return;   // ya visto: nada que subir (y nada que ordenar por cada evento de scroll)
+    marcarChatVisto(proyectoChat.id, u); alCambiar();
 }
 // U-06 (mejorar-app proyecto, 17-sep): en celular el hilo media 40vh fijos y quedaban ~100 px vacios bajo «Enviar» (el hueco
 // que .chat reserva al FAB, que en el chat no existe, mas lo que sobraba del viewport). Ahora el hilo toma lo que queda del
@@ -134,7 +144,7 @@ function ajustarHilo() {
 window.addEventListener('resize', ajustarHilo);
 
 /** v0.9.0: app.js lo llama cuando el chat deja de estar en pantalla; la proxima pintada cuenta como «entrar». */
-export function salirDelChat() { proyectoChat = null; const h = $('chatHilo'); if (h) { delete h.dataset.proyecto; delete h.dataset.pintado; h._nuevos = null; } }
+export function salirDelChat() { proyectoChat = null; hiloEstado.proyecto = null; hiloEstado.pintado = false; hiloEstado.nuevos = null; }
 /** Tras enviar, siempre al fondo (es mi mensaje). */
 function alFondo() { const h = $('chatHilo'); h.scrollTop = h.scrollHeight; }
 
@@ -144,7 +154,7 @@ const contar = () => contadorTexto('chatTexto', 'chatCont', COMENTARIO_MAX, COME
 
 async function enviar(ev) {
     ev.preventDefault();
-    const p = proyectoChat || estado.proyectoAbierto; if (!p) return;   // v0.42.0: el frente que el hilo pinta, no el abierto
+    const p = (proyectoChat && porId(estado.proyectos, proyectoChat.id)) || estado.proyectoAbierto; if (!p) return;   // v0.42.0: el frente que el hilo pinta, no el abierto; C-02: resuelto por id
     if (!PUEDE.tarea(estado.rol)) { avisar('Tu rol es de lectura: no puedes comentar.', 'error'); return; }
     if (p.Estado !== 'activo') { avisar('El proyecto está cerrado.', 'error'); return; }
     if (navigator.onLine === false) { avisar('Sin conexión: el comentario se manda cuando regrese la red (vuelve a intentarlo).', 'ojo'); return; }   // T2: Ctrl+Enter no pasa por pointer-events
@@ -156,7 +166,7 @@ async function enviar(ev) {
     try {
         const r = { Title: texto, Accion: 'comentar', Quien: estado.cuenta.username, Cuando: new Date().toISOString(), ProyectoId: Number(p.id) };
         const n = await estado.cliente.crearRenglon(estado.siteId, L.actividad, r, m => avisar(m, 'ojo'));
-        estado.actividad.unshift(n);
+        fusionarActividad([n]);   // C-03: un refresco a medio POST ya lo pudo traer; unshift lo duplicaba en el hilo
         $('chatTexto').value = ''; cerrarSelector($('chatTexto'));
         pintarChat(p); alFondo();
         alCambiar();
@@ -171,22 +181,25 @@ async function enviar(ev) {
  * Bajo un textarea, la lista de personas cuando el cursor esta en un «@ali» a medio escribir; elegir
  * una reemplaza lo tecleado por «@alias » (el alias que aliasParaMencion garantiza inequivoco).
  * Teclado: ↑/↓ recorre, Enter/Tab elige, Esc cierra; Ctrl/Cmd+Enter sigue enviando el formulario.
+ * `idArroba`: el boton «@» de esa forma, si lo hay — su clic no roba el foco (mousedown cancelado) y, si el foco pasa por el
+ * (foco programatico), el selector no se cierra.
  */
-export function engancharSelectorMenciones(idTexto, idCaja, enviarForma) {
-    const ta = $(idTexto), caja = $(idCaja);
-    ta._selector = { caja, i: 0, opciones: [] };
+export function engancharSelectorMenciones(idTexto, idCaja, enviarForma, idArroba) {
+    const ta = $(idTexto), caja = $(idCaja), arroba = idArroba ? $(idArroba) : null;
+    selectores.set(ta, { caja, i: 0, opciones: [] });
     // ARIA del combo: el textarea es el «combobox» y la caja su listbox; la opcion marcada va en aria-activedescendant.
     ta.setAttribute('aria-autocomplete', 'list'); ta.setAttribute('aria-controls', idCaja); ta.setAttribute('aria-expanded', 'false');
     ta.addEventListener('input', () => pintarSelector(ta));
     ta.addEventListener('click', () => pintarSelector(ta));
     // Mover el cursor con flechas/Inicio/Fin cambia donde esta la mencion en curso (o si la hay).
     ta.addEventListener('keyup', e => { if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) pintarSelector(ta); });
-    // El boton «@» (y cualquier clic que devuelva el foco al textarea) NO cierra el selector: con el foco de
-    // vuelta en `ta` 120 ms despues, se queda (revisor 12-sep: el boton lo abria y se cerraba solo).
-    ta.addEventListener('blur', () => setTimeout(() => { if (document.activeElement !== ta && !caja.contains(document.activeElement)) cerrarSelector(ta); }, 120));
+    // C-08 (17-sep): el selector se cierra al salir el foco hacia fuera de la caja y del boton «@» — focusout trae a donde va
+    // (relatedTarget), asi que no hace falta el setTimeout(120) que adivinaba. El boton «@» ademas no roba el foco (mousedown).
+    if (arroba) arroba.addEventListener('mousedown', e => e.preventDefault());
+    ta.addEventListener('focusout', e => { const a = e.relatedTarget; if (a !== ta && !caja.contains(a) && a !== arroba) cerrarSelector(ta); });
     ta.addEventListener('keydown', e => {
         if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) { e.preventDefault(); cerrarSelector(ta); enviarForma(); return; }
-        const s = ta._selector; if (caja.classList.contains('oculto') || !s.opciones.length) return;
+        const s = selectores.get(ta); if (caja.classList.contains('oculto') || !s.opciones.length) return;
         if (e.key === 'ArrowDown') { e.preventDefault(); s.i = (s.i + 1) % s.opciones.length; marcar(ta); }
         else if (e.key === 'ArrowUp') { e.preventDefault(); s.i = (s.i - 1 + s.opciones.length) % s.opciones.length; marcar(ta); }
         else if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); elegir(ta, s.opciones[s.i]); }
@@ -194,7 +207,7 @@ export function engancharSelectorMenciones(idTexto, idCaja, enviarForma) {
     });
 }
 function pintarSelector(ta) {
-    const s = ta._selector; const caja = s.caja;
+    const s = selectores.get(ta); const caja = s.caja;
     const m = mencionEnCurso(ta.value, ta.selectionStart);
     if (!m) { cerrarSelector(ta); return; }
     const q = sinAcentos(m.alias);
@@ -212,12 +225,12 @@ function pintarSelector(ta) {
     caja.classList.remove('oculto'); ta.setAttribute('aria-expanded', 'true'); marcar(ta);
 }
 function marcar(ta) {
-    const s = ta._selector;
+    const s = selectores.get(ta);
     for (const [k, b] of [...s.caja.querySelectorAll('button')].entries()) { b.classList.toggle('is-on', k === s.i); b.setAttribute('aria-selected', k === s.i ? 'true' : 'false'); }
     ta.setAttribute('aria-activedescendant', `${s.caja.id}-op-${s.i}`);
 }
 function elegir(ta, correo) {
-    const s = ta._selector; if (!correo) return;
+    const s = selectores.get(ta); if (!correo) return;
     const alias = '@' + aliasParaMencion(correo, estado.roles) + ' ';
     ta.value = ta.value.slice(0, s.desde) + alias + ta.value.slice(s.hasta);
     const pos = s.desde + alias.length; ta.setSelectionRange(pos, pos);
@@ -225,8 +238,8 @@ function elegir(ta, correo) {
     ta.dispatchEvent(new Event('input', { bubbles: true }));   // el contador y quien escuche
 }
 export function cerrarSelector(ta) {
-    if (!ta || !ta._selector) return;
-    ta._selector.caja.classList.add('oculto'); ta._selector.caja.textContent = ''; ta._selector.opciones = [];
+    const s = ta && selectores.get(ta); if (!s) return;
+    s.caja.classList.add('oculto'); s.caja.textContent = ''; s.opciones = [];
     ta.setAttribute('aria-expanded', 'false'); ta.removeAttribute('aria-activedescendant');
 }
 
@@ -235,7 +248,8 @@ export function cerrarSelector(ta) {
 export function engancharChat() {
     $('formChat').addEventListener('submit', enviar);
     $('chatTexto').addEventListener('input', contar);
-    engancharSelectorMenciones('chatTexto', 'chatSelector', () => $('formChat').requestSubmit());
+    $('chatHilo').addEventListener('scroll', alDesplazarHilo, { passive: true });   // C-01
+    engancharSelectorMenciones('chatTexto', 'chatSelector', () => $('formChat').requestSubmit(), 'chatArroba');
     // El boton «@» mete una arroba donde esta el cursor y abre el selector (en celular no hay tecla a la mano).
     $('chatArroba').addEventListener('click', () => {
         const ta = $('chatTexto'); const i = ta.selectionStart || ta.value.length;
