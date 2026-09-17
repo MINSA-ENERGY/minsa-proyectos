@@ -382,6 +382,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .fila-menu .menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: var(--z-pop); display: grid; gap: 2px; min-width: 200px; padding: var(--sp-2); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); box-shadow: var(--shadow-pop); text-align: left; }
 .fila-menu .menu .mn-btn { justify-content: flex-start; width: 100%; } .fila-menu .menu a.mn-btn { text-decoration: none; }   /* v0.54.1: «Abrir» es un <a>; sin esto es el unico renglon subrayado */
 .fila-menu .menu .is-peligro { color: var(--status-danger-fg); }
+.fila-menu.is-arriba .menu { top: auto; bottom: calc(100% + 4px); }   /* U-02 (17-sep): hacia arriba cuando no cabe por debajo (docs.js cabeAbajo) */
 /* barra de la pestaña Docs: chips + conteo + buscador */
 .docs-barra { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
 .docs-barra .p { font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); margin-left: auto; }
@@ -1848,6 +1849,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 /* U-13: la nota «Ligado por …» del menu «···» parte en vez de cortarse y la fecha va en su propia linea — el dato que solo vive ahi es el que no cabia. */
 .fila-menu .menu .menu-nota { white-space: normal; overflow-wrap: anywhere; flex-wrap: wrap; }
 .fila-menu .menu .menu-nota .fecha { flex-basis: 100%; font-family: var(--font-data); }
+.fila-menu .menu .menu-nota > span:last-child { max-width: none; overflow: visible; }   /* U-06 (17-sep): el nombre de quien ligo entero — el tope de 130 px de .dtabla .quien es para la tabla, no para el menu */
 /* U-01: el aviso «Filtrado: …» solo existe en celular (en escritorio los chips estan a la vista). */
 .filtro-aviso { display: none; }
 @media (max-width: 720px) {

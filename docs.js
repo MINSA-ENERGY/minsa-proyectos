@@ -14,9 +14,9 @@
 // acorta con `urlParaLiga` y ningun texto sale hacia Graph sin pasar por `textosLargos`.
 
 import { CONFIG } from './config.js';
-import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX, hrefSeguro, filtrarLigas, tipoArchivo, ordenarLigas, direccionInicial, nombreDeLiga, columnasDe, nombreColumnaEn, claseDeColumna, colorValido, HECHO } from './reglas.js';
+import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX, hrefSeguro, filtrarLigas, tipoArchivo, ordenarLigas, direccionInicial, nombreDeLiga, columnasDe, nombreColumnaEn, claseDeColumna, colorValido, HECHO, TIPOS_LIGA } from './reglas.js';
 import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO } from './lote.js';
-import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, iconoSvg, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaCorta, fechaHora, aplicar, pedirRelectura, irAHash, chipVence } from './comun.js';
+import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, iconoSvg, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaCorta, fechaHora, aplicar, pedirRelectura, irAHash, chipVence, conRetardo } from './comun.js';
 import { esConflicto } from './graph.js';
 
 let alCambiar = () => {};
@@ -29,9 +29,11 @@ export function bibliotecaDe(p) {
     return b ? { clave: eq.unidad, ...b } : null;
 }
 
-/** Resuelve (y cachea) el siteId de una biblioteca. `{ id, motivo }`; id null si 403/404. */
-async function sitioDe(bib) {
-    if (!estado.sitiosUnidad[bib.clave]) estado.sitiosUnidad[bib.clave] = await estado.cliente.sitioOpcional(CONFIG.sharepointHost, bib.sitio);
+/** Resuelve (y cachea) el siteId de una biblioteca. `{ id, motivo }`; id null si 403/404.
+ *  C-08 (mejorar-app archivos, 17-sep): se cachea la PROMESA, no el resultado — dos llamadas concurrentes (pintarDocs esperando
+ *  el sitio y «Ligar» buscando) esperan la misma peticion; si falla, se suelta para que la siguiente vuelva a pedir. */
+function sitioDe(bib) {
+    if (!estado.sitiosUnidad[bib.clave]) estado.sitiosUnidad[bib.clave] = estado.cliente.sitioOpcional(CONFIG.sharepointHost, bib.sitio).catch(e => { delete estado.sitiosUnidad[bib.clave]; throw e; });
     return estado.sitiosUnidad[bib.clave];
 }
 
@@ -75,7 +77,7 @@ export async function pintarDocs(p) {
     // U10: chips por tipo (solo si hay de mas de uno), grupos «Del proyecto» y por tarjeta, chip de estado junto al nombre.
     const fl = $('docsFiltro'); fl.textContent = '';
     const tipos = [...new Set(todas.map(l => l.Tipo))];
-    if (tipos.length > 1) for (const [k, texto] of [[null, 'Todos'], ['archivado', 'archivado'], ['buzon', 'en el buzón'], ['enlace', 'enlace']]) {
+    if (tipos.length > 1) for (const [k, texto] of TIPOS_LIGA) {   // C-05: la misma tupla que #archivos
         if (k && !tipos.includes(k)) continue;
         const b = boton(texto, estado.filtroDocs === k ? 'is-on' : '', () => { estado.filtroDocs = k; pintarDocs(p); }, { docs: k || 'todos' }); b.setAttribute('aria-pressed', estado.filtroDocs === k ? 'true' : 'false'); fl.appendChild(b);
     } else estado.filtroDocs = null;
@@ -281,6 +283,22 @@ function filaVacia(t, columnas, alLigar) {
  * Renglon de un documento. `puede` habilita el select de tarjeta y «Quitar» (Docs del proyecto); `enArchivos`
  * pinta la tarjeta como boton que la abre y marca el renglon con data-archivo (la E2E de #archivos lo cuenta).
  */
+/** C-05 (mejorar-app archivos, 17-sep): el select de tarjeta de una liga — la columna «Tarjeta» de Docs o «Mover a» del menu «⋯»;
+ *  un solo data-tarjeta-de y una sola confirmacion (reasignarLiga). */
+function selectTarjeta(l, p, aria) {
+    const sel = el('select'); sel.dataset.tarjetaDe = String(l.id); sel.setAttribute('aria-label', aria);
+    opcionesTarjetas(sel, p); sel.value = l.TareaId ? String(l.TareaId) : '';
+    sel.addEventListener('change', () => reasignarLiga(l, sel.value, sel));
+    return sel;
+}
+/** U-02 (mejorar-app archivos, 17-sep): ¿el menu «⋯» recien abierto cabe por debajo de su «⋯»? En celular la barra de pestanas
+ *  (#rail) es fija abajo y lo tapaba: el piso es el borde superior del rail cuando esta pegado abajo, o la ventana. Si tampoco
+ *  cabe arriba, se queda abajo (el scroll lo alcanza). */
+function cabeAbajo(menu) {
+    const r = menu.getBoundingClientRect(); const rail = $('rail'); const rr = rail ? rail.getBoundingClientRect() : null;
+    const piso = rr && rr.height && rr.top > 0 && rr.bottom >= window.innerHeight - 1 ? rr.top : window.innerHeight;
+    return r.bottom <= piso || r.top - r.height < 0;
+}
 export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarjeta = null, oculta = false, sinTarjeta = false } = {}) {
     const tr = el('tr', 'doc'); tr.dataset.liga = String(l.id); if (enArchivos) tr.dataset.archivo = String(l.id);
     if (oculta) tr.hidden = true;   // v0.33.0: su carpeta esta plegada
@@ -314,16 +332,11 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
     let mover = null;
     if (sinTarjeta && puede && p && !enArchivos) {
         mover = el('label', 'menu-mover'); mover.appendChild(el('span', '', 'Mover a'));
-        const sel = el('select'); sel.dataset.tarjetaDe = String(l.id); sel.setAttribute('aria-label', 'Mover el documento a otra tarjeta');
-        opcionesTarjetas(sel, p); sel.value = l.TareaId ? String(l.TareaId) : '';
-        sel.addEventListener('change', () => reasignarLiga(l, sel.value, sel)); mover.appendChild(sel);
+        mover.appendChild(selectTarjeta(l, p, 'Mover el documento a otra tarjeta'));   // C-05
     }
     if (sinTarjeta) { /* nada */ }
-    else if (puede && p) {
-        const sel = el('select'); sel.dataset.tarjetaDe = String(l.id); sel.setAttribute('aria-label', 'Tarjeta de la liga');
-        opcionesTarjetas(sel, p); sel.value = l.TareaId ? String(l.TareaId) : '';
-        sel.addEventListener('change', () => reasignarLiga(l, sel.value, sel)); tdC.appendChild(sel);
-    } else if (l.TareaId && enArchivos) { const b = boton(tt ? tt.Title : `tarjeta #${l.TareaId}`, 'tarjeta-liga', tt && alTarjeta ? () => alTarjeta(tt) : null); b.title = tt ? tt.Title : ''; tdC.appendChild(b); }
+    else if (puede && p) tdC.appendChild(selectTarjeta(l, p, 'Tarjeta de la liga'));   // C-05
+    else if (l.TareaId && enArchivos) { const b = boton(tt ? tt.Title : `tarjeta #${l.TareaId}`, 'tarjeta-liga', tt && alTarjeta ? () => alTarjeta(tt.id) : null); b.title = tt ? tt.Title : ''; tdC.appendChild(b); }   // C-02: por id
     else { const s = el('span', 'tarjeta-liga' + (l.TareaId ? '' : ' sin'), tt ? tt.Title : l.TareaId ? `tarjeta #${l.TareaId}` : 'el proyecto entero'); if (tt) s.title = tt.Title; tdC.appendChild(s); }   // v0.29.0: pildora de ancho fijo con «…», como el boton
     if (tdC) tr.appendChild(tdC);
     // Quien y cuando (v0.29.0): ya no son columnas; van al title del renglon y como nota del menu «⋯».
@@ -336,14 +349,14 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
     if (ligada) { const n = el('span', 'menu-nota quien'); n.appendChild(el('span', '', `Ligado por ${quien || '—'}`)); if (cuando) { const f = el('span', 'fecha', cuando); f.title = fechaHora(l._creado); n.appendChild(f); } acciones.push(n); }   // U-13: la fecha en su propia linea
     if (href) { const a = el('a', 'mn-btn is-ghost is-sm', 'Abrir'); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; acciones.push(a); }
     if (ruta) acciones.push(boton(l.Tipo === 'enlace' ? 'Copiar dirección' : 'Copiar ruta', 'mn-btn is-ghost is-sm', () => copiarTexto(ruta), { copiar: String(l.id) }));   // v0.19.0: la ruta que salio de debajo del nombre
-    if (sinTarjeta && tt && alTarjeta) acciones.push(boton('Abrir tarjeta', 'mn-btn is-ghost is-sm', () => alTarjeta(tt), { abrirTarjeta: String(tt.id) }));   // v0.45.0; v0.54.1: sin .tarjeta-liga, que le ponia la pildora encima del mn-btn
-    if (enArchivos && p) acciones.push(boton('Documentos del proyecto', 'mn-btn is-ghost is-sm', () => irAHash(`#p/${p.Clave}/docs`)));
+    if (sinTarjeta && tt && alTarjeta) acciones.push(boton('Abrir tarjeta', 'mn-btn is-ghost is-sm', () => alTarjeta(tt.id), { abrirTarjeta: String(tt.id) }));   // v0.45.0; v0.54.1: sin .tarjeta-liga, que le ponia la pildora encima del mn-btn; C-02 (17-sep): el id, y quien recibe resuelve al clic
+    if (enArchivos && p) acciones.push(boton('Documentos del proyecto', 'mn-btn is-ghost is-sm', () => { const q = porId(estado.proyectos, p.id); if (q) irAHash(`#p/${q.Clave}/docs`); }, { irDocs: String(p.id) }));   // C-02: resuelve el proyecto por id al clic
     if (mover) acciones.push(mover);   // v0.55.0: antes de Quitar, que es lo destructivo
     if (puede) acciones.push(boton('Quitar', 'mn-btn is-ghost is-sm is-peligro', () => quitarLiga(porId(estado.ligas, l.id) || l), { quitar: String(l.id) }));
     if (acciones.length) {
         const d = el('details', 'fila-menu'); const s = el('summary', 'mn-btn is-ghost is-sm is-icono', '⋯'); s.setAttribute('aria-label', 'Acciones del documento'); s.title = 'Acciones'; d.appendChild(s);
         const m = el('div', 'menu'); for (const a of acciones) m.appendChild(a); d.appendChild(m); tdA.appendChild(d);
-        d.addEventListener('toggle', () => { if (d.open) for (const o of document.querySelectorAll('.fila-menu[open]')) if (o !== d) o.open = false; });
+        d.addEventListener('toggle', () => { d.classList.remove('is-arriba'); if (!d.open) return; for (const o of document.querySelectorAll('.fila-menu[open]')) if (o !== d) o.open = false; if (!cabeAbajo(m)) d.classList.add('is-arriba'); });   // U-02: se mide sin la clase y se voltea si no cabe
     }
     tr.appendChild(tdA);
     return tr;
@@ -640,9 +653,13 @@ export function engancharDocs() {
     $('formSubir').addEventListener('submit', subirAlBuzon);
     $('btnEnlace').addEventListener('click', () => abrirEnlace());
     // v0.17.0: buscador de la pestaña; el proyecto abierto se repinta al teclear.
-    $('docsBusca').addEventListener('input', () => { estado.buscaDocs = $('docsBusca').value; if (estado.proyectoAbierto) pintarDocs(estado.proyectoAbierto); });
+    // C-07 (17-sep): con retardo — el arbol se reconstruye entero por tecla; `change` (Enter, salir del campo) pinta al instante.
+    const buscar = conRetardo(() => { estado.buscaDocs = $('docsBusca').value; if (estado.proyectoAbierto) pintarDocs(estado.proyectoAbierto); });
+    $('docsBusca').addEventListener('input', buscar); $('docsBusca').addEventListener('change', buscar.ahora);
     // Un clic fuera cierra el menu «⋯» abierto.
     document.addEventListener('click', e => { for (const o of document.querySelectorAll('.fila-menu[open]')) if (!o.contains(e.target)) o.open = false; });
+    // U-07 (17-sep): Esc cierra el menu «⋯» abierto y devuelve el foco a su «⋯», como los otros dos menus (tablero.js #filtroChips, app.js #selProyecto).
+    document.addEventListener('keydown', e => { if (e.key !== 'Escape') return; const o = document.querySelector('.fila-menu[open]'); if (o) { o.open = false; o.querySelector('summary').focus(); } });
     $('enCancelar').addEventListener('click', () => { cerrarDialogo('dlgEnlace'); volverSiCancela(); });
     $('formEnlace').addEventListener('submit', guardarEnlace);
     // v0.70.0: Esc y Atras (B8) no pasan por los botones; el `close` del <dialog> vuelve a la tarjeta igual (no llega bajo tiempo virtual: la E2E prueba el boton)

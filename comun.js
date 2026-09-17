@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.84.0';
+export const VERSION = '0.85.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -67,6 +67,13 @@ export function boton(texto, clase, alClic, atributos = {}) {
     for (const k in atributos) b.dataset[k] = atributos[k];
     if (alClic) b.addEventListener('click', alClic);
     return b;
+}
+/** C-07 (mejorar-app archivos, 17-sep): la misma funcion con retardo — una llamada por rafaga de teclas del buscador;
+ *  `.ahora()` cancela el temporizador y corre ya (el `change` del <input type=search>: Enter o salir del campo). */
+export function conRetardo(fn, ms = 120) {
+    let t = 0; const r = (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
+    r.ahora = (...a) => { clearTimeout(t); fn(...a); };
+    return r;
 }
 /**
  * v0.30.0 (B5): la ONDA que sale desde el punto tocado en todo .mn-btn (tambien los summary.mn-btn de

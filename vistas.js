@@ -6,8 +6,8 @@
 // graficos son SVG por DOM o cajas con ancho en %.
 
 import { CONFIG } from './config.js';
-import { tareasDe, avance, avanceGlobal, estadoVence, claseVence, fraseVence, diasPara, nombreDe, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
-import { $, estado, activos, visibles, nombreEquipoFiltrado, el, boton, chip, fechaCorta, fechaHora, fechaBandeja, porId, proyectoPorClave, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, nuevosDe, verboComentario, opciones, columnasDeTarea, avisar } from './comun.js';
+import { tareasDe, avance, avanceGlobal, estadoVence, claseVence, fraseVence, diasPara, nombreDe, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, TIPOS_LIGA, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
+import { $, estado, activos, visibles, nombreEquipoFiltrado, el, boton, chip, fechaCorta, fechaHora, fechaBandeja, porId, proyectoPorClave, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, nuevosDe, verboComentario, opciones, columnasDeTarea, avisar, conRetardo } from './comun.js';
 import { pintarChat } from './chat.js';   // v0.42.0: Mensajes pinta el hilo del frente elegido en su propia columna
 import { tablaDocs, filaRaiz, filasDeExpediente, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden; v0.36.0: y el mismo arbol
 
@@ -449,19 +449,34 @@ export function mensajesNuevos() {
  */
 export function pintarArchivos() {
     const f = estado.filtroArchivos;
+    // C-06 (mejorar-app archivos, 17-sep): totales por proyecto sobre TODAS las ligas, una vez; alimenta el select, C-01 y cada raiz.
+    const totalPorP = new Map(); for (const l of estado.ligas) { const k = Number(l.ProyectoId); totalPorP.set(k, (totalPorP.get(k) || 0) + 1); }
+    // C-01: el proyecto filtrado perdio su ultima liga (se quito desde Docs): el filtro se suelta ANTES de filtrar — no queda un select
+    // en blanco filtrando por un id que ya no aparece en pantalla.
+    if (f.proyectoId && !totalPorP.has(Number(f.proyectoId))) f.proyectoId = null;
     const sel = $('archivosProyecto');
-    opciones(sel, ordenarProyectos(estado.proyectos.filter(p => estado.ligas.some(l => Number(l.ProyectoId) === p.id))), p => p.id, p => p.Title, 'Todos los proyectos');
+    opciones(sel, ordenarProyectos(estado.proyectos.filter(p => totalPorP.has(p.id))), p => p.id, p => p.Title, 'Todos los proyectos');
     sel.value = f.proyectoId ? String(f.proyectoId) : '';
     const chips = $('archivosTipo'); chips.textContent = '';
-    for (const [k, texto] of [[null, 'Todos'], ['archivado', 'archivado'], ['buzon', 'en el buzón'], ['enlace', 'enlace']]) {
+    for (const [k, texto] of TIPOS_LIGA) {   // C-05: la misma tupla que Docs del proyecto
         const on = f.tipo === k; const b = boton(texto, on ? 'is-on' : '', () => { f.tipo = k; pintarArchivos(); }, { tipo: k || 'todos' }); b.setAttribute('aria-pressed', on ? 'true' : 'false'); chips.appendChild(b);
     }
     const ligas = ordenarDocs(filtrarLigas(estado.ligas, f), estado.ordenArchivos);   // v0.18.0: por la columna elegida, dentro de cada proyecto
-    $('archivosSub').textContent = `${ligas.length} de ${estado.ligas.length} documento(s) ligado(s) en todos los frentes. Para ligar, quitar o cambiar de tarjeta, entra a Documentos del proyecto.`;
+    const buscando = !!f.texto.trim(), filtrando = buscando || !!f.tipo || !!f.proyectoId;
+    // U-05 (17-sep): solo la cifra, con plural real y el proyecto si esta filtrado; la instruccion de ligar/quitar (tres renglones en
+    // celular, en cada visita) va al title del subtitulo y al vacio, donde hace falta.
+    const n = estado.ligas.length, pf = f.proyectoId ? porId(estado.proyectos, f.proyectoId) : null;
+    $('archivosSub').textContent = filtrando ? `${ligas.length} de ${n} ${n === 1 ? 'documento' : 'documentos'}${pf ? ' · ' + pf.Title : ''}` : `${n} ${n === 1 ? 'documento ligado' : 'documentos ligados'} en todos los frentes`;
+    $('archivosSub').title = 'Para ligar, quitar o cambiar de tarjeta, entra a Documentos del proyecto.';
     // v0.17.0 traia cuatro cifras arriba (total, archivados, en el buzon, enlaces); v0.46.0 (Carlos, 15-sep): SALIERON.
     const cont = $('archivosLista'); cont.textContent = '';
     $('archivosTodo').hidden = true;   // v0.36.0: solo con arbol pintado
-    if (!ligas.length) { cont.appendChild(el('p', 'vacio', estado.ligas.length ? 'Nada con ese filtro.' : 'Ningún documento ligado todavía.')); return; }
+    if (!ligas.length) {
+        const v = el('p', 'vacio', n ? 'Nada con ese filtro. ' : 'Ningún documento ligado todavía. Para ligar, entra a Documentos del proyecto.');
+        // U-03: el mismo «× limpiar» del tablero — suelta los tres filtros (proyecto, tipo, texto) de una vez.
+        if (n) v.appendChild(boton('× limpiar', 'mn-btn is-ghost is-sm', () => { estado.filtroArchivos = { proyectoId: null, tipo: null, texto: '' }; $('textoArchivos').value = ''; pintarArchivos(); }, { filtro: 'limpiar' }));
+        cont.appendChild(v); return;
+    }
     // v0.17.0: una sola tabla (la de Docs del proyecto). v0.36.0 (Carlos, 14-sep): y el MISMO ARBOL de expediente que Docs
     // (.is-arbol.is-frentes), con una carpeta raiz mas arriba: proyecto > tarjeta > documento. Cada raiz se pliega; las llaves
     // de estado.abiertasArchivos van prefijadas por proyecto («p7», «p7/0» = Del proyecto, «p7/t12» = tarjeta) porque los ids
@@ -470,25 +485,30 @@ export function pintarArchivos() {
     const porP = new Map(); for (const l of ligas) { const k = Number(l.ProyectoId); if (!porP.has(k)) porP.set(k, []); porP.get(k).push(l); }
     const tabla = tablaDocs({ orden: estado.ordenArchivos, alOrdenar: o => { estado.ordenArchivos = o; pintarArchivos(); }, sinTarjeta: true }); const tb = tabla.querySelector('tbody');   // v0.45.0: sin columna «Tarjeta», la carpeta ya la nombra
     tabla.classList.add('is-arbol', 'is-frentes');
-    const S = estado.abiertasArchivos; const plegada = k => !S.has(k);
-    const alPlegar = k => { if (S.has(k)) S.delete(k); else S.add(k); pintarArchivos(); };
+    // U-01 (17-sep): mientras hay un filtro (texto, tipo o proyecto) TODO se ve — el resultado no queda escondido bajo dos carpetas
+    // plegadas—; el Set no se toca, ni por el caret (el revisor cazo que un clic a ciegas lo mutaba): al soltar el filtro el arbol
+    // vuelve a como estaba.
+    const S = estado.abiertasArchivos; const plegada = k => filtrando ? false : !S.has(k);
+    const alPlegar = k => { if (filtrando) return; if (S.has(k)) S.delete(k); else S.add(k); pintarArchivos(); };
     const llaves = [];
     for (const p of ordenarProyectos(estado.proyectos.filter(p => porP.has(p.id)))) {
-        const kp = `p${p.id}`; const total = estado.ligas.filter(l => Number(l.ProyectoId) === p.id).length; llaves.push(kp);
+        const kp = `p${p.id}`; const total = totalPorP.get(p.id); llaves.push(kp);   // C-06
         tb.appendChild(filaRaiz(p.Title, porP.get(p.id).length, total, { icono: iconoEquipo(equipoDe(p), 'sm'), plegada: plegada(kp), alPlegar: () => alPlegar(kp), alAbrir: () => irAHash(`#p/${p.Clave}/docs`), sinTarjeta: true }));
-        const r = filasDeExpediente(tb, p, porP.get(p.id), { llave: k => `${kp}/${k ? 't' + k : 0}`, plegada, alPlegar, ocultas: plegada(kp), sinTarjeta: true, doc: () => ({ p, enArchivos: true, alTarjeta: irTarjeta }) });
+        const r = filasDeExpediente(tb, p, porP.get(p.id), { llave: k => `${kp}/${k ? 't' + k : 0}`, plegada, alPlegar, ocultas: plegada(kp), sinTarjeta: true, doc: () => ({ p, enArchivos: true, alTarjeta: irTarjetaId }) });   // C-02: por id al clic
         for (const k of r.llaves) llaves.push(`${kp}/${k ? 't' + k : 0}`);
     }
     cont.appendChild(tabla);
     // v0.36.0: «Abrir todo» / «Plegar todo», como en Docs (v0.34.0); cada boton se apaga cuando no tiene nada que hacer.
     $('archivosTodo').hidden = false;
-    $('archivosAbrirTodo').disabled = llaves.every(k => !plegada(k)); $('archivosPlegarTodo').disabled = llaves.every(k => plegada(k));
+    $('archivosAbrirTodo').disabled = filtrando || llaves.every(k => !plegada(k)); $('archivosPlegarTodo').disabled = filtrando || llaves.every(k => plegada(k));   // U-01: filtrando, los dos apagados
     $('archivosAbrirTodo').onclick = () => { estado.abiertasArchivos = new Set(llaves); pintarArchivos(); };
     $('archivosPlegarTodo').onclick = () => { estado.abiertasArchivos = new Set(); pintarArchivos(); };
 }
 export function engancharArchivos() {
     $('archivosProyecto').addEventListener('change', () => { estado.filtroArchivos.proyectoId = $('archivosProyecto').value ? Number($('archivosProyecto').value) : null; pintarArchivos(); });
-    $('textoArchivos').addEventListener('input', () => { estado.filtroArchivos.texto = $('textoArchivos').value; if (estado.pestana === 'archivos') pintarArchivos(); });
+    // C-07 (17-sep): con retardo — cada tecla reconstruia el arbol entero; `change` (Enter, salir del campo) pinta al instante.
+    const buscar = conRetardo(() => { estado.filtroArchivos.texto = $('textoArchivos').value; if (estado.pestana === 'archivos') pintarArchivos(); });
+    $('textoArchivos').addEventListener('input', buscar); $('textoArchivos').addEventListener('change', buscar.ahora);
 }
 
 // ---------------------------------------------------------------- reportes

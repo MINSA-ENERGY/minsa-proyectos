@@ -761,6 +761,8 @@ export function ultimoComentarioPorProyecto(actividad) {
     }
     return [...m.entries()].map(([proyectoId, ultimo]) => ({ proyectoId, ultimo })).sort((a, b) => String(b.ultimo.Cuando || '').localeCompare(String(a.ultimo.Cuando || '')));
 }
+/** C-05 (mejorar-app archivos, 17-sep): los chips por tipo de liga, la misma tupla en Docs del proyecto y en #archivos. */
+export const TIPOS_LIGA = [[null, 'Todos'], ['archivado', 'archivado'], ['buzon', 'en el buzón'], ['enlace', 'enlace']];
 /** Filtro de Archivos (v0.10.0): por proyecto, tipo de liga y texto (nombre, ruta, url), sin acentos. */
 export function filtrarLigas(ligas, f = {}) {
     const q = sinAcentos(f.texto || '').trim();

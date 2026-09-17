@@ -1883,6 +1883,67 @@ try {
               R.ok('v0.36.0: «Plegar todo» pliega cada raiz y carpeta, y se apaga', [...document.querySelectorAll('#archivosLista tr.raiz, #archivosLista tr.pest')].every(n => n.classList.contains('is-plegada')) && visibles() === 0 && $('archivosPlegarTodo').disabled && !$('archivosAbrirTodo').disabled);
               clic('archivosAbrirTodo'); await dormir(30);
               R.ok('v0.36.0: «Abrir todo» lo despliega todo y se apaga', visibles() === antes && $('archivosAbrirTodo').disabled && !$('archivosPlegarTodo').disabled); }
+            // /mejorar-app archivos, tanda 1 (v0.85.0): lo que #archivos hacia sin prueba (C-04) y los arreglos de la tanda. El arbol viene TODO abierto.
+            { const mod = await import('../comun.js'); const S = () => mod.estado.abiertasArchivos; const nAbiertas = S().size;   // «Abrir/Plegar todo» reemplazan el Set: se lee en vivo
+              const filasDoc = () => document.querySelectorAll('#archivosLista [data-archivo]').length;
+              const ocultas = () => [...document.querySelectorAll('#archivosLista tr.doc, #archivosLista tr.pest')].filter(r => r.hidden).length;
+              const liga0 = filas('ligas').find(l => l.id === Number(document.querySelector('#archivosLista [data-archivo]').dataset.archivo)); const pid0 = Number(liga0.fields.ProyectoId); const p0 = filas('proyectos').find(p => p.id === pid0);
+              const deP0 = filas('ligas').filter(l => Number(l.fields.ProyectoId) === pid0).length;
+              R.ok('U-05 (v0.85.0): sin filtro el subtitulo es solo la cifra con plural real («N documentos ligados en todos los frentes»), la instruccion vive en su title', new RegExp(`^${nLigas} documentos? ligados? en todos los frentes$`).test($('archivosSub').textContent) && !$('archivosSub').textContent.includes('(s)') && $('archivosSub').title.includes('Documentos del proyecto'));
+              // C-04: el select por proyecto filtra (una sola raiz, sus ligas) y el subtitulo nombra al proyecto.
+              poner('archivosProyecto', String(pid0)); await dormir(30);
+              R.ok('C-04 (v0.85.0): el select por proyecto deja UNA raiz con las ligas de ese proyecto, y el subtitulo dice «N de M · proyecto» (U-05)', document.querySelectorAll('#archivosLista tr.raiz').length === 1 && filasDoc() === deP0 && $('archivosSub').textContent === `${deP0} de ${nLigas} documentos · ${p0.fields.Title}`, $('archivosSub').textContent);
+              // C-01: el filtro apunta a un proyecto que ya no tiene ligas (se quito la ultima desde Docs): se suelta solo al repintar.
+              mod.estado.filtroArchivos.proyectoId = 999999; document.querySelector('#archivosTipo [data-tipo="todos"]').click(); await dormir(30);
+              R.ok('C-01 (v0.85.0): un filtro por proyecto sin ligas se suelta al repintar — el select vuelve a «Todos» y la lista trae todo, no un select en blanco con «Nada con ese filtro»', mod.estado.filtroArchivos.proyectoId === null && $('archivosProyecto').value === '' && filasDoc() === nLigas, `value=${JSON.stringify($('archivosProyecto').value)} · filas=${filasDoc()}`);
+              // U-01: buscando, todo se ve aunque el Set este vacio; al borrar el texto el arbol vuelve a como estaba.
+              clic('archivosPlegarTodo'); await dormir(30); const plegadasAntes = ocultas();
+              poner('textoArchivos', 'contingencia'); await dormir(30);
+              R.ok('U-01 (v0.85.0): con texto en el buscador el resultado SE VE aunque las carpetas esten plegadas, el Set no se toca y «Abrir/Plegar todo» se apagan', plegadasAntes > 0 && ocultas() === 0 && filasDoc() >= 1 && S().size === 0 && $('archivosAbrirTodo').disabled && $('archivosPlegarTodo').disabled, `plegadas antes=${plegadasAntes} · ocultas=${ocultas()}`);
+              document.querySelector('#archivosLista tr.raiz button.cab.nodo').click(); await dormir(30);
+              R.ok('U-01 (v0.85.0): un clic al caret MIENTRAS se filtra no toca el Set ni esconde nada (el revisor cazo el clic a ciegas)', S().size === 0 && ocultas() === 0);
+              poner('textoArchivos', ''); await dormir(30);
+              R.ok('U-01 (v0.85.0): al borrar el texto el arbol vuelve a como estaba (plegado)', ocultas() === plegadasAntes && !$('archivosAbrirTodo').disabled);
+              document.querySelector('#archivosTipo [data-tipo="enlace"]').click(); await dormir(30);
+              R.ok('U-01 (v0.85.0): el chip de tipo tambien despliega lo que encuentra (todo filtro, no solo el texto)', ocultas() === 0 && filasDoc() >= 1 && $('archivosPlegarTodo').disabled);
+              document.querySelector('#archivosTipo [data-tipo="todos"]').click(); await dormir(30);
+              // C-07: el buscador repinta con retardo — el `input` solo no repinta al instante; el `change` (Enter) si.
+              $('textoArchivos').value = 'contingencia'; $('textoArchivos').dispatchEvent(new Event('input', { bubbles: true })); const alInstante = filasDoc(); await dormir(200); const trasRetardo = filasDoc();
+              R.ok('C-07 (v0.85.0): una tecla del buscador NO repinta al instante (retardo de 120 ms) y si tras el retardo; `change` pinta ya', alInstante === nLigas && trasRetardo < nLigas && trasRetardo >= 1, `instante=${alInstante} · tras=${trasRetardo}`);
+              poner('textoArchivos', ''); await dormir(30);
+              // U-03: el vacio por filtro trae «× limpiar», que suelta los tres filtros.
+              poner('archivosProyecto', String(pid0)); document.querySelector('#archivosTipo [data-tipo="enlace"]').click(); poner('textoArchivos', 'zzz-nada-casa'); await dormir(30);
+              const limpiar = document.querySelector('#archivosLista .vacio [data-filtro="limpiar"]');
+              R.ok('U-03 (v0.85.0): «Nada con ese filtro» trae el boton «× limpiar»', filasDoc() === 0 && !!limpiar && $('archivosLista').textContent.includes('Nada con ese filtro'));
+              if (limpiar) limpiar.click(); await dormir(30);
+              R.ok('U-03 (v0.85.0): «× limpiar» suelta proyecto, tipo y texto de una vez', filasDoc() === nLigas && $('archivosProyecto').value === '' && $('textoArchivos').value === '' && mod.estado.filtroArchivos.tipo === null && document.querySelector('#archivosTipo [data-tipo="todos"]').classList.contains('is-on'));
+              clic('archivosAbrirTodo'); await dormir(30);
+              // U-07: Esc cierra el menu «⋯» y devuelve el foco a su «⋯».
+              const menu0 = document.querySelector('#archivosLista .fila-menu'); menu0.open = true; await dormir(30);
+              document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true, cancelable: true })); await dormir(10);
+              R.ok('U-07 (v0.85.0): Esc cierra el menu «⋯» abierto y enfoca su «⋯»', !menu0.open && document.activeElement === menu0.querySelector('summary'));
+              // U-02: el menu abierto se mide y, si no cabe por debajo, lleva .is-arriba; cerrado, nunca.
+              menu0.open = true; await dormir(30); const rMenu = menu0.querySelector('.menu').getBoundingClientRect(); const arriba = menu0.classList.contains('is-arriba');
+              R.ok('U-02 (v0.85.0): el menu «⋯» abierto queda dentro de la ventana (hacia abajo si cabe, .is-arriba si no)', rMenu.height > 0 && (arriba ? rMenu.top >= 0 : rMenu.bottom <= window.innerHeight + 1), `arriba=${arriba} · top=${Math.round(rMenu.top)} · bottom=${Math.round(rMenu.bottom)} · alto ventana=${window.innerHeight}`);
+              menu0.open = false; await dormir(10);
+              R.ok('U-02 (v0.85.0): cerrado, el menu suelta .is-arriba', !menu0.classList.contains('is-arriba'));
+              // C-04 + C-02: «Abrir tarjeta» desde el menu «⋯» abre #p/<clave>/t/<id> resolviendo por id; volver a #archivos conserva lo abierto (v0.51.0).
+              const abrirT = document.querySelector('#archivosLista .fila-menu [data-abrir-tarjeta]');
+              if (abrirT) { const tid = Number(abrirT.dataset.abrirTarjeta); const tar = filas('tareas').find(x => x.id === tid); const pT = filas('proyectos').find(p => p.id === Number(tar.fields.ProyectoId));
+                abrirT.click(); await esperar(() => visible('p-proyecto') && location.hash.includes('/t/'), 'tarjeta desde archivos'); await dormir(30);
+                R.ok('C-04 (v0.85.0): «Abrir tarjeta» del menu «⋯» abre #p/<clave>/t/<id> (C-02: resuelto por id al clic)', location.hash === `#p/${pT.fields.Clave}/t/${tid}`, location.hash); }
+              else { R.ok('C-04 (v0.85.0): «Abrir tarjeta» — no aplica, ninguna liga de este rol cuelga de una tarjeta', filas('ligas').every(l => !l.fields.TareaId)); document.querySelector('#archivosLista tr.raiz .ir-docs').click(); await esperar(() => visible('tab-docs'), 'docs'); }
+              irHash('#archivos'); await esperar(() => visible('p-archivos'), 'archivos de vuelta'); await dormir(30);
+              R.ok('C-04 (v0.85.0): volver a #archivos conserva las carpetas abiertas (la sesion recuerda, v0.51.0)', S().size === nAbiertas && ocultas() === 0 && [...document.querySelectorAll('#archivosLista tr.raiz')].every(r => !r.classList.contains('is-plegada')), `abiertas=${S().size}/${nAbiertas}`);
+              const irD = document.querySelector('#archivosLista .fila-menu [data-ir-docs]'); const pD = filas('proyectos').find(p => p.id === Number(irD.dataset.irDocs));
+              irD.click(); await esperar(() => visible('tab-docs'), 'docs desde el menu'); await dormir(30);
+              R.ok('C-04 (v0.85.0): «Documentos del proyecto» del menu «⋯» abre los Docs de ESE proyecto (C-02: resuelto por id al clic)', visible('tab-docs') && location.hash === `#p/${pD.fields.Clave}/docs`, location.hash);
+              // C-08: dos pintadas concurrentes de Docs piden el sitio UNA vez (se cachea la promesa).
+              { const docs = await import('../docs.js'); const pA = mod.estado.proyectoAbierto; const bib = docs.bibliotecaDe(pA);
+                if (bib) { mod.estado.sitiosUnidad = {}; const antesN = DB.llamadas.filter(c => c.startsWith('GET /sites/') && c.endsWith(bib.sitio)).length; docs.pintarDocs(pA); docs.pintarDocs(pA); await dormir(80);
+                  R.ok('C-08 (v0.85.0): dos pintarDocs concurrentes con la cache vacia piden el sitio de la biblioteca UNA sola vez', DB.llamadas.filter(c => c.startsWith('GET /sites/') && c.endsWith(bib.sitio)).length === antesN + 1, `+${DB.llamadas.filter(c => c.startsWith('GET /sites/') && c.endsWith(bib.sitio)).length - antesN}`); }
+                else R.ok('C-08 (v0.85.0): no aplica — el proyecto abierto no tiene biblioteca', true); }
+              irHash('#archivos'); await esperar(() => visible('p-archivos'), 'archivos'); await dormir(30); }
             document.querySelector('#archivosLista tr.raiz .ir-docs').click(); await esperar(() => visible('tab-docs'), 'docs desde archivos');
             R.ok('v0.10.0 (v0.36.0: el boton «Documentos» de la raiz): el proyecto abre sus Documentos', visible('tab-docs') && location.hash.endsWith('/docs'));
             // Reportes
