@@ -302,6 +302,15 @@ export function ordenarProyectos(proyectos) {
 
 // v0.71.0 (C-06, mejorar-app 16-sep): agruparPorEquipo (v0.23.0) salio — ninguna pantalla la llamaba desde v0.25.0.
 
+/** C-03 (mejorar-app, 16-sep): que proyectos se VEN con el filtro de equipo del rail — una regla para Proyectos, Roadmap,
+ *  Calendario y Reportes (vivia repetida caracter por caracter en app.js y vistas.js). `soloActivos=false` deja pasar los
+ *  cerrados (la lista plegada de Proyectos). Sin filtro devuelve la base intacta. */
+export const activosDe = proyectos => (proyectos || []).filter(p => p.Estado === 'activo');
+export function proyectosVisibles(proyectos, filtroEquipo, soloActivos = true) {
+    const base = soloActivos ? activosDe(proyectos) : (proyectos || []);
+    return filtroEquipo ? base.filter(p => p.Equipo === filtroEquipo) : base;
+}
+
 /** Busqueda de proyectos por nombre, clave o descripcion (C3), sin acentos ni mayusculas. */
 export function filtrarProyectos(proyectos, texto) {
     const q = sinAcentos(texto).trim();

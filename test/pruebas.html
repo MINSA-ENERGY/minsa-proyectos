@@ -355,6 +355,31 @@ try {
     await abrirLau();
     R.ok('el proyecto aparece en la lista y abre; el equipo va por icono (title), no por nombre (v0.7.0)', visible('p-proyecto') && $('pEquipo').querySelector('.eqi').title === 'CALYTEK' && $('pEquipo').textContent === '');
     R.ok('Cerrar/Editar proyecto según rol', $('btnCerrarProyecto').disabled === !gerencia && $('btnEditarProyecto').disabled === !gerencia);
+    if (gerencia) {
+        // C-04 (v0.75.0): el tramo de EDICIÓN de guardarProyecto no tenía ninguna aserción. Cambia Vence y Carpeta y afirma
+        // el PATCH con If-Match, el renglón en memoria y en la DB, el aviso y la bitácora; luego el 412 con un cambio ajeno en medio.
+        const E = (await import('../comun.js')).estado; const pE = filas('proyectos')[0]; const ifmE = DB.ifMatch; const nEd = actividad('editar-proyecto').length;
+        clic('btnEditarProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo de edición');
+        R.ok('C-04 (v0.75.0): el diálogo abre en modo edición con los datos del frente y la clave bloqueada', $('npTituloDlg').textContent === 'Editar proyecto' && $('npClave').value === 'lau-asea-03-001' && $('npClave').disabled && $('npNotaClave').hidden && $('npCarpeta').value === '03_Predios/Arrocera', `${$('npClave').value} · ${$('npCarpeta').value}`);
+        poner('npVence', '2026-11-15'); poner('npCarpeta', '\\03_Predios\\Arrocera\\LAU/'); clic('npGuardar');
+        await esperar(() => avisoCon('Proyecto actualizado'), 'guardado');
+        await esperar(() => actividad('editar-proyecto').length === nEd + 1, 'bitácora editar-proyecto');
+        R.ok('C-04 (v0.75.0): el PATCH lleva If-Match y la DB guarda Vence y la Carpeta normalizada', DB.ifMatch === ifmE + 1 && String(pE.fields.Vence).startsWith('2026-11-15') && pE.fields.Carpeta === '03_Predios/Arrocera/LAU', `ifMatch +${DB.ifMatch - ifmE} · ${pE.fields.Vence} · ${pE.fields.Carpeta}`);
+        R.ok('C-04 (v0.75.0): el renglón en memoria refleja la edición y conserva el candado nuevo', E.proyectoAbierto.Carpeta === '03_Predios/Arrocera/LAU' && String(E.proyectoAbierto.Vence).startsWith('2026-11-15') && E.proyectoAbierto._etag === `"${pE.etag}"`, `${E.proyectoAbierto._etag} vs "${pE.etag}"`);
+        R.ok('C-04 (v0.75.0): la bitácora dice «editó el proyecto» y el diálogo cerró', actividad('editar-proyecto')[nEd].fields.Title.includes('editó el proyecto') && !$('dlgProyecto').open);
+        // 412: alguien cambió el proyecto entre abrir el diálogo y guardar → no se pisa, se relee y se avisa.
+        pE.etag = (pE.etag || 1) + 1; pE.fields.Descripcion = 'Cambiada por alguien más';
+        clic('btnEditarProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo otra vez');
+        poner('npDesc', 'La mía'); clic('npGuardar');
+        await esperar(() => avisoCon('Alguien cambió este proyecto'), '412 avisado');
+        await esperar(() => E.proyectoAbierto.Descripcion === 'Cambiada por alguien más', 'releído');
+        R.ok('C-04 (v0.75.0): un cambio ajeno ANTES de abrir el diálogo (el _etag viaja en memoria) dispara el 412: no se pisa, se relee y se avisa', pE.fields.Descripcion === 'Cambiada por alguien más' && !$('dlgProyecto').open && actividad('editar-proyecto').length === nEd + 1, pE.fields.Descripcion);
+        // Se deja el frente como lo esperan los pasos siguientes (Vence 31-oct, Carpeta 03_Predios/Arrocera).
+        clic('btnEditarProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo para reponer');
+        poner('npVence', '2026-10-31'); poner('npCarpeta', '03_Predios/Arrocera'); poner('npDesc', 'Paquete de entregables para el gestor.'); clic('npGuardar');
+        await esperar(() => avisoCon('Proyecto actualizado') && String(pE.fields.Vence).startsWith('2026-10-31') && pE.fields.Carpeta === '03_Predios/Arrocera', 'repuesto');
+        await esperar(() => actividad('editar-proyecto').length === nEd + 2, 'bitácora de la reposición');
+    }
     R.ok('Nueva tarea según rol', $('btnNuevaTarea').disabled === !escribe);
 
     // 4. Tareas: crear, asignar, mover por las 4 columnas.

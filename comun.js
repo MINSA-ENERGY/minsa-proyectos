@@ -3,9 +3,9 @@
 // la bitacora PROY_Actividad.
 
 import { CONFIG } from './config.js';
-import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion } from './reglas.js';
+import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion, activosDe, proyectosVisibles } from './reglas.js';
 
-export const VERSION = '0.74.0';
+export const VERSION = '0.75.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -425,6 +425,10 @@ export function notasDe(tareaId) {
 }
 
 /** Equipo (config) de un proyecto. */
+// C-03 (mejorar-app, 16-sep): los tres atajos sobre `estado` que app.js y vistas.js tenian cada uno por su cuenta.
+export const activos = () => activosDe(estado.proyectos);
+export const visibles = () => proyectosVisibles(estado.proyectos, estado.filtroEquipo);
+export const nombreEquipoFiltrado = () => estado.filtroEquipo ? equipoDe({ Equipo: estado.filtroEquipo }).nombre : '';
 export function equipoDe(p) { return CONFIG.equipos.find(e => e.clave === (p && p.Equipo)) || { clave: p && p.Equipo, nombre: (p && p.Equipo) || 'Sin equipo', unidad: null, rama: null, color: 'var(--status-idle-solid)', icono: ['M12 8v4M12 16h.01', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z'] }; }
 /**
  * v0.7.0: el equipo se ve por su ICONO + COLOR, no por su nombre (Carlos, 2026-09-12). Un <span class="eqi">

@@ -7,7 +7,7 @@
 
 import { CONFIG } from './config.js';
 import { tareasDe, avance, avanceGlobal, estadoVence, diasPara, nombreDe, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
-import { $, estado, el, boton, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, columnasDeTarea, avisar } from './comun.js';
+import { $, estado, activos, visibles, nombreEquipoFiltrado, el, boton, chip, fechaCorta, fechaHora, porId, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, comentariosNuevos, verboComentario, opciones, columnasDeTarea, avisar } from './comun.js';
 import { pintarChat } from './chat.js';   // v0.42.0: Mensajes pinta el hilo del frente elegido en su propia columna
 import { tablaDocs, filaRaiz, filasDeExpediente, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden; v0.36.0: y el mismo arbol
 
@@ -18,7 +18,6 @@ const DIAS_CORTOS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
 // v0.11.0: ya no hay una lista fija de columnas; los graficos de UN proyecto van por sus cubetas
 // (segmentosDe) y los globales por tres categorias (segmentosGlobales), con los mismos colores por clase.
 const hoyDia = () => diaDe(new Date());
-const activos = () => estado.proyectos.filter(p => p.Estado === 'activo');
 const nombreMes = mes => `${MESES[+mes.slice(5, 7) - 1]} ${mes.slice(0, 4)}`;
 // `tab`: desde la pestana Roadmap del proyecto se conserva la pestana (sin ella el router vuelve al tablero).
 const irTarjeta = (t, tab = '') => { const p = porId(estado.proyectos, t.ProyectoId); if (p) irAHash(`#p/${p.Clave}${tab ? '/' + tab : ''}/t/${t.id}`); };
@@ -149,8 +148,8 @@ export function pintarRoadmapProyecto(p) {
  */
 export function pintarRoadmap() {
     // El filtro por equipo del rail aplica PAREJO: filas e hitos (el revisor vio cifras globales con «2 frentes de CALYTEK» arriba).
-    const ps = ordenarProyectos(activos().filter(p => !estado.filtroEquipo || p.Equipo === estado.filtroEquipo));
-    $('roadmapSub').textContent = estado.filtroEquipo ? `${ps.length} frente(s) de ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}; quita el filtro en el rail para ver todos.` : `${ps.length} frente(s) activo(s), del que vence antes al que vence después. La barra va de la creación del proyecto a su fin de frente; el relleno es el avance.`;
+    const ps = ordenarProyectos(visibles());   // C-03: la regla del rail vive en reglas.js
+    $('roadmapSub').textContent = estado.filtroEquipo ? `${ps.length} frente(s) de ${nombreEquipoFiltrado()}; quita el filtro en el rail para ver todos.` : `${ps.length} frente(s) activo(s), del que vence antes al que vence después. La barra va de la creación del proyecto a su fin de frente; el relleno es el avance.`;
     const caja = $('roadmapCaja'); caja.textContent = '';
     const ley = $('roadmapLeyenda'); ley.textContent = ''; ley.classList.toggle('oculto', !ps.length);
     if (!ps.length) { caja.appendChild(el('p', 'vacio', 'Sin proyectos activos.')); }
@@ -209,13 +208,13 @@ export function pintarCalendario() {
     if (!estado.mesCal) estado.mesCal = hoyDia().slice(0, 7);
     const mes = estado.mesCal; const hoy = hoyDia();
     $('calTitulo').textContent = nombreMes(mes);
-    const activosF = activos().filter(p => !estado.filtroEquipo || p.Equipo === estado.filtroEquipo);
+    const activosF = visibles();   // C-03
     const idsF = new Set(activosF.map(p => p.id));   // v0.13.1
     const agenda = agendaPorDia(estado.tareas.filter(t => idsF.has(Number(t.ProyectoId))), activosF);
     const celdas = celdasDelMes(mes);
     const enMes = celdas.filter(c => c.enMes);
     const nT = enMes.reduce((n, c) => n + ((agenda.get(c.dia) || { tareas: [] }).tareas.length), 0), nF = enMes.reduce((n, c) => n + ((agenda.get(c.dia) || { fines: [] }).fines.length), 0);
-    $('calSub').textContent = `${nT} tarjeta(s) vencen este mes · ${nF} fin(es) de frente${estado.filtroEquipo ? ` · solo ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}` : ''}`;
+    $('calSub').textContent = `${nT} tarjeta(s) vencen este mes · ${nF} fin(es) de frente${estado.filtroEquipo ? ` · solo ${nombreEquipoFiltrado()}` : ''}`;
     const g = $('calRejilla'); g.textContent = '';
     for (const d of DIAS_CORTOS) g.appendChild(el('div', 'cal-dow', d));
     const itemTarea = (t, largo) => {
@@ -492,12 +491,12 @@ function columnas(cont, series, textoDe) {
  * calcula del estado ya cargado; «Imprimir» saca la pantalla a PDF.
  */
 export function pintarReportes() {
-    const ps = activos().filter(p => !estado.filtroEquipo || p.Equipo === estado.filtroEquipo);
+    const ps = visibles();   // C-03
     const idsPs = new Set(ps.map(p => p.id));   // v0.13.1
     const todas = estado.tareas.filter(t => idsPs.has(Number(t.ProyectoId)));
     const a = avanceGlobal(todas, columnasDeTarea); const abiertas = todas.filter(t => t.Columna !== 'hecho');   // v0.11.0: entre proyectos, por categoria
     const venc = abiertas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger');
-    $('reportesSub').textContent = `${ps.length} frente(s) activo(s)${estado.filtroEquipo ? ` de ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}` : ''} · ${todas.length} tarjetas · calculado de las listas al ${fechaCorta(new Date().toISOString())}.`;
+    $('reportesSub').textContent = `${ps.length} frente(s) activo(s)${estado.filtroEquipo ? ` de ${nombreEquipoFiltrado()}` : ''} · ${todas.length} tarjetas · calculado de las listas al ${fechaCorta(new Date().toISOString())}.`;
     // v0.46.0 (Carlos, 15-sep): los 5 KPI de arriba (proyectos activos · abiertas · hechas · vencidas · sin dueño) SALIERON.
     // avance global + por proyecto
     const g = $('repGlobal'); g.textContent = ''; g.appendChild(anillo(segmentosGlobales(a), a.total, 132)); g.appendChild(leyenda(segmentosGlobales(a)));
