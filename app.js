@@ -399,11 +399,13 @@ function fichaProyecto(p, ts) {
     // las tres cifras; «abiertas» = todo lo que no esta en la cubeta que cierra (avance: categoria hecho)
     const st = el('span', 'stats'); const venc = vencidasEn(ts);
     const cifra = (n, rot, cls) => { const s = el('span'); s.appendChild(el('b', cls || '', String(n))); s.appendChild(el('small', '', rot)); st.appendChild(s); };
-    cifra(a.total - a.hechas, 'abiertas'); cifra(venc, 'vencidas', venc ? 'bad' : ''); cifra(a.hechas, 'hechas');
+    if (ts.length) { cifra(a.total - a.hechas, 'abiertas'); cifra(venc, 'vencidas', venc ? 'bad' : ''); cifra(a.hechas, 'hechas'); }
+    else st.appendChild(el('small', 'sin', 'sin tarjetas'));   // U-07 (16-sep): «0 · 0 · 0» parecia tres cifras con significado
     r.appendChild(st);
-    r.addEventListener('click', () => abrirProyecto(p.id));
-    return r;
+    return r;   // el clic lo atiende UN listener delegado (C-05, abajo); antes cada ficha registraba el suyo capturando `p`
 }
+// C-05 (mejorar-app, 16-sep): las fichas se rehacen en cada repintado y en cada tecla del buscador; el id ya viaja en data-open.
+document.addEventListener('click', ev => { const f = ev.target.closest('.pficha[data-open]'); if (f) abrirProyecto(f.dataset.open); });
 /** Pinta `proyectos` (ya ordenados, C10) en `cont` como renglones. Deja `cont` vacio si no hay proyectos.
  *  C-07 (mejorar-app, 16-sep): las tareas se reparten por proyecto UNA vez aqui; antes cada ficha recorria todas (O(P·T)). */
 function pintarFichas(cont, proyectos) {
@@ -773,6 +775,7 @@ function abrirEquipo() {
 function pintarProyectos() {
     $('btnNuevoProyecto').disabled = !PUEDE.proyecto(estado.rol);
     $('btnNuevoProyecto').title = PUEDE.proyecto(estado.rol) ? '' : 'Solo gerencia crea proyectos';
+    $('btnNuevoProyecto').hidden = !PUEDE.proyecto(estado.rol);   // U-05 (16-sep): en celular el title no existe y el boton gris no explicaba nada; quien no puede crear no lo ve
     // v0.7.0: el filtro por equipo se pone desde el rail (por rama) o, en celular, desde el select; aqui solo se aplica.
     $('filtroEquipoMovil').value = estado.filtroEquipo || '';
     // C3 (v0.6.0): el mismo buscador sin acentos del tablero, sobre nombre, clave y descripcion.
@@ -780,9 +783,18 @@ function pintarProyectos() {
     const l = $('listaProyectos');
     const act = ordenarProyectos(filtro(activos()));   // C10: vence antes primero, sin fecha al final, empate por nombre
     pintarFichas(l, act);   // v0.25.0: renglones planos por fin del frente; el filtro de equipo viene del rail
-    if (!act.length) l.appendChild(el('p', 'vacio', estado.textoProyectos ? 'Ningún proyecto con ese texto.' : estado.filtroEquipo ? `Sin proyectos activos de ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}.` : 'Sin proyectos activos.'));
     const c = $('listaCerrados');
     const cer = filtro(estado.proyectos.filter(p => p.Estado === 'cerrado')).sort((a, b) => String(b.CerradoEl || '').localeCompare(String(a.CerradoEl || '')));
+    if (!act.length) {
+        // U-02 (16-sep): si el texto solo casa con cerrados, el vacio lo dice y el plegable se abre solo.
+        const soloCerrados = estado.textoProyectos && cer.length;
+        const v = el('p', 'vacio', soloCerrados ? `Ningún proyecto activo con ese texto; ${cer.length === 1 ? 'hay 1 cerrado' : `hay ${cer.length} cerrados`} abajo.` : estado.textoProyectos ? 'Ningún proyecto con ese texto.' : estado.filtroEquipo ? `Sin proyectos activos de ${equipoDe({ Equipo: estado.filtroEquipo }).nombre}. ` : 'Sin proyectos activos.');
+        // U-06 (16-sep): con el filtro de equipo puesto, el vacio ofrece volver a todos (antes solo re-pulsando el mismo equipo en el rail).
+        if (estado.filtroEquipo && !estado.textoProyectos) v.appendChild(boton('Ver todos los equipos', 'mn-btn is-ghost is-sm', () => { estado.filtroEquipo = null; repintar(); }, { todos: '1' }));
+        l.appendChild(v);
+        if (soloCerrados) c.parentElement.open = true;
+    }
+    $('sumCerrados').textContent = cer.length ? `Proyectos cerrados · ${cer.length}` : 'Proyectos cerrados';   // U-02: el conteo siempre que haya cerrados (con texto, los que casan)
     pintarFichas(c, cer);   // van por fecha de cierre; la hoja de calendario ensena el dia del cierre
     if (!cer.length) c.appendChild(el('p', 'vacio', 'Ninguno cerrado.'));
 }
@@ -886,10 +898,11 @@ function abrirFormaProyecto(p) {
     const personas = estado.roles.filter(r => r.Activo !== false).map(r => String(r.Title || '').toLowerCase()).filter(Boolean);
     opciones($('npResponsable'), personas, x => x, x => nombreDe(x, estado.roles), 'sin responsable');
     $('npTitulo').value = p ? p.Title : ''; $('npClave').value = p ? p.Clave : ''; $('npClave').disabled = !!p;
-    $('npEquipo').value = p ? p.Equipo : CONFIG.equipos[0].clave; $('npVence').value = diaInput(p && p.Vence);
+    $('npClave').dataset.tocada = '';   // C-01 (mejorar-app, 16-sep): se limpia al ABRIR; antes solo tras crear, y un Cancelar con la clave tocada apagaba la propuesta el resto de la sesion
+    $('npEquipo').value = p ? p.Equipo : (estado.filtroEquipo || CONFIG.equipos[0].clave); $('npVence').value = diaInput(p && p.Vence);   // U-03 (16-sep): con el rail filtrado se propone ESE equipo
     $('npResponsable').value = p ? String(p.Responsable || '').toLowerCase() : ''; $('npDesc').value = p ? (p.Descripcion || '') : '';
     $('npCarpeta').value = p ? (p.Carpeta || '') : '';
-    $('npNota').textContent = p ? 'La carpeta destino es a dónde PROPONE ir lo que se sube al buzón desde Documentos (ruta relativa a la raíz de la biblioteca de la unidad); vacía = el default de la unidad. La skill de archivar la valida.' : 'La clave es lo que se pega en el marcador ⏳ de la base de conocimiento: «· app: lau-asea-03-001». No cambia después.';
+    $('npNotaClave').hidden = !!p;   // U-04 (16-sep): la nota de la clave vive bajo su campo y solo al crear; la de la carpeta, bajo Carpeta, siempre (antes una sola nota al pie, cuatro campos abajo)
     abrirDialogo('dlgProyecto');
     $('npTitulo').focus();
 }
@@ -906,33 +919,39 @@ async function guardarProyecto(ev) {
     // F7: la carpeta destino se escribe como ruta relativa, sin diagonales sobrantes ni barras invertidas.
     const carpeta = $('npCarpeta').value.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '');
     $('npGuardar').disabled = true;
+    // C-02 (mejorar-app, 16-sep): el try cubre SOLO la escritura en la lista. Lo que sigue (cerrar, avisar, bitacora, repintar,
+    // abrir) queda fuera: antes un tropiezo ahi convertia un guardado bueno en «No se pudo guardar» y, al crear, no abria el proyecto.
+    let creado = null, editado = null, clave = '';
     try {
         if (proyectoEnEdicion) {
             const p = proyectoEnEdicion;
             const campos = { Title: titulo, Equipo: $('npEquipo').value, Vence: vence, Responsable: $('npResponsable').value || null, Descripcion: $('npDesc').value.trim() || null, Carpeta: carpeta || null };
             const res = await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
             aplicar(p, campos, res && res._etag);
-            cerrarDialogo('dlgProyecto'); avisar('Proyecto actualizado.', 'ok'); repintar();
-            await registrarActividad('editar-proyecto', `editó el proyecto «${titulo.slice(0, 80)}»`, p.id, null); repintar();
-            return;
+            editado = p;
+        } else {
+            // Clave: valida contra lo que hay en memoria Y contra la lista en vivo (dos gerentes a la vez).
+            const v = validarClave($('npClave').value, estado.proyectos);
+            if (!v.ok) { avisar('Clave: ' + v.motivo, 'error'); $('npClave').focus(); return; }
+            const enVivo = await estado.cliente.renglones(estado.siteId, L.proyectos, `fields/Clave eq '${v.clave.replace(/'/g, "''")}'`);
+            if (enVivo.length) { avisar(`Clave: ya hay un proyecto con la clave ${v.clave} (lo creó alguien más hace un momento).`, 'error'); return; }
+            const campos = limpiar({ Title: titulo, Clave: v.clave, Equipo: $('npEquipo').value, Estado: 'activo', Vence: vence || undefined, Responsable: $('npResponsable').value || undefined, Descripcion: $('npDesc').value.trim() || undefined, Carpeta: carpeta || undefined });
+            creado = await estado.cliente.crearRenglon(estado.siteId, L.proyectos, campos, m => avisar(m, 'ojo'));
+            estado.proyectos.push(creado); clave = v.clave;
         }
-        // Clave: valida contra lo que hay en memoria Y contra la lista en vivo (dos gerentes a la vez).
-        const v = validarClave($('npClave').value, estado.proyectos);
-        if (!v.ok) { avisar('Clave: ' + v.motivo, 'error'); $('npClave').focus(); return; }
-        const enVivo = await estado.cliente.renglones(estado.siteId, L.proyectos, `fields/Clave eq '${v.clave.replace(/'/g, "''")}'`);
-        if (enVivo.length) { avisar(`Clave: ya hay un proyecto con la clave ${v.clave} (lo creó alguien más hace un momento).`, 'error'); return; }
-        const campos = limpiar({ Title: titulo, Clave: v.clave, Equipo: $('npEquipo').value, Estado: 'activo', Vence: vence || undefined, Responsable: $('npResponsable').value || undefined, Descripcion: $('npDesc').value.trim() || undefined, Carpeta: carpeta || undefined });
-        const n = await estado.cliente.crearRenglon(estado.siteId, L.proyectos, campos, m => avisar(m, 'ojo'));
-        estado.proyectos.push(n);
-        cerrarDialogo('dlgProyecto');
-        avisar(`Proyecto «${titulo}» creado. Clave: ${v.clave}.`, 'ok');
-        $('npClave').dataset.tocada = '';
-        await registrarActividad('crear-proyecto', `creó el proyecto «${titulo.slice(0, 80)}»`, n.id, null);
-        abrirProyecto(n.id);
     } catch (e) {
         if (esConflicto(e)) { cerrarDialogo('dlgProyecto'); avisar('Alguien cambió este proyecto hace un momento: se releyó. Revisa y vuelve a guardar.', 'ojo'); await pedirRelectura(); return; }
-        avisar('No se pudo guardar el proyecto: ' + (e && e.message ? e.message : e), 'error');
+        avisar('No se pudo guardar el proyecto: ' + (e && e.message ? e.message : e), 'error'); return;
     } finally { $('npGuardar').disabled = false; }
+    cerrarDialogo('dlgProyecto');
+    if (editado) {
+        avisar('Proyecto actualizado.', 'ok'); repintar();
+        await registrarActividad('editar-proyecto', `editó el proyecto «${titulo.slice(0, 80)}»`, editado.id, null); repintar();
+        return;
+    }
+    avisar(`Proyecto «${titulo}» creado. Clave: ${clave}.`, 'ok');
+    await registrarActividad('crear-proyecto', `creó el proyecto «${titulo.slice(0, 80)}»`, creado.id, null);
+    abrirProyecto(creado.id);
 }
 
 async function cerrarProyecto() {

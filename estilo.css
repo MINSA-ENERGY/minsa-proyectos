@@ -590,6 +590,8 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .pficha .stats b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text-strong); }
 .pficha .stats b.bad { color: var(--status-danger-fg); }
 .pficha .stats small { font-family: var(--font-data); font-size: .56rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); margin-top: 3px; }
+.pficha .stats small.sin { align-self: center; margin-top: 0; }   /* U-07: «sin tarjetas» centrado donde iban las tres cifras */
+.vacio [data-todos] { margin-left: var(--sp-2); vertical-align: middle; }   /* U-06: el boton «Ver todos los equipos» dentro del vacio */
 /* v0.61.0 (Carlos, 15-sep): sin avatares en toda la app; las reglas .av se fueron. Quedan --av-N para las burbujas del chat. */
 .segbar { display: flex; gap: 2px; height: 5px; width: 100%; }
 .segbar i { display: block; flex: 0; border-radius: 2px; }
@@ -947,6 +949,10 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* D3: a media anchura el select corta los nombres de mas de 15 caracteres («Persona de Pruel»).
    Cuatro dialogos heredan esta fila. */
 @media (max-width: 480px) { .mn-row { grid-template-columns: 1fr; } }
+/* U-01 (mejorar-app, 16-sep): la piel solo separa .mn-field + .mn-field; una fila (.mn-row) antes o despues de un campo
+   quedaba pegada (CLAVE tocaba el anillo de foco de Nombre). Mismo aire que entre dos campos. Candidato a base.css. */
+.mn-dialog-body .mn-field + .mn-row, .mn-dialog-body .mn-row + .mn-field, .mn-dialog-body .mn-row + .mn-row { margin-top: var(--sp-3); }
+.mn-field > .mn-help { margin: 0; font-size: .78rem; }   /* U-04: la nota bajo su campo, sin el margen de la nota suelta */
 
 /* ==== celular (<=720 px) — v0.5.0. Va AL FINAL a proposito: una regla movil escrita arriba
    la pisa su regla base de mas abajo con la misma especificidad (paso justo el 2026-09-12

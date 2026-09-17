@@ -106,7 +106,7 @@
       <!-- C3: buscador fuera del proyecto (nombre, clave, descripcion) -->
       <input id="textoProyectos" class="buscador" type="search" placeholder="Buscar un proyecto" aria-label="Buscar un proyecto" autocomplete="off">
       <div class="lista" id="listaProyectos"></div>
-      <details class="cerrados"><summary>Proyectos cerrados</summary><div class="lista" id="listaCerrados"></div></details>
+      <details class="cerrados"><summary id="sumCerrados">Proyectos cerrados</summary><div class="lista" id="listaCerrados"></div></details>
     </section>
 
     <!-- Proyecto -->
@@ -365,7 +365,7 @@
       <div class="dlg-avisos"></div>
       <div class="mn-field"><label for="npTitulo">Nombre</label><input id="npTitulo" required maxlength="255" placeholder="LAU ASEA-03-001 (Licencia Ambiental Única)"></div>
       <div class="mn-row">
-        <div class="mn-field"><label for="npClave">Clave (slug)</label><input id="npClave" required placeholder="lau-asea-03-001"></div>
+        <div class="mn-field"><label for="npClave">Clave (slug)</label><input id="npClave" required placeholder="lau-asea-03-001"><small class="mn-help" id="npNotaClave">Se propone sola desde el nombre; puedes ajustarla. No cambia después.</small></div>
         <div class="mn-field"><label for="npEquipo">Equipo</label><select id="npEquipo"></select></div>
       </div>
       <div class="mn-row">
@@ -373,8 +373,7 @@
         <div class="mn-field"><label for="npResponsable">Responsable</label><select id="npResponsable"></select></div>
       </div>
       <div class="mn-field"><label for="npDesc">Descripción</label><textarea id="npDesc" rows="3"></textarea></div>
-      <div class="mn-field"><label for="npCarpeta">Carpeta destino en la biblioteca (opcional)</label><input id="npCarpeta" maxlength="255" placeholder="03_Predios/Arrocera/Federal (ASEA) - LAU"></div>
-      <p class="mn-help" id="npNota">La clave es lo que se pega en el marcador ⏳ de la base de conocimiento: «· app: lau-asea-03-001». No cambia después.</p>
+      <div class="mn-field"><label for="npCarpeta">Carpeta destino en la biblioteca (opcional)</label><input id="npCarpeta" maxlength="255" placeholder="03_Predios/Arrocera/Federal (ASEA) - LAU"><small class="mn-help" id="npNotaCarpeta">A dónde PROPONE ir lo que se sube al buzón desde Documentos (ruta relativa a la raíz de la biblioteca de la unidad); vacía = el default de la unidad. La skill de archivar la valida.</small></div>
     </div>
     <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="npCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="npGuardar" type="submit">Crear proyecto</button></div>
   </form>

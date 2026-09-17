@@ -315,7 +315,7 @@ try {
 
     // 3. Proyectos.
     pestana('proyectos');
-    R.ok('botón Nuevo proyecto según rol', $('btnNuevoProyecto').disabled === !gerencia);
+    R.ok('botón Nuevo proyecto según rol — y oculto para quien no puede (U-05, v0.74.0)', $('btnNuevoProyecto').disabled === !gerencia && $('btnNuevoProyecto').hidden === !gerencia);
     if (gerencia) {
         clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo de proyecto');
         poner('npTitulo', 'LAU ASEA-03-001 (Licencia Ambiental Única)');
@@ -338,6 +338,12 @@ try {
         poner('npTitulo', 'Otro'); poner('npClave', 'lau-asea-03-001'); poner('npEquipo', 'PITEPEC');
         clic('npGuardar'); await esperar(() => avisoCon('ya hay un proyecto con la clave'), 'duplicada');
         R.ok('clave duplicada rechazada', filas('proyectos').length === 1);
+        clic('npCancelar');
+        // C-01 (v0.74.0): el Cancelar de arriba dejó la clave «tocada»; al reabrir la propuesta desde el nombre sigue viva.
+        clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo otra vez');
+        poner('npTitulo', 'Prueba de clave');
+        R.ok('C-01 (v0.74.0): tras cancelar con la clave tocada, la clave se vuelve a proponer sola', $('npClave').value === 'prueba-de-clave', $('npClave').value);
+        R.ok('U-04 (v0.74.0): la nota de la clave va bajo su campo y visible al crear; la de la carpeta bajo Carpeta', $('npNotaClave').closest('.mn-field') === $('npClave').closest('.mn-field') && !$('npNotaClave').hidden && $('npNotaCarpeta').closest('.mn-field') === $('npCarpeta').closest('.mn-field') && !$('npNota'));
         clic('npCancelar');
         R.log('nota', `filtros $filter usados: ${DB.filtros.join(' | ')}`);
     } else {
@@ -566,6 +572,15 @@ try {
         R.ok('rail: CALYTEK trae su contador y ningún equipo está marcado', document.querySelector('#railEquipos [data-equipo="CALYTEK"] .n').textContent === '1' && !document.querySelector('#railEquipos button.is-on'));
         document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
         R.ok('rail: el equipo elegido queda marcado y filtra Proyectos', document.querySelector('#railEquipos button.is-on').dataset.equipo === 'PITEPEC' && !!document.querySelector('#listaProyectos .vacio'));
+        if (gerencia) {   // U-03 (v0.74.0): con el rail en PITEPEC, Nuevo proyecto propone PITEPEC, no el primero del catálogo
+            clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo con filtro');
+            R.ok('U-03 (v0.74.0): el diálogo propone el equipo filtrado', $('npEquipo').value === 'PITEPEC', $('npEquipo').value);
+            clic('npCancelar');
+        }
+        // U-06 (v0.74.0): el vacío con filtro ofrece «Ver todos los equipos», y funciona.
+        { const b = document.querySelector('#listaProyectos .vacio [data-todos]'); R.ok('U-06 (v0.74.0): el vacío con filtro trae el botón para volver a todos', !!b); if (b) { b.click(); await dormir(30); } }
+        R.ok('U-06 (v0.74.0): el botón quita el filtro y vuelven las fichas', !document.querySelector('#railEquipos button.is-on') && !!document.querySelector('#listaProyectos .pficha') && !document.querySelector('#listaProyectos .vacio'));
+        document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);   // se repone el filtro para el paso siguiente
         document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
         R.ok('rail: el segundo clic quita el filtro', !document.querySelector('#railEquipos button.is-on') && !!document.querySelector('#listaProyectos .pficha'));
         // v0.7.0: el select de celular es el mismo filtro en las dos direcciones (select -> rail -> select).
@@ -1201,7 +1216,14 @@ try {
             pestana('proyectos'); await esperar(() => $('listaCerrados').textContent.includes('LAU ASEA'), 'en cerrados');
             R.ok('Proyectos: el cerrado aparece en «cerrados» y no en activos', !$('listaProyectos').textContent.includes('LAU ASEA'));
             { const fc = document.querySelector('#listaCerrados .pficha'); R.ok('v0.25.0: el cerrado lleva la hoja de calendario en verde (is-cerrado) con el día de su cierre y las tres cifras', !!fc && fc.classList.contains('is-cerrado') && /^\d{1,2}$/.test(fc.querySelector('.cal .dia').textContent) && !fc.querySelector('.cal').classList.contains('sin') && fc.querySelectorAll('.stats b').length === 3, fc ? fc.className + ' · ' + fc.querySelector('.cal').textContent : 'sin renglón'); }
-            // F6 (v0.3.0): reabrir.
+            // U-02 (v0.74.0): buscar un texto que solo casa con cerrados abre el plegable, lo cuenta y el vacío lo dice.
+            poner('textoProyectos', 'LAU ASEA'); await dormir(30);
+            R.ok('U-02 (v0.74.0): texto que solo casa con un cerrado → vacío que lo dice, plegable abierto y summary con conteo', ($('listaProyectos').querySelector('.vacio') || {}).textContent?.includes('hay 1 cerrado') && document.querySelector('details.cerrados').open && $('sumCerrados').textContent === 'Proyectos cerrados · 1', `${($('listaProyectos').querySelector('.vacio') || {}).textContent} · ${$('sumCerrados').textContent}`);
+            poner('textoProyectos', ''); await dormir(30);
+            R.ok('U-02 (v0.74.0): sin texto el summary sigue contando los cerrados (1) y el plegable ya no se abre solo', $('sumCerrados').textContent === 'Proyectos cerrados · 1', $('sumCerrados').textContent);
+            // U-07 (v0.74.0): un frente sin tarjetas dice «sin tarjetas», no 0 · 0 · 0.
+            { const idP = filas('proyectos').find(x => x.fields.Clave === 'poderes-legal').id; const fp = document.querySelector(`#listaProyectos .pficha[data-open="${idP}"]`); R.ok('U-07 (v0.74.0): el frente sin tarjetas dice «sin tarjetas» y no trae cifras', !!fp && fp.querySelectorAll('.stats b').length === 0 && fp.querySelector('.stats small.sin')?.textContent === 'sin tarjetas', fp ? fp.querySelector('.stats').textContent : 'sin ficha'); }
+            // F6 (v0.3.0): reabrir. (C-05, v0.74.0: el clic lo atiende el listener delegado, no uno por ficha.)
             document.querySelector('#listaCerrados .pficha').click(); await esperar(() => visible('p-proyecto') && !$('btnReabrirProyecto').classList.contains('oculto'), 'cerrado abierto con Reabrir');
             R.ok('proyecto cerrado: aparece Reabrir y Cerrar dice Cerrado', $('btnCerrarProyecto').textContent === 'Cerrado');
             clic('btnReabrirProyecto'); await confirmar(); await esperar(() => pc.fields.Estado === 'activo', 'reabierto');
