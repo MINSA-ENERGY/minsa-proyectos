@@ -9,7 +9,7 @@
 // junta «Te mencionaron». El selector aparece al teclear @ (tambien en la nota de la tarjeta).
 
 import { PUEDE, mencionEnCurso, aliasDe, aliasParaMencion, nombreDe, sinAcentos } from './reglas.js';
-import { $, L, estado, el, boton, tonoDe, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos, vistosDeComentario, miVistoDe, puedeMarcarVisto, alternarVisto } from './comun.js';
+import { $, L, estado, el, boton, tonoDe, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos, vistosDeComentario, miVistoDe, puedeMarcarVisto, alternarVisto, personasActivas, contadorTexto } from './comun.js';
 
 let alCambiar = () => {};
 export function alCambiarChat(fn) { alCambiar = fn; }
@@ -22,7 +22,7 @@ const COMENTARIO_MAX = 250, COMENTARIO_AVISO = 200;
 // el frente elegido AHI, que no es el abierto. La ultima pintada fija el destino; salirDelChat lo suelta.
 let proyectoChat = null;
 export const proyectoDelChat = () => proyectoChat;
-const personas = () => estado.roles.filter(r => r.Activo !== false).map(r => String(r.Title || '').toLowerCase()).filter(Boolean);
+const personas = personasActivas;   // C-06 (17-sep): la copia vive en comun.js
 export const puedeComentarEn = p => PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';
 
 // ---------------------------------------------------------------- pintar
@@ -84,7 +84,7 @@ export function pintarChat(p) {
             const fila = el('div', 'vistos');
             if (puedeMarcarVisto(c, p)) {
                 const mio = miVistoDe(c);
-                const b = boton(mio ? '✓ visto' : '✓', 'visto-btn' + (mio ? ' is-on' : ''), async () => { if (await alternarVisto(c, p)) { pintarChat(p); alCambiar(); } }, { visto: String(c.id) });
+                const b = boton(mio ? '✓ visto' : '¿visto?', 'visto-btn' + (mio ? ' is-on' : ''), async () => { if (await alternarVisto(c, p)) { pintarChat(p); alCambiar(); } }, { visto: String(c.id) });   // U-07 (17-sep): el no pulsado lleva palabra (en tactil no hay title)
                 b.title = mio ? 'Quitar tu visto' : 'Marcar como visto'; b.setAttribute('aria-pressed', mio ? 'true' : 'false'); fila.appendChild(b);
             }
             if (vs.length) { const q = el('span', 'q', '✓ ' + vs.map(a => nombreDe(a.Quien, estado.roles).split(' ')[0]).join(', ')); q.title = vs.map(a => `${nombreDe(a.Quien, estado.roles)} · ${fechaHora(a.Cuando)}`).join(' · '); fila.appendChild(q); }
@@ -117,11 +117,7 @@ export function salirDelChat() { proyectoChat = null; const h = $('chatHilo'); i
 /** Tras enviar, siempre al fondo (es mi mensaje). */
 function alFondo() { const h = $('chatHilo'); h.scrollTop = h.scrollHeight; }
 
-function contar() {
-    const n = $('chatTexto').value.length; const c = $('chatCont');
-    c.textContent = n >= COMENTARIO_AVISO ? `${n}/${COMENTARIO_MAX}` : '';
-    c.classList.toggle('is-danger', n >= COMENTARIO_MAX);
-}
+const contar = () => contadorTexto('chatTexto', 'chatCont', COMENTARIO_MAX, COMENTARIO_AVISO);   // C-06: comun.js
 
 // ---------------------------------------------------------------- enviar
 

@@ -8,7 +8,7 @@
 
 import { CONFIG } from './config.js';
 import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas } from './reglas.js';
-import { $, L, estado, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia } from './comun.js';
+import { $, L, estado, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia, personasActivas, contadorTexto } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
 import { engancharSelectorMenciones } from './chat.js';
@@ -30,7 +30,7 @@ function columnasConHuerfanas(p, ts) {
     for (const t of ts) if (!cols.some(c => c.clave === t.Columna)) cols.push({ clave: t.Columna, nombre: t.Columna, huerfana: true });
     return cols;
 }
-const personas = () => estado.roles.filter(r => r.Activo !== false).map(r => String(r.Title || '').toLowerCase()).filter(Boolean);
+const personas = personasActivas;   // C-06 (17-sep): la copia vive en comun.js
 
 // ---------------------------------------------------------------- tarjeta (elemento)
 
@@ -222,6 +222,18 @@ export function pintarBotonFiltros() {
     b.setAttribute('aria-expanded', estado.filtrosAbiertos ? 'true' : 'false');
     b.classList.toggle('oculto', ['docs', 'chat', 'resumen'].includes(estado.tab));
     $('densidad').classList.toggle('oculto', estado.tab !== 'tablero');   // v0.20.0: el conmutador solo tiene sentido en el tablero
+    // U-01 (17-sep): con filtro puesto, el propio tablero/lista lo dice — a 390 «Filtrar · N» vive al final de la fila de pestañas, fuera de la vista.
+    const av = $('filtroAviso'); av.textContent = '';
+    const partes = [];
+    if (f.quien && f.quien.length) partes.push(f.quien.map(q => nombreDe(q, estado.roles).split(' ')[0]).join(', '));
+    if (f.sinDueno) partes.push('sin dueño'); if (f.alta) partes.push('solo alta'); if (f.vencidas) partes.push('solo vencidas');
+    if (f.texto) partes.push(`«${f.texto}»`);
+    const mostrar = n > 0 && ['tablero', 'lista'].includes(estado.tab);
+    av.classList.toggle('oculto', !mostrar);
+    if (mostrar) {
+        av.appendChild(el('span', 'txt', 'Filtrado: ' + partes.join(' · ')));
+        av.appendChild(boton('× limpiar', 'mn-btn is-ghost is-sm', () => { estado.filtroTareas = { quien: [], alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = ''; if (estado.proyectoAbierto) pintarFiltroTareas(estado.proyectoAbierto); pintarSoloTareas(); }, { filtro: 'limpiarAviso' }));
+    }
 }
 
 // ---------------------------------------------------------------- densidad del tablero (v0.20.0, iteracion 2)
@@ -252,6 +264,13 @@ const tareasVisibles = proyecto => filtrarTareas(tareasDe(proyecto, estado.tarea
 // ---------------------------------------------------------------- tablero y lista
 
 const HECHO_VISIBLES = 5;
+/** U-04: la primera cubeta no-Hecho con tarjetas vencidas; si no, la primera no-Hecho con tarjetas; si no, la primera. */
+export function primeraCubetaConTarjetas(columnas, ts) {
+    const abiertas = columnas.filter(c => c.clave !== HECHO);
+    const con = f => abiertas.find(c => f(ts.filter(t => t.Columna === c.clave)));
+    const c = con(cs => vencidasEn(cs) > 0) || con(cs => cs.length > 0) || columnas[0];
+    return c.clave;
+}
 export function pintarTablero(proyecto) {
     const cont = $('tableroCols'); cont.textContent = '';
     const ts = tareasVisibles(proyecto);
@@ -260,7 +279,8 @@ export function pintarTablero(proyecto) {
     const columnas = columnasConHuerfanas(proyecto, tareasDe(proyecto, estado.tareas));
     // U5: en celular se ve UNA columna y estas pestanas la eligen; en escritorio el CSS las esconde.
     const tabs = $('colTabs'); tabs.textContent = '';
-    if (!columnas.some(c => c.clave === estado.colMovil)) estado.colMovil = columnas[0].clave;
+    // U-04 (17-sep): sin cubeta fijada, en celular se abre la primera ABIERTA con tarjetas (la que tenga vencidas, si hay), no columnas[0] vacia.
+    if (!columnas.some(c => c.clave === estado.colMovil)) estado.colMovil = primeraCubetaConTarjetas(columnas, ts);
     for (const c of columnas) {
         const enCubeta = ts.filter(t => t.Columna === c.clave);
         const b = boton('', estado.colMovil === c.clave ? 'is-on' : '', () => { estado.colMovil = c.clave; pintarTablero(proyecto); }, { colTab: c.clave });
@@ -326,6 +346,8 @@ export function pintarLista(proyecto) {
         r.appendChild(el('td', '', nombreColumna(t)));   // v0.59.0: texto plano, sin chip (Carlos, 15-sep) — el chip sigue en tarjeta y Mis tareas
         r.appendChild(el('td', 'mn-mono', fechaCorta(t.Vence)));
         r.addEventListener('click', () => abrirTarjeta(t.id));
+        r.tabIndex = 0; r.setAttribute('role', 'button'); r.setAttribute('aria-label', t.Title);   // U-10 (17-sep): el renglon se alcanza con Tab y abre con Enter/Espacio
+        r.addEventListener('keydown', ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); abrirTarjeta(t.id); } });
         tbody.appendChild(r);
     }
     if (!ts.length) { const r = el('tr'); const td = el('td', 'vacio', tareasDe(proyecto, estado.tareas).length ? 'Nada con ese filtro.' : 'Sin tareas todavía.'); td.colSpan = COLUMNAS_LISTA.length; r.appendChild(td); tbody.appendChild(r); }
@@ -420,14 +442,19 @@ function renglonDenso(t, conQuien) {
 
 // ---------------------------------------------------------------- tarjeta (dialogo)
 
-let tarjetaAbierta = null;
+// C-02 (mejorar-app proyecto, 17-sep): se guarda el ID, no el objeto — cargarTodo REEMPLAZA estado.tareas en cada relectura
+// (la del evento `online` incluida) y el objeto capturado quedaba huerfano: la ficha editaba una copia con _etag viejo que el
+// tablero ya no pintaba. Cada manejador resuelve la tarjeta viva con tarjetaAbiertaObj(), como ya hacia moverTarea.
+let tarjetaAbiertaIdNum = null;
+const tarjetaAbiertaObj = () => tarjetaAbiertaIdNum === null ? null : porId(estado.tareas, tarjetaAbiertaIdNum);
 /** Id de la tarjeta abierta en el dialogo, o null (lo lee el router de app.js). */
-export function tarjetaAbiertaId() { return $('dlgTarea').open && tarjetaAbierta ? tarjetaAbierta.id : null; }
+export function tarjetaAbiertaId() { return $('dlgTarea').open && tarjetaAbiertaIdNum !== null ? tarjetaAbiertaIdNum : null; }
 
 export function abrirTarjeta(id) {
     const t = porId(estado.tareas, id); if (!t) return;
-    tarjetaAbierta = t;
+    tarjetaAbiertaIdNum = t.id;
     pintarFicha(t);
+    $('tNota').value = ''; contarNota();   // C-04: el cuadro de la nota se vacia al ABRIR (y tras guardar), no en cada repintado de la ficha
     abrirDialogo('dlgTarea');
     fijarHash(hashDe(t.id));
 }
@@ -597,7 +624,7 @@ let popAbierto = null;
 let popDesde = null;
 /** Cuelga #tPop de `ancla` mostrando solo la seccion de `campo`, con el valor actual de la tarjeta cargado. */
 function abrirPop(campo, ancla, desde) {
-    const t = tarjetaAbierta; if (!t) return;
+    const t = tarjetaAbiertaObj(); if (!t) return;
     const p = porId(estado.proyectos, t.ProyectoId);
     if (popAbierto === campo && popDesde === desde) { cerrarPop(); return; }   // el mismo lapiz otra vez: conmuta (revisor)
     if (popAbierto) cerrarPop();
@@ -693,19 +720,15 @@ function pintarNotas(t, p) {
     if (!notas.length) c.appendChild(el('span', 'vacio', 'Sin notas todavía.'));
     const puede = PUEDE.tarea(estado.rol) && !!p && p.Estado === 'activo';
     $('formNota').classList.toggle('oculto', !puede);
-    $('tNota').value = ''; contarNota();
+    // C-04 (17-sep): aqui YA NO se vacia #tNota — pintarNotas corre tras cada PATCH de propiedad y borraba la nota a medio escribir.
 }
-/** C4: el contador «180/250» aparece a partir de 200 caracteres; antes el placeholder era la unica pista del limite. */
+/** C4: el contador «180/250» aparece a partir de 200 caracteres; antes el placeholder era la unica pista del limite. C-06: comun.js. */
 const NOTA_MAX = 250, NOTA_AVISO = 200;
-function contarNota() {
-    const n = $('tNota').value.length; const c = $('tNotaCont');
-    c.textContent = n >= NOTA_AVISO ? `${n}/${NOTA_MAX}` : '';
-    c.classList.toggle('is-danger', n >= NOTA_MAX);
-}
+const contarNota = () => contadorTexto('tNota', 'tNotaCont', NOTA_MAX, NOTA_AVISO);
 
 async function anotar(ev) {
     ev.preventDefault();
-    const t = tarjetaAbierta; if (!t) return;
+    const t = tarjetaAbiertaObj(); if (!t) return;
     if (!PUEDE.tarea(estado.rol)) { avisar('Tu rol es de lectura: no puedes anotar.', 'error'); return; }
     if (navigator.onLine === false) { avisar('Sin conexión: la nota se guarda cuando regrese la red (vuelve a intentarlo).', 'ojo'); return; }   // T2 (v0.8.0): Ctrl+Enter no pasa por pointer-events
     if ($('tAnotar').disabled) return;   // C4: Ctrl+Enter no respeta `disabled` como el clic; sin esto, dos renglones
@@ -718,6 +741,7 @@ async function anotar(ev) {
         const r = { Title: texto, Accion: 'comentar', Quien: estado.cuenta.username, Cuando: new Date().toISOString(), ProyectoId: Number(t.ProyectoId), TareaId: t.id };
         const n = await estado.cliente.crearRenglon(estado.siteId, L.actividad, r, m => avisar(m, 'ojo'));
         estado.actividad.unshift(n);
+        $('tNota').value = ''; contarNota();   // C-04: la nota se vacia tras GUARDARLA
         pintarNotas(t, porId(estado.proyectos, t.ProyectoId));
         avisar('Nota guardada.', 'ok');
         alCambiar();
@@ -727,7 +751,7 @@ async function anotar(ev) {
 
 /** «Copiar liga» (F8): comparte o copia la URL de la tarjeta por su proyecto; si nada de eso existe, la deja en el aviso. */
 async function compartirTarjeta() {
-    const t = tarjetaAbierta; if (!t) return;
+    const t = tarjetaAbiertaObj(); if (!t) return;
     const url = ligaDeTarjeta(t);
     try {
         if (navigator.share) { await navigator.share({ title: t.Title, url }); return; }
@@ -780,6 +804,8 @@ async function moverTarea(id, columna) {
 }
 
 /** F11: Subir / Bajar. Renumera lo que cambie (reordenar()); cada cambio es un PATCH con If-Match. */
+/** C-02/C-04: vuelve a pintar la ficha de la tarjeta abierta con el objeto VIVO de estado.tareas (tras una relectura) sin tocar la nota. */
+export function repintarFicha() { const t = tarjetaAbiertaObj(); if (t && $('dlgTarea').open) pintarFicha(t); }
 async function reordenarTarea(id, delta) {
     const t = porId(estado.tareas, id); if (!t) return;
     if (!PUEDE.mover(estado.rol)) { avisar('Tu rol es de lectura: no puedes reordenar.', 'error'); return; }
@@ -795,7 +821,7 @@ async function reordenarTarea(id, delta) {
             aplicar(x, { Orden: c.Orden }, res && res._etag);
         }
         alCambiar();
-        abrirTarjeta(t.id);
+        repintarFicha();   // C-04: re-pinta sin vaciar la nota a medio escribir
         avisar(delta < 0 ? 'Subida un lugar.' : 'Bajada un lugar.', 'ok');
     } catch (e) {
         if (esConflicto(e)) { await conflicto(t); return; }
@@ -809,7 +835,7 @@ async function reordenarTarea(id, delta) {
  *  Hasta v0.52.0 el acordeon «Editar la tarjeta» mandaba los seis campos juntos y cerraba el dialogo. */
 async function guardarEdicion(ev) {
     if (ev) ev.preventDefault();
-    const t = tarjetaAbierta, campo = popAbierto; if (!t || !campo) return;
+    const t = tarjetaAbiertaObj(), campo = popAbierto; if (!t || !campo) return;
     if (!PUEDE.tarea(estado.rol)) { avisar('Tu rol es de lectura: no puedes editar tarjetas.', 'error'); return; }
     const campos = {};
     if (campo === 'titulo') {
@@ -847,7 +873,7 @@ async function guardarEdicion(ev) {
 }
 
 async function borrarTarea() {
-    const t = tarjetaAbierta; if (!t) return;
+    const t = tarjetaAbiertaObj(); if (!t) return;
     if (!PUEDE.borrar(estado.rol)) { avisar('Solo gerencia borra tarjetas.', 'error'); return; }
     const { ok } = await confirmar({ titulo: 'Borrar la tarjeta', texto: `«${t.Title}» se borra de PROY_Tareas. Sus ligas a documentos se quedan en el proyecto. No se puede deshacer desde la app.`, ok: 'Borrar' });
     if (!ok) return;

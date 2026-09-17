@@ -15,8 +15,8 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias } from './reglas.js';
-import { $, L, VERSION, estado, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto } from './comun.js';
-import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
+import { $, L, VERSION, estado, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
+import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, repintarFicha, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
 import { pintarRoadmap, pintarRoadmapProyecto, roadmapFull, engancharRoadmap, pintarCalendario, engancharCalendario, pintarMensajes, engancharMensajes, devolverChat, mensajesNuevos, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
@@ -186,7 +186,7 @@ async function cargarTodo() {
         estado.actividad = actividad.sort((a, b) => String(b.Cuando || '').localeCompare(String(a.Cuando || '')));
         estado.actividadCompleta = new Set(piso ? [] : proyectos.map(p => p.id));
         if (delAbierto) { estado.actividadCompleta.add(abierto); fusionarActividad(delAbierto); }
-        estado.buzonExiste = {};
+        estado.buzonExiste = {}; estado.buzonAvisado = false;   // C-03: el aviso «no se pudo consultar el buzon» va una vez por carga
         estado.cargadoEl = Date.now();
         if (estado.proyectoAbierto) estado.proyectoAbierto = porId(estado.proyectos, estado.proyectoAbierto.id);
     } finally { recargando = false; pintarSync(); }
@@ -205,6 +205,7 @@ async function recargar() {
         // engancha objetos viejos), pero sin mover la posicion de lectura. «Solo si cambio» se
         // intento y se retiro en la revision de v0.4.0 por esas dos razones.
         const y = window.scrollY; repintar(); window.scrollTo({ top: y });
+        repintarFicha();   // C-02 (17-sep): la ficha abierta se re-pinta con el objeto VIVO (cargarTodo reemplazo estado.tareas)
     } catch (e) { avisar('No se pudieron releer las listas: ' + (e && e.message ? e.message : e), 'error'); }
     finally { recargando = false; $('btnActualizar').disabled = false; pintarSync(); }
 }
@@ -234,7 +235,7 @@ function pintarRed() {
     document.body.classList.toggle('sin-red', sin);
 }
 window.addEventListener('offline', pintarRed);
-window.addEventListener('online', () => { pintarRed(); if (estado.siteId) recargar(); });
+window.addEventListener('online', () => { pintarRed(); if (estado.siteId && !editando()) recargar(); });   // C-02: la misma guarda que el timer y visibilitychange
 pintarRed();
 
 // ---------------------------------------------------------------- navegacion
@@ -850,6 +851,7 @@ function pintarProyecto() {
     $('pDesc').title = p.Descripcion || '';
     $('pDesc').classList.remove('abierta');
     for (const b of document.querySelectorAll('.tab')) { const on = b.dataset.tab === estado.tab; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }
+    { const on = document.querySelector('.tabs .tab.is-on'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }   // U-02 (17-sep): a 390 la fila rueda y «Resumen» quedaba fuera aun activa
     for (const t of ['tablero', 'lista', 'roadmap', 'docs', 'chat']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
     if (estado.tab !== 'chat') salirDelChat();   // v0.9.0: cambiar de pestana dentro del proyecto tambien es salir
     document.body.classList.toggle('is-chat', estado.tab === 'chat');   // v0.15.0: pintarProyecto no pasa por repintar() al cambiar de pestana
@@ -905,8 +907,7 @@ function abrirFormaProyecto(p) {
     $('npTituloDlg').textContent = p ? 'Editar proyecto' : 'Nuevo proyecto';
     $('npGuardar').textContent = p ? 'Guardar cambios' : 'Crear proyecto';
     opciones($('npEquipo'), CONFIG.equipos, e => e.clave, e => e.nombre, null);
-    const personas = estado.roles.filter(r => r.Activo !== false).map(r => String(r.Title || '').toLowerCase()).filter(Boolean);
-    opciones($('npResponsable'), personas, x => x, x => nombreDe(x, estado.roles), 'sin responsable');
+    opciones($('npResponsable'), personasActivas(), x => x, x => nombreDe(x, estado.roles), 'sin responsable');   // C-06: comun.js
     $('npTitulo').value = p ? p.Title : ''; $('npClave').value = p ? p.Clave : ''; $('npClave').disabled = !!p;
     $('npClave').dataset.tocada = '';   // C-01 (mejorar-app, 16-sep): se limpia al ABRIR; antes solo tras crear, y un Cancelar con la clave tocada apagaba la propuesta el resto de la sesion
     $('npEquipo').value = p ? p.Equipo : (estado.filtroEquipo || CONFIG.equipos[0].clave); $('npVence').value = diaInput(p && p.Vence);   // U-03 (16-sep): con el rail filtrado se propone ESE equipo
@@ -1117,12 +1118,10 @@ for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', (
 $('btnFiltros').addEventListener('click', () => { estado.filtrosAbiertos = !estado.filtrosAbiertos; pintarProyecto(); });
 $('pDesc').addEventListener('click', () => $('pDesc').classList.toggle('abierta'));
 // B1: el menu «···» del proyecto se cierra al elegir una accion y al tocar fuera.
-// TRAMPA (medida 2026-09-12): un <details> CERRADO no pinta a sus hijos aunque el CSS le ponga
-// `display: contents` al details y `display: flex` al hijo —lo decide el UA, no la cascada—, asi
-// que en escritorio los tres botones desaparecieron. Por eso el estado `open` lo lleva el viewport:
-// abierto siempre arriba de 720 px (con el summary en display:none no se nota), menu en celular.
+// v0.5.0 lo abria arriba de 720 px (el details era display:contents y cerrado no pintaba a sus hijos); desde v0.13.0 es un menu
+// real en todo ancho, asi que al cruzar los 720 px solo se CIERRA (v0.81.0: abierto quedaba desplegado sobre el tablero).
 const enCelular = window.matchMedia('(max-width: 720px)');
-function acomodarAccMenu() { $('accMenu').open = !enCelular.matches; }
+function acomodarAccMenu() { $('accMenu').open = false; }   // v0.81.0: desde v0.13.0 el «⋮» es menu en TODO ancho — abrirlo arriba de 720 lo dejaba desplegado al cruzar el ancho (lo delataban las capturas -full a 1366 desde v0.80.0 o antes)
 // Al cruzar los 720 px (girar el telefono, redimensionar la ventana) se repinta el proyecto: ahi es
 // donde «Resumen» deja de existir y donde el menu «···» cambia de forma.
 // B3: Inicio tambien depende del ancho (3 renglones de actividad en celular, 5 en escritorio).
@@ -1132,7 +1131,7 @@ acomodarAccMenu();
 // no lo cierra); al cerrarse, el submenu vuelve plegado para que la proxima vez abra limpio.
 document.addEventListener('click', e => { const m = $('accMenu'); if (m.open && !m.contains(e.target)) m.open = false; });
 $('accMenu').querySelector('.acciones').addEventListener('click', e => { if (e.target.closest('button')) $('accMenu').open = false; });
-$('accMenu').addEventListener('toggle', () => { if (!$('accMenu').open) $('accEditar').open = false; });
+// U-12 (17-sep): el submenu «Editar ›» (#accEditar) se aplano; ya no hay nada que plegar al cerrar el «⋮».
 // D6: el pie del rail apilaba seis controles en 60 px; Equipo, Ver en SharePoint y Salir viven en un
 // menu «···» hacia arriba (Actualizar y el tema se quedan a la vista). Se cierra al elegir y al tocar fuera.
 document.addEventListener('click', e => { const m = $('menuRail'); if (m.open && !m.contains(e.target)) m.open = false; });

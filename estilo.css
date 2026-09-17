@@ -1812,3 +1812,41 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
   .t-props .t-cel:not(:nth-last-child(-n+2)) { border-bottom: 1px solid var(--border-hairline); }
   .t-ceja a, .t-ceja a + .sep { display: none; }
 }
+
+/* ==== v0.81.0 (2026-09-17): tanda 1 de /mejorar-app proyectos proyecto (U-01 · U-02 · U-03 · U-05 · U-08 · U-11 · U-12 · U-13). Va AL FINAL
+   por la regla de arriba: lo movil se escribe despues de lo que corrige. ==== */
+/* U-12: el menu «⋮» es plano; el separador va entre «Editar datos» y «Cerrar proyecto». */
+.acc-menu .acciones .acc-sep { border: 0; border-top: 1px solid var(--border-hairline); margin: 2px 0; width: 100%; }
+/* U-13: la nota «Ligado por …» del menu «···» parte en vez de cortarse y la fecha va en su propia linea — el dato que solo vive ahi es el que no cabia. */
+.fila-menu .menu .menu-nota { white-space: normal; overflow-wrap: anywhere; flex-wrap: wrap; }
+.fila-menu .menu .menu-nota .fecha { flex-basis: 100%; font-family: var(--font-data); }
+/* U-01: el aviso «Filtrado: …» solo existe en celular (en escritorio los chips estan a la vista). */
+.filtro-aviso { display: none; }
+@media (max-width: 720px) {
+  /* U-01: «Filtrar · N» se queda PEGADO al borde derecho mientras las pestañas ruedan debajo (como hacia .is-primary en tableta);
+     su sombra hacia la izquierda es tambien la señal de que la fila sigue (U-02). */
+  .tabs #btnFiltros { position: sticky; right: 0; background: var(--surface-page); box-shadow: -10px 0 8px -2px var(--surface-page); }
+  .tabs #btnFiltros.is-on { background: var(--surface-selected); }
+  /* U-02: en Docs · Chat · Resumen (sin «Filtrar») un degradado pegado al borde derecho dice que la fila sigue; no recibe clics. */
+  .tabs:has(#btnFiltros.oculto)::after { content: ""; position: sticky; right: 0; flex: none; align-self: stretch; width: 20px; margin-left: -20px; background: linear-gradient(to right, transparent, var(--surface-page)); pointer-events: none; }
+  .filtro-aviso:not(.oculto) { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-1) var(--sp-2); font-size: .8rem; color: var(--text-body); background: var(--surface-selected); border: 1px solid var(--brand-primary); border-radius: var(--r-sm); }
+  .filtro-aviso .txt { min-width: 0; overflow-wrap: anywhere; }
+  .filtro-aviso .mn-btn { flex: none; }
+  /* U-11: la leyenda del semaforo sube ENTRE las pestañas de cubeta y la columna; al pie la tapaba el flotante «Nueva tarea». */
+  .tablero-caja .col-tabs { order: -2; }
+  .tablero-caja .leyenda-sem { order: -1; }
+  /* U-05: la cabecera de la tarjeta a dos filas — botones arriba a la derecha, ceja + titulo debajo a TODO el ancho (antes el titulo vivia en ~170 px). */
+  #dlgTarea .mn-dialog-head { flex-wrap: wrap; }
+  #dlgTarea .head-botones { order: -1; margin-left: auto; }
+  #dlgTarea .t-titular { flex-basis: 100%; }
+  /* U-08: la paleta de «Cubetas del tablero» con botones de 28 px y 4 px de separacion (9 x 28 + 8 x 4 = 284) y el anillo del elegido mas grueso. */
+  .cubeta .tonos { gap: 4px; grid-column: 1 / -1; }   /* a todo el ancho de la fila: con la columna del punto delante, la 9.a bolita caia a otro renglon (medido a 390) */
+  .cubeta .tonos button { width: 28px; height: 28px; }
+  .tonos button[aria-checked="true"] { box-shadow: 0 0 0 3px var(--text-strong); }
+}
+/* U-03: en fichas apiladas, la hoja «tarjeta sin documentos» va a dos filas: el titulo ENTERO arriba; cubeta · vence · «Ligar aqui» abajo. */
+@container (max-width: 720px) {
+  .is-arbol tr.doc.vacia .nombre { flex-wrap: wrap; row-gap: var(--sp-1); }
+  .is-arbol tr.doc.vacia .nombre .t { flex: 1 1 calc(100% - 28px); white-space: normal; overflow-wrap: anywhere; }
+  .is-arbol tr.doc.vacia .nombre .mn-btn { margin-left: auto; }
+}

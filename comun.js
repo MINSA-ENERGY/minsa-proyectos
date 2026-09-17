@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion, activosDe, proyectosVisibles } from './reglas.js';
 
-export const VERSION = '0.80.0';
+export const VERSION = '0.81.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
@@ -43,6 +43,7 @@ export const estado = {
     sitiosUnidad: {},
     // Rutas del buzon ya consultadas en esta carga: ruta -> true|false (existe)
     buzonExiste: {},
+    buzonAvisado: false,   // C-03 (v0.81.0): ya se aviso una vez en esta carga que el buzon no contesta
     // v0.13.1: ids de proyecto cuya actividad esta COMPLETA en memoria (fuera de la ventana de CONFIG.actividadDias)
     actividadCompleta: new Set()
 };
@@ -429,6 +430,15 @@ export function notasDe(tareaId) {
 export const activos = () => activosDe(estado.proyectos);
 export const visibles = () => proyectosVisibles(estado.proyectos, estado.filtroEquipo);
 export const nombreEquipoFiltrado = () => estado.filtroEquipo ? equipoDe({ Equipo: estado.filtroEquipo }).nombre : '';
+// C-06 (mejorar-app proyecto, 17-sep): las cuentas activas del directorio, en minusculas — tablero.js, chat.js y app.js
+// traian cada uno su copia literal (menciones, asignado, filtro).
+export const personasActivas = () => estado.roles.filter(r => r.Activo !== false).map(r => String(r.Title || '').toLowerCase()).filter(Boolean);
+/** C-06: el contador «N/max» de un cuadro de texto acotado (nota de tarjeta y chat): aparece desde `aviso` y va en rojo al tope. */
+export function contadorTexto(idInput, idCont, max, aviso) {
+    const n = $(idInput).value.length; const c = $(idCont);
+    c.textContent = n >= aviso ? `${n}/${max}` : '';
+    c.classList.toggle('is-danger', n >= max);
+}
 export function equipoDe(p) { return CONFIG.equipos.find(e => e.clave === (p && p.Equipo)) || { clave: p && p.Equipo, nombre: (p && p.Equipo) || 'Sin equipo', unidad: null, rama: null, color: 'var(--status-idle-solid)', icono: ['M12 8v4M12 16h.01', 'M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18z'] }; }
 /**
  * v0.7.0: el equipo se ve por su ICONO + COLOR, no por su nombre (Carlos, 2026-09-12). Un <span class="eqi">

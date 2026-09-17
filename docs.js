@@ -54,7 +54,13 @@ function volverSiCancela() { const f = ctx.alTerminar; ctx.alTerminar = null; if
 
 // ---------------------------------------------------------------- pintar
 
+// C-03 (mejorar-app proyecto, 17-sep): generacion de la pintada. pintarDocs es async (consulta el buzon al final) y dos pintadas
+// solapadas —tecleo en el buscador, plegar una carpeta, el refresco de 120 s— volvian las dos sobre el MISMO #docsLista y
+// duplicaban el chip «ya lo acomodo la skill» y su boton. Tras cada await, la pintada vieja se retira; la promesa de cada
+// consulta se cachea para no pedirla dos veces; y la cola async lleva catch (antes era una promesa suelta sin catch).
+let pintadaDocs = 0;
 export async function pintarDocs(p) {
+    const gen = ++pintadaDocs;
     const cont = $('docsLista'); cont.textContent = '';
     const bib = bibliotecaDe(p);
     const puede = puedeLigarEn(p);
@@ -114,20 +120,27 @@ export async function pintarDocs(p) {
     $('docsPlegarTodo').onclick = () => { estado.abiertasDocs = new Set(); pintarDocs(p); };
     cont.appendChild(tabla);
     // «En el buzon» en vivo: una consulta por liga de tipo buzon, cacheada por carga.
-    if (bib) {
+    if (bib) try {
         const s = await sitioDe(bib);
+        if (gen !== pintadaDocs) return;
         if (s.id) for (const l of ligas.filter(x => x.Tipo === 'buzon' && x.Ruta)) {
-            if (estado.buzonExiste[l.Ruta] === undefined) {
-                try { estado.buzonExiste[l.Ruta] = await estado.cliente.existeRuta(s.id, l.Ruta); } catch (_) { continue; }
-            }
+            if (estado.buzonExiste[l.Ruta] === undefined) estado.buzonExiste[l.Ruta] = estado.cliente.existeRuta(s.id, l.Ruta).catch(() => { delete estado.buzonExiste[l.Ruta]; return undefined; });
+            const existe = await estado.buzonExiste[l.Ruta];   // promesa (en vuelo) o valor (ya resuelto): await sirve a los dos
+            if (gen !== pintadaDocs) return;
+            if (existe === undefined) continue;
+            estado.buzonExiste[l.Ruta] = existe;
             const n = cont.querySelector(`[data-liga="${l.id}"] .estado`);
-            if (n && estado.buzonExiste[l.Ruta] === false) {
+            if (n && existe === false) {
                 n.textContent = ''; n.appendChild(chip('ya lo acomodó la skill', 'ok'));
                 // F2: buscar el archivado y reemplazar la liga en una sola operacion.
                 if (puede) n.appendChild(boton('Buscar el archivado', 'mn-btn is-sm', () => abrirLigar({ proyecto: p, tareaId: l.TareaId, texto: l.Title, reemplaza: l }), { buscar: String(l.id) }));
                 else n.appendChild(el('span', 'p', 'busca y reemplaza la liga'));
             }
         }
+    } catch (e) {
+        if (gen !== pintadaDocs) return;
+        if (!estado.buzonAvisado) { estado.buzonAvisado = true; avisar('No se pudo consultar el buzón: el estado «en el buzón» puede estar atrasado hasta la próxima relectura.', 'ojo'); }   // C-03: una sola vez por carga
+        console.warn('Docs: no se pudo consultar el buzón.', e && e.message ? e.message : e);
     }
 }
 
@@ -320,7 +333,7 @@ export function filaDoc(l, { p = null, puede = false, enArchivos = false, alTarj
     // Acciones «⋯»: Abrir · Quitar (si puede) · Documentos del proyecto (en #archivos).
     const tdA = el('td', 'c-acc');
     const acciones = [];
-    if (ligada) { const n = el('span', 'menu-nota quien'); const tx = el('span', '', ligada); if (l._creado) tx.title = fechaHora(l._creado); n.appendChild(tx); acciones.push(n); }
+    if (ligada) { const n = el('span', 'menu-nota quien'); n.appendChild(el('span', '', `Ligado por ${quien || '—'}`)); if (cuando) { const f = el('span', 'fecha', cuando); f.title = fechaHora(l._creado); n.appendChild(f); } acciones.push(n); }   // U-13: la fecha en su propia linea
     if (href) { const a = el('a', 'mn-btn is-ghost is-sm', 'Abrir'); a.href = href; a.target = '_blank'; a.rel = 'noopener noreferrer'; acciones.push(a); }
     if (ruta) acciones.push(boton(l.Tipo === 'enlace' ? 'Copiar dirección' : 'Copiar ruta', 'mn-btn is-ghost is-sm', () => copiarTexto(ruta), { copiar: String(l.id) }));   // v0.19.0: la ruta que salio de debajo del nombre
     if (sinTarjeta && tt && alTarjeta) acciones.push(boton('Abrir tarjeta', 'mn-btn is-ghost is-sm', () => alTarjeta(tt), { abrirTarjeta: String(tt.id) }));   // v0.45.0; v0.54.1: sin .tarjeta-liga, que le ponia la pildora encima del mn-btn

@@ -665,6 +665,9 @@ try {
               .map(([Title, Vence, Columna]) => { const id = DB.siguienteId++; filas('tareas').push({ id, fields: { Title, ProyectoId: proyectoId, Columna, Asignado: YO, Prioridad: Title.endsWith('pronto') ? 'alta' : 'normal', Vence, Desde: d(-1), HechoEl: Columna === 'hecho' ? d(-1) : undefined } }); return id; });
           await recargarYEsperar(); await abrirLau(); await esperar(() => document.querySelector(`.tarjeta[data-t="${sem[3]}"]`), 'sembradas del semáforo');
           const tj = i => document.querySelector(`.tarjeta[data-t="${sem[i]}"]`), cl = i => tj(i).classList;
+          // C-01 (17-sep): se parte de Cómodo ANTES de la aserción de los chips — en Compacto el «·» del ::before es content:none, y el
+          // localStorage del perfil llega con densidad=compacto si otra vista (proyecto-compacto de capturas.mjs) corrió antes.
+          document.querySelector('#densidad [data-densidad="comodo"]').click(); await dormir(30);
           { const chips = [...document.querySelectorAll('#tableroCols .tarjeta .f .mn-chip')]; R.ok('v0.64.0: en la cara de la tarjeta el chip es texto plano (sin fondo ni padding) y lleva el «·» delante', chips.length > 0 && chips.every(c => getComputedStyle(c).backgroundColor === 'rgba(0, 0, 0, 0)' && getComputedStyle(c).paddingLeft === '0px' && getComputedStyle(c, '::before').content === '"·"'), 'chips en el tablero: ' + chips.length); }
           R.ok('v0.20.0: el filete es semáforo de fecha — vencida / pronto / en tiempo (sin clase) / hecha', cl(0).contains('is-vencida') && cl(1).contains('is-pronto') && !cl(2).contains('is-vencida') && !cl(2).contains('is-pronto') && !cl(2).contains('is-hecha') && cl(3).contains('is-hecha'));
           R.ok('v0.20.0 / v0.60.0: la prioridad son barras junto al título (alta = 3 en rojo, normal = 2), ya no el borde; todas llevan filete de 3 px', tj(1).querySelectorAll('.t .barras.is-alta i.on').length === 3 && tj(0).querySelectorAll('.t .barras.is-normal i.on').length === 2 && !tj(0).querySelector('.t .barras.is-alta') && getComputedStyle(tj(0)).borderLeftWidth === '3px' && getComputedStyle(tj(2)).borderLeftWidth === '3px');
@@ -915,6 +918,110 @@ try {
         } else {
             R.ok('cubetas: colaborador ve el botón apagado (solo gerencia cambia la estructura)', !!$('btnCubetas') && $('btnCubetas').disabled);
         }
+        // ==== v0.81.0 (17-sep): tanda 1 de /mejorar-app proyectos proyecto ====
+        {
+            const M = await import('../comun.js');
+            // U-04: sin cubeta fijada, en celular se abre la primera ABIERTA con tarjetas (con vencidas si las hay), no la primera aunque esté vacía.
+            const { primeraCubetaConTarjetas } = await import('../tablero.js');
+            const colsU4 = [{ clave: 'por-hacer' }, { clave: 'en-curso' }, { clave: 'en-revision' }, { clave: 'hecho' }];
+            const ayer = new Date(Date.now() - 86400000).toISOString(), lejos = new Date(Date.now() + 30 * 86400000).toISOString();
+            R.ok('U-04: la primera cubeta abierta con tarjetas (no columnas[0] vacía); con vencidas manda la que las trae; sin tarjetas, la primera; Hecho nunca',
+                primeraCubetaConTarjetas(colsU4, [{ Columna: 'en-curso', Vence: lejos }]) === 'en-curso'
+                && primeraCubetaConTarjetas(colsU4, [{ Columna: 'en-curso', Vence: lejos }, { Columna: 'en-revision', Vence: ayer }]) === 'en-revision'
+                && primeraCubetaConTarjetas(colsU4, []) === 'por-hacer'
+                && primeraCubetaConTarjetas(colsU4, [{ Columna: 'hecho', Vence: ayer }]) === 'por-hacer');
+            M.estado.colMovil = null; tab('tablero'); await dormir(30);
+            { const activa = document.querySelector('#tableroCols .col.is-activa'); const esperada = primeraCubetaConTarjetas([...document.querySelectorAll('#tableroCols .col')].map(c => ({ clave: c.dataset.col })), M.estado.tareas.filter(x => Number(x.ProyectoId) === proyectoId));
+              R.ok('U-04: al pintar el tablero sin cubeta fijada, la activa es la que dicta la regla (y no está vacía)', !!activa && activa.dataset.col === esperada && !activa.querySelector('.vacio'), activa && activa.dataset.col + ' vs ' + esperada); }
+            // U-10: los renglones de la Lista se alcanzan con Tab y abren con Enter / Espacio.
+            tab('lista'); await esperar(() => visible('tab-lista'), 'lista');
+            { const r = document.querySelector('#tab-lista tbody tr.clic');
+              R.ok('U-10: el renglón de la Lista lleva tabindex=0, role=button y aria-label con el título', r.tabIndex === 0 && r.getAttribute('role') === 'button' && r.getAttribute('aria-label') === r.children[1].textContent);
+              r.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true })); await esperar(() => $('dlgTarea').open, 'abierta por Enter');
+              R.ok('U-10: Enter sobre el renglón abre su tarjeta', $('dlgTarea').open && $('tTitulo').textContent === r.children[1].textContent);
+              clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+              r.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true })); await esperar(() => $('dlgTarea').open, 'abierta por Espacio');
+              R.ok('U-10: Espacio también la abre', $('dlgTarea').open); clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada'); }
+            // U-01: con filtro puesto, el tablero y la lista lo dicen en #filtroAviso (con «× limpiar»); sin filtro no existe; en Docs/Chat/Resumen tampoco.
+            tab('tablero'); await dormir(30);
+            R.ok('U-01: sin filtro, #filtroAviso está oculto', $('filtroAviso').classList.contains('oculto'));
+            document.querySelector('#filtroChips [data-filtro="vencidas"]').click(); await dormir(30);
+            R.ok('U-01: con «solo vencidas» el aviso dice «Filtrado: solo vencidas» y trae «× limpiar»', !$('filtroAviso').classList.contains('oculto') && $('filtroAviso').querySelector('.txt').textContent === 'Filtrado: solo vencidas' && !!$('filtroAviso').querySelector('[data-filtro="limpiarAviso"]') && $('btnFiltros').textContent === 'Filtrar · 1');
+            poner('filtroTexto', 'fianza'); await dormir(150);
+            R.ok('U-01: el texto buscado también se nombra', $('filtroAviso').querySelector('.txt').textContent === 'Filtrado: solo vencidas · «fianza»');
+            tab('docs'); await esperar(() => visible('tab-docs'), 'docs'); R.ok('U-01: en Docs el aviso no aparece', $('filtroAviso').classList.contains('oculto'));
+            tab('lista'); await esperar(() => visible('tab-lista'), 'lista'); R.ok('U-01: en la Lista sí', !$('filtroAviso').classList.contains('oculto'));
+            $('filtroAviso').querySelector('[data-filtro="limpiarAviso"]').click(); await dormir(30);
+            R.ok('U-01: «× limpiar» del aviso quita todos los filtros, vacía el buscador y esconde el aviso', $('filtroAviso').classList.contains('oculto') && $('filtroTexto').value === '' && $('btnFiltros').textContent === 'Filtrar' && document.querySelectorAll('#tab-lista tbody tr[data-t]').length === M.estado.tareas.filter(x => Number(x.ProyectoId) === proyectoId).length);
+            tab('tablero'); await dormir(30);
+            // U-02: al pintar, la pestaña activa se lleva a la vista (scrollIntoView) — se prueba que no quede fuera del rectángulo de .tabs.
+            tab('resumen'); await dormir(30);
+            { const rt = document.querySelector('.tabs').getBoundingClientRect(), ro = document.querySelector('.tab.is-on').getBoundingClientRect();
+              R.ok('U-02: la pestaña activa («Resumen») queda dentro del rectángulo visible de la fila', ro.left >= rt.left - 1 && ro.right <= rt.right + 1, `${Math.round(ro.left)}-${Math.round(ro.right)} en ${Math.round(rt.left)}-${Math.round(rt.right)}`); }
+            tab('tablero'); await dormir(30);
+            // U-12: el menú «⋮» es plano — sin submenú «Editar ›»; separador entre «Editar datos» y «Cerrar proyecto». U-14: la ayuda de Cubetas ya no habla del «punto».
+            R.ok('U-12: el menú «⋮» trae Imprimir · Cubetas · Editar datos · separador · Cerrar/Reabrir · Eliminar, sin #accEditar', !$('accEditar') && [...$('accMenu').querySelectorAll('.acciones > *')].map(x => x.id || x.className).join(',') === 'btnImprimir,btnCubetas,btnEditarProyecto,acc-sep,btnCerrarProyecto,btnReabrirProyecto,btnEliminarProyecto');
+            R.ok('U-14: la ayuda de «Cubetas del tablero» habla del filete, no del punto', /filete de la columna/.test($('dlgCubetas').querySelector('.mn-help').textContent) && !/punto/.test($('dlgCubetas').querySelector('.mn-help').textContent));
+            if (escribe) {
+                // C-04: guardar una propiedad (o Subir/Bajar) con una nota a medio escribir NO la borra; abrir otra tarjeta y guardar la nota sí la vacían.
+                document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+                poner('tNota', 'nota a medio escribir'); const prioC4 = t.fields.Prioridad || 'normal', otraPrio = prioC4 === 'baja' ? 'normal' : 'baja';
+                editar('prioridad'); $('ftPrioridadSeg').querySelector(`[data-prio="${otraPrio}"]`).click(); clic('btnGuardarTarea'); await esperar(() => t.fields.Prioridad === otraPrio, 'prioridad guardada'); await dormir(30);
+                R.ok('C-04: guardar la prioridad re-pinta la ficha y la nota a medio escribir sigue ahí', $('tNota').value === 'nota a medio escribir' && $('dlgTarea').open);
+                editar('prioridad'); $('ftPrioridadSeg').querySelector(`[data-prio="${prioC4}"]`).click(); clic('btnGuardarTarea'); await esperar(() => t.fields.Prioridad === prioC4, 'prioridad de vuelta'); await dormir(30);
+                if ($('tOrden').querySelector('[data-orden="bajar"]') && !$('tOrden').querySelector('[data-orden="bajar"]').disabled) { $('tOrden').querySelector('[data-orden="bajar"]').click(); await esperar(() => avisoCon('un lugar'), 'reordenada'); await dormir(30); R.ok('C-04: Subir/Bajar tampoco borra la nota', $('tNota').value === 'nota a medio escribir'); $('tOrden').querySelector('[data-orden="subir"]').click(); await esperar(() => avisoCon('Subida'), 'de vuelta'); }
+                const nC4 = actividad('comentar').length; clic('tAnotar'); await esperar(() => actividad('comentar').length === nC4 + 1, 'nota guardada');
+                R.ok('C-04: guardar la nota sí vacía el cuadro', $('tNota').value === '');
+                poner('tNota', 'otra a medias'); clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+                document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta otra vez');
+                R.ok('C-04: abrir la tarjeta arranca con el cuadro vacío', $('tNota').value === '');
+                // C-02: la ficha guarda el ID, no el objeto — tras una relectura (que REEMPLAZA estado.tareas) la edición va al objeto vivo con su _etag.
+                const objAntes = M.estado.tareas.find(x => x.id === t.id);
+                await recargarYEsperar(); await dormir(30);
+                const objDespues = M.estado.tareas.find(x => x.id === t.id);
+                R.ok('C-02: la relectura reemplaza el objeto y la ficha sigue abierta re-pintada', objAntes !== objDespues && $('dlgTarea').open && $('tTitulo').textContent === t.fields.Title);
+                editar('prioridad'); $('ftPrioridadSeg').querySelector(`[data-prio="${otraPrio}"]`).click(); clic('btnGuardarTarea'); await esperar(() => t.fields.Prioridad === otraPrio, 'prioridad tras releer');
+                R.ok('C-02: editar tras la relectura escribe sobre el objeto VIVO (el que el tablero pinta), sin 412', objDespues.Prioridad === otraPrio && objAntes.Prioridad !== otraPrio && !avisoCon('hace un momento'));
+                editar('prioridad'); $('ftPrioridadSeg').querySelector(`[data-prio="${prioC4}"]`).click(); clic('btnGuardarTarea'); await esperar(() => t.fields.Prioridad === prioC4, 'de vuelta');
+                // C-07 (compartir): «Copiar liga» sin navigator.share copia la URL de la tarjeta y avisa «Liga copiada».
+                { let copiado = ''; const shareOrig = Object.getOwnPropertyDescriptor(Navigator.prototype, 'share'), clipOrig = Object.getOwnPropertyDescriptor(Navigator.prototype, 'clipboard');
+                  Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: { writeText: async s => { copiado = s; } }, configurable: true });
+                  clic('tCompartir'); await esperar(() => avisoCon('Liga copiada'), 'liga copiada');
+                  R.ok('C-07: «Copiar liga» copia #p/<clave>/t/<id> al portapapeles y avisa', copiado.endsWith(`#p/${CLAVE}/t/${t.id}`) && !!avisoCon('pégala en el chat'), copiado);
+                  delete navigator.share; delete navigator.clipboard; if (shareOrig) Object.defineProperty(Navigator.prototype, 'share', shareOrig); if (clipOrig) Object.defineProperty(Navigator.prototype, 'clipboard', clipOrig); }
+                clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+                // C-02: el evento `online` con un diálogo de edición abierto NO relee (misma guarda que el timer).
+                document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
+                { const rel = DB.releidos || 0; window.dispatchEvent(new Event('online')); await dormir(120);
+                  R.ok('C-02: `online` con la ficha abierta no relee (DB.releidos no sube)', (DB.releidos || 0) === rel && $('dlgTarea').open, `${rel} → ${DB.releidos || 0}`); }
+                clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+            }
+            if (gerencia) {
+                // C-07 (cubetas «en vivo»): alguien movió una tarjeta a la cubeta que se quita DESPUÉS de la última relectura (solo en DB): se avisa, se relee y no se guarda.
+                clic('btnCubetas'); await esperar(() => $('dlgCubetas').open, 'cubetas');
+                const quit = [...$('cbLista').querySelectorAll('[data-quita]')].find(b => !b.disabled); const claveVivo = quit.closest('.cubeta').dataset.cubeta;
+                const idVivo = DB.siguienteId++; filas('tareas').push({ id: idVivo, fields: { Title: 'Movida hace un momento', ProyectoId: proyectoId, Columna: claveVivo, Prioridad: 'normal', Desde: new Date().toISOString() } });
+                quit.click(); await dormir(20); const colsAntes = filas('proyectos').find(p => p.id === proyectoId).fields.Columnas;
+                clic('cbGuardar'); await esperar(() => avisoCon('muévelas primero'), 'aviso en vivo');
+                R.ok('C-07: quitar una cubeta con una tarjeta recién movida (solo en DB) avisa, relee y NO guarda Columnas', filas('proyectos').find(p => p.id === proyectoId).fields.Columnas === colsAntes && $('dlgCubetas').open && !!M.estado.tareas.find(x => x.id === idVivo), $('avisos').textContent.slice(0, 120));
+                clic('cbCancelar'); await esperar(() => !$('dlgCubetas').open, 'cerrado');
+                DB.listas.tareas.items = filas('tareas').filter(x => x.id !== idVivo); await recargarYEsperar(); await dormir(30);
+            }
+            // C-07 (chat): el refresco automático no mueve la posición de lectura si la persona estaba arriba.
+            tab('chat'); await esperar(() => visible('tab-chat'), 'chat'); await dormir(50);
+            { const h = $('chatHilo'); const antes = h.scrollHeight;
+              const sembrados = [];   // lo sembrado aqui se retira al final: los conteos de actividad de abajo (F12, C9) son exactos
+              sembrados.push(DB.siguienteId); filas('actividad').push({ id: DB.siguienteId++, fields: { Title: 'comentario ajeno para el visto (U-07)', Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date(Date.now() - 3600000 * 24 * 40).toISOString(), ProyectoId: proyectoId } }); await recargarYEsperar(); await dormir(30);
+              while (h.scrollHeight <= h.clientHeight + 60) { sembrados.push(DB.siguienteId); filas('actividad').push({ id: DB.siguienteId++, fields: { Title: 'relleno para que el hilo ruede ' + DB.siguienteId, Accion: 'comentar', Quien: 'colega@example.invalid', Cuando: new Date(Date.now() - 3600000 * 24 * 40 - DB.siguienteId * 1000).toISOString(), ProyectoId: proyectoId } }); await recargarYEsperar(); await dormir(30); if (filas('actividad').length > 400) break; }
+              h.scrollTop = 0; await dormir(30); await recargarYEsperar(); await dormir(60);
+              R.ok('C-07: releer con el hilo leído desde arriba deja scrollTop en 0 (no aterriza al fondo)', h.scrollHeight > h.clientHeight + 40 && h.scrollTop === 0, `scrollTop ${h.scrollTop} · ${h.scrollHeight}/${h.clientHeight} (antes ${antes})`);
+              h.scrollTop = h.scrollHeight; await dormir(30); await recargarYEsperar(); await dormir(60);
+              R.ok('C-07: releer estando al fondo aterriza en lo último', Math.abs(h.scrollTop + h.clientHeight - h.scrollHeight) <= 2, `scrollTop ${h.scrollTop}`); h._sembrados = sembrados; }
+            // U-07: el botón de visto no pulsado lleva palabra («¿visto?»); el pulsado sigue «✓ visto».
+            { const vb = document.querySelector('#chatHilo .visto-btn:not(.is-on)'); R.ok('U-07: el botón de visto sin pulsar dice «¿visto?» (no un ✓ mudo)', !escribe || (!!vb && vb.textContent === '¿visto?'), vb && vb.textContent); }
+            { const h = $('chatHilo'); const ids = new Set(h._sembrados || []); DB.listas.actividad.items = filas('actividad').filter(a => !ids.has(a.id)); await recargarYEsperar(); await dormir(30); }
+            tab('tablero'); await dormir(30);
+        }
         // T1: alguien más cambió la tarjeta (eTag distinto) → 412 → se relee y se reabre con lo nuevo, sin pisar nada.
         await recargarYEsperar(); await esperar(() => document.querySelector(`.tarjeta[data-t="${t.id}"]`), 'tablero');
         const itT = filas('tareas').find(x => x.id === t.id); itT.etag = (itT.etag || 1) + 1; itT.fields.Descripcion = 'Descripción cambiada por alguien más';
@@ -1054,7 +1161,7 @@ try {
         const pests = document.querySelectorAll('#docsLista tr.pest');
         const siguiente = tr => tr.nextElementSibling;
         R.ok('v0.17.0 (5 columnas desde v0.55.0: sin «Tarjeta», el select va en el menú «⋯»): tabla y un renglon de grupo por tarjeta — «Del proyecto» es .is-proyecto, la de la tarjeta trae data-tarjeta, cada una seguida de su único doc y con conteo 1', document.querySelectorAll('#docsLista .dtabla thead th').length === 5 && !document.querySelector('#docsLista td.c-tarjeta') && !!document.querySelector('#docsLista .fila-menu .menu-mover [data-tarjeta-de]') && pests.length === 2 && pests[0].classList.contains('is-proyecto') && !!pests[1].dataset.tarjeta && [...pests].every(s => siguiente(s) && siguiente(s).classList.contains('doc') && s.querySelector('.cab .n').textContent === '1' && !!s.querySelector('.cab svg')));
-        R.ok('v0.17.0 → v0.29.0: cada renglon trae el chip del tipo (PDF / Enlace), NINGUNA celda de quién/fecha, y el menú «⋯» con la nota «Ligado por … · fecha» (sin avatar desde v0.61.0), Abrir y Quitar', [...document.querySelectorAll('#docsLista tr.doc')].every(tr => !!tr.querySelector('.c-tipo .mn-chip.tipo[data-tipo]') && !tr.querySelector('.c-quien') && !tr.querySelector('.c-fecha') && /Ligado por .+ · \d{2}\/\d{2}\/\d{4}$/.test(tr.querySelector('.fila-menu .menu-nota').textContent) && !tr.querySelector('.fila-menu .menu-nota .av') && !!tr.querySelector('.fila-menu a.mn-btn') && !!tr.querySelector('.fila-menu [data-quitar]')));
+        R.ok('v0.17.0 → v0.29.0: cada renglon trae el chip del tipo (PDF / Enlace), NINGUNA celda de quién/fecha, y el menú «⋯» con la nota «Ligado por … · fecha» (sin avatar desde v0.61.0), Abrir y Quitar', [...document.querySelectorAll('#docsLista tr.doc')].every(tr => !!tr.querySelector('.c-tipo .mn-chip.tipo[data-tipo]') && !tr.querySelector('.c-quien') && !tr.querySelector('.c-fecha') && /^Ligado por .+\d{2}\/\d{2}\/\d{4}$/.test(tr.querySelector('.fila-menu .menu-nota').textContent) && !!tr.querySelector('.fila-menu .menu-nota .fecha') && !tr.querySelector('.fila-menu .menu-nota .av') && !!tr.querySelector('.fila-menu a.mn-btn') && !!tr.querySelector('.fila-menu [data-quitar]')));
         // v0.33.0 (Carlos, 14-sep; artifact HMVvZx2L, opcion E): Docs es un ARBOL DE EXPEDIENTE sobre la misma tabla (.is-arbol):
         // raiz = el proyecto; cada tarjeta un nodo-boton (caret + carpeta con tono + cubeta + conteo) que se pliega; y al final el
         // nodo «N tarjetas abiertas sin documentos», plegado, con «Ligar aqui» por tarjeta al abrirlo.
@@ -1748,12 +1855,11 @@ try {
             R.ok('v0.13.0: repetir Claro lo deja en claro', document.documentElement.dataset.theme === 'light' && localStorage.getItem('tema') === 'claro');
             if (temaAntes) localStorage.setItem('tema', temaAntes); else localStorage.removeItem('tema');
             await abrirLau(); await esperar(() => visible('p-proyecto'), 'proyecto');
-            R.ok('v0.13.0: el menú «⋮» existe en escritorio y Cerrar/Eliminar viven dentro del submenú Editar', getComputedStyle($('accMenu').querySelector('summary')).display !== 'none' && $('accMenu').contains($('btnImprimir')) && $('accMenu').contains($('btnCubetas')) && $('accEditar').contains($('btnEditarProyecto')) && $('accEditar').contains($('btnCerrarProyecto')) && $('accEditar').contains($('btnEliminarProyecto')));
-            $('accMenu').open = true; $('accEditar').querySelector('summary').click(); await dormir(20);
-            R.ok('v0.13.0: abrir el submenú Editar no cierra el menú', $('accMenu').open && $('accEditar').open);
+            R.ok('v0.13.0 / U-12: el menú «⋮» existe en escritorio y Cerrar/Eliminar viven en él, PLANOS (sin submenú Editar)', getComputedStyle($('accMenu').querySelector('summary')).display !== 'none' && $('accMenu').contains($('btnImprimir')) && $('accMenu').contains($('btnCubetas')) && $('accMenu').contains($('btnEditarProyecto')) && $('accMenu').contains($('btnCerrarProyecto')) && $('accMenu').contains($('btnEliminarProyecto')) && !$('accEditar'));
+            $('accMenu').open = true; await dormir(20);
             R.ok(`v0.13.0: Eliminar proyecto ${gerencia ? 'visible' : 'oculto'} para ${ROL}, y en rojo`, $('btnEliminarProyecto').classList.contains('oculto') === !gerencia && $('btnEliminarProyecto').classList.contains('is-danger'));
             clic('btnImprimir'); await dormir(20);
-            R.ok('v0.13.0: elegir una acción cierra el menú y pliega el submenú', !$('accMenu').open && !$('accEditar').open);
+            R.ok('v0.13.0: elegir una acción cierra el menú', !$('accMenu').open);
             if (gerencia) {
                 pestana('proyectos'); clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo');
                 poner('npTitulo', 'Borrable'); poner('npClave', 'borrable'); poner('npEquipo', 'PITEPEC'); clic('npGuardar');
