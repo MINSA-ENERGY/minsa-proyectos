@@ -589,16 +589,17 @@ function columnas(cont, series, textoDe) {
  * por semana (8 semanas), actividad por persona (30 dias) y los frentes que van tarde. Todo se
  * calcula del estado ya cargado; «Imprimir» saca la pantalla a PDF.
  */
-export function pintarReportes() {
-    const ps = visibles();   // C-03
-    const idsPs = new Set(ps.map(p => p.id));   // v0.13.1
-    const todas = estado.tareas.filter(t => idsPs.has(Number(t.ProyectoId)));
-    const a = avanceGlobal(todas, columnasDeTarea); const abiertas = todas.filter(t => t.Columna !== 'hecho');   // v0.11.0: entre proyectos, por categoria
-    const venc = abiertas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger');
-    $('reportesSub').textContent = `${ps.length} frente(s) activo(s)${estado.filtroEquipo ? ` de ${nombreEquipoFiltrado()}` : ''} · ${todas.length} tarjetas · calculado de las listas al ${fechaCorta(new Date().toISOString())}.`;
-    // v0.46.0 (Carlos, 15-sep): los 5 KPI de arriba (proyectos activos · abiertas · hechas · vencidas · sin dueño) SALIERON.
-    // avance global + por proyecto
-    const segs = segmentosGlobales(a), orden = ordenarProyectos(ps);   // C-04 (18-sep): una vez por pintada, no dos
+/** Fila de Reportes con barra horizontal (C-03, 18-sep): etiqueta + `.hbar` con sus tramos [clase, %, texto?] + la cifra a la derecha. */
+function filaBarra(eti, tramos, cifra, titulo) {
+    const fila = el('div', 'rep-fila'); fila.appendChild(eti);
+    const w = el('div', 'rep-barra'); const b = el('div', 'hbar'); if (titulo) b.title = titulo;
+    for (const [cls, pct, texto] of tramos) { const i = el('i', cls); i.style.width = pct + '%'; if (texto) i.appendChild(el('span', '', texto)); b.appendChild(i); }
+    w.appendChild(b); w.appendChild(el('b', 'mn-mono', cifra)); fila.appendChild(w);
+    return fila;
+}
+/** Avance: anillo global + una fila por proyecto (barra segmentada; clic → el frente). */
+function pintarAvance(a, orden) {
+    const segs = segmentosGlobales(a);   // C-04 (18-sep): una vez por pintada, no dos
     const g = $('repGlobal'); g.textContent = ''; g.appendChild(anillo(segs, a.total, 132)); g.appendChild(leyenda(segs));
     const pp = $('repProyectos'); pp.textContent = '';
     for (const p of orden) {
@@ -607,32 +608,34 @@ export function pintarReportes() {
         fila.appendChild(etiRep(p.Title, p.Vence ? fraseVence(d, 'corta', fechaCorta(p.Vence)) : 'sin fin de frente', iconoEquipo(equipoDe(p), 'sm')));   // C-04 (v0.79.0): ahora tambien dice «vence hoy»
         fila.appendChild(barraSeg(ap)); pp.appendChild(fila);
     }
-    if (!ps.length) pp.appendChild(el('p', 'vacio', 'Sin proyectos activos.'));
-    // carga por persona
+    if (!orden.length) pp.appendChild(el('p', 'vacio', 'Sin proyectos activos.'));
+}
+/** Carga por persona: abiertas con las vencidas marcadas; el ancho es relativo a quien mas tiene. */
+function pintarCarga(todas) {
     const cp = $('repPersonas'); cp.textContent = '';
     const carga = cargaPorPersona(todas, CONFIG.vencePronto); const maxC = Math.max(1, ...carga.map(c => c.abiertas));
     for (const c of carga) {
-        const fila = el('div', 'rep-fila'); fila.dataset.repQ = c.quien || 'sin-dueno';
-        fila.appendChild(etiRep(c.quien ? nombreDe(c.quien, estado.roles) : 'Sin dueño', `${c.hechas} hechas`));
-        const w = el('div', 'rep-barra'); const b = el('div', 'hbar'); b.title = `${c.abiertas} abiertas, ${c.vencidas} vencidas`;
-        const ok = el('i', 'abiertas'); ok.style.width = ((c.abiertas - c.vencidas) * 100 / maxC) + '%'; b.appendChild(ok);
-        if (c.vencidas) { const v = el('i', 'vencidas'); v.style.width = (c.vencidas * 100 / maxC) + '%'; v.appendChild(el('span', '', String(c.vencidas))); b.appendChild(v); }
-        w.appendChild(b); w.appendChild(el('b', 'mn-mono', String(c.abiertas))); fila.appendChild(w); cp.appendChild(fila);
+        const tramos = [['abiertas', (c.abiertas - c.vencidas) * 100 / maxC]]; if (c.vencidas) tramos.push(['vencidas', c.vencidas * 100 / maxC, String(c.vencidas)]);
+        const fila = filaBarra(etiRep(c.quien ? nombreDe(c.quien, estado.roles) : 'Sin dueño', `${c.hechas} hechas`), tramos, String(c.abiertas), `${c.abiertas} abiertas, ${c.vencidas} vencidas`);
+        fila.dataset.repQ = c.quien || 'sin-dueno'; cp.appendChild(fila);
     }
     if (!carga.length) cp.appendChild(el('p', 'vacio', 'Sin tarjetas.'));
-    // hechas por semana
+}
+/** Hechas por semana: 8 columnas y el subtitulo con el total y el promedio. */
+function pintarSemanas(todas) {
     const hs = $('repSemanas'); hs.textContent = '';
     const semanas = hechasPorSemana(todas, 8); columnas(hs, semanas, s => `${+s.desde.slice(8, 10)} ${MESES_CORTOS[+s.desde.slice(5, 7) - 1]}`);
     const totalSem = semanas.reduce((n, s) => n + s.n, 0); $('repSemanasSub').textContent = totalSem ? `${totalSem} tarjeta(s) hechas en 8 semanas · ${(totalSem / 8).toFixed(1)} por semana.` : 'Ninguna tarjeta con fecha de hecho en las últimas 8 semanas.';
-    // actividad por persona
+}
+/** Actividad por persona (30 dias), del registro de actividad de los frentes visibles. */
+function pintarActividad(idsPs) {
     const ap = $('repActividad'); ap.textContent = '';
     const act = actividadPorPersona(estado.actividad.filter(x => !x.ProyectoId || idsPs.has(Number(x.ProyectoId))), 30); const maxA = Math.max(1, ...act.map(x => x.n));   // C-04: el Set de arriba, no ps.some
-    for (const x of act) {
-        const fila = el('div', 'rep-fila'); fila.appendChild(etiRep(nombreDe(x.quien, estado.roles)));
-        const w = el('div', 'rep-barra'); const b = el('div', 'hbar'); const i = el('i', 'act'); i.style.width = (x.n * 100 / maxA) + '%'; b.appendChild(i); w.appendChild(b); w.appendChild(el('b', 'mn-mono', String(x.n))); fila.appendChild(w); ap.appendChild(fila);
-    }
+    for (const x of act) ap.appendChild(filaBarra(etiRep(nombreDe(x.quien, estado.roles)), [['act', x.n * 100 / maxA]], String(x.n)));
     if (!act.length) ap.appendChild(el('p', 'vacio', 'Sin actividad en 30 días.'));
-    // tarde: tarjetas vencidas por proyecto
+}
+/** Tarde: las tarjetas vencidas agrupadas por proyecto, en el orden de los frentes. */
+function pintarTarde(orden, venc) {
     const tv = $('repVencidas'); tv.textContent = '';
     for (const p of orden) {
         const vs = venc.filter(t => Number(t.ProyectoId) === p.id); if (!vs.length) continue;
@@ -643,5 +646,16 @@ export function pintarReportes() {
         }
     }
     if (!venc.length) tv.appendChild(el('p', 'vacio', 'Nada vencido.'));
+}
+export function pintarReportes() {
+    const ps = visibles();   // C-03
+    const idsPs = new Set(ps.map(p => p.id));   // v0.13.1
+    const todas = estado.tareas.filter(t => idsPs.has(Number(t.ProyectoId)));
+    const a = avanceGlobal(todas, columnasDeTarea); const abiertas = todas.filter(t => t.Columna !== 'hecho');   // v0.11.0: entre proyectos, por categoria
+    const venc = abiertas.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger');
+    $('reportesSub').textContent = `${ps.length} frente(s) activo(s)${estado.filtroEquipo ? ` de ${nombreEquipoFiltrado()}` : ''} · ${todas.length} tarjetas · calculado de las listas al ${fechaCorta(new Date().toISOString())}.`;
+    // v0.46.0 (Carlos, 15-sep): los 5 KPI de arriba (proyectos activos · abiertas · hechas · vencidas · sin dueño) SALIERON.
+    const orden = ordenarProyectos(ps);   // C-03 (18-sep): cinco bloques, cada uno su funcion; el calculo comun se queda aqui
+    pintarAvance(a, orden); pintarCarga(todas); pintarSemanas(todas); pintarActividad(idsPs); pintarTarde(orden, venc);
 }
 export function engancharReportes() { $('btnImprimirReportes').addEventListener('click', () => window.print()); }
