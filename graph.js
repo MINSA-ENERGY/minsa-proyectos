@@ -91,6 +91,7 @@ export function crearCliente(graph, token) {
     const json = { 'Content-Type': 'application/json' };
     const listasPorNombre = new Map();
     const urlPorNombre = new Map();   // webUrl de cada lista (F13: «Ver en SharePoint»)
+    let cargandoListas = null;   // C-01 (v0.87.0): la promesa de listas() en vuelo; 5 renglones() en paralelo hacian 5 GET /lists
     // Si Graph rechazara la cabecera If-Match con 400 (no se pudo medir contra el tenant desde el
     // harness), se reintenta sin ella y se deja de mandar en esta sesion: la app sigue escribiendo.
     let ifMatchSirve = true;
@@ -126,7 +127,10 @@ export function crearCliente(graph, token) {
         urlDeLista(nombre) { return urlPorNombre.get(nombre) || null; },
 
         async idDeLista(siteId, nombre) {
-            if (!listasPorNombre.has(nombre)) await this.listas(siteId);
+            if (!listasPorNombre.has(nombre)) {
+                if (!cargandoListas) cargandoListas = this.listas(siteId).finally(() => { cargandoListas = null; });
+                await cargandoListas;
+            }
             const id = listasPorNombre.get(nombre);
             if (!id) throw new Error(`no existe la lista ${nombre} en el sitio: hay que provisionarla (herramientas-dev/provisionar.html)`);
             return id;

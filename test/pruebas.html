@@ -307,6 +307,22 @@ try {
     // 2. Sesion: entra sola y aterriza en Inicio (o donde diga el hash).
     await esperar(() => !visible('pantallaEntrar'), 'sesión iniciada');
     R.ok('sesión iniciada y rol resuelto', $('quien').textContent.includes(ROL), $('quien').textContent);
+    // Entrar, tanda 1 (v0.87.0). C-01: las 5-6 lecturas en paralelo comparten UN GET /lists; C-03: la bandera de sesion
+    // se enciende al final; U-06/C-02: la pista anuncia (role=status) y el boton nacio deshabilitado; U-05: la marca en reposo no lleva .estado.
+    const nLists = () => DB.llamadas.filter(c => c.startsWith('GET /sites/sitio-falso/lists?')).length;
+    R.ok('C-01: un solo GET /lists para las lecturas en paralelo del arranque', nLists() === 1, `GET /lists = ${nLists()}`);
+    R.ok('C-03: estado.sesion encendida al terminar sesionIniciada (y siteId puesto)', ESTADO.sesion === true && !!ESTADO.siteId);
+    R.ok('U-06 / C-02 / U-05: #textoEntrar es role=status, #btnEntrar sigue deshabilitado con sesión (nació así en el HTML) y la pista de estado lleva .estado', $('textoEntrar').getAttribute('role') === 'status' && $('btnEntrar').disabled === true && $('textoEntrar').classList.contains('estado'), $('textoEntrar').className);
+    { const nAntes = nLists(); clic('btnActualizar'); await esperar(() => !$('btnActualizar').disabled, 'recargar'); await dormir(30);
+      R.ok('C-01: recargar no recrea el cliente ni vuelve a pedir GET /lists', nLists() === nAntes, `GET /lists = ${nLists()} (antes ${nAntes})`); }
+    // U-01: en la pantalla de entrada (sin sesion, boton vivo) sin red NO sale la banda «puedes ver, no guardar»: lo dice la pista y el boton sigue vivo; al volver la red, la marca.
+    { ESTADO.sesion = false; $('btnEntrar').disabled = false;
+      Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false }); window.dispatchEvent(new Event('offline')); await dormir(30);
+      const sinBanda = $('sinRed').classList.contains('oculto'), pistaSin = $('textoEntrar').textContent, vivo = !$('btnEntrar').disabled && getComputedStyle($('btnEntrar')).pointerEvents !== 'none';
+      Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => true }); window.dispatchEvent(new Event('online')); await dormir(30);
+      const pistaCon = $('textoEntrar').textContent;
+      ESTADO.sesion = true; $('btnEntrar').disabled = true;
+      R.ok('U-01: sin red en la entrada → sin banda, pista «Sin conexión: hace falta red para entrar.» y botón vivo; con red vuelve la marca', sinBanda && pistaSin === 'Sin conexión: hace falta red para entrar.' && vivo && pistaCon === 'MINSA · Proyectos', `banda oculta=${sinBanda} pista=«${pistaSin}» vivo=${vivo} despues=«${pistaCon}»`); }
     if (ROL === 'lectura') {
         await esperar(() => $('dlgTarea').open, 'deep link al arrancar');
         R.ok('deep link al arrancar: abre el proyecto y la tarjeta', visible('p-proyecto') && $('pTitulo').textContent === 'LAU DEMO' && $('tTitulo').textContent.startsWith('Tarea sembrada'));
@@ -1615,8 +1631,8 @@ try {
             const tHoy = { id: DB.siguienteId++, fields: { Title: 'Vence hoy para el calendario', ProyectoId: proyectoId, Columna: 'en-curso', Asignado: YO, Prioridad: 'normal', Vence: hoyIso, Desde: new Date(Date.now() - 5 * 86400000).toISOString() } };
             filas('tareas').push(tHoy);
             filas('tareas').push({ id: DB.siguienteId++, fields: { Title: 'Hecha esta semana', ProyectoId: proyectoId, Columna: 'hecho', Asignado: YO, Prioridad: 'normal', Vence: hoyIso, HechoEl: new Date().toISOString(), HechoPor: YO } });
-            // v0.22.0: una hecha con Vence hace 20 dias, sola en su dia, para ver el rombo verde (la de arriba comparte dia con la que vence hoy y se agrupa)
-            const tHechaVieja = { id: DB.siguienteId++, fields: { Title: 'Hito hecho hace 20 días', ProyectoId: proyectoId, Columna: 'hecho', Asignado: YO, Prioridad: 'normal', Vence: new Date(Date.now() - 20 * 86400000).toISOString(), HechoEl: new Date(Date.now() - 20 * 86400000).toISOString(), HechoPor: YO } };
+            // v0.22.0: una hecha con Vence hace 20 dias, sola en su dia, para ver el rombo verde (la de arriba comparte dia con la que vence hoy y se agrupa) v0.87.0: fecha FIJA (10-ago), no «hoy − 20»: la sembrada vence el 2026-09-01 FIJO y el 18-sep «hace 20 dias» quedo a < 2 % del eje de esa fecha — acomodarHitos las fundia y la prueba fallaba por calendario, no por codigo. Con las dos fijas la distancia (22 dias) no depende del reloj; rangoRoadmap incluye todos los hitos, asi que siempre cae en el eje.
+            const tHechaVieja = { id: DB.siguienteId++, fields: { Title: 'Hito hecho el 10 de agosto', ProyectoId: proyectoId, Columna: 'hecho', Asignado: YO, Prioridad: 'normal', Vence: '2026-08-10T18:00:00Z', HechoEl: '2026-08-10T18:00:00Z', HechoPor: YO } };
             filas('tareas').push(tHechaVieja);
             await recargarYEsperar();
             // Roadmap global
@@ -1635,7 +1651,7 @@ try {
                 R.ok('v0.22.0: la raya de hoy lleva etiqueta «hoy · d mes» en la cabecera, los meses alternan fondo y la leyenda dice las 4 clases con la N de CONFIG', /^hoy · \d{1,2} [a-z]{3}$/.test(document.querySelector('#roadmapCaja .g-cab .g-hoy b')?.textContent || '') && /linear-gradient/.test(document.querySelector('#roadmapCaja .gantt').style.getPropertyValue('--bandas')) && document.querySelectorAll('#roadmapLeyenda .g-rombo-mini').length === 4 && $('roadmapLeyenda').textContent.includes('en 7 días') && !$('roadmapLeyenda').classList.contains('oculto'));
                 const rV = rombos.find(r => r.dataset.hito === String(tHechaVieja.id));
                 rV.click(); if (TACTIL) { await esperar(() => document.getElementById('gPop'), 'hoja del rombo'); document.querySelector('#gPop .g-pop-it').click(); } await esperar(() => $('dlgTarea').open, 'tarjeta desde el rombo');   // U-04: en tactil pasa por la hoja
-                R.ok('v0.22.0: el rombo suelto abre SU tarjeta', $('tTitulo').textContent === 'Hito hecho hace 20 días' && location.hash.endsWith(`/t/${tHechaVieja.id}`));
+                R.ok('v0.22.0: el rombo suelto abre SU tarjeta', $('tTitulo').textContent === 'Hito hecho el 10 de agosto' && location.hash.endsWith(`/t/${tHechaVieja.id}`));
                 clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
                 irHash('#roadmap'); await esperar(() => visible('p-roadmap') && document.querySelector('#roadmapCaja .g-rombo.is-grupo'), 'roadmap');
                 document.querySelector(`#roadmapCaja .g-fila:has([data-roadmap-barra="${proyectoId}"]) .g-rombo.is-grupo`).click(); if (TACTIL) { await esperar(() => document.getElementById('gPop'), 'hoja del grupo'); document.querySelector('#gPop [data-pop-frente]').click(); } await esperar(() => visible('tab-roadmap') && location.hash === `#p/${CLAVE}/roadmap`, 'roadmap del frente desde el grupo');
@@ -1657,9 +1673,9 @@ try {
                     irHash('#roadmap'); await esperar(() => visible('p-roadmap') && document.querySelector('#roadmapCaja .g-rombo'), 'roadmap');
                     const rV2 = [...document.querySelectorAll('#roadmapCaja .g-rombo')].find(r => r.dataset.hito === String(tHechaVieja.id));
                     rV2.click(); await esperar(() => document.getElementById('gPop'), 'hoja del rombo suelto');
-                    R.ok('U-04 (v0.79.0): el rombo suelto abre una hoja de UNA fila, sin el botón del frente', document.querySelectorAll('#gPop .g-pop-it').length === 1 && !document.querySelector('#gPop [data-pop-frente]') && document.querySelector('#gPop .g-pop-it b').textContent === 'Hito hecho hace 20 días');
+                    R.ok('U-04 (v0.79.0): el rombo suelto abre una hoja de UNA fila, sin el botón del frente', document.querySelectorAll('#gPop .g-pop-it').length === 1 && !document.querySelector('#gPop [data-pop-frente]') && document.querySelector('#gPop .g-pop-it b').textContent === 'Hito hecho el 10 de agosto');
                     document.querySelector('#gPop .g-pop-it').click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde la hoja');
-                    R.ok('U-04 (v0.79.0): la fila abre SU tarjeta y la hoja se va', $('tTitulo').textContent === 'Hito hecho hace 20 días' && !document.getElementById('gPop'));
+                    R.ok('U-04 (v0.79.0): la fila abre SU tarjeta y la hoja se va', $('tTitulo').textContent === 'Hito hecho el 10 de agosto' && !document.getElementById('gPop'));
                     clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
                     irHash('#roadmap'); await esperar(() => visible('p-roadmap') && document.querySelector('#roadmapCaja .g-rombo'), 'roadmap');
                 } finally { delete ESTADO.tactil; }
@@ -2056,6 +2072,15 @@ try {
             pcaFalso.PublicClientApplication.prototype.acquireTokenRedirect = async () => { redirigio = true; };
             clic('btnActualizar'); await esperar(() => redirigio || avisoCon('No se pudieron releer'), 'token caducado');
             R.ok('token caducado → acquireTokenRedirect (vuelve al login)', redirigio);
+            // C-04 / U-03 (v0.87.0): N peticiones en paralelo con la sesion caducada = UN aviso, UN redirect, y el hash guardado como destino.
+            { let nRedir = 0; pcaFalso.PublicClientApplication.prototype.acquireTokenRedirect = async () => { nRedir++; await dormir(20); };
+              const caducos = () => [...document.querySelectorAll('#avisos .mensaje')].filter(m => m.textContent.includes('La sesión caducó')).length; const nAvisosAntes = caducos();
+              history.replaceState(null, '', '#p/lau-demo'); sessionStorage.removeItem('proy.destino');
+              await Promise.allSettled([1, 2, 3].map(() => ESTADO.cliente.renglones(ESTADO.siteId, 'PROY_Proyectos')));
+              const avisosCaduco = caducos() - nAvisosAntes;
+              R.ok('C-04: tres peticiones con la sesión caducada → un solo acquireTokenRedirect y un solo aviso', nRedir === 1 && avisosCaduco === 1, `redirects=${nRedir} avisos=${avisosCaduco} (habia ${nAvisosAntes})`);
+              R.ok('U-03: el hash se guarda en proy.destino antes del redirect', sessionStorage.getItem('proy.destino') === '#p/lau-demo', sessionStorage.getItem('proy.destino'));
+              sessionStorage.removeItem('proy.destino'); history.replaceState(null, '', '#inicio'); }
         } finally {
             pcaFalso.PublicClientApplication.prototype.acquireTokenSilent = silentOrig;
             pcaFalso.PublicClientApplication.prototype.acquireTokenRedirect = redirOrig;

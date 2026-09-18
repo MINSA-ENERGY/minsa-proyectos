@@ -36,50 +36,57 @@ $('pie').textContent = `MINSA Proyectos v${VERSION}`;
 // ---------------------------------------------------------------- sesion
 
 async function token() {
-    const cuentas = pca.getAllAccounts();
-    const r = await pca.acquireTokenSilent({ scopes: CONFIG.scopes, account: cuentas[0] });
+    const r = await pca.acquireTokenSilent({ scopes: CONFIG.scopes, account: estado.cuenta || pca.getAllAccounts()[0] });   // C-07 (v0.87.0): la cuenta viva es estado.cuenta
     return r.accessToken;
 }
-let msalListo = false;
-async function prepararMsal() {
-    if (msalListo) return null;
-    await pca.initialize();
-    const respuesta = await pca.handleRedirectPromise();
-    msalListo = true;
-    return respuesta;
+// C-02 (v0.87.0): se guarda la PROMESA, no una bandera puesta despues del await — entrar() y arrancar() la
+// esperan juntos y initialize()/handleRedirectPromise() corren una sola vez. #btnEntrar nace deshabilitado
+// (index.html) y arrancar() lo enciende solo cuando no hay cuenta.
+let msalListo = null;
+function prepararMsal() {
+    return msalListo ??= (async () => { await pca.initialize(); return pca.handleRedirectPromise(); })().catch(e => { msalListo = null; throw e; });   // si falla, el siguiente clic lo reintenta
+}
+const PISTA_MARCA = 'MINSA · Proyectos';
+function pistaEntrada(texto) { const p = $('textoEntrar'); p.textContent = texto; p.classList.toggle('estado', texto !== PISTA_MARCA); }   // U-05: un ESTADO se pinta legible; la marca, chica
+// U-04 / C-03 (v0.87.0): los dos catch (entrar, arrancar) dejaban la entrada en estados distintos — el de arrancar
+// no tocaba la pista («Abriendo el sitio…» se quedaba) — y ninguno deshacia siteId. Una sola salida: boton vivo,
+// pista con el error y el mensaje como llega (README v0.77.0: los mensajes de MSAL no se traducen, el codigo va en el link).
+function fallaEntrada(e, prefijo) {
+    estado.siteId = null; estado.sesion = false;
+    const motivo = e && e.message ? e.message : String(e);
+    avisar(prefijo + ': ' + motivo, 'error');
+    $('btnEntrar').disabled = false;
+    pistaEntrada(navigator.onLine === false ? 'Sin conexión: hace falta red para entrar.' : 'No se pudo entrar. Vuelve a intentarlo.');
 }
 async function entrar() {
     $('btnEntrar').disabled = true;
-    $('textoEntrar').textContent = 'Entrando…';
+    pistaEntrada('Entrando…');
     try {
         if (CONFIG.clientId.startsWith('PENDIENTE')) throw new Error('la app todavía no está registrada en Entra (docs/setup-carlos.md, tarea 1).');
         await prepararMsal();
         if (pca.getAllAccounts().length === 0) {
-            // La ida y vuelta por login.microsoftonline.com pierde el hash: se guarda para aterrizar ahi.
-            try { if (esHashDeLaApp(location.hash)) sessionStorage.setItem('proy.destino', location.hash); } catch (_) {}
+            guardarDestino();
             await pca.loginRedirect({ scopes: CONFIG.scopes }); return;
         }
         await sesionIniciada();
-    } catch (e) {
-        avisar('No se pudo entrar: ' + (e && e.message ? e.message : e), 'error');
-        $('btnEntrar').disabled = false;
-        $('textoEntrar').textContent = 'Vuelve a intentarlo.';
-    }
+    } catch (e) { fallaEntrada(e, 'No se pudo entrar'); }
 }
+// La ida y vuelta por login.microsoftonline.com pierde el hash: se guarda para aterrizar ahi (entrar y, desde
+// U-03 v0.87.0, tambien el acquireTokenRedirect de la sesion caducada: antes aterrizaba en Inicio).
+function guardarDestino() { try { if (esHashDeLaApp(location.hash)) sessionStorage.setItem('proy.destino', location.hash); } catch (_) {} }
 async function arrancar() {
     if (window.self !== window.top) return;
     ondaAlPulsar();   // v0.30.0 (B5): la onda de todo .mn-btn, antes de la entrada (el boton de entrar tambien la lleva)
     try {
         const respuesta = await prepararMsal();
         if (respuesta || pca.getAllAccounts().length > 0) {
-            $('btnEntrar').disabled = true;
-            $('textoEntrar').textContent = 'Entrando…';
+            pistaEntrada('Entrando…');
             await sesionIniciada();
+        } else {
+            $('btnEntrar').disabled = false; $('btnEntrar').focus();   // U-06: el foco cae en el unico boton de la pantalla
+            pintarRed();   // U-01: si ya se arranco sin red, la pista lo dice
         }
-    } catch (e) {
-        avisar('No se pudo terminar el inicio de sesión: ' + (e && e.message ? e.message : e), 'error');
-        $('btnEntrar').disabled = false;
-    }
+    } catch (e) { fallaEntrada(e, 'No se pudo terminar el inicio de sesión'); }
 }
 async function salir() {
     const { ok } = await confirmar({ titulo: 'Salir de la app', ok: 'Salir', texto: 'Se cierra la sesión de MINSA en este dispositivo. Lo guardado ya está en las listas.' });
@@ -97,20 +104,33 @@ function pideInteraccion(e) {
     return (typeof msal !== 'undefined' && msal.InteractionRequiredAuthError && e instanceof msal.InteractionRequiredAuthError)
         || (e && ['interaction_required', 'redirect_bridge_timeout'].includes(e.errorCode));
 }
+// C-04 (v0.87.0): un solo redirect por sesion caducada. cargarTodo lanza 5-6 peticiones en paralelo y cada una
+// pide el token: sin candado eran N avisos y N acquireTokenRedirect. La primera crea la promesa, las demas la esperan.
+let reentrando = null;
 async function tokenOReentrar() {
     try { return await token(); }
     catch (e) {
-        if (pideInteraccion(e)) { avisar('La sesión caducó: volviendo a entrar…', 'ojo'); await pca.acquireTokenRedirect({ scopes: CONFIG.scopes, account: pca.getAllAccounts()[0] }); }
+        if (pideInteraccion(e)) {
+            if (!reentrando) {
+                avisar('La sesión caducó: volviendo a entrar…', 'ojo');
+                guardarDestino();   // U-03
+                reentrando = pca.acquireTokenRedirect({ scopes: CONFIG.scopes, account: estado.cuenta }).finally(() => { reentrando = null; });
+            }
+            await reentrando;
+        }
         throw e;
     }
 }
+// v0.13.1 (auditoria de seguridad): el cliente pide el token VIGENTE en cada peticion (MSAL lo renueva en
+// silencio y lo cachea, asi que es barato); si la renovacion falla se usa el ultimo leido y el 401 lo dice.
+// S-06: salvo cuando lo que falla es la sesion — ahi se va por redirect (revisor de v0.77.0: antes cada
+// peticion esperaba los 10 s del iframe, se tragaba el error y salia con el token viejo a un 401).
+// C-01 (v0.87.0): el cliente se crea UNA vez — recrearlo en cada recargar tiraba su cache de listas y volvia a
+// pedir GET /lists. C-06: el «ultimo leido» es una variable de este closure, no un campo de estado.
 async function refrescarCliente() {
-    estado.token = await tokenOReentrar();
-    // v0.13.1 (auditoria de seguridad): el cliente pide el token VIGENTE en cada peticion (MSAL lo renueva en
-    // silencio y lo cachea, asi que es barato); si la renovacion falla se usa el ultimo leido y el 401 lo dice.
-    // S-06: salvo cuando lo que falla es la sesion — ahi se va por redirect (revisor de v0.77.0: antes cada
-    // peticion esperaba los 10 s del iframe, se tragaba el error y salia con el token viejo a un 401).
-    estado.cliente = crearCliente(CONFIG.graph, async () => { try { estado.token = await tokenOReentrar(); } catch (_) { /* se queda el ultimo */ } return estado.token; });
+    let ultimo = await tokenOReentrar();
+    if (estado.cliente) return;
+    estado.cliente = crearCliente(CONFIG.graph, async () => { try { ultimo = await tokenOReentrar(); } catch (_) { /* se queda el ultimo */ } return ultimo; });
 }
 /* A5 (2026-09-12): el correo + rol en un solo span se partia a media palabra («gerenci / a»).
    Ahora: nombre en negrita, correo en el title. v0.48.0: el rol es un ROTULO DE DATOS (`.rol`, mono y
@@ -133,15 +153,20 @@ function pintarSync(leyendo = false) {
         x.classList.toggle('viejo', !leyendo && t > 300000);
     }
 }
-setInterval(() => { if (estado.siteId) pintarSync(recargando); }, 15000);
+let recargando = false;   // C-07 (v0.87.0): declarada antes de su primer uso (el timer de abajo); vivia 30 lineas despues
+setInterval(() => { if (estado.sesion) pintarSync(recargando); }, 15000);
 
+// C-03 (v0.87.0): si cargarTodo falla, siteId se deshace y `sesion` nunca se enciende — antes quedaba puesto
+// y los timers releian y repintaban detras de la pantalla de entrada.
 async function sesionIniciada() {
     estado.cuenta = pca.getAllAccounts()[0];
     await refrescarCliente();
     ponerQuien(estado.cuenta.username);
-    $('textoEntrar').textContent = 'Abriendo el sitio Administración…';
+    pistaEntrada('Abriendo el sitio Administración…');
     estado.siteId = await estado.cliente.sitio(CONFIG.sharepointHost, CONFIG.sitio);
-    await cargarTodo();
+    try { await cargarTodo(); }
+    catch (e) { estado.siteId = null; throw e; }
+    estado.sesion = true;
     estado.rol = rolDe(estado.cuenta.username, estado.roles);
     ponerQuien(`${estado.cuenta.username} · ${estado.rol}`);
     $('pantallaEntrar').classList.add('oculto');
@@ -163,7 +188,6 @@ async function sesionIniciada() {
 
 // ---------------------------------------------------------------- carga
 
-let recargando = false;
 async function cargarTodo() {
     recargando = true; pintarSync(true);
     const c = estado.cliente, s = estado.siteId;
@@ -214,9 +238,9 @@ async function recargar() {
 // ellos abiertos se sigue releyendo, y al cerrarlos se relee si ya pasaron 60 s (la regla de visibilitychange).
 const DLG_EDICION = ['dlgTarea', 'dlgNuevaTarea', 'dlgProyecto', 'dlgCubetas', 'dlgLigar', 'dlgSubir', 'dlgEnlace', 'dlg'];
 const editando = () => DLG_EDICION.some(id => $(id).open);
-const rancio = () => estado.siteId && Date.now() - estado.cargadoEl > 60000;
+const rancio = () => estado.sesion && Date.now() - estado.cargadoEl > 60000;
 if (CONFIG.refrescoMs > 0 && new URLSearchParams(location.search).get('refresco') !== '0') {
-    setInterval(() => { if (estado.siteId && document.visibilityState === 'visible' && !editando()) recargar(); }, CONFIG.refrescoMs);
+    setInterval(() => { if (estado.sesion && document.visibilityState === 'visible' && !editando()) recargar(); }, CONFIG.refrescoMs);
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && rancio() && !editando()) recargar(); });
 // v0.15.0: la marca de lectura compartida se manda agrupada (1.5 s); al ocultarse la pagina se empuja lo que quede.
@@ -229,13 +253,16 @@ fijarReleer(recargar);   // un 412 (alguien cambio el renglon) se resuelve reley
 
 // T2: sin red se ve, no se guarda. La banda lo dice; graph.js falla YA en cualquier escritura; al
 // volver la red se releen las listas (no se reintenta el ultimo cambio: un cambio viejo sorprende).
+// U-01 / U-02 (v0.87.0): en la pantalla de entrada la banda no se pinta (ahi «puedes ver, no guardar» es falso y
+// empujaba la pista fuera de un cuerpo sin scroll): lo dice la pista, y el boton sigue vivo (estilo.css, .entrada).
 function pintarRed() {
     const sin = navigator.onLine === false;
-    $('sinRed').classList.toggle('oculto', !sin);
+    $('sinRed').classList.toggle('oculto', !sin || !estado.sesion);
     document.body.classList.toggle('sin-red', sin);
+    if (!estado.sesion && !$('btnEntrar').disabled) pistaEntrada(sin ? 'Sin conexión: hace falta red para entrar.' : PISTA_MARCA);
 }
 window.addEventListener('offline', pintarRed);
-window.addEventListener('online', () => { pintarRed(); if (estado.siteId && !editando()) recargar(); });   // C-02: la misma guarda que el timer y visibilitychange
+window.addEventListener('online', () => { pintarRed(); if (estado.sesion && !editando()) recargar(); });   // C-02: la misma guarda que el timer y visibilitychange
 pintarRed();
 
 // ---------------------------------------------------------------- navegacion
@@ -265,7 +292,7 @@ function irA(p) {
 const RE_HASH = /^#(?:(inicio|proyectos|mis|roadmap|calendario|mensajes|archivos|reportes)(?:\/(f|d)\/([a-z0-9._-]+))?|p\/([a-z0-9-]+)(?:\/(lista|docs|chat|tablero|resumen|roadmap))?)(?:\/t\/(\d+))?$/;
 function esHashDeLaApp(h) { return RE_HASH.test(String(h || '')); }
 function aplicarHash() {
-    if (!estado.siteId) return;
+    if (!estado.sesion) return;
     const m = RE_HASH.exec(location.hash || '');
     if (!m) { irA('inicio'); return; }
     const [, pantalla, msjTipo, msjClave, clave, tabHash, tareaId] = m;
@@ -1127,7 +1154,7 @@ function acomodarAccMenu() { $('accMenu').open = false; }   // v0.81.0: desde v0
 // Al cruzar los 720 px (girar el telefono, redimensionar la ventana) se repinta el proyecto: ahi es
 // donde «Resumen» deja de existir y donde el menu «···» cambia de forma.
 // B3: Inicio tambien depende del ancho (3 renglones de actividad en celular, 5 en escritorio).
-enCelular.addEventListener('change', () => { acomodarAccMenu(); if (estado.siteId) repintar(); });
+enCelular.addEventListener('change', () => { acomodarAccMenu(); if (estado.sesion) repintar(); });
 acomodarAccMenu();
 // v0.13.0: el menu «⋮» existe en todos los anchos. Se cierra al tocar fuera y al elegir un BOTON (abrir el submenu «Editar»
 // no lo cierra); al cerrarse, el submenu vuelve plegado para que la proxima vez abra limpio.
@@ -1168,7 +1195,7 @@ $('shell').classList.add('sin-sesion');
 if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('./sw.js').then(reg => reg.update && reg.update()).catch(() => {});
     let recargado = false;
-    navigator.serviceWorker.addEventListener('controllerchange', () => { if (recargado || !navigator.serviceWorker.controller) return; recargado = true; if (!estado.siteId) window.location.reload(); });
+    navigator.serviceWorker.addEventListener('controllerchange', () => { if (recargado || !navigator.serviceWorker.controller) return; recargado = true; if (!estado.sesion) window.location.reload(); });
 }
 
 arrancar();

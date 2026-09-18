@@ -5,12 +5,12 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.86.0';
+export const VERSION = '0.87.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 
 export const estado = {
-    cuenta: null, token: null, cliente: null, siteId: null, rol: 'lectura',
+    cuenta: null, cliente: null, siteId: null, sesion: false, rol: 'lectura',   // C-03 (v0.87.0): `sesion` es lo que consultan timers y eventos; la enciende sesionIniciada cuando cargarTodo ya termino, antes de destapar el shell. C-06: `token` salio (nadie lo leia)
     proyectos: [], tareas: [], ligas: [], roles: [], actividad: [],
     proyectoAbierto: null,   // renglon de PROY_Proyectos
     mensajesSel: null, buscaMensajes: '',   // v0.42.0: lo elegido en Mensajes ({t:'f'|'d', k: clave | correo}) y su buscador
@@ -407,7 +407,7 @@ export function fusionarActividad(nuevos) {
  */
 export async function asegurarActividadDe(proyectoId) {
     const id = Number(proyectoId);
-    if (!id || !estado.cliente || !estado.siteId || estado.actividadCompleta.has(id)) return false;
+    if (!id || !estado.cliente || !estado.sesion || estado.actividadCompleta.has(id)) return false;
     if (!(CONFIG.actividadDias > 0)) { estado.actividadCompleta.add(id); return false; }   // se leyo entera
     try {
         const filas = await estado.cliente.renglones(estado.siteId, L.actividad, `fields/ProyectoId eq ${id}`);
@@ -654,7 +654,7 @@ function encolarVisto(cambio) { vistoPendiente = fundirVisto(vistoPendiente || {
 export async function guardarVisto() {
     clearTimeout(vistoTimer);
     const r = miRenglonRol(); const cambio = vistoPendiente; vistoPendiente = null;
-    if (!r || !cambio || vistoApagado || !estado.cliente || !estado.siteId) return false;
+    if (!r || !cambio || vistoApagado || !estado.cliente || !estado.sesion) return false;
     // Dos dispositivos de la misma persona escriben el mismo renglon: se RELEE antes de fundir (la copia local
     // puede tener minutos) y se manda con If-Match; un 412 (alguien escribio en medio) se reintenta una vez (revisor, 13-sep).
     for (let intento = 0; intento < 2; intento++) {

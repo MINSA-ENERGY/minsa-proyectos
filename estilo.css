@@ -452,10 +452,11 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
    LITERALES, no por token, porque la pantalla es la misma en claro y oscuro. En celular es la de la planta tal cual; de 721 px
    en adelante son dos columnas: lockup grande a la izquierda, texto y boton a la derecha, brillo detras del lockup. */
 body:has(#pantallaEntrar:not(.oculto)) { background: #04123d; overflow: hidden; height: 100dvh; }
-body:has(#pantallaEntrar:not(.oculto)) .contenido { padding: 0; }
+body:has(#pantallaEntrar:not(.oculto)) .contenido { padding: 0; display: flex; flex-direction: column; height: 100dvh; }   /* U-02 (v0.87.0): la entrada llena lo que queda debajo de cualquier banda, sin empujar la pista fuera */
+.sin-red .entrada .mn-btn.is-primary { opacity: 1; pointer-events: auto; }   /* U-01 (v0.87.0): sin red el boton de entrar sigue vivo; lo dice la pista */
 body:has(#pantallaEntrar:not(.oculto)) .app { grid-template-columns: 1fr; }   /* con el rail oculto pero sin .sin-sesion (el arnés de capturas) el contenido caía en la pista de 232 px */
 body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
-.entrada { position: relative; height: 100dvh; display: flex; flex-direction: column; background: #04123d; color: #f2f6ff; overflow: hidden; }
+.entrada { position: relative; flex: 1; min-height: 0; display: flex; flex-direction: column; background: #04123d; color: #f2f6ff; overflow: hidden; }
 .entrada-rejilla {
   position: absolute; inset: 0; pointer-events: none;
   background-image: linear-gradient(rgba(195, 213, 251, .10) 1px, transparent 1px), linear-gradient(90deg, rgba(195, 213, 251, .10) 1px, transparent 1px), radial-gradient(90% 45% at 50% -5%, rgba(105, 198, 255, .35), transparent 65%);
@@ -472,6 +473,7 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .entrada .mn-btn.is-primary, .entrada .mn-btn.is-primary:hover:not(:disabled), .entrada .mn-btn.is-primary:focus-visible { margin-top: .4rem; background: #61cd6a; color: #04123d; border-color: transparent; border-radius: .4rem; box-shadow: none; }   /* v0.30.0: la entrada conserva su boton lleno en reposo, hover y foco (el hover verde de .is-primary es (0,4,0) y le ganaba) */
 .entrada .mn-btn.is-primary:hover:not(:disabled) { filter: brightness(1.06); }
 .entrada .pista { align-self: center; margin: 0; min-height: 1.2em; color: rgba(242, 246, 255, .5); font-family: var(--font-data); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; }
+.entrada .pista.estado { color: rgba(242, 246, 255, .86); font-size: .85rem; letter-spacing: .02em; text-transform: none; }   /* U-05 (v0.87.0): cuando la pista lleva un ESTADO (Entrando…, un error) se lee; la marca en reposo se queda chica */
 @media (min-width: 721px) {
   .entrada-caja { max-width: 64rem; flex-direction: row; align-items: center; gap: 4rem; padding: 2.5rem 3.5rem; }
   .entrada-arriba { flex: 1 1 0; padding: 0; }
