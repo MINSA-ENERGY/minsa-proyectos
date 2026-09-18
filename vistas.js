@@ -6,7 +6,7 @@
 // graficos son SVG por DOM o cajas con ancho en %.
 
 import { CONFIG } from './config.js';
-import { tareasDe, avance, avanceGlobal, estadoVence, claseVence, fraseVence, diasPara, nombreDe, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, TIPOS_LIGA, diaDe, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
+import { tareasDe, avance, avanceGlobal, estadoVence, claseVence, fraseVence, diasPara, nombreDe, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, TIPOS_LIGA, diaDe, diaSemana, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
 import { $, estado, activos, visibles, nombreEquipoFiltrado, el, boton, chip, fechaCorta, fechaHora, fechaBandeja, porId, proyectoPorClave, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, nuevosDe, verboComentario, opciones, columnasDeTarea, avisar, conRetardo } from './comun.js';
 import { pintarChat } from './chat.js';   // v0.42.0: Mensajes pinta el hilo del frente elegido en su propia columna
 import { tablaDocs, filaRaiz, filasDeExpediente, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden; v0.36.0: y el mismo arbol
@@ -15,6 +15,8 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
 const MESES_CORTOS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const DIAS_CORTOS = ['lun', 'mar', 'mié', 'jue', 'vie', 'sáb', 'dom'];
+const diaCorto = dia => DIAS_CORTOS[diaSemana(dia)];   // C-04 (v0.86.0): «lun 15» sale de un solo sitio
+const mesActual = () => estado.mesCal || hoyDia().slice(0, 7);   // C-04 (v0.86.0): el mes por defecto del calendario, una vez
 // v0.11.0: ya no hay una lista fija de columnas; los graficos de UN proyecto van por sus cubetas
 // (segmentosDe) y los globales por tres categorias (segmentosGlobales), con los mismos colores por clase.
 const hoyDia = () => diaDe(new Date());
@@ -240,8 +242,20 @@ export function pintarRoadmap() {
  * En escritorio es la rejilla de 6 semanas; en celular la misma informacion como agenda (CSS decide).
  * El mes vive en estado.mesCal (YYYY-MM); «hoy» vuelve al actual.
  */
+/**
+ * U-02 / U-04 (v0.86.0): tras elegir un dia, «+N más» o «Hoy», llevar a la vista lo que cambio: el detalle del dia en escritorio
+ * (antes quedaba bajo el pliegue de una laptop) o, en el celular, el bloque de hoy de la agenda (o el primero por venir; antes «Hoy»
+ * no movia nada visible porque su efecto vive en #calDetalle, que el CSS esconde). offsetParent es null en el contenedor escondido.
+ */
+export function enfocarCal() {
+    const det = $('calDetalle');
+    if (det.offsetParent) { det.scrollIntoView({ block: 'nearest' }); return; }
+    const ag = $('calAgenda'); if (!ag.offsetParent) return;
+    const bloque = ag.querySelector('.cal-ag.is-hoy') || ag.querySelector('.cal-ag:not(.is-pasado)');
+    if (bloque) bloque.scrollIntoView({ block: 'start' });
+}
 export function pintarCalendario() {
-    if (!estado.mesCal) estado.mesCal = hoyDia().slice(0, 7);
+    estado.mesCal = mesActual();
     const mes = estado.mesCal; const hoy = hoyDia();
     $('calTitulo').textContent = nombreMes(mes);
     const activosF = visibles();   // C-03
@@ -250,36 +264,36 @@ export function pintarCalendario() {
     const celdas = celdasDelMes(mes);
     const enMes = celdas.filter(c => c.enMes);
     const nT = enMes.reduce((n, c) => n + ((agenda.get(c.dia) || { tareas: [] }).tareas.length), 0), nF = enMes.reduce((n, c) => n + ((agenda.get(c.dia) || { fines: [] }).fines.length), 0);
-    $('calSub').textContent = `${nT} tarjeta(s) vencen este mes · ${nF} fin(es) de frente${estado.filtroEquipo ? ` · solo ${nombreEquipoFiltrado()}` : ''}`;
+    $('calSub').textContent = `${nT} ${nT === 1 ? 'tarjeta vence' : 'tarjetas vencen'} este mes · ${nF} ${nF === 1 ? 'fin' : 'fines'} de frente${estado.filtroEquipo ? ` · solo ${nombreEquipoFiltrado()}` : ''}`;   // U-05 (v0.86.0): plural real; cuenta lo mismo que pintan la rejilla y la agenda
     const g = $('calRejilla'); g.textContent = '';
     for (const d of DIAS_CORTOS) g.appendChild(el('div', 'cal-dow', d));
     const itemTarea = (t, largo) => {
         const p = porId(estado.proyectos, t.ProyectoId);
-        const b = el('button', 'cal-it is-' + claseVence(t)); b.type = 'button'; b.dataset.calT = String(t.id); b.title = `${t.Title}${p ? ' · ' + p.Title : ''}${t.Asignado ? ' · ' + nombreDe(t.Asignado, estado.roles) : ''}`;
+        const b = el('button', 'cal-it is-' + claseBarraTarea(t)); b.type = 'button'; b.dataset.calT = String(t.id); b.title = `${t.Title}${p ? ' · ' + p.Title : ''}${t.Asignado ? ' · ' + nombreDe(t.Asignado, estado.roles) : ''}`;   // C-01 (v0.86.0): hecha→ok, vencida→danger, columna→info/brand/idle — claseVence(t) recibia el objeto y devolvia idle siempre
         b.appendChild(el('span', 't', t.Title)); if (largo && p) b.appendChild(el('span', 'm', p.Title));
-        b.addEventListener('click', () => irTarjeta(t)); return b;
+        b.addEventListener('click', () => irTarjetaId(b.dataset.calT)); return b;   // C-02 (v0.86.0): por id al clic, no el objeto capturado
     };
-    const itemFin = p => { const b = el('button', 'cal-it is-hito'); b.type = 'button'; b.dataset.calP = String(p.id); b.title = `Fin del frente · ${p.Title}`; b.appendChild(iconoEquipo(equipoDe(p), 'sm')); b.appendChild(el('span', 't', `Fin: ${p.Title}`)); b.addEventListener('click', () => irAHash(`#p/${p.Clave}`)); return b; };
+    const itemFin = p => { const b = el('button', 'cal-it is-hito'); b.type = 'button'; b.dataset.calP = String(p.id); b.title = `Fin del frente · ${p.Title}`; b.appendChild(iconoEquipo(equipoDe(p), 'sm')); b.appendChild(el('span', 't', `Fin: ${p.Title}`)); b.addEventListener('click', () => irFrenteId(b.dataset.calP)); return b; };   // C-02 (v0.86.0)
     for (const c of celdas) {
-        const a = agenda.get(c.dia) || { tareas: [], fines: [] };
+        const a = (c.enMes && agenda.get(c.dia)) || { tareas: [], fines: [] };   // U-05 (v0.86.0): los dias de fuera del mes no pintan; la agenda del celular y el subtitulo nunca los contaron. Revertir = quitar `c.enMes &&`
         const celda = el('div', 'cal-dia' + (c.enMes ? '' : ' is-fuera') + (c.dia === hoy ? ' is-hoy' : '') + (a.tareas.length + a.fines.length ? ' con' : '')); celda.dataset.dia = c.dia;
         celda.appendChild(el('span', 'num', String(+c.dia.slice(8, 10))));
         const tope = 3;
         for (const p of a.fines) celda.appendChild(itemFin(p));
         for (const t of a.tareas.slice(0, tope)) celda.appendChild(itemTarea(t, false));
-        if (a.tareas.length > tope) { const mas = boton(`+${a.tareas.length - tope} más`, 'cal-mas', () => { estado.calDia = c.dia; pintarCalendario(); $('calDetalle').scrollIntoView({ block: 'nearest' }); }); celda.appendChild(mas); }
-        const elegir = () => { estado.calDia = estado.calDia === c.dia ? null : c.dia; pintarCalendario(); };
+        if (a.tareas.length > tope) { const mas = boton(`+${a.tareas.length - tope} más`, 'cal-mas', () => { estado.calDia = c.dia; pintarCalendario(); enfocarCal(); }); celda.appendChild(mas); }
+        const elegir = () => { estado.calDia = estado.calDia === c.dia ? null : c.dia; pintarCalendario(); enfocarCal(); };   // U-04 (v0.86.0)
         celda.addEventListener('click', e => { if (e.target === celda || e.target.classList.contains('num')) elegir(); });
-        celda.tabIndex = 0; celda.setAttribute('role', 'button'); celda.setAttribute('aria-label', `${+c.dia.slice(8, 10)} de ${MESES[+c.dia.slice(5, 7) - 1]}${a.tareas.length ? ` · ${a.tareas.length} tarjeta(s)` : ''}${a.fines.length ? ' · fin de frente' : ''}`);
+        celda.tabIndex = 0; celda.setAttribute('role', 'button'); celda.setAttribute('aria-label', `${+c.dia.slice(8, 10)} de ${MESES[+c.dia.slice(5, 7) - 1]}${a.tareas.length ? ` · ${a.tareas.length} ${a.tareas.length === 1 ? 'tarjeta' : 'tarjetas'}` : ''}${a.fines.length ? ' · fin de frente' : ''}`);
         celda.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && e.target === celda) { e.preventDefault(); elegir(); } });
-        if (estado.calDia === c.dia) celda.classList.add('is-elegido');
+        celda.setAttribute('aria-pressed', String(estado.calDia === c.dia)); if (estado.calDia === c.dia) celda.classList.add('is-elegido');   // U-07 (v0.86.0): el lector de pantalla sabe cual dia esta abierto
         g.appendChild(celda);
     }
     // detalle del dia elegido (escritorio) y agenda del mes (celular)
     const det = $('calDetalle'); det.textContent = '';
     if (estado.calDia) {
         const a = agenda.get(estado.calDia) || { tareas: [], fines: [] };
-        det.appendChild(el('h2', '', `${DIAS_CORTOS[(new Date(estado.calDia + 'T00:00:00Z').getUTCDay() + 6) % 7]} ${+estado.calDia.slice(8, 10)} de ${MESES[+estado.calDia.slice(5, 7) - 1]}`));
+        det.appendChild(el('h2', '', `${diaCorto(estado.calDia)} ${+estado.calDia.slice(8, 10)} de ${MESES[+estado.calDia.slice(5, 7) - 1]}`));
         for (const p of a.fines) det.appendChild(itemFin(p)); for (const t of a.tareas) det.appendChild(itemTarea(t, true));
         if (!a.tareas.length && !a.fines.length) det.appendChild(el('p', 'vacio', 'Nada vence este día.'));
     }
@@ -288,7 +302,7 @@ export function pintarCalendario() {
     for (const c of enMes) {
         const a = agenda.get(c.dia); if (!a) continue;
         const bloque = el('section', 'cal-ag' + (c.dia === hoy ? ' is-hoy' : '') + (c.dia < hoy ? ' is-pasado' : ''));
-        bloque.appendChild(el('h3', '', `${DIAS_CORTOS[(new Date(c.dia + 'T00:00:00Z').getUTCDay() + 6) % 7]} ${+c.dia.slice(8, 10)}`));
+        bloque.appendChild(el('h3', '', `${diaCorto(c.dia)} ${+c.dia.slice(8, 10)}`));
         for (const p of a.fines) bloque.appendChild(itemFin(p)); for (const t of a.tareas) bloque.appendChild(itemTarea(t, true));
         ag.appendChild(bloque);
     }
@@ -323,9 +337,11 @@ export function engancharRoadmap() {
 }
 
 export function engancharCalendario() {
-    $('calAnterior').addEventListener('click', () => { estado.mesCal = mesSumar(estado.mesCal || hoyDia().slice(0, 7), -1); estado.calDia = null; pintarCalendario(); });
-    $('calSiguiente').addEventListener('click', () => { estado.mesCal = mesSumar(estado.mesCal || hoyDia().slice(0, 7), 1); estado.calDia = null; pintarCalendario(); });
-    $('calHoy').addEventListener('click', () => { estado.mesCal = hoyDia().slice(0, 7); estado.calDia = hoyDia(); pintarCalendario(); });
+    $('calAnterior').addEventListener('click', () => { estado.mesCal = mesSumar(mesActual(), -1); estado.calDia = null; pintarCalendario(); });
+    $('calSiguiente').addEventListener('click', () => { estado.mesCal = mesSumar(mesActual(), 1); estado.calDia = null; pintarCalendario(); });
+    $('calHoy').addEventListener('click', () => { estado.mesCal = hoyDia().slice(0, 7); estado.calDia = hoyDia(); pintarCalendario(); enfocarCal(); });   // U-02 (v0.86.0): «Hoy» tambien lleva a la vista
+    // U-07 (v0.86.0): Esc suelta el dia elegido (antes habia que volver a la celda y repetir Enter); no toca un <dialog> abierto, que ya tiene su Esc
+    document.addEventListener('keydown', e => { if (e.key === 'Escape' && estado.pestana === 'calendario' && estado.calDia && !document.querySelector('dialog[open]')) { estado.calDia = null; pintarCalendario(); } });
 }
 
 // ---------------------------------------------------------------- mensajes

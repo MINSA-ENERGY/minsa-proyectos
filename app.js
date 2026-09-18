@@ -19,7 +19,7 @@ import { $, L, VERSION, estado, activos, visibles, nombreEquipoFiltrado, el, bot
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, repintarFicha, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
-import { pintarRoadmap, pintarRoadmapProyecto, roadmapFull, engancharRoadmap, pintarCalendario, engancharCalendario, pintarMensajes, engancharMensajes, devolverChat, mensajesNuevos, proyectoDeMensajes, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
+import { pintarRoadmap, pintarRoadmapProyecto, roadmapFull, engancharRoadmap, pintarCalendario, engancharCalendario, enfocarCal, pintarMensajes, engancharMensajes, devolverChat, mensajesNuevos, proyectoDeMensajes, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
 const pca = new msal.PublicClientApplication({
@@ -253,6 +253,7 @@ function irA(p) {
     repintar();
     fijarHash(hashDe(tarjetaAbiertaId()));
     window.scrollTo({ top: 0 });
+    if (p === 'calendario') enfocarCal();   // U-02 (v0.86.0): al ENTRAR, la agenda del celular aterriza en hoy (no en repintar(): ese corre en cada refresco y moveria la pantalla)
 }
 // Router por hash (v0.2.0, F8): LEE location.hash y deja la pantalla como dice; es idempotente, asi
 // que las escrituras propias (fijarHash desde irA / abrirTarjeta) no repintan dos veces. Con Atras

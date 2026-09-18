@@ -647,8 +647,10 @@ export function diaDe(iso) {
 export function sumarDias(dia, n) { const f = new Date(dia + 'T00:00:00Z'); f.setUTCDate(f.getUTCDate() + n); return f.toISOString().slice(0, 10); }
 /** Dias enteros de `a` a `b` (YYYY-MM-DD); negativo si b es antes. */
 export function diasEntre(a, b) { return Math.round((Date.UTC(+b.slice(0, 4), +b.slice(5, 7) - 1, +b.slice(8, 10)) - Date.UTC(+a.slice(0, 4), +a.slice(5, 7) - 1, +a.slice(8, 10))) / 86400000); }
+/** Dia de la semana de un YYYY-MM-DD con lunes = 0 … domingo = 6 (C-04 v0.86.0: antes la aritmetica vivia aqui y dos veces en vistas.js). */
+export function diaSemana(dia) { return (new Date(dia + 'T00:00:00Z').getUTCDay() + 6) % 7; }
 /** El lunes de la semana de `dia`. */
-export function lunesDe(dia) { const f = new Date(dia + 'T00:00:00Z'); const d = (f.getUTCDay() + 6) % 7; return sumarDias(dia, -d); }
+export function lunesDe(dia) { return sumarDias(dia, -diaSemana(dia)); }
 /** El mes que sigue (o el anterior con -1) a un YYYY-MM. */
 export function mesSumar(mes, n) { const f = new Date(mes + '-01T00:00:00Z'); f.setUTCMonth(f.getUTCMonth() + n); return f.toISOString().slice(0, 7); }
 
