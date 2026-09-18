@@ -560,9 +560,15 @@ function barraSeg(a) {
     const segs = segmentosDe(a);
     const b = el('div', 'segbar alta'); b.title = tituloSegmentos(segs);
     for (const [col, n, cls, tono] of segs) { const i = el('i', cls); if (tono) i.dataset.tono = tono; i.style.flex = String(n); i.title = `${col.nombre}: ${n}`; if (n) i.appendChild(el('span', '', String(n))); b.appendChild(i); }
-    if (!a.total) { const i = el('i', 'p'); i.style.flex = '1'; b.appendChild(i); }
-    w.appendChild(b); w.appendChild(el('b', 'mn-mono', `${a.pct}%`));
+    if (!a.total) { const i = el('i', 'p vacia', 'sin tarjetas'); i.style.flex = '1'; b.appendChild(i); }   // U-06 (18-sep): dice que no hay nada que medir
+    w.appendChild(b); w.appendChild(el('b', 'mn-mono', a.total ? `${a.pct}%` : '—'));
     return w;
+}
+/** Etiqueta de una fila de Reportes (U-01/U-04, 18-sep): [icono] + `.tx` (titulo a 2 lineas, integro en title; meta debajo). */
+function etiRep(titulo, meta, icono) {
+    const eti = el('span', 'eti'); if (icono) eti.appendChild(icono);
+    const tx = el('span', 'tx'); const t = el('span', 't', titulo); t.title = titulo; tx.appendChild(t); if (meta) tx.appendChild(el('span', 'm', meta)); eti.appendChild(tx);
+    return eti;
 }
 /** Columnas verticales (hechas por semana): cajas con alto en %, valor encima, rotulo del lunes abajo. */
 function columnas(cont, series, textoDe) {
@@ -592,12 +598,13 @@ export function pintarReportes() {
     $('reportesSub').textContent = `${ps.length} frente(s) activo(s)${estado.filtroEquipo ? ` de ${nombreEquipoFiltrado()}` : ''} · ${todas.length} tarjetas · calculado de las listas al ${fechaCorta(new Date().toISOString())}.`;
     // v0.46.0 (Carlos, 15-sep): los 5 KPI de arriba (proyectos activos · abiertas · hechas · vencidas · sin dueño) SALIERON.
     // avance global + por proyecto
-    const g = $('repGlobal'); g.textContent = ''; g.appendChild(anillo(segmentosGlobales(a), a.total, 132)); g.appendChild(leyenda(segmentosGlobales(a)));
+    const segs = segmentosGlobales(a), orden = ordenarProyectos(ps);   // C-04 (18-sep): una vez por pintada, no dos
+    const g = $('repGlobal'); g.textContent = ''; g.appendChild(anillo(segs, a.total, 132)); g.appendChild(leyenda(segs));
     const pp = $('repProyectos'); pp.textContent = '';
-    for (const p of ordenarProyectos(ps)) {
+    for (const p of orden) {
         const ap = avance(tareasDe(p, estado.tareas), columnasDe(p)); const d = diasPara(p.Vence);
-        const fila = el('button', 'rep-fila'); fila.type = 'button'; fila.dataset.repP = String(p.id); fila.addEventListener('click', () => irAHash(`#p/${p.Clave}`));
-        const eti = el('span', 'eti'); eti.appendChild(iconoEquipo(equipoDe(p), 'sm')); eti.appendChild(el('span', 't', p.Title)); eti.appendChild(el('span', 'm', p.Vence ? fraseVence(d, 'corta', fechaCorta(p.Vence)) : 'sin fin de frente')); fila.appendChild(eti);   // C-04 (v0.79.0): ahora tambien dice «vence hoy»
+        const fila = el('button', 'rep-fila'); fila.type = 'button'; fila.dataset.repP = String(p.id); fila.title = p.Title; fila.addEventListener('click', () => irFrenteId(Number(fila.dataset.repP)));   // C-01 (18-sep): por id al clic, no el objeto capturado
+        fila.appendChild(etiRep(p.Title, p.Vence ? fraseVence(d, 'corta', fechaCorta(p.Vence)) : 'sin fin de frente', iconoEquipo(equipoDe(p), 'sm')));   // C-04 (v0.79.0): ahora tambien dice «vence hoy»
         fila.appendChild(barraSeg(ap)); pp.appendChild(fila);
     }
     if (!ps.length) pp.appendChild(el('p', 'vacio', 'Sin proyectos activos.'));
@@ -606,7 +613,7 @@ export function pintarReportes() {
     const carga = cargaPorPersona(todas, CONFIG.vencePronto); const maxC = Math.max(1, ...carga.map(c => c.abiertas));
     for (const c of carga) {
         const fila = el('div', 'rep-fila'); fila.dataset.repQ = c.quien || 'sin-dueno';
-        const eti = el('span', 'eti'); eti.appendChild(el('span', 't', c.quien ? nombreDe(c.quien, estado.roles) : 'Sin dueño')); eti.appendChild(el('span', 'm', `${c.hechas} hechas`)); fila.appendChild(eti);
+        fila.appendChild(etiRep(c.quien ? nombreDe(c.quien, estado.roles) : 'Sin dueño', `${c.hechas} hechas`));
         const w = el('div', 'rep-barra'); const b = el('div', 'hbar'); b.title = `${c.abiertas} abiertas, ${c.vencidas} vencidas`;
         const ok = el('i', 'abiertas'); ok.style.width = ((c.abiertas - c.vencidas) * 100 / maxC) + '%'; b.appendChild(ok);
         if (c.vencidas) { const v = el('i', 'vencidas'); v.style.width = (c.vencidas * 100 / maxC) + '%'; v.appendChild(el('span', '', String(c.vencidas))); b.appendChild(v); }
@@ -619,19 +626,19 @@ export function pintarReportes() {
     const totalSem = semanas.reduce((n, s) => n + s.n, 0); $('repSemanasSub').textContent = totalSem ? `${totalSem} tarjeta(s) hechas en 8 semanas · ${(totalSem / 8).toFixed(1)} por semana.` : 'Ninguna tarjeta con fecha de hecho en las últimas 8 semanas.';
     // actividad por persona
     const ap = $('repActividad'); ap.textContent = '';
-    const act = actividadPorPersona(estado.actividad.filter(x => !x.ProyectoId || ps.some(p => p.id === Number(x.ProyectoId))), 30); const maxA = Math.max(1, ...act.map(x => x.n));
+    const act = actividadPorPersona(estado.actividad.filter(x => !x.ProyectoId || idsPs.has(Number(x.ProyectoId))), 30); const maxA = Math.max(1, ...act.map(x => x.n));   // C-04: el Set de arriba, no ps.some
     for (const x of act) {
-        const fila = el('div', 'rep-fila'); const eti = el('span', 'eti'); eti.appendChild(el('span', 't', nombreDe(x.quien, estado.roles))); fila.appendChild(eti);
+        const fila = el('div', 'rep-fila'); fila.appendChild(etiRep(nombreDe(x.quien, estado.roles)));
         const w = el('div', 'rep-barra'); const b = el('div', 'hbar'); const i = el('i', 'act'); i.style.width = (x.n * 100 / maxA) + '%'; b.appendChild(i); w.appendChild(b); w.appendChild(el('b', 'mn-mono', String(x.n))); fila.appendChild(w); ap.appendChild(fila);
     }
     if (!act.length) ap.appendChild(el('p', 'vacio', 'Sin actividad en 30 días.'));
     // tarde: tarjetas vencidas por proyecto
     const tv = $('repVencidas'); tv.textContent = '';
-    for (const p of ordenarProyectos(ps)) {
+    for (const p of orden) {
         const vs = venc.filter(t => Number(t.ProyectoId) === p.id); if (!vs.length) continue;
-        const cab = el('div', 'grupo'); cab.textContent = `${p.Title} · ${vs.length}`; tv.appendChild(cab);
+        const cab = el('div', 'rep-grupo'); cab.textContent = `${p.Title} · ${vs.length}`; tv.appendChild(cab);   // U-02 (18-sep): rotulo propio; `.grupo` es el marco de filtros
         for (const t of vs.sort((x, y) => String(x.Vence).localeCompare(String(y.Vence)))) {
-            const b = el('button', 'it clic'); b.type = 'button'; b.dataset.repV = String(t.id); b.addEventListener('click', () => irTarjeta(t));
+            const b = el('button', 'it clic'); b.type = 'button'; b.dataset.repV = String(t.id); b.addEventListener('click', () => irTarjetaId(Number(b.dataset.repV)));   // C-01 (18-sep): por id al clic
             const c = el('div'); const cab2 = el('div', 'cab'); cab2.appendChild(el('span', 'q', t.Asignado ? nombreDe(t.Asignado, estado.roles).split(' ')[0] : 'sin dueño')); cab2.appendChild(el('span', 'd is-danger', fraseVence(diasPara(t.Vence), 'chip'))); c.appendChild(cab2); c.appendChild(el('div', 'f', t.Title)); b.appendChild(c); tv.appendChild(b);   // C-04 (v0.79.0, revisor)
         }
     }

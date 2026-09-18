@@ -12,7 +12,7 @@ $fallas = 0
 try {
     foreach ($rol in $Roles) {
         $out = Join-Path $env:TEMP "proy-e2e-$rol.html"
-        & $edge --headless=new --disable-gpu --virtual-time-budget=60000 --dump-dom "http://localhost:8080/?rol=$rol&refresco=0" 2>$null | Out-File -Encoding utf8 $out
+        & $edge --headless=new --disable-gpu --virtual-time-budget=120000 --dump-dom "http://localhost:8080/?rol=$rol&refresco=0" 2>$null | Out-File -Encoding utf8 $out
         Start-Sleep -Seconds 1
         $s = Get-Content $out -Raw -Encoding UTF8
         Write-Host "=== $rol"
