@@ -5,14 +5,23 @@ param([string[]]$Roles = @('gerencia', 'colaborador', 'lectura'))
 $app = Split-Path -Parent $PSScriptRoot
 $edge = "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 if (-not (Test-Path $edge)) { Write-Host "No esta Edge en $edge"; exit 1 }
-$srv = Start-Process -FilePath node -ArgumentList "servidor-local.js", "test/pruebas.html" -WorkingDirectory $app -PassThru -WindowStyle Hidden
-Start-Sleep -Seconds 2
-if ($srv.HasExited) { Write-Host 'PUERTO 8080 OCUPADO: el servidor murio al arrancar (otra sesion corriendo una E2E o capturas.mjs?). Lo que se midiera ahora seria de OTRA app.'; exit 2 }
+# C-01 (v0.90.0): puerto EFIMERO (--puerto 0) y se lee de la primera linea de la salida del servidor, asi dos corridas conviven
+# y ninguna mide la app de OTRA sesion. Si el servidor muere o no anuncia puerto en 5 s, exit 2 (antes: 8080 fijo y ocupado).
+$log = Join-Path $env:TEMP ("proy-e2e-srv-" + $PID + ".txt")
+$srv = Start-Process -FilePath node -ArgumentList "servidor-local.js", "test/pruebas.html", "--puerto", "0" -WorkingDirectory $app -PassThru -WindowStyle Hidden -RedirectStandardOutput $log
+$puerto = $null
+foreach ($i in 1..25) {
+    Start-Sleep -Milliseconds 200
+    if ($srv.HasExited) { break }
+    if ((Test-Path $log) -and ((Get-Content $log -Raw) -match 'PUERTO (\d+)')) { $puerto = $Matches[1]; break }
+}
+if (-not $puerto) { Write-Host ('SERVIDOR SIN PUERTO: murio al arrancar o no anuncio "PUERTO n" en 5 s (ver ' + $log + ').'); if (-not $srv.HasExited) { Stop-Process -Id $srv.Id -Force }; exit 2 }
+Write-Host "servidor en el puerto $puerto"
 $fallas = 0
 try {
     foreach ($rol in $Roles) {
         $out = Join-Path $env:TEMP "proy-e2e-$rol.html"
-        & $edge --headless=new --disable-gpu --virtual-time-budget=120000 --dump-dom "http://localhost:8080/?rol=$rol&refresco=0" 2>$null | Out-File -Encoding utf8 $out
+        & $edge --headless=new --disable-gpu --virtual-time-budget=120000 --dump-dom "http://localhost:$puerto/?rol=$rol&refresco=0" 2>$null | Out-File -Encoding utf8 $out
         Start-Sleep -Seconds 1
         $s = Get-Content $out -Raw -Encoding UTF8
         Write-Host "=== $rol"

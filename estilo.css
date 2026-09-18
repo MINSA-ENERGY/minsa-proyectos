@@ -811,11 +811,13 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* La caja de la tarjeta se conserva (Mis tareas y la E2E la usan); desde v0.11.0 ya no lleva el atajo «→ siguiente». */
 .tarjeta-caja { display: grid; gap: 2px; min-width: 0; }
 
-/* ---- Mis tareas: LISTA DENSA CON CONTADORES (v0.58.0; Carlos, 15-sep; artifact CrSMdQaxRzctu9VFqrU1dP, corte C).
-   Sustituye a la agenda por dia (.agenda .dia, v0.57.x; recuperable en git). Arriba .resumen con cinco .kpi que filtran
-   (cifra grande Saira + rotulo); abajo .densa: una rejilla de 5 columnas —filete semaforo · titulo · proyecto · cubeta ·
-   vence— con cabecera .hd en versalitas mono (como la Lista del tablero), separadores .sep por bloque y un .tr por
-   tarjeta; el vencido va tintado de --status-danger-bg. En celular (<= 720) salen las columnas de proyecto y cubeta. */
+/* ---- Mis tareas: LISTA DENSA CON CONTADORES (v0.58.0; Carlos, 15-sep; artifact CrSMdQaxRzctu9VFqrU1dP, corte C; rediseñada en
+   v0.66.0 y v0.67.0 — el docstring de pintarMisTareas en tablero.js lleva la historia). Estructura vigente (C-06, v0.90.0):
+   arriba .resumen con cinco .kpi que filtran (cifra grande Saira + rotulo); abajo #misLista es .bloques: una tarjeta .bloq por
+   bloque (Vencidas · Esta semana · Después · Sin fecha) con su rotulo .rot FUERA, arriba, y su .densa de renglones .tr —una
+   rejilla de 4 columnas: fecha en columna (.k: dia fuerte + mes tenue) · titulo (.t) · proyecto (.eqc) · cubeta (.cu)—; el
+   vencido va tintado de --status-danger-bg. Sin cabecera de columnas ni separadores. En celular (<= 720) salen las columnas de
+   proyecto y cubeta, y la cabecera de la pantalla pierde el tile del icono y el subtitulo (U-06). */
 .resumen { display: flex; flex-wrap: wrap; gap: var(--sp-2); }
 .kpi { display: grid; gap: 0; padding: 8px 14px; border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); min-width: 104px; cursor: pointer; font: inherit; text-align: left; color: inherit; }
 .kpi b { font-family: var(--font-display); font-size: 1.5rem; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text-strong); }
@@ -853,6 +855,10 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 @media (max-width: 720px) {
   .densa .tr { grid-template-columns: 40px minmax(0, 1fr); }
   .densa .tr .eqc, .densa .tr .cu { display: none; }
+  /* U-06 (v0.90.0): a 390 la cabecera gastaba media pantalla (tile del icono solo en su linea + h1 + subtitulo de dos lineas) y el
+     primer renglon caia en y≈450 de 844. Fuera el tile; el subtitulo se queda solo para el lector de pantalla (misma receta que .mn-sr). */
+  #p-mis .titulo-ico { display: none; }
+  #p-mis .cabecera .sub { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .kpi { min-width: 0; flex: 1 1 30%; padding: 6px 10px; }
   .kpi b { font-size: 1.25rem; }
 }

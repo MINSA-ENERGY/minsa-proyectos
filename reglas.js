@@ -825,17 +825,25 @@ export function nuevoParaMi(actividad, tareas, roles, correo, desde, hoy = new D
     return out.sort((x, y) => String(y.a.Cuando || '').localeCompare(String(x.a.Cuando || '')) || y.a.id - x.a.id);
 }
 
+/** Orden de Mis tareas: por fecha de vencimiento (las sin fecha al final) y luego por id. C-03 (v0.90.0): vivia dos veces (aqui y en tablero.js). */
+export const porVence = (a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')) || a.id - b.id;
+/** «Mis tareas abiertas»: las asignadas a `correo` que no estan en hecho. C-03 (v0.90.0): la insignia del rail (app.js) y la pantalla (tablero.js) cuentan con ESTA funcion, no con dos copias del filtro. */
+export function misAbiertas(tareas, correo) {
+    const yo = String(correo || '').toLowerCase();
+    return (tareas || []).filter(t => String(t.Asignado || '').toLowerCase() === yo && t.Columna !== 'hecho');
+}
 /**
  * «Las que delegué» (Mis tareas): tarjetas ABIERTAS asignadas a otro que esta persona creo (createdBy de SharePoint o
  * el renglon crear-tarea de la bitacora) o asigno (editar-tarea «asignó …»). Quien reparte no las pierde de vista.
+ * U-05 (v0.90.0): una tarjeta SIN asignar no es una delegacion (no se la di a nadie): queda fuera; su aviso es «sin dueño» en Inicio.
  */
 export function delegadas(tareas, actividad, correo) {
     const yo = String(correo || '').toLowerCase();
     const tocadas = new Set((actividad || []).filter(a => a.TareaId && String(a.Quien || '').toLowerCase() === yo
         && (a.Accion === 'crear-tarea' || (a.Accion === 'editar-tarea' && /^asign/i.test(String(a.Title || ''))))).map(a => Number(a.TareaId)));
-    return (tareas || []).filter(t => t.Columna !== 'hecho' && String(t.Asignado || '').toLowerCase() !== yo
-        && (String(t._creadoPor || '').toLowerCase() === yo || tocadas.has(Number(t.id))))
-        .sort((a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')) || a.id - b.id);
+    return (tareas || []).filter(t => { const q = String(t.Asignado || '').trim().toLowerCase(); return t.Columna !== 'hecho' && q && q !== yo
+        && (String(t._creadoPor || '').toLowerCase() === yo || tocadas.has(Number(t.id))); })
+        .sort(porVence);
 }
 
 /**

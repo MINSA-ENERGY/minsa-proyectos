@@ -2,6 +2,8 @@
 //
 //   node servidor-local.js                                    -> sirve index.html en la raiz
 //   node servidor-local.js ../herramientas-dev/paso0.html     -> sirve esa pagina en la raiz
+//   node servidor-local.js test/pruebas.html --puerto 0       -> puerto EFIMERO (C-01 v0.90.0): dos corridas de la E2E
+//                                                                conviven; el puerto real sale en la primera linea (PUERTO n)
 //
 // Sirve el archivo indicado EN LA RAIZ a proposito: la URL de redireccion registrada en
 // Entra es exactamente 'http://localhost:8080/'. Si la pagina se abriera como
@@ -21,8 +23,10 @@ import { fileURLToPath } from 'node:url';
 // En modulos ES no existe __dirname. import.meta.dirname llega en Node 20.11+;
 // el fallback cubre versiones anteriores.
 const RAIZ = import.meta.dirname || path.dirname(fileURLToPath(import.meta.url));
-const PUERTO = 8080;
-const INDICE = process.argv[2] || 'index.html';
+// C-01 (v0.90.0): `--puerto N` (0 = el que de el sistema); sin el, 8080, que es la URL de redireccion registrada en Entra.
+const ARGS = process.argv.slice(2), iPuerto = ARGS.indexOf('--puerto');
+const PUERTO = iPuerto >= 0 ? Number(ARGS[iPuerto + 1]) : 8080;
+const INDICE = ARGS.find((a, i) => !a.startsWith('--') && !(iPuerto >= 0 && i === iPuerto + 1)) || 'index.html';   // sin --puerto, iPuerto+1 es 0 y tumbaba el indice (lo cazaron las capturas)
 
 // El unico archivo que puede vivir fuera de RAIZ: el que se pidio por argumento.
 const ARCHIVO_INDICE = path.resolve(RAIZ, INDICE);
@@ -45,7 +49,7 @@ const TIPOS = {
 // Se juzga sobre el DESTINO YA RESUELTO relativo a RAIZ, no sobre la URL: el revisor de v0.82.1 sirvio .git/HEAD por
 // `/x/../.git/HEAD`, `/%5C.git/HEAD` (path.resolve toma `\` como separador en Windows) y `/_SALIDA-DEV.JSON` (el FS
 // no distingue mayusculas) con la version que miraba el primer segmento de la URL.
-const ORIGENES = new Set(['http://localhost:8080', 'http://127.0.0.1:8080']);
+const ORIGENES = new Set();   // se llena al escuchar, con el puerto REAL (C-01: con --puerto 0 no se sabe antes)
 const RESERVADOS = ['_salida-dev.json'];
 export function rutaVedada(destino, raiz = RAIZ) {
     const primero = (path.relative(raiz, destino).split(path.sep)[0] || '').toLowerCase();
@@ -107,11 +111,14 @@ const servidor = http.createServer((req, res) => {
 // S-10: solo escucha como programa principal; importado (sw.test.js prueba rutaVedada) no abre el puerto.
 const esPrincipal = !!process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (esPrincipal) servidor.listen(PUERTO, '127.0.0.1', () => {
+    const puerto = servidor.address().port;
+    for (const h of ['localhost', '127.0.0.1']) ORIGENES.add(`http://${h}:${puerto}`);
+    console.log(`PUERTO ${puerto}`);   // primera linea, fija: e2e.ps1 la lee para saber a donde apuntar Edge
     console.log('');
     console.log(`Sirviendo ${RAIZ}`);
     console.log(`Indice: ${INDICE}`);
     console.log('');
-    console.log(`  ABRE:  http://localhost:8080/`);
+    console.log(`  ABRE:  http://localhost:${puerto}/`);
     console.log('');
     console.log('(Ctrl+C para detener)');
     console.log('');

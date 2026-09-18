@@ -7,7 +7,7 @@
 // «→ siguiente» de la cara de la tarjeta se quito, y «Origen en la KB» ya no se ensena ni se pide.
 
 import { CONFIG } from './config.js';
-import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas } from './reglas.js';
+import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas, misAbiertas, porVence, claseVence } from './reglas.js';
 import { $, L, estado, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia, personasActivas, contadorTexto } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
@@ -377,13 +377,16 @@ const FILTROS_MIS = [[null, 'abiertas'], ['vencidas', 'vencidas'], ['pronto', 'v
 export function pintarMisTareas() {
     const yo = estado.cuenta.username.toLowerCase();
     $('misTitulo').textContent = 'Mis tareas · ' + nombreDe(yo, estado.roles);
-    const porFecha = (a, b) => String(a.Vence || '9').localeCompare(String(b.Vence || '9')) || a.id - b.id;
-    const propias = estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === yo && t.Columna !== 'hecho').sort(porFecha);
-    // v0.15.0: «Las que delegué» = abiertas de OTRO que yo cree o asigne (createdBy o la bitacora); el renglón enseña a quien.
+    const propias = misAbiertas(estado.tareas, yo).sort(porVence);   // C-03 (v0.90.0): la misma regla que la insignia del rail (app.js)
+    // v0.15.0: «Las que delegué» = abiertas de OTRO que yo cree o asigne (createdBy o la bitacora); el renglón enseña a quien. Ya vienen en orden de fecha.
     const delego = estado.filtroMis === 'delegadas';
-    const ajenas = delegadas(estado.tareas, estado.actividad, yo).sort(porFecha);
+    const ajenas = delegadas(estado.tareas, estado.actividad, yo);
+    // C-05 (v0.90.0): la fecha de cada tarjeta se lee UNA vez por pintada (antes ~9 llamadas a estadoVence por tarjeta, y la pintada
+    // corre en cada tecla del buscador): {e, bloque, sem} por id, y los contadores salen de esa misma pasada.
+    const info = new Map(); for (const t of propias) info.set(t.id, infoVence(t)); for (const t of ajenas) info.set(t.id, infoVence(t));
     // U3: los KPI de Inicio aterrizan aqui con el filtro puesto; los contadores lo muestran y lo cambian (v0.58.0: cada uno con su cifra).
-    const cuenta = { todas: propias.length, vencidas: propias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger').length, pronto: propias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn').length, sinfecha: propias.filter(t => !t.Vence).length, delegadas: ajenas.length };
+    const cuenta = { todas: propias.length, vencidas: 0, pronto: 0, sinfecha: 0, delegadas: ajenas.length };
+    for (const t of propias) { const e = info.get(t.id).e; if (e === 'danger') cuenta.vencidas++; else if (e === 'warn') cuenta.pronto++; if (!t.Vence) cuenta.sinfecha++; }
     const fm = $('filtroMis'); fm.textContent = '';
     for (const [k, texto] of FILTROS_MIS) {
         const on = estado.filtroMis === k;
@@ -398,35 +401,44 @@ export function pintarMisTareas() {
     // C3 (v0.6.0): buscador por titulo, sin acentos, encima del filtro por vencimiento.
     const q = sinAcentos(estado.textoMis).trim();
     const conTexto = q ? todas.filter(t => sinAcentos(t.Title).includes(q)) : todas;
-    const mias = estado.filtroMis === 'vencidas' ? conTexto.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger')
-        : estado.filtroMis === 'pronto' ? conTexto.filter(t => estadoVence(t, CONFIG.vencePronto) === 'warn')
+    const mias = estado.filtroMis === 'vencidas' ? conTexto.filter(t => info.get(t.id).e === 'danger')
+        : estado.filtroMis === 'pronto' ? conTexto.filter(t => info.get(t.id).e === 'warn')
         : estado.filtroMis === 'sinfecha' ? conTexto.filter(t => !t.Vence) : conTexto;
     if (!mias.length) { cont.appendChild(el('p', 'vacio', todas.length ? (q ? 'Ninguna con ese texto.' : 'Nada con ese filtro.') : delego ? 'No has delegado ninguna tarjeta abierta: las que crees o asignes a otros salen aquí.' : 'Sin tareas abiertas asignadas a ti.')); return; }
     // v0.67.0: una tarjeta por bloque. `mias` viene en orden de fecha, asi que los bloques salen contiguos y en el orden fijo.
+    const porBloque = new Map(); for (const t of mias) { const b = info.get(t.id).bloque; porBloque.set(b, (porBloque.get(b) || 0) + 1); }
     let bloque = '', densa = null;
     for (const t of mias) {
-        const b = bloqueDe(t);
+        const b = info.get(t.id).bloque;
         if (b !== bloque) {
             bloque = b;
-            const n = mias.filter(x => bloqueDe(x) === b).length;
+            const n = porBloque.get(b);
             const sec = el('section', 'bloq' + (b === 'Vencidas' ? ' is-vencida' : b === 'Esta semana' ? ' is-pronto' : '')); sec.dataset.bloque = BLOQUES[b];
             const rot = el('h3', 'rot'); rot.appendChild(el('b', '', String(n))); rot.appendChild(document.createTextNode(' ' + b)); sec.appendChild(rot);
             densa = el('div', 'densa'); sec.appendChild(densa); cont.appendChild(sec);
         }
-        densa.appendChild(renglonDenso(t, delego));
+        densa.appendChild(renglonDenso(t, delego, info.get(t.id).sem));
     }
 }
 const BLOQUES = { 'Vencidas': 'vencidas', 'Esta semana': 'semana', 'Después': 'despues', 'Sin fecha': 'sinfecha' };
-/** El bloque de la tabla: por el mismo umbral que el chip («Esta semana» = hasta `vencePronto` días, hoy incluido). */
-function bloqueDe(t) { const e = estadoVence(t, CONFIG.vencePronto); return e === 'danger' ? 'Vencidas' : e === 'warn' ? 'Esta semana' : t.Vence ? 'Después' : 'Sin fecha'; }
-/** Un renglón de la tabla densa: fecha en columna · título (barras de prioridad, insignias; en «delegué», a quién) · proyecto · cubeta. */
-function renglonDenso(t, conQuien) {
-    const sem = semaforo(t, CONFIG.semaforoDias);
+/**
+ * C-05 (v0.90.0): una sola lectura de la fecha por tarjeta. `e` = estadoVence (umbral CONFIG.vencePronto), `bloque` de la lista —por el
+ * mismo umbral que el chip: «Esta semana» = hasta `vencePronto` días, hoy incluido— y `sem` = semaforo (umbral CONFIG.semaforoDias).
+ * Reproduce estadoVence() y semaforo() de reglas.js sobre un solo diasPara; las unitarias de esas dos siguen siendo la referencia.
+ */
+function infoVence(t) {
+    const hecha = t.Columna === 'hecho', d = hecha ? null : diasPara(t.Vence);
+    const e = d === null ? null : claseVence(d, CONFIG.vencePronto), s = d === null ? null : claseVence(d, CONFIG.semaforoDias);
+    return { e, bloque: e === 'danger' ? 'Vencidas' : e === 'warn' ? 'Esta semana' : t.Vence ? 'Después' : 'Sin fecha', sem: hecha ? 'hecha' : s === 'danger' ? 'vencida' : s === 'warn' ? 'pronto' : '' };
+}
+/** Un renglón de la tabla densa: fecha en columna · título (barras de prioridad, insignias; en «delegué», a quién) · proyecto · cubeta. `sem` viene de infoVence (C-05): sin default, para que un llamador nuevo no vuelva a leer la fecha. */
+function renglonDenso(t, conQuien, sem) {
     const b = el('button', 'tr' + (sem ? ' is-' + sem : '') + (t.Prioridad === 'alta' ? ' alta' : '')); b.type = 'button'; b.dataset.t = String(t.id);
     if (colorValido(t.Color)) b.dataset.tono = colorValido(t.Color);
     // v0.66.0: la fecha a la izquierda, como `.hoy-r .k` de Inicio: dia fuerte + mes tenue; «—» sin fecha.
     const m = mesDia(t.Vence); const k = el('span', 'k'); k.setAttribute('aria-hidden', 'true');
     k.appendChild(el('b', '', m ? String(m.dia) : '—')); k.appendChild(el('small', '', m ? m.mes : '')); b.appendChild(k);
+    b.appendChild(el('span', 'mn-sr', t.Vence ? `vence ${fechaCorta(t.Vence)}` : 'sin fecha'));   // U-07 (v0.90.0): la columna .k es aria-hidden y el title no lo leen los lectores moviles
     const tt = el('span', 't');
     tt.appendChild(el('span', 'tit', t.Title));
     tt.appendChild(marcaPrioridad(t.Prioridad));   // v0.60.0: a la derecha del titulo

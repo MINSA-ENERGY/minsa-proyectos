@@ -14,7 +14,7 @@
 
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
-import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias } from './reglas.js';
+import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias, misAbiertas as misAbiertasDe } from './reglas.js';
 import { $, L, VERSION, estado, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, proyectoPorClave, nuevosDe, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, repintarFicha, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
@@ -269,6 +269,9 @@ pintarRed();
 
 function irA(p) {
     estado.pestana = p;
+    // U-03 (v0.90.0): el filtro que fija Inicio («ver en Mis tareas» de las vencidas) dura UNA visita: al entrar a #mis por la pestaña
+    // o por un hash sin origen se vuelve a «abiertas». Lo que se elige con los contadores dentro de la pantalla no pasa por aqui.
+    if (p === 'mis') { estado.filtroMis = estado.filtroMisAlLlegar || null; estado.filtroMisAlLlegar = null; }
     if (p !== 'roadmap') roadmapFull(false);   // v0.26.0: salir de pantalla completa al cambiar de pantalla
     for (const s of document.querySelectorAll('.pantalla')) s.classList.add('oculto');
     $('p-' + (p === 'proyecto' ? 'proyecto' : p)).classList.remove('oculto');
@@ -356,7 +359,7 @@ alCambiarDocs(repintar);
 alCambiarChat(repintar);
 fijarAbrirTarjeta(abrirTarjeta);
 
-const misAbiertas = () => { const yo = estado.cuenta.username.toLowerCase(); return estado.tareas.filter(t => String(t.Asignado || '').toLowerCase() === yo && t.Columna !== 'hecho'); };
+const misAbiertas = () => misAbiertasDe(estado.tareas, estado.cuenta.username);   // C-03 (v0.90.0): la misma regla que pinta la pantalla (reglas.js)
 
 function pintarInsignias() {
     const mias = misAbiertas();
@@ -705,7 +708,7 @@ function pintarCola(abiertas) {
     const menciones = mencionesA(estado.cuenta.username).filter(a => !yaNuevos.has(Number(a.id)));
     const huerfanas = sinDueno(abiertas);
     // Izquierda: vencidas · hoy y mañana · sin dueño.
-    if (g.vencidas.length) pintarGrupoCola(urgente, 'vencidas', 'Vencidas', g.vencidas, 'danger', estado.hoySoloMias ? 'ver en Mis tareas' : 'ver en Reportes', () => { if (estado.hoySoloMias) { estado.filtroMis = 'vencidas'; irA('mis'); } else irA('reportes'); });
+    if (g.vencidas.length) pintarGrupoCola(urgente, 'vencidas', 'Vencidas', g.vencidas, 'danger', estado.hoySoloMias ? 'ver en Mis tareas' : 'ver en Reportes', () => { if (estado.hoySoloMias) { estado.filtroMisAlLlegar = 'vencidas'; irA('mis'); } else irA('reportes'); });
     if (g.hoy.length) pintarGrupoCola(urgente, 'hoy', 'Hoy y mañana', g.hoy, 'warn', 'ver en el Calendario', () => irA('calendario'));
     // C7 (v0.6.0): las tarjetas sin dueño no salen en Mis tareas de NADIE. El grupo solo existe si hay alguna; su encabezado
     // aterriza en el proyecto que mas tiene con el filtro «sin dueño» puesto (el mismo salto que tenia el KPI).
