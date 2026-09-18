@@ -301,12 +301,19 @@ try {
     }
     // v0.2.0 (F8): lectura arranca con un deep link pegado del chat: #p/<clave>/t/<id>.
     if (ROL === 'lectura') history.replaceState(null, '', `#p/lau-demo/t/${filas('tareas')[0].id}`);
+    // C-05 (v0.88.0): el destino guardado antes del loginRedirect (app.js: proy.destino) se lee al iniciar sesión y la app
+    // aterriza ahí aunque el hash venga vacío. Solo gerencia: lectura ya arranca con su deep link y colaborador prueba el hash vacío → Inicio.
+    if (gerencia) sessionStorage.setItem('proy.destino', '#proyectos');
     await import('./app.js');
     R.log('nota', `app importada · rol de prueba: ${ROL} · ${$('pie').textContent}`);
 
     // 2. Sesion: entra sola y aterriza en Inicio (o donde diga el hash).
     await esperar(() => !visible('pantallaEntrar'), 'sesión iniciada');
     R.ok('sesión iniciada y rol resuelto', $('quien').textContent.includes(ROL), $('quien').textContent);
+    if (gerencia) {
+        R.ok('C-05 (entrar, tanda 2): con proy.destino guardado y hash vacío, sesionIniciada aterriza en el destino y lo consume', location.hash === '#proyectos' && visible('p-proyectos') && sessionStorage.getItem('proy.destino') === null, `${location.hash} · destino=${sessionStorage.getItem('proy.destino')}`);
+        irHash('#inicio'); await esperar(() => visible('p-inicio'), 'inicio tras el destino');
+    }
     // Entrar, tanda 1 (v0.87.0). C-01: las 5-6 lecturas en paralelo comparten UN GET /lists; C-03: la bandera de sesion
     // se enciende al final; U-06/C-02: la pista anuncia (role=status) y el boton nacio deshabilitado; U-05: la marca en reposo no lleva .estado.
     const nLists = () => DB.llamadas.filter(c => c.startsWith('GET /sites/sitio-falso/lists?')).length;
@@ -2085,6 +2092,54 @@ try {
             pcaFalso.PublicClientApplication.prototype.acquireTokenSilent = silentOrig;
             pcaFalso.PublicClientApplication.prototype.acquireTokenRedirect = redirOrig;
         }
+        // C-05 (entrar, tanda 2 · v0.88.0): los caminos de la entrada que solo se ven en producción con un token de 24 h.
+        // (a) S-06: MSAL 5.x sin redirect bridge falla el silencioso con errorCode redirect_bridge_timeout, un Error PLANO
+        //     (no InteractionRequiredAuthError): pideInteraccion lo trata igual y se va por acquireTokenRedirect.
+        try {
+            let nRedirPuente = 0;
+            pcaFalso.PublicClientApplication.prototype.acquireTokenSilent = async () => { throw Object.assign(new Error('Redirect bridge timeout'), { errorCode: 'redirect_bridge_timeout' }); };
+            pcaFalso.PublicClientApplication.prototype.acquireTokenRedirect = async () => { nRedirPuente++; };
+            history.replaceState(null, '', '#p/lau-demo'); sessionStorage.removeItem('proy.destino');
+            await Promise.allSettled([ESTADO.cliente.renglones(ESTADO.siteId, 'PROY_Proyectos')]);
+            R.ok('C-05 (entrar): errorCode redirect_bridge_timeout (Error plano, S-06) → un acquireTokenRedirect con el hash guardado en proy.destino', nRedirPuente === 1 && sessionStorage.getItem('proy.destino') === '#p/lau-demo', `redirects=${nRedirPuente} destino=${sessionStorage.getItem('proy.destino')}`);
+            sessionStorage.removeItem('proy.destino'); history.replaceState(null, '', '#inicio');
+        } finally {
+            pcaFalso.PublicClientApplication.prototype.acquireTokenSilent = silentOrig;
+            pcaFalso.PublicClientApplication.prototype.acquireTokenRedirect = redirOrig;
+        }
+        // (b) Pestaña sin cuenta: entrar() guarda el hash en proy.destino y llama loginRedirect (app.js entrar). El falso no
+        //     puede recargar la página, así que se fuerza getAllAccounts=[] en la corrida viva en vez de un ?cuentas=0 (README v0.88.0).
+        { const cuentasOrig = pcaFalso.PublicClientApplication.prototype.getAllAccounts, loginOrig = pcaFalso.PublicClientApplication.prototype.loginRedirect;
+          let login = null;
+          try {
+              pcaFalso.PublicClientApplication.prototype.getAllAccounts = () => [];
+              pcaFalso.PublicClientApplication.prototype.loginRedirect = async (req) => { login = req; };
+              history.replaceState(null, '', '#p/lau-demo'); sessionStorage.removeItem('proy.destino');
+              $('btnEntrar').disabled = false; clic('btnEntrar');
+              await esperar(() => login !== null, 'loginRedirect');
+              R.ok('C-05 (entrar): sin cuenta, #btnEntrar guarda el hash en proy.destino, llama loginRedirect con los scopes de CONFIG y deja el botón apagado (la página se va)', sessionStorage.getItem('proy.destino') === '#p/lau-demo' && Array.isArray(login.scopes) && login.scopes.length > 0 && $('btnEntrar').disabled === true && $('textoEntrar').textContent === 'Entrando…', `destino=${sessionStorage.getItem('proy.destino')} scopes=${login.scopes.length} pista=«${$('textoEntrar').textContent}»`);
+          } finally {
+              pcaFalso.PublicClientApplication.prototype.getAllAccounts = cuentasOrig; pcaFalso.PublicClientApplication.prototype.loginRedirect = loginOrig;
+              sessionStorage.removeItem('proy.destino'); history.replaceState(null, '', '#inicio'); $('btnEntrar').disabled = true;
+          } }
+        // (c) Salir: confirma y llama logoutRedirect con la cuenta viva. (El fallback sessionStorage.clear()+reload no se prueba:
+        //     location.reload no se puede interceptar sin tirar la página.)
+        { const logoutOrig = pcaFalso.PublicClientApplication.prototype.logoutRedirect; let salida = null;
+          try {
+              pcaFalso.PublicClientApplication.prototype.logoutRedirect = async (req) => { salida = req; };
+              clic('btnSalir'); await esperar(() => $('dlg').open, 'confirmar salir');
+              R.ok('C-05 (entrar): Salir pide confirmación antes de cerrar sesión', $('dlgTitulo').textContent === 'Salir de la app' && salida === null, $('dlgTitulo').textContent);
+              clic('dlgOk'); await esperar(() => salida !== null, 'logoutRedirect');
+              R.ok('C-05 (entrar): al confirmar, logoutRedirect recibe la cuenta viva (estado.cuenta)', salida.account === ESTADO.cuenta && !$('dlg').open, salida.account && salida.account.username);
+              clic('btnSalir'); await esperar(() => $('dlg').open, 'confirmar salir otra vez'); const nAntes = salida; clic('dlgCancelar'); await esperar(() => !$('dlg').open, 'cancelado');
+              R.ok('C-05 (entrar): cancelar la confirmación no cierra sesión', salida === nAntes);
+          } finally { pcaFalso.PublicClientApplication.prototype.logoutRedirect = logoutOrig; } }
+        // (d) pintarSync: pasados 5 min sin releer, los .sync llevan .viejo (el timer de 15 s lo repinta); recargar lo quita.
+        { ESTADO.cargadoEl = Date.now() - 6 * 60000;
+          await esperar(() => $('syncRail').classList.contains('viejo'), '.viejo tras 6 min', 16500);
+          R.ok('C-05 (entrar): con cargadoEl 6 min atrás el timer pinta .viejo en #syncRail y #syncMovil, con «hace 6 min»', $('syncRail').classList.contains('viejo') && $('syncMovil').classList.contains('viejo') && $('syncRail').textContent === 'hace 6 min' && $('syncMovil').textContent === 'Al día · leído hace 6 min', `${$('syncRail').textContent} · ${$('syncMovil').textContent}`);
+          await recargarYEsperar(); await dormir(30);
+          R.ok('C-05 (entrar): recargar renueva cargadoEl y quita .viejo', !$('syncRail').classList.contains('viejo') && !$('syncMovil').classList.contains('viejo') && Date.now() - ESTADO.cargadoEl < 60000, $('syncRail').textContent); }
     } else {
         // 6. Lectura: ve todo, no escribe.
         const t = filas('tareas')[0];
