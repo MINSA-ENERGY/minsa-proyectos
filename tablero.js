@@ -7,7 +7,7 @@
 // «→ siguiente» de la cara de la tarjeta se quito, y «Origen en la KB» ya no se ensena ni se pide.
 
 import { CONFIG } from './config.js';
-import { PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas, misAbiertas, porVence, claseVence } from './reglas.js';
+import { sellarAsignadoPor, PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas, misAbiertas, porVence, claseVence } from './reglas.js';
 import { $, L, estado, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia, personasActivas, contadorTexto } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
@@ -911,6 +911,7 @@ async function guardarEdicion(ev) {
     if (campo === 'color') { const v = $('ftColor').dataset.valor || ''; if (v !== colorValido(t.Color)) campos.Color = v || null; }
     if (!Object.keys(campos).length) { cerrarPop(); return; }   // nada cambio: cerrar sin PATCH ni bitacora
     const cambioAsignado = 'Asignado' in campos;
+    sellarAsignadoPor(campos, estado.columnasTareas, estado.cuenta.username);   // C-02 (v0.91.0): quien asigna queda en la tarjeta
     const titulo = campos.Title || t.Title || '';
     $('btnGuardarTarea').disabled = true;
     try {
@@ -989,6 +990,7 @@ async function guardarNuevaTarea(ev, seguirCapturando = false) {
         Descripcion: $('ntDesc').value.trim() || undefined, Desde: ahora, Color: $('ntColor').dataset.valor || undefined,   // v0.12.0
         HechoPor: columna === HECHO ? estado.cuenta.username : undefined, HechoEl: columna === HECHO ? ahora : undefined
     });
+    if (campos.Asignado) sellarAsignadoPor(campos, estado.columnasTareas, estado.cuenta.username);   // C-02 (v0.91.0): crear ya asignada = delegarla
     // Los dos botones se apagan AQUI, dentro del alcance del `finally` que los repone: apagar
     // «Crear y otra» en su propio manejador lo dejaba muerto para siempre si la validacion de
     // arriba retornaba antes (p. ej. tarea sin titulo) — cazado por el revisor el 2026-09-12.

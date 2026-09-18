@@ -41,7 +41,8 @@
         { "nombre": "HechoPor", "titulo": "Hecho por", "tipo": "text" },
         { "nombre": "HechoEl", "titulo": "Hecho el", "tipo": "dateTime" },
         { "nombre": "Notas", "titulo": "Notas", "tipo": "note" },
-        { "nombre": "Color", "titulo": "Color de la tarjeta", "tipo": "text", "nota": "v0.12.0 (2026-09-12): clave de la paleta COLORES de reglas.js (azul, celeste, verde, ambar, rojo, morado, rosa, gris) o vacio. Solo tiñe la tarjeta; no cambia nada mas. En una lista ya provisionada se AGREGA con provisionar.html" }
+        { "nombre": "Color", "titulo": "Color de la tarjeta", "tipo": "text", "nota": "v0.12.0 (2026-09-12): clave de la paleta COLORES de reglas.js (azul, celeste, verde, ambar, rojo, morado, rosa, gris) o vacio. Solo tiñe la tarjeta; no cambia nada mas. En una lista ya provisionada se AGREGA con provisionar.html" },
+        { "nombre": "AsignadoPor", "titulo": "Asignado por (correo)", "tipo": "text", "nota": "C-02 (v0.91.0, 2026-09-18): quien hizo la ULTIMA asignacion (se escribe junto con Asignado al crear y al reasignar; null al desasignar). «Las que delegué» lo lee de la tarjeta y ya no depende de la bitacora acotada a 90 dias. En una lista ya provisionada se AGREGA con provisionar.html; mientras no exista, la app no lo manda (estado.columnasTareas)" }
       ]
     },
     {

@@ -202,10 +202,15 @@ async function cargarTodo() {
             try { return await c.renglones(s, L.actividad, `fields/Cuando ge '${piso}'`); }
             catch (e) { if (!/HTTP 400/.test(String(e && e.message))) throw e; console.warn('PROY_Actividad: el filtro por fecha dio 400; se lee entera.', e.message); return c.renglones(s, L.actividad); }
         };
-        const [proyectos, tareas, ligas, roles, actividad, delAbierto] = await Promise.all([
+        // C-02 (v0.91.0): los nombres reales de PROY_Tareas, UNA vez por sesion (AsignadoPor solo se escribe si la lista ya lo tiene);
+        // si la lectura falla se queda en null y la app no manda el campo, nunca deja de cargar.
+        const columnasTareas = async () => estado.columnasTareas || c.columnas(s, await c.idDeLista(s, L.tareas)).then(cs => new Set(cs.map(x => x.name))).catch(e => { console.warn('PROY_Tareas: no se pudieron leer las columnas; AsignadoPor no se escribe.', e && e.message); return null; });
+        const [proyectos, tareas, ligas, roles, actividad, delAbierto, colsTareas] = await Promise.all([
             c.renglones(s, L.proyectos), c.renglones(s, L.tareas), c.renglones(s, L.ligas), c.renglones(s, L.roles), actividadAcotada(),
-            abierto && piso ? c.renglones(s, L.actividad, `fields/ProyectoId eq ${abierto}`).catch(() => null) : Promise.resolve(null)
+            abierto && piso ? c.renglones(s, L.actividad, `fields/ProyectoId eq ${abierto}`).catch(() => null) : Promise.resolve(null),
+            columnasTareas()
         ]);
+        estado.columnasTareas = colsTareas;
         estado.proyectos = proyectos; estado.tareas = tareas; estado.ligas = ligas; estado.roles = roles;
         estado.actividad = actividad.sort((a, b) => String(b.Cuando || '').localeCompare(String(a.Cuando || '')));
         estado.actividadCompleta = new Set(piso ? [] : proyectos.map(p => p.id));

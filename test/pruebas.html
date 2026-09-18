@@ -61,7 +61,7 @@
     const G = 'https://graph.microsoft.com/v1.0';
     // Dos sitios: el de las listas (Administracion) y la biblioteca de CALYTEK; el resto contesta 403.
     const SITIOS = { '/sites/Administracion': 'sitio-falso', '/sites/Ambiental-CALYTEK': 'sitio-calytek' };
-    const DB = { listas: {}, carpetas: [], archivos: [], siguienteId: 1, esquema: null, fallas: [], llamadas: [], filtros: [], ifMatch: 0, textoLargo: [], itemsLeidos: [] };
+    const DB = { listas: {}, carpetas: [], archivos: [], siguienteId: 1, esquema: null, fallas: [], llamadas: [], filtros: [], ifMatch: 0, textoLargo: [], itemsLeidos: [], sinAsignadoPor: false };   // sinAsignadoPor: la lista viva ANTES de provisionar la columna (C-02)
     window.__DB = DB;
 
     function lista(id) { for (const l of Object.values(DB.listas)) if (l.id === id) return l; return null; }
@@ -77,6 +77,8 @@
             // SharePoint: texto de una linea = 255; pasarse es un 400 «Invalid request» sin mas detalle (2026-09-12, LAU).
             if (c.tipo === 'text' && typeof campos[c.nombre] === 'string' && campos[c.nombre].length > 255) { DB.textoLargo.push(`${l.nombre}.${c.nombre}=${campos[c.nombre].length}`); return 'Invalid request'; }
         }
+        // C-02: como SharePoint, un campo que la lista no tiene es 400 aunque el resto del cuerpo sea valido.
+        if (DB.sinAsignadoPor && l.nombre === 'PROY_Tareas' && 'AsignadoPor' in campos) return "Field 'AsignadoPor' is not recognized";
         return null;
     }
     // Cada renglon lleva un eTag que sube en cada PATCH, como en SharePoint (v0.3.0, T1).
@@ -107,6 +109,11 @@
         }
         if (/^\/sites\/sitio-falso\/lists\?/.test(ruta) && metodo === 'GET')
             return json(200, { value: Object.values(DB.listas).map(l => ({ id: l.id, name: l.nombre, displayName: l.nombre, webUrl: 'https://tenant.example.invalid/sites/Administracion/Lists/' + l.nombre })) });
+        if ((m = /^\/sites\/sitio-falso\/lists\/([^/]+)\/columns/.exec(ruta)) && metodo === 'GET') {   // C-02: las columnas reales, segun esquema.json (menos AsignadoPor si la lista «no esta provisionada»)
+            const l = lista(m[1]); if (!l) return error(404, 'lista');
+            const esq = DB.esquema.listas.find(x => x.nombre === l.nombre);
+            return json(200, { value: esq.columnas.filter(c => !(DB.sinAsignadoPor && c.nombre === 'AsignadoPor')).map(c => ({ name: c.nombre, displayName: c.titulo })) });
+        }
         if ((m = /^\/sites\/sitio-falso\/lists\/([^/]+)\/items\?/.exec(ruta)) && metodo === 'GET') {
             const l = lista(m[1]); if (!l) return error(404, 'lista');
             const f2 = new URLSearchParams(ruta.slice(ruta.indexOf('?'))).get('$filter');
@@ -472,6 +479,7 @@ try {
         R.ok('v0.53.0: el lápiz de Asignado abre el popover en el renglón con solo esa sección, el select cargado y con foco', popAbierto() === 'asignado' && $('tPop').closest('#tChips') !== null && [...$('tPop').querySelectorAll('.pop-campo')].filter(s => !s.hidden).map(s => s.dataset.campo).join() === 'asignado' && $('ftAsignado').value === String(t.fields.Asignado).toLowerCase() && document.activeElement === $('ftAsignado'), document.activeElement && document.activeElement.id);
         poner('ftAsignado', YO); clic('btnGuardarTarea');
         await esperar(() => t.fields.Asignado === YO, 'reasignada');
+        R.ok('C-02 (v0.91.0): reasignar escribe AsignadoPor = quien asigna en el mismo PATCH (la lista tiene la columna: GET /columns una vez por sesión)', t.fields.AsignadoPor === YO && DB.llamadas.filter(c => /\/lists\/[^/]+\/columns/.test(c)).length === 1, `AsignadoPor=${t.fields.AsignadoPor} columns=${DB.llamadas.filter(c => /\/columns/.test(c)).length}`);
         R.ok('editar reasigna y registra, y la ficha sigue abierta con el popover cerrado y el valor nuevo', t.fields.Asignado === YO && actividad('editar-tarea').length === 1 && $('dlgTarea').open && !popAbierto() && $('tChips').querySelector('[data-chip="asignado"]').textContent.includes('Persona de Prueba'), $('tChips').querySelector('[data-chip="asignado"]').textContent);
         R.ok('v0.53.0: tras Guardar el foco queda en el lápiz (nuevo) del mismo campo, no en el body', document.activeElement === $('tChips').querySelector('[data-edita="asignado"]'), document.activeElement && document.activeElement.outerHTML.slice(0, 50));
         editar('asignado'); $('tChips').querySelector('[data-edita="asignado"]').click();
@@ -1790,6 +1798,19 @@ try {
                 document.querySelector('#filtroMis [data-mis="delegadas"]').click(); await dormir(40);
                 R.ok('U-05 (v0.90.0): la tarjeta sin asignar NO sale en «las que delegué» ni en su contador (su aviso es «sin dueño» en Inicio)', !trs().some(r => r.dataset.t === String(tSinDueno.id)) && antesDeleg === trs().length && !$('misLista').textContent.includes('sin asignar'), `delegadas=${antesDeleg} renglones=${trs().length}`);
                 document.querySelector('#filtroMis [data-mis="todas"]').click(); await dormir(20);
+                // C-02: una tarjeta de OTRO con AsignadoPor = yo y SIN bitacora ni createdBy mio sale en «las que delegué»: el hecho vive en la tarjeta,
+                // no en los 90 dias de actividad en memoria. Y con la lista SIN la columna (antes de provisionar), reasignar no manda el campo y no da 400.
+                const tC02 = { id: DB.siguienteId++, creadoPor: 'jefa@example.invalid', fields: { Title: 'Delegada por mí hace meses (C-02)', ProyectoId: proyectoId, Columna: 'por-hacer', Asignado: 'colega@example.invalid', AsignadoPor: YO, Prioridad: 'normal' } }; filas('tareas').push(tC02);
+                await recargarYEsperar(); pestana('mis'); await esperar(() => visible('p-mis'), 'mis C-02'); await dormir(30);
+                document.querySelector('#filtroMis [data-mis="delegadas"]').click(); await dormir(40);
+                R.ok('C-02 (v0.91.0): «las que delegué» lista la tarjeta ajena con AsignadoPor = yo sin renglón alguno en la bitácora', trs().some(r => r.dataset.t === String(tC02.id)) && !filas('actividad').some(a => Number(a.fields.TareaId) === tC02.id), `delegadas=${trs().length}`);
+                document.querySelector('#filtroMis [data-mis="todas"]').click(); await dormir(20);
+                DB.sinAsignadoPor = true; mod.estado.columnasTareas = null; await recargarYEsperar(); pestana('mis'); await esperar(() => visible('p-mis'), 'mis sin columna'); await dormir(30);
+                irHash(`#mis/t/${tC02.id}`); await esperar(() => $('dlgTarea').open, 'tarjeta C-02'); editar('asignado'); poner('ftAsignado', YO); clic('btnGuardarTarea');
+                await esperar(() => tC02.fields.Asignado === YO, 'reasignada sin columna');
+                R.ok('C-02 (v0.91.0): con la lista SIN la columna (antes de provisionar) el PATCH no lleva AsignadoPor y guarda sin 400; el valor viejo queda como estaba', tC02.fields.Asignado === YO && tC02.fields.AsignadoPor === YO && mod.estado.columnasTareas instanceof Set && !mod.estado.columnasTareas.has('AsignadoPor'), `cols=${mod.estado.columnasTareas && [...mod.estado.columnasTareas].length}`);
+                clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada C-02');
+                DB.sinAsignadoPor = false; mod.estado.columnasTareas = null; filas('tareas').splice(filas('tareas').indexOf(tC02), 1);
                 filas('tareas').splice(filas('tareas').indexOf(tSinDueno), 1);   // se retira: «sin dueño» de Inicio y los conteos de abajo no la esperan
                 for (const [lista, fila] of sembC04) filas(lista).splice(filas(lista).indexOf(fila), 1);   // y la siembra de C-04: Archivos y la actividad de abajo cuentan ligas y notas
                 await recargarYEsperar();
