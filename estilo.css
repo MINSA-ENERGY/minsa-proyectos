@@ -752,7 +752,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .tablero { grid-template-columns: 1fr; overflow-x: visible; }
   .col:not(.is-activa) { display: none; }
 }
-.col { background: var(--surface-sunken); border-radius: var(--r-md); padding: var(--sp-2); display: grid; gap: var(--sp-2); align-content: start; min-height: 200px; }
+.col { background: var(--surface-sunken); border-radius: var(--r-md); padding: var(--sp-2); display: grid; gap: var(--sp-2); align-content: start; min-height: 200px; container-type: inline-size; }   /* container-type: las @container de .col h3 .n, mas abajo (C-08: antes vivia en un segundo bloque .col) */
 .col h3 { margin: 0; font-family: var(--font-display); font-size: .82rem; font-weight: 600; color: var(--text-strong); display: flex; gap: var(--sp-2); align-items: center; padding: var(--sp-1) var(--sp-1) 6px; border-bottom: 2px solid var(--cub); }   /* v0.64.0: el filete lleva el color de la cubeta (--cub) */
 .col h3 .n { margin-left: auto; font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); font-weight: 500; }
 .col .vacio { color: var(--text-faint); font-size: .78rem; padding: var(--sp-1); }
@@ -767,7 +767,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tarjeta .t .barras { float: right; margin: 3px 0 0 8px; }
 .tabla .col-p { width: 16px; padding-left: var(--sp-1); padding-right: 0; }
 .tabla td.col-p .barras { margin-top: .3em; }
-.col { container-type: inline-size; }
 .col h3 .n { white-space: nowrap; }
 .col h3 .n .largo { display: none; }   /* «· 1 vencida» solo en cubetas de 240 px o mas (a 1366 con lateral miden 195): abajo queda el rojo y el title */
 @container (min-width: 240px) { .col h3 .n .largo { display: inline; } }
