@@ -475,7 +475,7 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .entrada .pista { align-self: center; margin: 0; min-height: 1.2em; color: rgba(242, 246, 255, .5); font-family: var(--font-data); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; }
 .entrada .pista.estado { color: rgba(242, 246, 255, .86); font-size: .85rem; letter-spacing: .02em; text-transform: none; }   /* U-05 (v0.87.0): cuando la pista lleva un ESTADO (Entrando…, un error) se lee; la marca en reposo se queda chica */
 @media (min-width: 721px) {
-  .entrada-caja { max-width: 64rem; flex-direction: row; align-items: center; gap: 4rem; padding: 2.5rem 3.5rem; }
+  .entrada-caja { max-width: 64rem; flex-direction: row; align-items: center; gap: 4rem; padding: 1rem 2rem; }   /* v0.93.2 (Carlos, 23-sep): mismo padding que calytek-planta-app — la columna del texto queda a la misma distancia del logo */
   .entrada-arriba { flex: 1 1 0; padding: 0; }
   .entrada-arriba .logo { width: 24rem; max-width: 100%; }
   .entrada-abajo { flex: 0 0 24rem; }
