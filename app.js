@@ -15,7 +15,7 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, diasQuieta, rotuloQuieta, pisoNuevo, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias, misAbiertas as misAbiertasDe } from './reglas.js';
-import { $, L, VERSION, estado, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, proyectoPorClave, nuevosDe, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
+import { $, L, VERSION, estado, limpiarFiltroTareas, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, proyectoPorClave, nuevosDe, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, repintarFicha, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
@@ -329,7 +329,7 @@ window.addEventListener('hashchange', aplicarHash);   // una URL pegada o editad
 /** Deja `p` como proyecto abierto; si es OTRO proyecto, el filtro de tarjetas y la columna del celular vuelven al default. */
 function fijarProyectoAbierto(p) {
     if (!estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id) {
-        estado.filtroTareas = { quien: [], alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = '';
+        limpiarFiltroTareas();   // C-13 (v0.95.0)
         estado.colMovil = null; estado.ordenLista = { col: 'vence', dir: 1 };   // v0.11.0: null = la primera cubeta del proyecto
         estado.hechoTodas = false; estado.filtroDocs = null; estado.buscaDocs = '';   // v0.17.0: el buscador de Docs tampoco viaja entre proyectos
         estado.ordenDocs = { col: 'del', dir: -1 };   // v0.18.0: ni su orden (una columna oculta en este panel no puede quedar mandando); v0.19.0: la del documento, que si se ve
@@ -465,10 +465,11 @@ function pintarFichas(cont, proyectos) {
 /** Un renglon de mini lista (2026-09-12): cabecera = quien + cuando; debajo la frase a todo el ancho;
  *  debajo el proyecto en una linea. `texto` NO trae el nombre (lo pone la cabecera); si `texto` ES el
  *  nombre completo (lista Equipo), la cabecera lo lleva entero y no hay frase. */
-function itemMini(quien, texto, sub, derecha, claseDerecha, abrir) {
-    // C9 (v0.6.0): con `abrir` el renglon es un boton que lleva a la tarjeta (antes era texto que habia que buscar).
-    const it = el(abrir ? 'button' : 'div', 'it' + (abrir ? ' clic' : ''));
-    if (abrir) { it.type = 'button'; it.addEventListener('click', abrir); it.title = 'Abrir la tarjeta'; }
+function itemMini(quien, texto, sub, derecha, claseDerecha, abre) {
+    // C9 (v0.6.0): con `abre` el renglon es un boton que lleva a la tarjeta (antes era texto que habia que buscar).
+    // C-11 (v0.95.0): `abre` es una LLAVE (llaveTarea / llaveEvento) que resuelve el delegado de abajo al clic; antes un closure por renglon.
+    const it = el(abre ? 'button' : 'div', 'it' + (abre ? ' clic' : ''));
+    if (abre) { it.type = 'button'; it.dataset.abre = abre; it.title = 'Abrir la tarjeta'; }
     const c = el('div');
     const nombre = nombreDe(quien, estado.roles), esNombre = texto === nombre;
     const cab = el('div', 'cab'); cab.appendChild(el('span', 'q', esNombre ? nombre : nombre.split(' ')[0]));
@@ -480,15 +481,29 @@ function itemMini(quien, texto, sub, derecha, claseDerecha, abrir) {
 }
 /** La frase de actividad SIN el nombre (la cabecera de itemMini ya lo lleva); el resto igual que fraseActividad. */
 function queHizo(a) { return a.Accion === 'comentar' ? `${verboComentario(a)}: «${a.Title}»` : String(a.Title || ''); }
-/** C9: un renglon de actividad con TareaId viva se abre en su proyecto (#p/<clave>/t/<id>); sin tarjeta, texto. */
-function abridorDe(a) {
-    const t = a.TareaId ? porId(estado.tareas, a.TareaId) : null; if (!t) return null;
-    const p = porId(estado.proyectos, t.ProyectoId); if (!p) return null;
-    return () => { if ($('dlgActividad').open) cerrarDialogo('dlgActividad'); irAHash(`#p/${p.Clave}/t/${t.id}`); };
+/** C9: la tarjeta `id` se abre en su proyecto (#p/<clave>/t/<id>); sin tarjeta o sin proyecto, null. C-03 (16-sep): una sola vez. */
+function hashTarea(id) { const t = porId(estado.tareas, id); const p = t && porId(estado.proyectos, t.ProyectoId); return p ? `#p/${p.Clave}/t/${t.id}` : null; }
+/** C9: un evento de la bitacora con TareaId viva abre su tarjeta; si no, con `pid` (la cola «Hoy») el chat de ese frente; si no, null. */
+function hashEvento(a, pid) {
+    const h = a && a.TareaId ? hashTarea(a.TareaId) : null; if (h) return h;
+    const p = pid ? porId(estado.proyectos, pid) : null; return p ? `#p/${p.Clave}/chat` : null;
 }
-/** C9: la tarjeta `t` se abre en su proyecto (#p/<clave>/t/<id>); sin proyecto, null. C-03 (mejorar-app, 16-sep): antes vivia
- *  dos veces, caracter por caracter, como flecha local de pintarInicio y de pintarCola. La comparten la cola «Hoy» y «Sin movimiento». */
-function abrirTarea(t) { const p = porId(estado.proyectos, t.ProyectoId); return p ? () => irAHash(`#p/${p.Clave}/t/${t.id}`) : null; }
+/**
+ * C-11 (v0.95.0): las llaves `data-abre` de los renglones que abren algo —la cola «Hoy», «Sin movimiento», las mini listas del
+ * Resumen y la actividad (Inicio, lateral, Toda la actividad)—. Al pintar solo se decide SI el renglon es boton; QUE abre lo
+ * resuelve el delegado de abajo contra el estado vivo al clic (regla v0.4.0). Antes abrirTarea/abridorDe/abrirEvento devolvian un
+ * closure con el `p` y la `t` del pintado, y cada renglon registraba su listener. «t:<id>» tarjeta · «a:<id>[:<pid>]» evento.
+ */
+const llaveTarea = t => hashTarea(t.id) ? `t:${t.id}` : null;
+const llaveEvento = (a, pid) => hashEvento(a, pid) ? `a:${a.id}${pid ? ':' + pid : ''}` : null;
+document.addEventListener('click', ev => {
+    const b = ev.target.closest('[data-abre]'); if (!b) return;
+    const [tipo, id, pid] = b.dataset.abre.split(':');
+    const h = tipo === 't' ? hashTarea(id) : hashEvento(porId(estado.actividad, id), pid);
+    if (!h) { avisar('Eso ya no está: se borró o se movió desde que se pintó la pantalla.', 'ojo'); return; }
+    if ($('dlgActividad').open) cerrarDialogo('dlgActividad');   // desde Toda la actividad (antes lo hacia abridorDe)
+    irAHash(h);
+});
 /** C-07: un solo formateador de hora de Mexico para la cola (antes uno nuevo por renglon). */
 const HORA_MX = new Intl.DateTimeFormat('es-MX', { timeZone: 'America/Mexico_City', hour: '2-digit', minute: '2-digit', hour12: false });
 /**
@@ -530,7 +545,7 @@ function iconoAccion(a) {
  *  es relativa dentro de las 24 h («hace 12 min»). `extra` (Inicio): { nuevo, tuya } — ver pintarActividadInicio. */
 function itemActividad(a, conProyecto, extra) {
     const p = porId(estado.proyectos, a.ProyectoId);
-    const it = itemMini(a.Quien, queHizo(a), conProyecto && p ? p.Title : '', haceCuanto(a.Cuando), null, abridorDe(a));
+    const it = itemMini(a.Quien, queHizo(a), conProyecto && p ? p.Title : '', haceCuanto(a.Cuando), null, llaveEvento(a));
     it.classList.add('con-ico'); it.prepend(iconoAccion(a));
     if (extra) {
         if (extra.nuevo) it.classList.add('es-nuevo'); else if (extra.visto) it.classList.add('es-visto');
@@ -598,8 +613,7 @@ function pintarInicio() {
     $('inicioSaludo').textContent = `${saludoDe(ahora)}, ${yo.split(' ')[0]}`;
     // U-08: el rol va en su propio span; en celular la barra de arriba ya lo dice junto al logo y .rol-sub se oculta (estilo.css)
     const sub = $('inicioSub'); sub.textContent = `${fechaLarga(ahora)} · ${nAct} frente${nAct === 1 ? '' : 's'} activo${nAct === 1 ? '' : 's'}`; sub.appendChild(el('span', 'rol-sub', ` · ${estado.rol}`));
-    const idsActivos = new Set(vivos.map(p => p.id));   // v0.13.1: una vez, no por cada tarjeta
-    const abiertas = estado.tareas.filter(t => t.Columna !== 'hecho' && idsActivos.has(Number(t.ProyectoId)));
+    const abiertas = abiertasInicio(vivos);   // C-11 (v0.95.0): la misma cuenta que el conmutador y «Sin dueño» repiten al clic
     // v0.41.0 (Carlos, 14-sep): la fila de KPI (mías abiertas · vencen en 7 d · vencidas · sin dueño · sin movimiento) SALIO
     // de Inicio. Lo mio vive en Mis tareas (y el rojo del rail), lo global en la cola y en Reportes; «sin movimiento» en su tarjeta.
     // C-05 (mejorar-app, 16-sep): el piso de «Nuevo para ti» se congela AQUI, al entrar, y la marca de visto sube AQUI — antes eran
@@ -635,7 +649,7 @@ function pintarSinMovimiento(abiertas, ahora = new Date()) {
     const quietas = abiertas.map(t => ({ t, n: diasQuieta(t, CONFIG.sinMovimientoDias, ahora, columnasDeTarea) }))
         .filter(x => x.n !== null && !enCola.has(Number(x.t.id))).sort((a, b) => b.n - a.n || a.t.id - b.t.id);
     const sm = $('inicioSinMov'); sm.textContent = '';
-    for (const { t, n } of quietas.slice(0, TOPE_COLA)) { const it = itemMini(t.Asignado, t.Title, tituloFrenteDe(t), `${n} d`, 'warn', abrirTarea(t)); it.dataset.t = String(t.id); sm.appendChild(it); }
+    for (const { t, n } of quietas.slice(0, TOPE_COLA)) { const it = itemMini(t.Asignado, t.Title, tituloFrenteDe(t), `${n} d`, 'warn', llaveTarea(t)); it.dataset.t = String(t.id); sm.appendChild(it); }
     $('nSinMov').textContent = quietas.length ? String(quietas.length) : '';
     $('cardSinMov').classList.toggle('oculto', quietas.length === 0);
 }
@@ -652,8 +666,6 @@ function fechaLarga(ahora) { const d = diaDe(ahora); const x = new Date(d + 'T12
 const VERBO_NUEVO = { asignada: 'te asignó', cambio: 'cambió tu tarjeta', nota: 'anotó en tu tarjeta', mencion: 'te mencionó' };
 /** Titulo del frente de una tarjeta ('' si el proyecto no esta cargado). C-03: porId una vez, no dos. */
 const tituloFrenteDe = t => { const p = porId(estado.proyectos, t.ProyectoId); return p ? p.Title : ''; };
-/** Abridor de un renglon que viene de la bitacora: su tarjeta si la tiene, si no el chat del frente. */
-const abrirEvento = a => { const p = porId(estado.proyectos, a.ProyectoId); return abridorDe(a) || (p ? () => irAHash(`#p/${p.Clave}/chat`) : null); };
 /** La columna `.k` de una tarjeta: dia en fuerte + mes en tenue del Vence; «—» sin fecha (v0.65.0). */
 const kFecha = iso => { const m = mesDia(iso); return m ? { a: String(m.dia), b: m.mes } : { a: '—', b: '' }; };
 /** La columna `.k` de un evento de la bitacora: hora de Mexico en fuerte + «hoy» / «ayer» / «dia mes» en tenue. */
@@ -665,10 +677,10 @@ const kHora = iso => { const d = diasPara(iso), m = mesDia(iso); return { a: HOR
  * de Vence en las tarjetas, hora + dia relativo en lo que viene de la bitacora, «—» sin fecha— y el color del estado lo lleva el
  * numero (`.k b`), no un circulo. `k` = { a: linea fuerte, b: linea tenue }; `datos` van a data-*.
  */
-function renglonCola(estadoCls, titulo, sub, k, abrir, datos) {
-    const r = el(abrir ? 'button' : 'div', 'hoy-r' + (estadoCls ? ' is-' + estadoCls : '')); if (abrir) { r.type = 'button'; r.addEventListener('click', abrir); }
+function renglonCola(estadoCls, titulo, sub, k, abre, datos) {
+    const r = el(abre ? 'button' : 'div', 'hoy-r' + (estadoCls ? ' is-' + estadoCls : '')); if (abre) { r.type = 'button'; r.dataset.abre = abre; }   // C-11 (v0.95.0): llave, no closure
     // U-11 (v0.94.0): la columna .k es aria-hidden; el nombre accesible del renglon trae la fecha u hora que ella enseña
-    if (abrir) r.setAttribute('aria-label', [titulo, sub, k.a === '—' ? 'sin fecha' : `${k.a} ${k.b}`.trim()].filter(Boolean).join(' · '));
+    if (abre) r.setAttribute('aria-label', [titulo, sub, k.a === '—' ? 'sin fecha' : `${k.a} ${k.b}`.trim()].filter(Boolean).join(' · '));
     const f = el('span', 'k'); f.setAttribute('aria-hidden', 'true'); f.appendChild(el('b', '', k.a)); f.appendChild(el('small', '', k.b)); r.appendChild(f);
     const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', titulo)); c.appendChild(el('span', 'p', sub)); c.querySelector('.t').title = titulo; r.appendChild(c);
     for (const [kk, v] of Object.entries(datos || {})) r.dataset[kk] = v;
@@ -689,9 +701,9 @@ function extraCola(t, ahora = new Date()) {
 /** El renglon de una tarjeta. U-04: el subtitulo ya NO repite la fecha —la columna `.k` la trae y el grupo dice vencida/hoy/semana—
  *  y asi el nombre del frente cabe a 390 px. U-10 (v0.94.0): los datos van ANTES del frente, que se repite renglon tras renglon:
  *  a 390 px el «…» se come el nombre repetido y no el dato que distingue. `datos` extra (p. ej. sinDueno) se suman al data-t. */
-const renglonTarea = (t, cls, datos) => renglonCola(cls, t.Title, [...extraCola(t), tituloFrenteDe(t)].filter(Boolean).join(' · '), kFecha(t.Vence), abrirTarea(t), { t: String(t.id), ...datos });
+const renglonTarea = (t, cls, datos) => renglonCola(cls, t.Title, [...extraCola(t), tituloFrenteDe(t)].filter(Boolean).join(' · '), kFecha(t.Vence), llaveTarea(t), { t: String(t.id), ...datos });
 /** El renglon de un evento de la bitacora (nuevo para ti / te mencionaron): quien (nombre de pila) y el frente en el subtitulo. */
-const renglonEvento = (a, titulo, datos, pid = a.ProyectoId) => { const p = porId(estado.proyectos, pid); return renglonCola('info', titulo, `${nombreDe(a.Quien, estado.roles).split(' ')[0]}${p ? ' · ' + p.Title : ''}`, kHora(a.Cuando), abrirEvento(a), datos); };
+const renglonEvento = (a, titulo, datos, pid = a.ProyectoId) => { const p = porId(estado.proyectos, pid); return renglonCola('info', titulo, `${nombreDe(a.Quien, estado.roles).split(' ')[0]}${p ? ' · ' + p.Title : ''}`, kHora(a.Cuando), llaveEvento(a, pid), datos); };
 /** Los grupos por fecha se recortan a TOPE_COLA renglones con un «+N más» que lleva a donde estan todas (Mis tareas, Reportes o Calendario). */
 const TOPE_COLA = 6, TOPE_NUEVOS = 8;
 function masCola(lista, n, texto, ir) { const b = el('button', 'hoy-mas'); b.type = 'button'; b.textContent = `+${n} más · ${texto} →`; b.addEventListener('click', ir); lista.appendChild(b); return b; }
@@ -701,11 +713,18 @@ function pintarGrupoCola(lista, clave, texto, arr, cls, textoMas, ir) {
     for (const { tarea: t } of arr.slice(0, TOPE_COLA)) lista.appendChild(renglonTarea(t, cls));
     if (arr.length > TOPE_COLA) masCola(lista, arr.length - TOPE_COLA, textoMas, ir);
 }
-/** Los dos botones «todo el frente / solo mías» (estado.hoySoloMias, la sesion). `alCambiar` repinta la cola. */
-function pintarFiltroCola(alCambiar) {
+/** Las tarjetas abiertas de los frentes activos: lo que miran la cola «Hoy», «Sin movimiento» y el salto de «Sin dueño».
+ *  C-11 (v0.95.0): el conmutador y el salto la recalculan al clic; antes capturaban el arreglo del ultimo pintado. */
+function abiertasInicio(vivos = activos()) {
+    const ids = new Set(vivos.map(p => p.id));   // v0.13.1: una vez, no por cada tarjeta
+    return estado.tareas.filter(t => t.Columna !== 'hecho' && ids.has(Number(t.ProyectoId)));
+}
+/** Los dos botones «todo el frente / solo mías» (estado.hoySoloMias, la sesion); cambiar repinta la cola y «Sin movimiento». */
+function pintarFiltroCola() {
     const fil = $('hoyFiltro'); fil.textContent = '';
     for (const [texto, mias] of [['todo el frente', false], ['solo mías', true]]) {
-        const b = boton(texto, !!estado.hoySoloMias === mias ? 'is-on' : '', () => { estado.hoySoloMias = mias; alCambiar(); }, { hoy: mias ? 'mias' : 'todo' });
+        // U-12: lo que la cola deja de pintar vuelve a «Sin movimiento». C-11 (v0.95.0): con las abiertas de AHORA, no las del pintado
+        const b = boton(texto, !!estado.hoySoloMias === mias ? 'is-on' : '', () => { estado.hoySoloMias = mias; const ab = abiertasInicio(); pintarCola(ab); pintarSinMovimiento(ab); }, { hoy: mias ? 'mias' : 'todo' });
         b.setAttribute('aria-pressed', String(!!estado.hoySoloMias === mias)); fil.appendChild(b);
     }
 }
@@ -724,7 +743,7 @@ function pintarFiltroCola(alCambiar) {
 function pintarCola(abiertas) {
     const urgente = $('inicioUrgente'), resto = $('inicioResto'); urgente.textContent = ''; resto.textContent = '';
     const yoCorreo = estado.cuenta.username.toLowerCase();
-    pintarFiltroCola(() => { pintarCola(abiertas); pintarSinMovimiento(abiertas); });   // U-12: lo que la cola deja de pintar vuelve a «Sin movimiento»
+    pintarFiltroCola();
     // Las sin dueño NO entran a los grupos por fecha (tienen el suyo): cada tarjeta sale UNA vez y el total la cuenta una vez (revisor, 13-sep).
     const conDueno = abiertas.filter(t => String(t.Asignado || '').trim());
     const base = estado.hoySoloMias ? conDueno.filter(t => String(t.Asignado || '').toLowerCase() === yoCorreo) : conDueno;
@@ -739,7 +758,7 @@ function pintarCola(abiertas) {
     // C7 (v0.6.0): las tarjetas sin dueño no salen en Mis tareas de NADIE. El grupo solo existe si hay alguna; su encabezado
     // aterriza en el proyecto que mas tiene con el filtro «sin dueño» puesto (el mismo salto que tenia el KPI).
     if (huerfanas.length) {
-        grupoCola(urgente, 'sin-dueno', 'Sin dueño', huerfanas.length, 'warn', () => irASinDueno(huerfanas)).dataset.kpi = 'sin-dueno';
+        grupoCola(urgente, 'sin-dueno', 'Sin dueño', huerfanas.length, 'warn', irASinDueno).dataset.kpi = 'sin-dueno';
         for (const t of huerfanas.slice(0, TOPE_COLA)) urgente.appendChild(renglonTarea(t, 'warn', { sinDueno: '1' }));   // U-04: ni «sin dueño ·» (lo dice el grupo) ni la fecha (la columna)
     }
     // Derecha: nuevo para ti · te mencionaron · esta semana.
@@ -767,11 +786,15 @@ function pintarCola(abiertas) {
 }
 /** El salto de «sin dueño» (C7): al proyecto que mas tiene, con el filtro «sin dueño» puesto ENTERO — si ese proyecto ya
  *  estaba abierto, fijarProyectoAbierto no lo limpia y un «quien» previo se combinaria dejando el tablero vacio (revisor, 12-sep).
- *  v0.39.0: lo comparten el encabezado del grupo y el KPI plano. */
-function irASinDueno(huerfanas) {
+ *  C-11 (v0.95.0): las huerfanas se calculan AL CLIC (antes el encabezado capturaba las del pintado). C-13: el filtro se fija
+ *  despues de fijarProyectoAbierto (que lo vacia si cambia de proyecto) y antes de irA, que pinta UNA vez — antes abrirProyecto
+ *  ya pintaba y pintarProyecto() volvia a pintar. */
+function irASinDueno() {
+    const huerfanas = sinDueno(abiertasInicio()); if (!huerfanas.length) return;
     const porProyecto = new Map(); for (const t of huerfanas) porProyecto.set(t.ProyectoId, (porProyecto.get(t.ProyectoId) || 0) + 1);
     const [pid] = [...porProyecto.entries()].sort((a, b) => b[1] - a[1])[0];
-    abrirProyecto(Number(pid)); estado.filtroTareas = { quien: [], alta: false, vencidas: false, sinDueno: true, texto: '' }; $('filtroTexto').value = ''; pintarProyecto();
+    const p = porId(estado.proyectos, pid); if (!p) return;
+    fijarProyectoAbierto(p); limpiarFiltroTareas({ sinDueno: true }); estado.tab = 'tablero'; irA('proyecto');
 }
 
 // ---------------------------------------------------------------- toda la actividad (F12) y el equipo (F13)
@@ -949,7 +972,7 @@ function pintarProyecto() {
     for (const k of quienes) q.appendChild(itemMini(k, nombreDe(k, estado.roles), `${ts.filter(t => String(t.Asignado || '').toLowerCase() === k && t.Columna !== 'hecho').length} abiertas`, ''));
     if (!quienes.length) q.appendChild(el('p', 'vacio', 'Nadie asignado todavía.'));
     const v = $('pVence'); v.textContent = '';
-    for (const { tarea: t, dias } of proximos(ts, 5)) v.appendChild(itemMini(t.Asignado, t.Title, '', fechaCorta(t.Vence), claseVence(dias, CONFIG.vencePronto, null), () => irAHash(`#p/${p.Clave}/t/${t.id}`)));   // C9
+    for (const { tarea: t, dias } of proximos(ts, 5)) v.appendChild(itemMini(t.Asignado, t.Title, '', fechaCorta(t.Vence), claseVence(dias, CONFIG.vencePronto, null), llaveTarea(t)));   // C9
     if (!v.childNodes.length) v.appendChild(el('p', 'vacio', 'Nada por vencer.'));
     const act = $('pActividad'); act.textContent = '';
     const deP = actividadVisible().filter(x => Number(x.ProyectoId) === p.id);   // v0.11.0: sin movimientos

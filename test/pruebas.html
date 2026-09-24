@@ -725,7 +725,10 @@ try {
         R.ok('v0.41.0: sin fila de KPI, el encabezado del grupo «Sin dueño» de la cola sigue siendo botón', !document.getElementById('inicioKpis') && document.querySelector('#inicioHoy [data-kpi="sin-dueno"]').tagName === 'BUTTON');
         document.querySelector('#inicioHoy [data-kpi="sin-dueno"]').click(); await esperar(() => visible('p-proyecto') && document.querySelectorAll('#tableroCols .tarjeta').length === 1, 'proyecto filtrado');
         R.ok('C7: el grupo de la cola aterriza en el proyecto con el filtro «sin dueño» puesto', document.querySelector('#filtroChips [data-filtro="sinDueno"] input').checked && document.querySelector('#filtroChips .menu-quien > summary').classList.contains('is-on') && document.querySelector('#tableroCols .tarjeta').dataset.t === String(normal.id));
+        { const mod = await import('../comun.js');
+          R.ok('v0.95.0 (C-13): el salto de «Sin dueño» deja el filtro ENTERO en la forma de filtroVacio (solo sinDueno encendido) y el buscador vacío', JSON.stringify(mod.estado.filtroTareas) === JSON.stringify(mod.filtroVacio({ sinDueno: true })) && $('filtroTexto').value === '', JSON.stringify(mod.estado.filtroTareas)); }
         document.querySelector('#filtroChips [data-filtro="limpiar"]').click(); await dormir(30);
+        { const mod = await import('../comun.js'); R.ok('v0.95.0 (C-13): «× limpiar» deja el filtro igual a filtroVacio()', JSON.stringify(mod.estado.filtroTareas) === JSON.stringify(mod.filtroVacio()), JSON.stringify(mod.estado.filtroTareas)); }
         // D5: los contadores del rail tienen nombre accesible.
         R.ok('D5: los contadores del rail llevan aria-label («N vencidas» / «N activos»)', $('nProyectos').getAttribute('aria-label') === '1 activo' && /^\d+ vencidas?$/.test($('nMis').getAttribute('aria-label')) && $('nProyectos').title === '1 activo', $('nMis').getAttribute('aria-label'));
         // D6: el pie del rail — Equipo, Ver en SharePoint y Salir dentro del menú «···».
@@ -1118,6 +1121,9 @@ try {
         R.ok('v0.94.0 (U-11): el renglón de la cola anuncia al lector de pantalla la fecha que la columna .k (aria-hidden) enseña', (() => { const r = document.querySelector(`#inicioHoy .hoy-r[data-t="${t.id}"]`); const k = r && r.querySelector('.k'); return !!k && k.getAttribute('aria-hidden') === 'true' && (r.getAttribute('aria-label') || '').startsWith('Lista de insumos') && r.getAttribute('aria-label').endsWith(`${k.querySelector('b').textContent} ${k.querySelector('small').textContent}`); })(), (document.querySelector(`#inicioHoy .hoy-r[data-t="${t.id}"]`) || { getAttribute: () => 'sin renglón' }).getAttribute('aria-label'));
         document.querySelector(`#inicioHoy .hoy-r[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta desde la cola');
         R.ok('v0.21.0: el renglón de la cola abre su tarjeta', $('tTitulo').textContent.startsWith('Lista de insumos')); clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
+        R.ok('v0.95.0 (C-11): los renglones que abren algo en Inicio llevan su llave data-abre («t:<id>» / «a:<id>[:<pid>]») y no un closure', (() => { const rs = [...document.querySelectorAll('#inicioHoy button.hoy-r, #inicioSinMov button.it, #inicioActividad button.it')]; return rs.length > 0 && rs.every(r => /^(t:\d+|a:\d+(:\d+)?)$/.test(r.dataset.abre || '')) && document.querySelector(`#inicioHoy .hoy-r[data-t="${t.id}"]`).dataset.abre === `t:${t.id}`; })());
+        { const fant = document.createElement('button'); fant.type = 'button'; fant.dataset.abre = 't:987654'; $('inicioUrgente').appendChild(fant); const h0 = location.hash; fant.click(); await dormir(30);
+          R.ok('v0.95.0 (C-11): una llave que ya no resuelve contra el estado vivo avisa y no navega', !!avisoCon('Eso ya no está') && location.hash === h0 && !$('dlgTarea').open); fant.remove(); }
 
         // 5. Docs: buscar, ligar, subir, 404 del buzon, 403 fuera del piloto.
         await abrirLau(); tab('docs'); await esperar(() => !$('tab-docs').classList.contains('oculto'), 'docs');

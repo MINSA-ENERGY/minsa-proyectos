@@ -5,9 +5,14 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.94.0';
+export const VERSION = '0.95.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
+/** C-13 (v0.95.0): el filtro de tarjetas vacio, en UN lugar — su forma ya cambio dos veces (quien paso a arreglo en v0.30.0, se sumo
+ *  sinDueno) y vivia literal en cinco sitios de tres modulos. `extra` va encima (irASinDueno: { sinDueno: true }). */
+export const filtroVacio = (extra = {}) => ({ quien: [], alta: false, vencidas: false, sinDueno: false, texto: '', ...extra });
+/** Deja el filtro de tarjetas vacio (con `extra` encima) y vacia el buscador que lo refleja. */
+export function limpiarFiltroTareas(extra) { estado.filtroTareas = filtroVacio(extra); $('filtroTexto').value = ''; }
 
 export const estado = {
     cuenta: null, cliente: null, siteId: null, sesion: false, rol: 'lectura',   // C-03 (v0.87.0): `sesion` es lo que consultan timers y eventos; la enciende sesionIniciada cuando cargarTodo ya termino, antes de destapar el shell. C-06: `token` salio (nadie lo leia)
@@ -17,7 +22,7 @@ export const estado = {
     pestana: 'inicio', tab: 'tablero',
     filtroEquipo: null,
     // v0.3.0: filtro y orden dentro del proyecto (F9/F10), columna visible en celular (U5), filtro de Mis tareas (U3)
-    filtroTareas: { quien: [], alta: false, vencidas: false, sinDueno: false, texto: '' },   // v0.30.0: quien es ARRAY (varias personas)
+    filtroTareas: filtroVacio(),   // v0.30.0: quien es ARRAY (varias personas)
     // v0.6.0 (C3): buscador fuera del proyecto — Proyectos (nombre, clave, descripcion) y Mis tareas (titulo).
     textoProyectos: '', textoMis: '',
     // v0.5.0 (B1): en celular los chips + buscador van plegados detras de «Filtrar»; en escritorio

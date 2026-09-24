@@ -8,7 +8,7 @@
 
 import { CONFIG } from './config.js';
 import { sellarAsignadoPor, PUEDE, ordenar, tareasDe, diasQuieta, rotuloQuieta, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas, misAbiertas, porVence, claseVence } from './reglas.js';
-import { $, L, estado, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia, personasActivas, contadorTexto } from './comun.js';
+import { $, L, estado, limpiarFiltroTareas, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia, personasActivas, contadorTexto } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
 import { engancharSelectorMenciones } from './chat.js';
@@ -208,7 +208,7 @@ export function pintarFiltroTareas(proyecto) {
     // ---- los fijos
     for (const [k, texto] of CHIPS_FILTRO) chipBtn(texto, !!f[k], () => { f[k] = !f[k]; }, { filtro: k });
     const activo = !!(f.quien.length || f.alta || f.vencidas || f.sinDueno || f.texto);
-    if (activo) chipBtn('× limpiar', false, () => { estado.filtroTareas = { quien: [], alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = ''; }, { filtro: 'limpiar' });
+    if (activo) chipBtn('× limpiar', false, () => limpiarFiltroTareas(), { filtro: 'limpiar' });   // C-13 (v0.95.0)
 }
 /** B1: «Filtrar» dice cuantos filtros hay puestos; sin eso, plegarlos los esconde en silencio.
  *  v0.6.0: vive aqui (no en app.js) para repintarse con CADA cambio de filtro — un chip pulsado
@@ -232,7 +232,7 @@ export function pintarBotonFiltros() {
     av.classList.toggle('oculto', !mostrar);
     if (mostrar) {
         av.appendChild(el('span', 'txt', 'Filtrado: ' + partes.join(' · ')));
-        av.appendChild(boton('× limpiar', 'mn-btn is-ghost is-sm', () => { estado.filtroTareas = { quien: [], alta: false, vencidas: false, sinDueno: false, texto: '' }; $('filtroTexto').value = ''; if (estado.proyectoAbierto) pintarFiltroTareas(estado.proyectoAbierto); pintarSoloTareas(); }, { filtro: 'limpiarAviso' }));
+        av.appendChild(boton('× limpiar', 'mn-btn is-ghost is-sm', () => { limpiarFiltroTareas(); if (estado.proyectoAbierto) pintarFiltroTareas(estado.proyectoAbierto); pintarSoloTareas(); }, { filtro: 'limpiarAviso' }));
     }
 }
 
