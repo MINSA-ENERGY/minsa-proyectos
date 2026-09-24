@@ -625,7 +625,7 @@ function pintarCarga(todas) {
 function pintarSemanas(todas) {
     const hs = $('repSemanas'); hs.textContent = '';
     const semanas = hechasPorSemana(todas, 8); columnas(hs, semanas, s => `${+s.desde.slice(8, 10)} ${MESES_CORTOS[+s.desde.slice(5, 7) - 1]}`);
-    const totalSem = semanas.reduce((n, s) => n + s.n, 0); $('repSemanasSub').textContent = totalSem ? `${totalSem} tarjeta(s) hechas en 8 semanas · ${(totalSem / 8).toFixed(1)} por semana.` : 'Ninguna tarjeta con fecha de hecho en las últimas 8 semanas.';
+    const totalSem = semanas.reduce((n, s) => n + s.n, 0); $('repSemanasSub').textContent = totalSem ? `${totalSem} tarjeta${totalSem === 1 ? ' hecha' : 's hechas'} en 8 semanas · ${(totalSem / 8).toFixed(1)} por semana.` : 'Ninguna tarjeta con fecha de hecho en las últimas 8 semanas.';
 }
 /** Actividad por persona (30 dias), del registro de actividad de los frentes visibles. */
 function pintarActividad(idsPs) {

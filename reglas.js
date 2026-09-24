@@ -265,12 +265,17 @@ export function vencidasEn(tareas, hoy = new Date()) { return (tareas || []).fil
  * que aqui es lo seguro). `columnasDeTarea(t)` da las cubetas del proyecto de esa tarjeta.
  */
 export function sinMovimiento(tareas, dias, hoy = new Date(), columnasDeTarea = () => COLUMNAS_DEFAULT) {
-    return (tareas || []).filter(t => {
-        if (!enProceso(t, columnasDeTarea(t)) || !t.Desde) return false;
-        const d = diasPara(t.Desde, hoy);
-        return d !== null && -d >= dias;
-    });
+    return (tareas || []).filter(t => diasQuieta(t, dias, hoy, columnasDeTarea) !== null);
 }
+/** C-15 (v0.94.0): los dias que lleva quieta UNA tarjeta si pasa el umbral `dias`, o null. La usan la tarjeta del tablero, el
+ *  sufijo de la cola y «Sin movimiento» de Inicio, que antes calculaban cada uno `-diasPara(t.Desde)` por su lado. */
+export function diasQuieta(t, dias, hoy = new Date(), columnasDeTarea = () => COLUMNAS_DEFAULT) {
+    if (!t || !enProceso(t, columnasDeTarea(t)) || !t.Desde) return null;
+    const d = diasPara(t.Desde, hoy);
+    return d !== null && -d >= dias ? -d : null;
+}
+/** C-15: el rotulo unico de la quietud («sin movimiento 12 d»); antes la tarjeta decia «días» y la cola «d». */
+export const rotuloQuieta = n => `sin movimiento ${n} d`;
 
 /** Orden de una columna del tablero: Orden asc, luego prioridad (alta primero), luego vence, luego id. */
 export function ordenar(tareas) {
@@ -802,6 +807,10 @@ export function direccionInicial(col) { return col === 'fecha' || col === 'del' 
 
 // ---------------------------------------------------------------- v0.15.0: el mismo canal (auditoria como usuario, 2026-09-13)
 
+/** El piso de «nuevo» en Inicio: la marca de visto, o sin marca los ultimos `diasSinMarca` dias. C-10 (v0.94.0): lo comparten
+ *  «Nuevo para ti» y el punto azul de «Actividad reciente» (antes la actividad, sin marca, daba por nuevo TODO lo ajeno). */
+export function pisoNuevo(desde, hoy = new Date(), diasSinMarca = 3) { return desde || new Date(hoy.getTime() - diasSinMarca * 86400000).toISOString(); }
+
 /**
  * «Nuevo para ti» (Inicio): lo que OTROS hicieron sobre lo tuyo desde `desde` (ISO) —te asignaron o cambiaron una
  * tarjeta tuya, anotaron en ella, o te mencionaron en el chat—, lo mas nuevo arriba. Sin `desde`, los ultimos
@@ -809,7 +818,7 @@ export function direccionInicial(col) { return col === 'fecha' || col === 'del' 
  */
 export function nuevoParaMi(actividad, tareas, roles, correo, desde, hoy = new Date(), diasSinMarca = 3) {
     const yo = String(correo || '').toLowerCase();
-    const piso = desde || new Date(hoy.getTime() - diasSinMarca * 86400000).toISOString();
+    const piso = pisoNuevo(desde, hoy, diasSinMarca);
     const mias = new Map((tareas || []).filter(t => String(t.Asignado || '').toLowerCase() === yo).map(t => [Number(t.id), t]));
     const out = [];
     for (const a of actividad || []) {

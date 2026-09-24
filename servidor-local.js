@@ -51,12 +51,26 @@ const TIPOS = {
 // no distingue mayusculas) con la version que miraba el primer segmento de la URL.
 const ORIGENES = new Set();   // se llena al escuchar, con el puerto REAL (C-01: con --puerto 0 no se sabe antes)
 const RESERVADOS = ['_salida-dev.json'];
+// S-11 (v0.94.0): NTFS abre el mismo archivo por `nombre::$DATA` (flujo alterno) y por `nombre.` / `nombre ` (quita puntos y
+// espacios finales), y la lista comparaba el texto literal: `/_salida-dev.json::$DATA` se servia. Ahora cualquier `:` en la ruta
+// relativa es 403 (ningun archivo de la app lo lleva) y cada segmento se compara sin sus puntos y espacios finales.
 export function rutaVedada(destino, raiz = RAIZ) {
-    const primero = (path.relative(raiz, destino).split(path.sep)[0] || '').toLowerCase();
+    const rel = path.relative(raiz, destino);
+    if (rel.includes(':')) return true;
+    const primero = (rel.split(path.sep)[0] || '').toLowerCase().replace(/[. ]+$/, '');
     return primero.startsWith('.') || RESERVADOS.includes(primero);
 }
+// S-11: y sin validar Host, un DNS rebinding (un dominio ajeno que resuelve a 127.0.0.1) volvia legible el servidor desde
+// otra pestaña: el navegador lo trata como mismo origen del dominio ajeno. Solo se atiende Host localhost/127.0.0.1 con el puerto REAL.
+const HOSTS = new Set();   // se llena al escuchar, como ORIGENES
+export function hostValido(host, hosts = HOSTS) { return hosts.has(String(host || '').toLowerCase()); }
 
 const servidor = http.createServer((req, res) => {
+    if (!hostValido(req.headers.host)) {   // S-11
+        console.log(`  403  Host ${req.headers.host || '(sin Host)'}`);
+        res.writeHead(403, { 'Content-Type': 'text/plain' }).end('403');
+        return;
+    }
     // Buzon de ida y vuelta para las herramientas de desarrollo: la pagina manda lo que
     // encontro y aterriza en un archivo local, para no tener que copiar y pegar a mano.
     // Solo existe en este servidor de pruebas; no es parte de la app.
@@ -112,7 +126,7 @@ const servidor = http.createServer((req, res) => {
 const esPrincipal = !!process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
 if (esPrincipal) servidor.listen(PUERTO, '127.0.0.1', () => {
     const puerto = servidor.address().port;
-    for (const h of ['localhost', '127.0.0.1']) ORIGENES.add(`http://${h}:${puerto}`);
+    for (const h of ['localhost', '127.0.0.1']) { ORIGENES.add(`http://${h}:${puerto}`); HOSTS.add(`${h}:${puerto}`); }
     console.log(`PUERTO ${puerto}`);   // primera linea, fija: e2e.ps1 la lee para saber a donde apuntar Edge
     console.log('');
     console.log(`Sirviendo ${RAIZ}`);

@@ -7,7 +7,7 @@
 // «→ siguiente» de la cara de la tarjeta se quito, y «Origen en la KB» ya no se ensena ni se pide.
 
 import { CONFIG } from './config.js';
-import { sellarAsignadoPor, PUEDE, ordenar, tareasDe, sinMovimiento, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas, misAbiertas, porVence, claseVence } from './reglas.js';
+import { sellarAsignadoPor, PUEDE, ordenar, tareasDe, diasQuieta, rotuloQuieta, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas, misAbiertas, porVence, claseVence } from './reglas.js';
 import { $, L, estado, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia, personasActivas, contadorTexto } from './comun.js';
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
@@ -134,7 +134,7 @@ export function tarjeta(t, conProyecto = false) {
     }
     // v0.13.1: indices por tarjeta calculados una vez por pintada (antes cada tarjeta recorria toda la actividad y todas las ligas).
     if (buzonPorTarea().get(t.id)) { f.appendChild(chip('en el buzón', 'info')); enTitle.push('en el buzón'); }
-    if (sinMovimiento([t], CONFIG.sinMovimientoDias, new Date(), columnasDeTarea).length) { const s = `sin movimiento ${-diasPara(t.Desde)} días`; f.appendChild(el('span', 'stale', '· ' + s)); enTitle.push(s); }
+    { const q = diasQuieta(t, CONFIG.sinMovimientoDias, new Date(), columnasDeTarea); if (q !== null) { const s = rotuloQuieta(q); f.appendChild(el('span', 'stale', '· ' + s)); enTitle.push(s); } }   // C-15 (v0.94.0)
     // v0.8.0: insignias de la cara (Trello): cuantas notas y cuantos documentos trae, sin abrirla.
     const nNotas = notasPorTarea().get(t.id) || 0, nDocs = ligasPorTarea().get(t.id) || 0;
     if (nNotas) { const s = `${nNotas} nota${nNotas === 1 ? '' : 's'}`; f.appendChild(insignia(TRAZOS.burbuja, nNotas, s, 'is-notas')); enTitle.push(s); }
@@ -1045,7 +1045,7 @@ function pintarCubetas() {
         dn.title = 'Bajar'; dn.setAttribute('aria-label', 'Bajar'); dn.disabled = esHecho || i >= cubetasEdicion.length - 2; fila.appendChild(dn);   // la penultima no baja: abajo esta Hecho
         const q = boton('Quitar', 'mn-btn is-ghost is-sm', () => { cubetasEdicion.splice(i, 1); pintarCubetas(); }, { quita: c.clave });
         q.disabled = esHecho || n > 0 || cubetasEdicion.length <= 2;
-        q.title = esHecho ? '«Hecho» no se quita: es la cubeta que cierra las tarjetas.' : n ? `Tiene ${n} tarjeta(s): muévelas antes de quitarla.` : cubetasEdicion.length <= 2 ? 'Hace falta al menos una cubeta abierta.' : 'Quitar esta cubeta';
+        q.title = esHecho ? '«Hecho» no se quita: es la cubeta que cierra las tarjetas.' : n ? `Tiene ${n} tarjeta${n === 1 ? '' : 's'}: muéve${n === 1 ? 'la' : 'las'} antes de quitarla.` : cubetasEdicion.length <= 2 ? 'Hace falta al menos una cubeta abierta.' : 'Quitar esta cubeta';
         fila.appendChild(q);
         // v0.12.0: el color de la cubeta; cambia el punto al instante, se guarda con las demas.
         fila.appendChild(selectorTonos(el('div', 'tonos'), c.color, v => { c.color = v; if (v) punto.dataset.tono = v; else delete punto.dataset.tono; }, `Color de «${c.nombre || 'la cubeta'}»`));
@@ -1081,7 +1081,7 @@ async function guardarCubetas(ev) {
         if (quitadas.length) {
             const enVivo = await estado.cliente.renglones(estado.siteId, L.tareas, `fields/ProyectoId eq ${Number(p.id)}`);
             const perdidas = enVivo.filter(t => quitadas.includes(t.Columna));
-            if (perdidas.length) { avisar(`Hay ${perdidas.length} tarjeta(s) en una cubeta que quieres quitar (alguien las movió hace un momento): se releyó, muévelas primero.`, 'error'); await pedirRelectura(); pintarCubetas(); return; }
+            if (perdidas.length) { avisar(`Hay ${perdidas.length} tarjeta${perdidas.length === 1 ? '' : 's'} en una cubeta que quieres quitar (alguien ${perdidas.length === 1 ? 'la' : 'las'} movió hace un momento): se releyó, muéve${perdidas.length === 1 ? 'la' : 'las'} primero.`, 'error'); await pedirRelectura(); pintarCubetas(); return; }
         }
         const res = await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
         aplicar(p, campos, res && res._etag);

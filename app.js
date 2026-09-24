@@ -14,7 +14,7 @@
 
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
-import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, sinMovimiento, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias, misAbiertas as misAbiertasDe } from './reglas.js';
+import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, diasQuieta, rotuloQuieta, pisoNuevo, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias, misAbiertas as misAbiertasDe } from './reglas.js';
 import { $, L, VERSION, estado, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, proyectoPorClave, nuevosDe, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, repintarFicha, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
@@ -358,6 +358,7 @@ function repintar() {
     else if (estado.pestana === 'mensajes') pintarMensajes();
     else if (estado.pestana === 'archivos') pintarArchivos();
     else if (estado.pestana === 'reportes') pintarReportes();
+    if ($('dlgActividad').open) pintarActividad();   // C-12 (v0.94.0): el refresco sigue con «Toda la actividad» abierta (E4); acCtx conserva filtro y pagina
 }
 alCambiarTareas(repintar);
 alCambiarDocs(repintar);
@@ -548,7 +549,9 @@ function itemActividad(a, conProyecto, extra) {
  */
 function pintarActividadInicio(cont, lista, todas = lista) {
     const yo = String(estado.cuenta && estado.cuenta.username || '').toLowerCase();
-    const desde = estado.nuevosInicio.desde;
+    const desde = pisoNuevo(estado.nuevosInicio.desde);   // C-10 (v0.94.0): sin marca, los ultimos 3 dias — el mismo piso de «Nuevo para ti»
+    let ajenoMasNuevo = '';   // C-10: lo ajeno mas reciente que SE PINTO; pintarInicio sube la marca con el
+    for (const a of lista) if (String(a.Quien || '').toLowerCase() !== yo && String(a.Cuando || '') > ajenoMasNuevo) ajenoMasNuevo = String(a.Cuando);
     const hoy = diaDe(new Date()), ayer = sumarDias(hoy, -1);
     const rotulo = d => d === hoy ? 'Hoy' : d === ayer ? 'Ayer' : fechaLegible(d);
     const porDia = new Map(); for (const a of todas) { const d = diaDe(a.Cuando) || '?'; porDia.set(d, (porDia.get(d) || 0) + 1); }
@@ -564,6 +567,7 @@ function pintarActividadInicio(cont, lista, todas = lista) {
         const tuya = !!t && String(t.Asignado || '').toLowerCase() === yo && String(a.Quien || '').toLowerCase() !== yo;
         cont.appendChild(itemActividad(a, true, { nuevo, visto, tuya }));
     }
+    return ajenoMasNuevo;
 }
 /** Parte «verbo «titulo» resto» en tres: el titulo en <b> (2 lineas, integro en title) y el resto en linea
  *  propia; «de X a Y» sale como «X → Y». Sin «…» (un titulo de tarjeta), texto plano. Nunca innerHTML. */
@@ -598,28 +602,42 @@ function pintarInicio() {
     const abiertas = estado.tareas.filter(t => t.Columna !== 'hecho' && idsActivos.has(Number(t.ProyectoId)));
     // v0.41.0 (Carlos, 14-sep): la fila de KPI (mías abiertas · vencen en 7 d · vencidas · sin dueño · sin movimiento) SALIO
     // de Inicio. Lo mio vive en Mis tareas (y el rojo del rail), lo global en la cola y en Reportes; «sin movimiento» en su tarjeta.
-    const quietas = sinMovimiento(abiertas, CONFIG.sinMovimientoDias, ahora, columnasDeTarea);
     // C-05 (mejorar-app, 16-sep): el piso de «Nuevo para ti» se congela AQUI, al entrar, y la marca de visto sube AQUI — antes eran
     // efectos colaterales de pintarCola (que se repinta con cada clic de «solo mías») y pintarActividadInicio dependia de ese orden.
     if (!estado.nuevosInicio) estado.nuevosInicio = { desde: inicioVistoHasta() };
     const nuevos = pintarCola(abiertas);
-    if (nuevos.length) marcarInicioVisto(nuevos[0].a.Cuando);
+    pintarSinMovimiento(abiertas, ahora);   // C-09 · U-12 (v0.94.0): despues de la cola, porque excluye lo que ella ya pinto
     const lp = $('inicioProyectos');
     pintarFichas(lp, ordenarProyectos(vivos));   // C10 · v0.25.0: los mismos renglones «calendario de mes» que en Proyectos
     if (!vivos.length) lp.appendChild(el('p', 'vacio', PUEDE.proyecto(estado.rol) ? 'Sin proyectos activos: crea el primero en Proyectos.' : 'Sin proyectos activos todavía.'));
     // C9: tambien estos renglones abren su tarjeta (el revisor vio la inconsistencia con la actividad).
     // v0.39.0: «Fines de frente» (v0.21.0) salio con la lateral — la hoja de calendario de cada ficha ya trae fecha y semaforo.
-    const sm = $('inicioSinMov'); sm.textContent = '';
-    for (const t of quietas.slice(0, 6)) { const p = porId(estado.proyectos, t.ProyectoId); sm.appendChild(itemMini(t.Asignado, t.Title, p ? p.Title : '', `${-diasPara(t.Desde)} d`, 'warn', abrirTarea(t))); }
-    $('cardSinMov').classList.toggle('oculto', quietas.length === 0);
     const act = $('inicioActividad'); act.textContent = '';
     // B3: en celular Inicio media 2,400 px; la actividad baja a 3 renglones. v0.14.0: en escritorio son 8 (la tarjeta
     // paso a la columna ancha, bajo Proyectos activos, donde antes sobraba media pantalla).
     const tope = enCelular.matches ? 3 : 8;
     const visible = actividadVisible();   // v0.11.0: sin movimientos entre cubetas
-    pintarActividadInicio(act, visible.slice(0, tope), visible);   // C9 · v0.63.0: por dia, con icono y nuevo/visto; U-06: el corte cuenta sobre `visible`
+    const ajenoVisto = pintarActividadInicio(act, visible.slice(0, tope), visible);   // C9 · v0.63.0: por dia, con icono y nuevo/visto; U-06: el corte cuenta sobre `visible`
     if (!visible.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
     $('btnActividadInicio').hidden = visible.length <= tope;
+    // C-10 (v0.94.0): la marca de visto sube con lo ajeno mas reciente que se vio (Nuevo para ti O la actividad); antes solo con
+    // «Nuevo para ti», y un comentario ajeno en otro frente seguia con punto azul visita tras visita.
+    const hasta = [nuevos.length ? String(nuevos[0].a.Cuando || '') : '', ajenoVisto].sort().pop();
+    if (hasta) marcarInicioVisto(hasta);
+}
+/**
+ * C-09 · U-12 (v0.94.0): «Sin movimiento» lista las quietas que la cola NO pinto (ahi ya las marca el sufijo «sin movimiento N d»;
+ * antes la misma tarjeta salia dos veces), la mas quieta primero (antes en orden de id: una de 14 d desplazaba a una de 20 d),
+ * hasta TOPE_COLA, y el total en el h2. La llaman pintarInicio y el conmutador «solo mías», que cambia lo que la cola pinta.
+ */
+function pintarSinMovimiento(abiertas, ahora = new Date()) {
+    const enCola = new Set([...document.querySelectorAll('#inicioHoy .hoy-r[data-t]')].map(r => Number(r.dataset.t)));
+    const quietas = abiertas.map(t => ({ t, n: diasQuieta(t, CONFIG.sinMovimientoDias, ahora, columnasDeTarea) }))
+        .filter(x => x.n !== null && !enCola.has(Number(x.t.id))).sort((a, b) => b.n - a.n || a.t.id - b.t.id);
+    const sm = $('inicioSinMov'); sm.textContent = '';
+    for (const { t, n } of quietas.slice(0, TOPE_COLA)) { const it = itemMini(t.Asignado, t.Title, tituloFrenteDe(t), `${n} d`, 'warn', abrirTarea(t)); it.dataset.t = String(t.id); sm.appendChild(it); }
+    $('nSinMov').textContent = quietas.length ? String(quietas.length) : '';
+    $('cardSinMov').classList.toggle('oculto', quietas.length === 0);
 }
 
 const DIAS_LARGOS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
@@ -649,6 +667,8 @@ const kHora = iso => { const d = diasPara(iso), m = mesDia(iso); return { a: HOR
  */
 function renglonCola(estadoCls, titulo, sub, k, abrir, datos) {
     const r = el(abrir ? 'button' : 'div', 'hoy-r' + (estadoCls ? ' is-' + estadoCls : '')); if (abrir) { r.type = 'button'; r.addEventListener('click', abrir); }
+    // U-11 (v0.94.0): la columna .k es aria-hidden; el nombre accesible del renglon trae la fecha u hora que ella enseña
+    if (abrir) r.setAttribute('aria-label', [titulo, sub, k.a === '—' ? 'sin fecha' : `${k.a} ${k.b}`.trim()].filter(Boolean).join(' · '));
     const f = el('span', 'k'); f.setAttribute('aria-hidden', 'true'); f.appendChild(el('b', '', k.a)); f.appendChild(el('small', '', k.b)); r.appendChild(f);
     const c = el('span', 'cuerpo'); c.appendChild(el('span', 't', titulo)); c.appendChild(el('span', 'p', sub)); c.querySelector('.t').title = titulo; r.appendChild(c);
     for (const [kk, v] of Object.entries(datos || {})) r.dataset[kk] = v;
@@ -660,19 +680,20 @@ function grupoCola(lista, clave, texto, n, cls, alClic) {
     h.dataset.grupo = clave; h.appendChild(el('span', '', texto)); h.appendChild(el('b', 'n', String(n))); lista.appendChild(h);
     return h;
 }
-/** Sufijos del subtitulo de una tarjeta: « · sin movimiento N d» (CONFIG.sinMovimientoDias) y « · 💬 N» con sus notas.
+/** Datos del subtitulo de una tarjeta: «sin movimiento N d» (CONFIG.sinMovimientoDias) y «💬 N» con sus notas.
  *  C-01 (mejorar-app, 16-sep): las notas de la TARJETA son notasDe(tareaId); comentariosDe(id) filtra por PROYECTO. */
 function extraCola(t, ahora = new Date()) {
-    const q = sinMovimiento([t], CONFIG.sinMovimientoDias, ahora, columnasDeTarea).length ? ` · sin movimiento ${-diasPara(t.Desde)} d` : '';
-    const n = notasDe(t.id).length; return `${q}${n ? ` · 💬 ${n}` : ''}`;
+    const q = diasQuieta(t, CONFIG.sinMovimientoDias, ahora, columnasDeTarea), n = notasDe(t.id).length;   // C-15 (v0.94.0)
+    return [q !== null ? rotuloQuieta(q) : '', n ? `💬 ${n}` : ''].filter(Boolean);
 }
 /** El renglon de una tarjeta. U-04: el subtitulo ya NO repite la fecha —la columna `.k` la trae y el grupo dice vencida/hoy/semana—
- *  y asi el nombre del frente cabe a 390 px. `datos` extra (p. ej. sinDueno) se suman al data-t. */
-const renglonTarea = (t, cls, datos) => renglonCola(cls, t.Title, `${tituloFrenteDe(t)}${extraCola(t)}`, kFecha(t.Vence), abrirTarea(t), { t: String(t.id), ...datos });
+ *  y asi el nombre del frente cabe a 390 px. U-10 (v0.94.0): los datos van ANTES del frente, que se repite renglon tras renglon:
+ *  a 390 px el «…» se come el nombre repetido y no el dato que distingue. `datos` extra (p. ej. sinDueno) se suman al data-t. */
+const renglonTarea = (t, cls, datos) => renglonCola(cls, t.Title, [...extraCola(t), tituloFrenteDe(t)].filter(Boolean).join(' · '), kFecha(t.Vence), abrirTarea(t), { t: String(t.id), ...datos });
 /** El renglon de un evento de la bitacora (nuevo para ti / te mencionaron): quien (nombre de pila) y el frente en el subtitulo. */
 const renglonEvento = (a, titulo, datos, pid = a.ProyectoId) => { const p = porId(estado.proyectos, pid); return renglonCola('info', titulo, `${nombreDe(a.Quien, estado.roles).split(' ')[0]}${p ? ' · ' + p.Title : ''}`, kHora(a.Cuando), abrirEvento(a), datos); };
 /** Los grupos por fecha se recortan a TOPE_COLA renglones con un «+N más» que lleva a donde estan todas (Mis tareas, Reportes o Calendario). */
-const TOPE_COLA = 6;
+const TOPE_COLA = 6, TOPE_NUEVOS = 8;
 function masCola(lista, n, texto, ir) { const b = el('button', 'hoy-mas'); b.type = 'button'; b.textContent = `+${n} más · ${texto} →`; b.addEventListener('click', ir); lista.appendChild(b); return b; }
 /** Un grupo por fecha entero: encabezado, hasta TOPE_COLA tarjetas y el «+N más». `arr` viene de gruposHoy ({ tarea, dias }). */
 function pintarGrupoCola(lista, clave, texto, arr, cls, textoMas, ir) {
@@ -703,7 +724,7 @@ function pintarFiltroCola(alCambiar) {
 function pintarCola(abiertas) {
     const urgente = $('inicioUrgente'), resto = $('inicioResto'); urgente.textContent = ''; resto.textContent = '';
     const yoCorreo = estado.cuenta.username.toLowerCase();
-    pintarFiltroCola(() => pintarCola(abiertas));
+    pintarFiltroCola(() => { pintarCola(abiertas); pintarSinMovimiento(abiertas); });   // U-12: lo que la cola deja de pintar vuelve a «Sin movimiento»
     // Las sin dueño NO entran a los grupos por fecha (tienen el suyo): cada tarjeta sale UNA vez y el total la cuenta una vez (revisor, 13-sep).
     const conDueno = abiertas.filter(t => String(t.Asignado || '').trim());
     const base = estado.hoySoloMias ? conDueno.filter(t => String(t.Asignado || '').toLowerCase() === yoCorreo) : conDueno;
@@ -724,14 +745,17 @@ function pintarCola(abiertas) {
     // Derecha: nuevo para ti · te mencionaron · esta semana.
     if (nuevos.length) {
         grupoCola(resto, 'nuevo', 'Nuevo para ti', nuevos.length, 'info');
-        for (const x of nuevos.slice(0, 8)) {
+        for (const x of nuevos.slice(0, TOPE_NUEVOS)) {
             const que = x.tipo === 'mencion' || x.tipo === 'nota' ? x.a.Title : x.tarea ? x.tarea.Title : x.a.Title;
             resto.appendChild(renglonEvento(x.a, `${VERBO_NUEVO[x.tipo]}: «${que}»`, { nuevo: x.tipo }, x.a.ProyectoId || (x.tarea && x.tarea.ProyectoId)));
         }
+        // U-09 (v0.94.0): la visita sube la marca hasta el aviso mas reciente, asi que lo que no cabe necesita salida — antes el noveno desaparecia sin leerse
+        if (nuevos.length > TOPE_NUEVOS) masCola(resto, nuevos.length - TOPE_NUEVOS, 'ver en Toda la actividad', () => abrirActividad(null));
     }
     if (menciones.length) {
         grupoCola(resto, 'mencion', 'Te mencionaron', menciones.length, 'info');
         for (const a of menciones.slice(0, TOPE_COLA)) resto.appendChild(renglonEvento(a, `«${a.Title}»`, { mencion: String(a.id) }));
+        if (menciones.length > TOPE_COLA) masCola(resto, menciones.length - TOPE_COLA, 'ver en Toda la actividad', () => abrirActividad(null));   // U-09
     }
     if (g.semana.length) pintarGrupoCola(resto, 'semana', 'Esta semana', g.semana, null, 'ver en el Calendario', () => irA('calendario'));
     const total = g.vencidas.length + g.hoy.length + huerfanas.length + nuevos.length + menciones.length + g.semana.length;
@@ -867,7 +891,7 @@ function pintarProyecto() {
     const faltan = ts.filter(t => t.Columna !== 'hecho').length;
     // v0.12.0: el boton ya no cuenta («· faltan N» salio del titulo); la cuenta va en su title y en la confirmacion.
     $('btnCerrarProyecto').textContent = p.Estado !== 'activo' ? 'Cerrado' : 'Cerrar proyecto';
-    $('btnCerrarProyecto').title = p.Estado !== 'activo' ? '' : faltan ? `Faltan ${faltan} tarjeta(s) por terminar` : 'Todas las tarjetas están hechas';
+    $('btnCerrarProyecto').title = p.Estado !== 'activo' ? '' : faltan ? `Falta${faltan === 1 ? '' : 'n'} ${faltan} tarjeta${faltan === 1 ? '' : 's'} por terminar` : 'Todas las tarjetas están hechas';
     // F6: un cerrado se reabre (solo gerencia); el boton solo existe en ese estado.
     $('btnReabrirProyecto').classList.toggle('oculto', !(PUEDE.proyecto(estado.rol) && p.Estado === 'cerrado'));
     $('btnEliminarProyecto').classList.toggle('oculto', !PUEDE.borrar(estado.rol));   // v0.13.0: solo gerencia, en cualquier estado
@@ -1005,14 +1029,14 @@ async function cerrarProyecto() {
     const p = estado.proyectoAbierto; if (!p) return;
     if (!PUEDE.proyecto(estado.rol)) { avisar('Solo gerencia cierra proyectos.', 'error'); return; }
     const faltan = tareasDe(p, estado.tareas).filter(t => t.Columna !== 'hecho').length;
-    const { ok } = await confirmar({ titulo: 'Cerrar el proyecto', ok: 'Cerrar', texto: `«${p.Title}» pasa a cerrado con tu sello. Sale de Inicio; sus tarjetas quedan como registro y nada se borra.${faltan ? ` Ojo: quedan ${faltan} tarjeta(s) sin terminar.` : ''}` });
+    const { ok } = await confirmar({ titulo: 'Cerrar el proyecto', ok: 'Cerrar', texto: `«${p.Title}» pasa a cerrado con tu sello. Sale de Inicio; sus tarjetas quedan como registro y nada se borra.${faltan ? ` Ojo: queda${faltan === 1 ? '' : 'n'} ${faltan} tarjeta${faltan === 1 ? '' : 's'} sin terminar.` : ''}` });
     if (!ok) return;
     const campos = { Estado: 'cerrado', CerradoPor: estado.cuenta.username, CerradoEl: new Date().toISOString() };
     try {
         const res = await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
         aplicar(p, campos, res && res._etag);
         avisar(`Proyecto «${p.Title}» cerrado.`, 'ok'); repintar();
-        await registrarActividad('cerrar-proyecto', `cerró el proyecto «${p.Title.slice(0, 80)}»${faltan ? ` con ${faltan} tarjeta(s) abiertas` : ''}`, p.id, null); repintar();
+        await registrarActividad('cerrar-proyecto', `cerró el proyecto «${p.Title.slice(0, 80)}»${faltan ? ` con ${faltan} tarjeta${faltan === 1 ? ' abierta' : 's abiertas'}` : ''}`, p.id, null); repintar();
     } catch (e) {
         if (esConflicto(e)) { avisar('Alguien cambió este proyecto hace un momento: se releyó.', 'ojo'); await pedirRelectura(); return; }
         avisar('No se pudo cerrar: ' + (e && e.message ? e.message : e), 'error');
@@ -1045,7 +1069,7 @@ async function eliminarProyecto() {
     const p = estado.proyectoAbierto; if (!p) return;
     if (!PUEDE.borrar(estado.rol)) { avisar('Solo gerencia elimina proyectos.', 'error'); return; }
     const tareas = tareasDe(p, estado.tareas); const ligas = estado.ligas.filter(l => Number(l.ProyectoId) === p.id);
-    const { ok } = await confirmar({ titulo: 'Eliminar el proyecto', ok: 'Eliminar', texto: `«${p.Title}» se borra con sus ${tareas.length} tarjeta(s) y ${ligas.length} liga(s) a documentos. Los archivos de la biblioteca no se tocan y la actividad queda como registro. No se puede deshacer desde la app: los renglones van a la papelera del sitio.` });
+    const { ok } = await confirmar({ titulo: 'Eliminar el proyecto', ok: 'Eliminar', texto: `«${p.Title}» se borra con sus ${tareas.length} tarjeta${tareas.length === 1 ? '' : 's'} y ${ligas.length} liga${ligas.length === 1 ? '' : 's'} a documentos. Los archivos de la biblioteca no se tocan y la actividad queda como registro. No se puede deshacer desde la app: los renglones van a la papelera del sitio.` });
     if (!ok) return;
     const titulo = p.Title;
     try {
@@ -1055,7 +1079,7 @@ async function eliminarProyecto() {
         estado.proyectos = estado.proyectos.filter(x => x.id !== p.id);
         estado.proyectoAbierto = null; $('accMenu').open = false;
         irA('proyectos'); avisar(`Proyecto «${titulo}» eliminado.`, 'ok'); repintar();
-        await registrarActividad('borrar-proyecto', `eliminó el proyecto «${titulo.slice(0, 80)}»${tareas.length ? ` con ${tareas.length} tarjeta(s)` : ''}`, p.id, null); repintar();
+        await registrarActividad('borrar-proyecto', `eliminó el proyecto «${titulo.slice(0, 80)}»${tareas.length ? ` con ${tareas.length} tarjeta${tareas.length === 1 ? '' : 's'}` : ''}`, p.id, null); repintar();
     } catch (e) { avisar('No se pudo eliminar: ' + (e && e.message ? e.message : e), 'error'); repintar(); }
 }
 

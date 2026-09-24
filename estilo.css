@@ -1532,7 +1532,7 @@ body.sin-scroll { overflow: hidden; }
 }
 .cola-cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--sp-2); margin-bottom: var(--sp-2); }
 .cola-cab h2 { margin: 0; }
-.cola-cab h2 .n:not(:empty)::before { content: "· "; }
+.cola-cab h2 .n:not(:empty)::before, #cardSinMov h2 .n:not(:empty)::before { content: "· "; }   /* C-09 (v0.94.0): «Sin movimiento · N» */
 .cola-lista { display: grid; }
 /* El encabezado de grupo: texto en mayusculas chicas, conteo mono; el color dice la urgencia. */
 .hoy-g { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3); padding: 0 0 var(--sp-1); border-bottom: 1px solid var(--border-hairline); font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--text-muted); }

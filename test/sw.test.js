@@ -32,6 +32,14 @@ assert.ok(/servidor\.listen\(PUERTO,\s*'127\.0\.0\.1'/.test(readFileSync(join(ra
   // Las mismas URL que el servidor recibe (rel ya decodificado), resueltas como lo hace el: los tres huecos del revisor de v0.82.1 incluidos.
   for (const [rel, esperado] of [['/.git/HEAD', true], ['/.gitignore', true], ['/_salida-dev.json', true], ['/_SALIDA-DEV.JSON', true], ['/x/../.git/HEAD', true], ['/test/../_salida-dev.json', true], ['/\\.git/HEAD', process.platform === 'win32'], ['/index.html', false], ['/test/pruebas.html', false], ['/vendor/x.js', false], ['/README.md', false]])
     assert.equal(rutaVedada(resolve(raiz, '.' + rel), raiz), esperado, `rutaVedada(${rel})`);
+  // S-11 (v0.94.0): el flujo alterno de NTFS y los puntos/espacios finales abren el mismo archivo; y el Host se valida contra el puerto real.
+  for (const rel of ['/_salida-dev.json::$DATA', '/_salida-dev.json.', '/_salida-dev.json ', '/.git::$INDEX_ALLOCATION/HEAD', '/index.html::$DATA'])
+    assert.equal(rutaVedada(resolve(raiz, '.' + rel), raiz), true, `rutaVedada(${rel})`);
+  const { hostValido } = await import('../servidor-local.js');
+  const hosts = new Set(['localhost:8080', '127.0.0.1:8080']);
+  for (const [h, esperado] of [['localhost:8080', true], ['127.0.0.1:8080', true], ['LOCALHOST:8080', true], ['evil.example:8080', false], ['localhost:9999', false], ['', false], [undefined, false]])
+    assert.equal(hostValido(h, hosts), esperado, `hostValido(${h})`);
+  assert.ok(srv.includes('if (!hostValido(req.headers.host))'), 'servidor-local.js debe rechazar un Host ajeno antes de servir');
 }
 // S-07 (v0.76.0): el <script> de MSAL lleva integrity; si alguien sube el vendor y no toca el atributo, el navegador
 // lo rechaza en silencio y la app no arranca. Aqui se coteja contra los bytes del archivo, en los tres HTML que lo cargan.
