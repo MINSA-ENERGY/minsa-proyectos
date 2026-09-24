@@ -809,6 +809,17 @@ export function direccionInicial(col) { return col === 'fecha' || col === 'del' 
 
 /** El piso de «nuevo» en Inicio: la marca de visto, o sin marca los ultimos `diasSinMarca` dias. C-10 (v0.94.0): lo comparten
  *  «Nuevo para ti» y el punto azul de «Actividad reciente» (antes la actividad, sin marca, daba por nuevo TODO lo ajeno). */
+/**
+ * S-12 (mejorar-app, 24-sep): la fecha con que se SUBE una marca de visto. `Cuando` la escribe el cliente y SharePoint no la
+ * valida: una laptop con el reloj adelantado (o un PATCH a mano) dejaba la marca en el futuro, y como la marca solo sube,
+ * «Nuevo para ti» y el punto azul se apagaban para siempre. Tope: la hora actual + `holguraMs` (5 min), que absorbe el desfase
+ * normal entre relojes. Se aparta de la propuesta (min con `_creado`): `_creado` es hora del SERVIDOR y queda unos segundos
+ * antes del `Cuando` de un cliente adelantado, asi que la marca nunca alcanzaba a ese renglon y se quedaba «nuevo» siempre.
+ */
+export function marcaFiable(iso, ahora = new Date(), holguraMs = 5 * 60000) {
+    const tope = new Date(ahora.getTime() + holguraMs).toISOString(), v = String(iso || '');
+    return v && v < tope ? v : tope;
+}
 export function pisoNuevo(desde, hoy = new Date(), diasSinMarca = 3) { return desde || new Date(hoy.getTime() - diasSinMarca * 86400000).toISOString(); }
 
 /**

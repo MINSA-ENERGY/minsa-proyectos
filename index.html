@@ -100,7 +100,7 @@
 
     <!-- Proyectos -->
     <section id="p-proyectos" class="pantalla oculto">
-      <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M4 10h16M9 10v9"/></svg></span><h1>Proyectos</h1><button id="btnNuevoProyecto" class="mn-btn is-primary is-sm" type="button">Nuevo proyecto</button><p class="sub">Un proyecto es un frente con fin, ordenado por lo que vence antes. El equipo filtra, no restringe.</p></header>
+      <header class="cabecera"><span class="titulo-ico" aria-hidden="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h16v14H4z"/><path d="M4 10h16M9 10v9"/></svg></span><h1>Proyectos</h1><button id="btnNuevoProyecto" class="mn-btn is-primary is-sm" type="button">Nuevo proyecto</button><p class="sub" id="proyectosSub">Frentes activos, del que vence antes al que vence después.</p></header>
       <!-- v0.7.0: el filtro por equipo vive en el rail (por rama, con icono); en celular el rail es barra de pestanas y el filtro es este select. -->
       <label class="filtro-movil solo-movil" for="filtroEquipoMovil"><span class="mn-label">Equipo</span><select id="filtroEquipoMovil"></select></label>
       <!-- C3: buscador fuera del proyecto (nombre, clave, descripcion) -->
@@ -369,7 +369,7 @@
       <div class="dlg-avisos"></div>
       <div class="mn-field"><label for="npTitulo">Nombre</label><input id="npTitulo" required maxlength="255" placeholder="LAU ASEA-03-001 (Licencia Ambiental Única)"></div>
       <div class="mn-row">
-        <div class="mn-field"><label for="npClave">Clave (slug)</label><input id="npClave" required placeholder="lau-asea-03-001"><small class="mn-help" id="npNotaClave">Se propone sola desde el nombre; puedes ajustarla. No cambia después.</small></div>
+        <div class="mn-field"><label for="npClave">Clave</label><input id="npClave" required placeholder="lau-asea-03-001" aria-describedby="npNotaClave"><small class="mn-help" id="npNotaClave">Se propone sola desde el nombre; puedes ajustarla. Va en la dirección del proyecto y no cambia después.</small></div>
         <div class="mn-field"><label for="npEquipo">Equipo</label><select id="npEquipo"></select></div>
       </div>
       <div class="mn-row">
@@ -377,7 +377,7 @@
         <div class="mn-field"><label for="npResponsable">Responsable</label><select id="npResponsable"></select></div>
       </div>
       <div class="mn-field"><label for="npDesc">Descripción</label><textarea id="npDesc" rows="3"></textarea></div>
-      <div class="mn-field"><label for="npCarpeta">Carpeta destino en la biblioteca (opcional)</label><input id="npCarpeta" maxlength="255" placeholder="03_Predios/Arrocera/Federal (ASEA) - LAU"><small class="mn-help" id="npNotaCarpeta">A dónde PROPONE ir lo que se sube al buzón desde Documentos (ruta relativa a la raíz de la biblioteca de la unidad); vacía = el default de la unidad. La skill de archivar la valida.</small></div>
+      <div class="mn-field"><label for="npCarpeta">Carpeta destino en la biblioteca (opcional)</label><input id="npCarpeta" maxlength="255" placeholder="03_Predios/Arrocera/Federal (ASEA) - LAU" aria-describedby="npNotaCarpeta"><small class="mn-help" id="npNotaCarpeta">Dónde se propone guardar lo que se sube desde Documentos. Vacía = la carpeta de siempre de la unidad; al archivar se revisa.</small></div>
     </div>
     <div class="mn-dialog-foot"><button class="mn-btn is-sm" id="npCancelar" type="button">Cancelar</button><button class="mn-btn is-primary is-sm" id="npGuardar" type="submit">Crear proyecto</button></div>
   </form>

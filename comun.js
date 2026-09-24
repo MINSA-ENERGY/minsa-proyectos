@@ -3,9 +3,9 @@
 // la bitacora PROY_Actividad.
 
 import { CONFIG } from './config.js';
-import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
+import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, marcaFiable, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.95.1';
+export const VERSION = '0.96.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 /** C-13 (v0.95.0): el filtro de tarjetas vacio, en UN lugar — su forma ya cambio dos veces (quien paso a arreglo en v0.30.0, se sumo
@@ -653,8 +653,9 @@ export const miRenglonRol = () => { const yo = String(estado.cuenta && estado.cu
 const vistoCompartido = () => { const r = miRenglonRol(); return leerVisto(r && r.Visto); };
 export function chatVistoHasta(pid) { const local = leerLocal(LLAVE_VISTO(pid)); const c = vistoCompartido().chat[String(pid)] || ''; return c > local ? c : local; }
 export function inicioVistoHasta() { const local = leerLocal(LLAVE_VISTO_INICIO); const c = vistoCompartido().inicio; return c > local ? c : local; }
-export function marcarChatVisto(pid, iso) { if (!iso || !(iso > chatVistoHasta(pid))) return; guardarLocal(LLAVE_VISTO(pid), iso); encolarVisto({ chat: { [String(pid)]: iso } }); }
-export function marcarInicioVisto(iso) { if (!iso || !(iso > inicioVistoHasta())) return; guardarLocal(LLAVE_VISTO_INICIO, iso); encolarVisto({ inicio: iso }); }
+// S-12 (24-sep): la marca nunca sube por encima de la hora actual (un Cuando del futuro la dejaba arriba para siempre)
+export function marcarChatVisto(pid, iso) { iso = iso && marcaFiable(iso); if (!iso || !(iso > chatVistoHasta(pid))) return; guardarLocal(LLAVE_VISTO(pid), iso); encolarVisto({ chat: { [String(pid)]: iso } }); }
+export function marcarInicioVisto(iso) { iso = iso && marcaFiable(iso); if (!iso || !(iso > inicioVistoHasta())) return; guardarLocal(LLAVE_VISTO_INICIO, iso); encolarVisto({ inicio: iso }); }
 let vistoPendiente = null, vistoTimer = 0, vistoApagado = false;
 function encolarVisto(cambio) { vistoPendiente = fundirVisto(vistoPendiente || {}, cambio); clearTimeout(vistoTimer); vistoTimer = setTimeout(guardarVisto, 1500); }
 /** Manda al tenant lo encolado (app.js lo llama tambien al ocultarse la pagina). Devuelve true si escribio. */

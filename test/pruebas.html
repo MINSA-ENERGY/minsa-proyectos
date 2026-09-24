@@ -132,7 +132,7 @@
         if ((m = /^\/sites\/sitio-falso\/lists\/([^/]+)\/items\/(\d+)\/fields$/.exec(ruta)) && metodo === 'PATCH') {
             const l = lista(m[1]); const it = l && l.items.find(x => x.id === Number(m[2]));
             if (!it) return error(404, 'renglón');
-            const campos = JSON.parse(opts.body);
+            const campos = JSON.parse(opts.body); (DB.ultimoPatch = DB.ultimoPatch || {})[Object.keys(DB.listas).find(k => DB.listas[k] === l)] = campos;   // C-07 (v0.96.0): la E2E afirma QUÉ campos viajan, por lista
             const mal = validarChoices(l, campos); if (mal) return error(400, mal);
             const ifMatch = opts.headers && (opts.headers['If-Match'] || opts.headers['if-match']);
             if (ifMatch) { DB.ifMatch++; if (ifMatch !== etagDe(it)) return error(412, 'precondition failed: el renglón cambió'); }
@@ -376,6 +376,10 @@ try {
         poner('npTitulo', 'Prueba de clave');
         R.ok('C-01 (v0.74.0): tras cancelar con la clave tocada, la clave se vuelve a proponer sola', $('npClave').value === 'prueba-de-clave', $('npClave').value);
         R.ok('U-04 (v0.74.0): la nota de la clave va bajo su campo y visible al crear; la de la carpeta bajo Carpeta', $('npNotaClave').closest('.mn-field') === $('npClave').closest('.mn-field') && !$('npNotaClave').hidden && $('npNotaCarpeta').closest('.mn-field') === $('npCarpeta').closest('.mn-field') && !$('npNota'));
+        R.ok('U-15 (v0.96.0): las notas de Clave y Carpeta van ligadas a su campo (aria-describedby)', $('npClave').getAttribute('aria-describedby') === 'npNotaClave' && $('npCarpeta').getAttribute('aria-describedby') === 'npNotaCarpeta');
+        R.ok('U-12 (v0.96.0): el formulario ya no habla de «slug», «default» ni «skill»', !/slug|default|skill/i.test($('formProyecto').textContent), $('formProyecto').textContent.match(/slug|default|skill/i)?.[0]);
+        poner('npTitulo', 'Licencia de funcionamiento de la planta de tratamiento Arrocera');
+        R.ok('C-10 (v0.96.0): la clave propuesta usa slug() de reglas.js (tope 60, no 40)', $('npClave').value.length > 40 && $('npClave').value.length <= 60 && !$('npClave').value.endsWith('-'), `${$('npClave').value.length}: ${$('npClave').value}`);
         clic('npCancelar');
         R.log('nota', `filtros $filter usados: ${DB.filtros.join(' | ')}`);
     } else {
@@ -405,12 +409,33 @@ try {
         poner('npDesc', 'La mía'); clic('npGuardar');
         await esperar(() => avisoCon('Alguien cambió este proyecto'), '412 avisado');
         await esperar(() => E.proyectoAbierto.Descripcion === 'Cambiada por alguien más', 'releído');
-        R.ok('C-04 (v0.75.0): un cambio ajeno ANTES de abrir el diálogo (el _etag viaja en memoria) dispara el 412: no se pisa, se relee y se avisa', pE.fields.Descripcion === 'Cambiada por alguien más' && !$('dlgProyecto').open && actividad('editar-proyecto').length === nEd + 1, pE.fields.Descripcion);
+        R.ok('C-04 (v0.75.0): un cambio ajeno ANTES de abrir el diálogo (el _etag viaja en memoria) dispara el 412: no se pisa, se relee y se avisa', pE.fields.Descripcion === 'Cambiada por alguien más' && actividad('editar-proyecto').length === nEd + 1, pE.fields.Descripcion);
+        R.ok('C-08 (v0.96.0): tras el 412 el diálogo sigue abierto con lo escrito y el aviso dice qué campo cambió el otro', $('dlgProyecto').open && $('npDesc').value === 'La mía' && !!avisoCon('(descripción)'), `${$('dlgProyecto').open} · ${$('npDesc').value}`);
+        // C-06 (v0.96.0): la relectura reemplazó estado.proyectos; el segundo Guardar resuelve por id y usa el _etag NUEVO (antes: 412 contra uno mismo)
+        clic('npGuardar');
+        await esperar(() => pE.fields.Descripcion === 'La mía' && !$('dlgProyecto').open, 'segundo guardado tras el 412');
+        R.ok('C-06 (v0.96.0): el segundo Guardar tras la relectura pasa y la memoria (objeto vivo) lo refleja', E.proyectoAbierto.Descripcion === 'La mía' && E.proyectos.includes(E.proyectoAbierto) && E.proyectoAbierto._etag === `"${pE.etag}"`, `${E.proyectoAbierto.Descripcion} · ${E.proyectoAbierto._etag}`);
+        await esperar(() => actividad('editar-proyecto').length === nEd + 2, 'bitácora del segundo guardado');
+        // C-07 (v0.96.0): con la Responsable inactiva, el select la conserva y un guardado de otro dato no la borra.
+        const jefa = E.roles.find(r => r.Title === 'jefa@example.invalid'); jefa.Activo = false;
+        clic('btnEditarProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo con responsable inactiva');
+        R.ok('C-07 (v0.96.0): el select conserva a la Responsable inactiva, marcada', $('npResponsable').value === 'jefa@example.invalid' && $('npResponsable').selectedOptions[0].textContent.includes('(inactivo)'), `${$('npResponsable').value} · ${$('npResponsable').selectedOptions[0]?.textContent}`);
         // Se deja el frente como lo esperan los pasos siguientes (Vence 31-oct, Carpeta 03_Predios/Arrocera).
-        clic('btnEditarProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo para reponer');
         poner('npVence', '2026-10-31'); poner('npCarpeta', '03_Predios/Arrocera'); poner('npDesc', 'Paquete de entregables para el gestor.'); clic('npGuardar');
-        await esperar(() => avisoCon('Proyecto actualizado') && String(pE.fields.Vence).startsWith('2026-10-31') && pE.fields.Carpeta === '03_Predios/Arrocera', 'repuesto');
-        await esperar(() => actividad('editar-proyecto').length === nEd + 2, 'bitácora de la reposición');
+        await esperar(() => String(pE.fields.Vence).startsWith('2026-10-31') && pE.fields.Carpeta === '03_Predios/Arrocera' && !$('dlgProyecto').open, 'repuesto');
+        R.ok('C-07 (v0.96.0): guardar otro dato no borra a la Responsable inactiva', String(pE.fields.Responsable || '').toLowerCase() === 'jefa@example.invalid', String(pE.fields.Responsable));
+        jefa.Activo = true;
+        await esperar(() => actividad('editar-proyecto').length === nEd + 3, 'bitácora de la reposición');
+        R.ok('C-07 (v0.96.0): el PATCH de la reposición manda solo lo que cambió (Responsable no viaja)', (pp => !('Responsable' in pp) && 'Vence' in pp)(Object.entries(DB.ultimoPatch || {}).find(([k]) => /royectos/i.test(k))?.[1] || {}), JSON.stringify(DB.ultimoPatch));
+        { const ifm = DB.ifMatch; clic('btnEditarProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo sin cambios'); clic('npGuardar');
+          await esperar(() => avisoCon('Sin cambios que guardar') && !$('dlgProyecto').open, 'sin cambios');
+          R.ok('C-07 (v0.96.0): guardar sin cambios no manda PATCH', DB.ifMatch === ifm, `ifMatch +${DB.ifMatch - ifm}`); }
+        // C-06 (v0.96.0): si el proyecto desapareció de la memoria mientras el diálogo estaba abierto, se avisa y no se escribe.
+        { const ifm = DB.ifMatch; clic('btnEditarProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo antes de quitarlo');
+          const i = E.proyectos.findIndex(x => x.id === pE.id), quitado = E.proyectos.splice(i, 1)[0];
+          poner('npDesc', 'no debe llegar'); clic('npGuardar'); await esperar(() => avisoCon('alguien lo eliminó'), 'aviso de eliminado');
+          R.ok('C-06 (v0.96.0): el guardado sobre un proyecto que ya no está avisa y no manda PATCH', DB.ifMatch === ifm && !$('dlgProyecto').open && pE.fields.Descripcion !== 'no debe llegar', `ifMatch +${DB.ifMatch - ifm}`);
+          E.proyectos.splice(i, 0, quitado); }
     }
     R.ok('Nueva tarea según rol', $('btnNuevaTarea').disabled === !escribe);
 
@@ -630,6 +655,7 @@ try {
         R.ok('rail: CALYTEK trae su contador y ningún equipo está marcado', document.querySelector('#railEquipos [data-equipo="CALYTEK"] .n').textContent === '1' && !document.querySelector('#railEquipos button.is-on'));
         document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
         R.ok('rail: el equipo elegido queda marcado y filtra Proyectos', document.querySelector('#railEquipos button.is-on').dataset.equipo === 'PITEPEC' && !!document.querySelector('#listaProyectos .vacio'));
+        R.ok('U-09 (v0.96.0): el subtítulo de Proyectos dice que la lista está filtrada («Solo X · N de M») y trae el botón para quitarlo', /^Solo PITEPEC · \d+ de \d+ activos/.test($('proyectosSub').textContent) && !!$('proyectosSub').querySelector('[data-todos]'), $('proyectosSub').textContent);
         if (gerencia) {   // U-03 (v0.74.0): con el rail en PITEPEC, Nuevo proyecto propone PITEPEC, no el primero del catálogo
             clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo con filtro');
             R.ok('U-03 (v0.74.0): el diálogo propone el equipo filtrado', $('npEquipo').value === 'PITEPEC', $('npEquipo').value);
@@ -641,6 +667,9 @@ try {
         document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);   // se repone el filtro para el paso siguiente
         document.querySelector('#railEquipos [data-equipo="PITEPEC"]').click(); await dormir(30);
         R.ok('rail: el segundo clic quita el filtro', !document.querySelector('#railEquipos button.is-on') && !!document.querySelector('#listaProyectos .pficha'));
+        { const f0 = document.querySelector('#listaProyectos .pficha'), al = f0.getAttribute('aria-label') || '';
+          R.ok('U-10 (v0.96.0): la ficha se anuncia con título, unidad, fin del frente y cifras separadas', al.startsWith(f0.querySelector('.t').textContent + ', ') && /Fin del frente|Sin fin del frente/.test(al) && /abiertas?, \d+ vencidas?, \d+ hechas?|sin tarjetas/.test(al), al);
+          R.ok('U-09 (v0.96.0): sin filtro el subtítulo no dice «Solo»', !$('proyectosSub').textContent.startsWith('Solo'), $('proyectosSub').textContent); }
         // v0.7.0: el select de celular es el mismo filtro en las dos direcciones (select -> rail -> select).
         $('filtroEquipoMovil').value = 'PITEPEC'; $('filtroEquipoMovil').dispatchEvent(new Event('change')); await dormir(30);
         R.ok('v0.7.0: el select móvil pone el filtro y el rail lo refleja', document.querySelector('#railEquipos button.is-on')?.dataset.equipo === 'PITEPEC' && !!document.querySelector('#listaProyectos .vacio'));

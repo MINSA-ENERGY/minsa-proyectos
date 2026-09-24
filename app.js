@@ -14,7 +14,7 @@
 
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
-import { rolDe, PUEDE, validarClave, tareasDe, avance, proximos, diasQuieta, rotuloQuieta, pisoNuevo, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias, misAbiertas as misAbiertasDe } from './reglas.js';
+import { rolDe, PUEDE, slug, validarClave, tareasDe, avance, proximos, diasQuieta, rotuloQuieta, pisoNuevo, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias, misAbiertas as misAbiertasDe } from './reglas.js';
 import { $, L, VERSION, estado, limpiarFiltroTareas, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, proyectoPorClave, nuevosDe, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, repintarFicha, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
@@ -450,6 +450,9 @@ function fichaProyecto(p, ts) {
     if (ts.length) { cifra(a.total - a.hechas, 'abiertas'); cifra(venc, 'vencidas', venc ? 'bad' : ''); cifra(a.hechas, 'hechas'); }
     else st.appendChild(el('small', 'sin', 'sin tarjetas'));   // U-07 (16-sep): «0 · 0 · 0» parecia tres cifras con significado
     r.appendChild(st);
+    // U-10 (mejorar-app proyectos, 24-sep): el lector de pantalla leia los spans pegados («sep18…1abiertas0vencidas») y no decia si ya vencio
+    const pl = (k, s) => `${k} ${s}${k === 1 ? '' : 's'}`; const cifras = ts.length ? `${pl(a.total - a.hechas, 'abierta')}, ${pl(venc, 'vencida')}, ${pl(a.hechas, 'hecha')}` : 'sin tarjetas';
+    r.setAttribute('aria-label', `${p.Title}, ${tt.lastChild.textContent}. ${cal.title}. ${cifras}.`);
     return r;   // el clic lo atiende UN listener delegado (C-05, abajo); antes cada ficha registraba el suyo capturando `p`
 }
 // C-05 (mejorar-app, 16-sep): las fichas se rehacen en cada repintado y en cada tecla del buscador; el id ya viaja en data-open.
@@ -877,6 +880,12 @@ function pintarProyectos() {
     const l = $('listaProyectos');
     const act = ordenarProyectos(filtrarProyectos(visibles(), estado.textoProyectos));   // C10: vence antes primero, sin fecha al final, empate por nombre
     pintarFichas(l, act);   // v0.25.0: renglones planos por fin del frente; el filtro de equipo viene del rail
+    // U-09 / U-11 (mejorar-app proyectos, 24-sep): el subtitulo dice si la lista esta filtrada (como Roadmap y Calendario) y cabe en un renglon
+    const sub = $('proyectosSub');
+    if (estado.filtroEquipo) {
+        sub.textContent = `Solo ${nombreEquipoFiltrado()} · ${act.length} de ${filtrarProyectos(activos(), estado.textoProyectos).length} activos`;
+        sub.appendChild(boton('Ver todos', 'mn-btn is-ghost is-sm', () => { estado.filtroEquipo = null; repintar(); }, { todos: '1' }));
+    } else sub.textContent = 'Frentes activos, del que vence antes al que vence después.';
     const c = $('listaCerrados');
     const cer = filtro(estado.proyectos.filter(p => p.Estado === 'cerrado')).sort((a, b) => String(b.CerradoEl || '').localeCompare(String(a.CerradoEl || '')));
     if (!act.length) {
@@ -983,14 +992,34 @@ function pintarProyecto() {
 
 // ---------------------------------------------------------------- nuevo / editar / cerrar proyecto
 
-let proyectoEnEdicion = null;
+// C-06 (mejorar-app proyectos, 24-sep): se guarda el ID, no el objeto. Una relectura en vuelo (cargarTodo) reemplaza
+// estado.proyectos; el objeto capturado quedaba huerfano y el guardado se aplicaba sobre una copia que nadie pinta.
+let proyectoEnEdicionId = null, enEdicion = null;
+const proyectoVivo = id => porId(estado.proyectos, id);
+const ROTULO_CAMPO = { Title: 'nombre', Equipo: 'equipo', Vence: 'fin del frente', Responsable: 'responsable', Descripcion: 'descripción', Carpeta: 'carpeta' };
+/** C-07 / C-08 (24-sep): los campos de `nuevo` (o de `claves`) cuyo valor difiere del de `base`; vacio y null cuentan igual, fechas por dia. */
+function camposCambiados(base, nuevo, claves = Object.keys(nuevo)) {
+    const norm = (k, v) => { const s = v === null || v === undefined ? '' : String(v); return k === 'Vence' ? s.slice(0, 10) : k === 'Responsable' ? s.toLowerCase() : s; };
+    const r = {}; for (const k of claves) if (norm(k, base[k]) !== norm(k, nuevo[k])) r[k] = nuevo[k]; return r;
+}
+/** C-07 (24-sep): el valor actual entra al select aunque ya no este en el catalogo (persona inactiva, equipo retirado);
+ *  sin esto el select caia a «sin responsable» y el PATCH lo borraba en silencio. */
+function conValorActual(sel, valor, texto) {
+    if (!valor || [...sel.options].some(o => o.value === valor)) return;
+    const o = el('option', '', texto); o.value = valor; sel.appendChild(o);
+}
 function abrirFormaProyecto(p) {
     if (!PUEDE.proyecto(estado.rol)) { avisar('Solo gerencia crea o edita proyectos.', 'error'); return; }
-    proyectoEnEdicion = p || null;
+    proyectoEnEdicionId = p ? p.id : null;
     $('npTituloDlg').textContent = p ? 'Editar proyecto' : 'Nuevo proyecto';
     $('npGuardar').textContent = p ? 'Guardar cambios' : 'Crear proyecto';
     opciones($('npEquipo'), CONFIG.equipos, e => e.clave, e => e.nombre, null);
     opciones($('npResponsable'), personasActivas(), x => x, x => nombreDe(x, estado.roles), 'sin responsable');   // C-06: comun.js
+    if (p) {
+        const resp = String(p.Responsable || '').toLowerCase();
+        conValorActual($('npResponsable'), resp, `${nombreDe(resp, estado.roles)} (inactivo)`);
+        conValorActual($('npEquipo'), p.Equipo, `${p.Equipo} (fuera del catálogo)`);
+    }
     $('npTitulo').value = p ? p.Title : ''; $('npClave').value = p ? p.Clave : ''; $('npClave').disabled = !!p;
     $('npClave').dataset.tocada = '';   // C-01 (mejorar-app, 16-sep): se limpia al ABRIR; antes solo tras crear, y un Cancelar con la clave tocada apagaba la propuesta el resto de la sesion
     $('npEquipo').value = p ? p.Equipo : (estado.filtroEquipo || CONFIG.equipos[0].clave); $('npVence').value = diaInput(p && p.Vence);   // U-03 (16-sep): con el rail filtrado se propone ESE equipo
@@ -1000,7 +1029,7 @@ function abrirFormaProyecto(p) {
     abrirDialogo('dlgProyecto');
     $('npTitulo').focus();
 }
-$('npTitulo').addEventListener('input', () => { if (!proyectoEnEdicion && !$('npClave').dataset.tocada) $('npClave').value = $('npTitulo').value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40); });
+$('npTitulo').addEventListener('input', () => { if (!proyectoEnEdicionId && !$('npClave').dataset.tocada) $('npClave').value = slug($('npTitulo').value); });   // C-10 (24-sep): el slug() de reglas.js; la copia en linea cortaba a 40 y validarClave admite 60
 $('npClave').addEventListener('input', () => { $('npClave').dataset.tocada = '1'; });
 
 async function guardarProyecto(ev) {
@@ -1017,12 +1046,16 @@ async function guardarProyecto(ev) {
     // abrir) queda fuera: antes un tropiezo ahi convertia un guardado bueno en «No se pudo guardar» y, al crear, no abria el proyecto.
     let creado = null, editado = null, clave = '';
     try {
-        if (proyectoEnEdicion) {
-            const p = proyectoEnEdicion;
-            const campos = { Title: titulo, Equipo: $('npEquipo').value, Vence: vence, Responsable: $('npResponsable').value || null, Descripcion: $('npDesc').value.trim() || null, Carpeta: carpeta || null };
+        if (proyectoEnEdicionId) {
+            const p = proyectoVivo(proyectoEnEdicionId);
+            if (!p) { cerrarDialogo('dlgProyecto'); avisar('Este proyecto ya no existe: alguien lo eliminó.', 'error'); return; }
+            const todos = { Title: titulo, Equipo: $('npEquipo').value, Vence: vence, Responsable: $('npResponsable').value || null, Descripcion: $('npDesc').value.trim() || null, Carpeta: carpeta || null };
+            const campos = camposCambiados(p, todos);   // C-07 (24-sep): solo lo que cambio; un campo que el dialogo no pudo mostrar ya no se pisa
+            if (!Object.keys(campos).length) { cerrarDialogo('dlgProyecto'); avisar('Sin cambios que guardar.', 'ojo'); return; }
+            enEdicion = { id: p.id, antes: { ...p } };
             const res = await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
-            aplicar(p, campos, res && res._etag);
-            editado = p;
+            editado = proyectoVivo(p.id) || p;   // C-06: tras el await se re-resuelve; una relectura pudo cambiar el objeto
+            aplicar(editado, campos, res && res._etag);
         } else {
             // Clave: valida contra lo que hay en memoria Y contra la lista en vivo (dos gerentes a la vez).
             const v = validarClave($('npClave').value, estado.proyectos);
@@ -1034,7 +1067,12 @@ async function guardarProyecto(ev) {
             estado.proyectos.push(creado); clave = v.clave;
         }
     } catch (e) {
-        if (esConflicto(e)) { cerrarDialogo('dlgProyecto'); avisar('Alguien cambió este proyecto hace un momento: se releyó. Revisa y vuelve a guardar.', 'ojo'); await pedirRelectura(); return; }
+        // C-08 (24-sep): el dialogo se queda abierto con lo escrito; la relectura trae el _etag nuevo y el siguiente Guardar lo usa (C-06)
+        if (esConflicto(e)) {
+            await pedirRelectura();
+            const vivo = enEdicion && proyectoVivo(enEdicion.id), cambio = vivo ? Object.keys(camposCambiados(enEdicion.antes, vivo, Object.keys(ROTULO_CAMPO))).map(k => ROTULO_CAMPO[k]) : [];
+            avisar(`Alguien cambió este proyecto hace un momento${cambio.length ? ` (${cambio.join(', ')})` : ''}: se releyó. Lo que escribiste sigue aquí; revisa y vuelve a guardar.`, 'ojo'); return;
+        }
         avisar('No se pudo guardar el proyecto: ' + (e && e.message ? e.message : e), 'error'); return;
     } finally { $('npGuardar').disabled = false; }
     cerrarDialogo('dlgProyecto');
@@ -1056,8 +1094,10 @@ async function cerrarProyecto() {
     if (!ok) return;
     const campos = { Estado: 'cerrado', CerradoPor: estado.cuenta.username, CerradoEl: new Date().toISOString() };
     try {
-        const res = await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
-        aplicar(p, campos, res && res._etag);
+        // C-06 (24-sep): el objeto se re-resuelve por id despues de cada await (confirmar y el PATCH); una relectura en medio lo reemplaza
+        const antes = proyectoVivo(p.id); if (!antes) { avisar('Este proyecto ya no existe: alguien lo eliminó.', 'error'); return; }
+        const res = await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), antes._etag);
+        aplicar(proyectoVivo(p.id) || antes, campos, res && res._etag);
         avisar(`Proyecto «${p.Title}» cerrado.`, 'ok'); repintar();
         await registrarActividad('cerrar-proyecto', `cerró el proyecto «${p.Title.slice(0, 80)}»${faltan ? ` con ${faltan} tarjeta${faltan === 1 ? ' abierta' : 's abiertas'}` : ''}`, p.id, null); repintar();
     } catch (e) {
@@ -1075,8 +1115,9 @@ async function reabrirProyecto() {
     if (!ok) return;
     const campos = { Estado: 'activo', CerradoPor: null, CerradoEl: null };
     try {
-        const res = await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), p._etag);
-        aplicar(p, campos, res && res._etag);
+        const antes = proyectoVivo(p.id); if (!antes) { avisar('Este proyecto ya no existe: alguien lo eliminó.', 'error'); return; }   // C-06 (24-sep)
+        const res = await estado.cliente.actualizarRenglon(estado.siteId, L.proyectos, p.id, campos, m => avisar(m, 'ojo'), antes._etag);
+        aplicar(proyectoVivo(p.id) || antes, campos, res && res._etag);
         avisar(`Proyecto «${p.Title}» reabierto.`, 'ok'); repintar();
         await registrarActividad('reabrir-proyecto', `reabrió el proyecto «${p.Title.slice(0, 80)}»`, p.id, null); repintar();
     } catch (e) {

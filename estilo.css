@@ -575,7 +575,7 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .pficha { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; padding: var(--sp-2) var(--sp-3) var(--sp-2) var(--sp-2); background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-md); text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0; width: 100%; }
 .pficha:hover { background: var(--surface-hover); }
 .pficha .cal { display: grid; grid-template-rows: 16px 1fr; width: 56px; height: 56px; border: 1px solid var(--border-default); border-radius: var(--r-md); overflow: hidden; text-align: center; }
-.pficha .cal .mes { font-family: var(--font-data); font-size: .56rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; line-height: 16px; color: var(--text-on-brand); background: var(--brand-primary); }
+.pficha .cal .mes { font-family: var(--font-data); font-size: .66rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; line-height: 16px; color: var(--text-on-brand); background: var(--brand-primary); }
 .pficha .cal .dia { display: grid; place-items: center; font-family: var(--font-display); font-size: 1.45rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text-strong); background: var(--surface-card); }
 .pficha.is-danger .cal .mes { background: var(--status-danger-solid); }
 .pficha.is-warn .cal .mes { background: var(--status-warn-solid); }
@@ -592,7 +592,8 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .pficha .stats span { display: grid; justify-items: end; min-width: 3.6rem; }
 .pficha .stats b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text-strong); }
 .pficha .stats b.bad { color: var(--status-danger-fg); }
-.pficha .stats small { font-family: var(--font-data); font-size: .56rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); margin-top: 3px; }
+.pficha .stats small { font-family: var(--font-data); font-size: .66rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin-top: 3px; }   /* U-14 (24-sep): de .56rem en --text-faint (9 px tenues) a .66rem en --text-muted */
+#proyectosSub [data-todos] { margin-left: var(--sp-2); vertical-align: middle; }   /* U-09: «Ver todos» junto a «Solo CALYTEK · 2 de 4» */
 .pficha .stats small.sin { align-self: center; margin-top: 0; }   /* U-07: «sin tarjetas» centrado donde iban las tres cifras */
 .vacio [data-todos] { margin-left: var(--sp-2); vertical-align: middle; }   /* U-06: el boton «Ver todos los equipos» dentro del vacio */
 /* v0.61.0 (Carlos, 15-sep): sin avatares en toda la app; las reglas .av se fueron. Quedan --av-N para las burbujas del chat. */
@@ -606,7 +607,10 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .filtro-movil select { flex: 1; }
 .barra { height: 6px; background: var(--surface-sunken); border-radius: var(--r-pill); overflow: hidden; }
 .barra i { display: block; height: 100%; background: var(--brand-accent); border-radius: var(--r-pill); width: 0; transition: width var(--dur); }
-.cerrados summary { cursor: pointer; color: var(--text-muted); font-size: .82rem; font-weight: 600; padding: 0; min-height: var(--control-h-sm); display: flex; align-items: center; }   /* misma metrica que .editar summary */
+.cerrados summary { cursor: pointer; color: var(--text-muted); font-size: .82rem; font-weight: 600; padding: 0; min-height: var(--control-h-sm); display: flex; align-items: center; gap: var(--sp-1); }   /* misma metrica que .editar summary */
+/* U-13 (24-sep): display:flex quita el triangulo nativo; el marcador vuelve como el de .msj-sec para que se lea plegable */
+.cerrados > summary::before { content: "▾"; font-size: .8rem; color: var(--text-faint); width: 10px; }
+.cerrados:not([open]) > summary::before { content: "▸"; }
 .filtros { display: flex; flex-wrap: wrap; gap: var(--sp-1); }
 /* Auditoria #5: UN chip-boton (pildora, 32/40 px, .8rem, pad 0 12) para los filtros, las pestanas de columna
    en celular y los atajos de fecha; antes eran tres reglas con padding 12/12/8 y fuente .8/.8/.75. */
