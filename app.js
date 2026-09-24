@@ -15,7 +15,7 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, slug, validarClave, tareasDe, avance, proximos, diasQuieta, rotuloQuieta, pisoNuevo, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias, misAbiertas as misAbiertasDe } from './reglas.js';
-import { $, L, VERSION, estado, limpiarFiltroTareas, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, proyectoPorClave, nuevosDe, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
+import { $, L, VERSION, estado, limpiarFiltroTareas, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, mesDia, opciones, limpiar, porId, proyectoPorClave, nuevosDe, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, fijarGuarda, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, repintarFicha, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
@@ -1026,9 +1026,26 @@ function abrirFormaProyecto(p) {
     $('npResponsable').value = p ? String(p.Responsable || '').toLowerCase() : ''; $('npDesc').value = p ? (p.Descripcion || '') : '';
     $('npCarpeta').value = p ? (p.Carpeta || '') : '';
     $('npNotaClave').hidden = !!p;   // U-04 (16-sep): la nota de la clave vive bajo su campo y solo al crear; la de la carpeta, bajo Carpeta, siempre (antes una sola nota al pie, cuatro campos abajo)
+    npAlAbrir = npValores();   // U-08 (24-sep): lo que se compara para saber si hay algo a medio escribir
     abrirDialogo('dlgProyecto');
     $('npTitulo').focus();
 }
+// U-08 (mejorar-app proyectos, 24-sep): Cancelar, Esc y Atras ya no tiran lo escrito sin preguntar; sin cambios cierran directo.
+const NP_CAMPOS = ['npTitulo', 'npClave', 'npEquipo', 'npVence', 'npResponsable', 'npDesc', 'npCarpeta'];
+let npAlAbrir = '', npPreguntando = false;
+const npValores = () => JSON.stringify(NP_CAMPOS.map(id => $(id).value));
+const npSucio = () => $('dlgProyecto').open && npValores() !== npAlAbrir;
+async function cancelarFormaProyecto() {
+    if (!npSucio()) { cerrarDialogo('dlgProyecto'); return; }
+    if (npPreguntando) return;
+    npPreguntando = true;
+    const editar = !!proyectoEnEdicionId;
+    const { ok } = await confirmar({ titulo: editar ? '¿Descartar los cambios?' : '¿Descartar el proyecto a medio escribir?', ok: 'Descartar', texto: editar ? 'Lo que cambiaste en este proyecto no se ha guardado.' : 'Lo que escribiste no se ha guardado.' });
+    npPreguntando = false;
+    if (ok) cerrarDialogo('dlgProyecto'); else if ($('dlgProyecto').open) $('npTitulo').focus();
+}
+fijarGuarda('dlgProyecto', { sucio: npSucio, intentar: cancelarFormaProyecto });
+$('dlgProyecto').addEventListener('cancel', ev => { if (npSucio()) { ev.preventDefault(); cancelarFormaProyecto(); } });   // Esc
 $('npTitulo').addEventListener('input', () => { if (!proyectoEnEdicionId && !$('npClave').dataset.tocada) $('npClave').value = slug($('npTitulo').value); });   // C-10 (24-sep): el slug() de reglas.js; la copia en linea cortaba a 40 y validarClave admite 60
 $('npClave').addEventListener('input', () => { $('npClave').dataset.tocada = '1'; });
 
@@ -1271,7 +1288,7 @@ $('btnCerrarProyecto').addEventListener('click', cerrarProyecto);
 $('btnReabrirProyecto').addEventListener('click', reabrirProyecto);
 $('btnEliminarProyecto').addEventListener('click', eliminarProyecto);   // v0.13.0
 $('formProyecto').addEventListener('submit', guardarProyecto);
-$('npCancelar').addEventListener('click', () => cerrarDialogo('dlgProyecto'));
+$('npCancelar').addEventListener('click', cancelarFormaProyecto);   // U-08 (24-sep)
 engancharTablero();
 engancharDocs();
 engancharChat();

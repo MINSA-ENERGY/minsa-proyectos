@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, marcaFiable, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.96.0';
+export const VERSION = '0.97.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 /** C-13 (v0.95.0): el filtro de tarjetas vacio, en UN lugar — su forma ya cambio dos veces (quien paso a arreglo en v0.30.0, se sumo
@@ -183,8 +183,21 @@ export function cerrarDialogo(id) {
     // `close` (Esc, Atras) lo repite en tablero.js; con tiempo virtual (E2E) ese evento llega tarde.
     if (id === 'dlgTarea') fijarHash(hashDe());
 }
+// U-08 (mejorar-app proyectos, 24-sep): un dialogo con guarda no se cierra con Atras si tiene algo a medio escribir:
+// se re-empuja su entrada y la guarda pregunta. Si en ese Atras estaba abierta la confirmacion (#dlg), solo se cierra
+// ella (= «seguir escribiendo»): la entrada del dialogo de abajo sigue en el historial.
+const guardas = {};
+export function fijarGuarda(id, g) { guardas[id] = g; }
 window.addEventListener('popstate', () => {
-    for (const d of document.querySelectorAll('dialog[open][data-en-historial]')) { delete d.dataset.enHistorial; d.close(); if (d.id !== 'dlg') alCerrar(d.id); }   // #dlg avisa desde su onclose
+    const abiertos = [...document.querySelectorAll('dialog[open][data-en-historial]')];
+    const conConfirmacion = abiertos.some(d => d.id === 'dlg');
+    for (const d of abiertos) {
+        const g = guardas[d.id];
+        if (g && conConfirmacion) continue;
+        if (g && g.sucio()) { history.pushState({ dlg: d.id }, '', location.href); g.intentar(); continue; }
+        delete d.dataset.enHistorial; d.close();
+        if (d.id !== 'dlg') alCerrar(d.id); else if (d.onclose) d.onclose();   // U-08: #dlg resuelve YA (el `close` llega tarde bajo tiempo virtual) y la guarda puede volver a preguntar
+    }
 });
 /** Navega como lo haria una URL pegada: escribe el hash y dispara el router (app.js escucha popstate). */
 export function irAHash(h) { fijarHash(h); window.dispatchEvent(new PopStateEvent('popstate')); }

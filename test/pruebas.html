@@ -370,7 +370,13 @@ try {
         poner('npTitulo', 'Otro'); poner('npClave', 'lau-asea-03-001'); poner('npEquipo', 'PITEPEC');
         clic('npGuardar'); await esperar(() => avisoCon('ya hay un proyecto con la clave'), 'duplicada');
         R.ok('clave duplicada rechazada', filas('proyectos').length === 1);
-        clic('npCancelar');
+        // C-09 (v0.97.0): la clave la tomó alguien más DESPUÉS de la última lectura (está en la lista viva, no en memoria): la consulta en vivo la ataja, sin POST.
+        { const Ev = (await import('../comun.js')).estado; const ajeno = { id: DB.siguienteId++, fields: { Title: 'Ajeno', Clave: 'clave-viva-ajena', Equipo: 'PITEPEC', Estado: 'activo' }, etag: 1 }; filas('proyectos').push(ajeno);
+          const posts = () => DB.llamadas.filter(x => x.startsWith('POST ') && x.includes(`/lists/${DB.listas.proyectos.id}/items`)).length; const nP = posts(), nF = DB.filtros.length;
+          poner('npClave', 'clave-viva-ajena'); clic('npGuardar'); await esperar(() => avisoCon('lo creó alguien más'), 'colisión en vivo');
+          R.ok('C-09 (v0.97.0): clave que está en la lista viva y no en memoria → aviso, la consulta fue por esa clave y cero POST', posts() === nP && DB.filtros.slice(nF).includes("fields/Clave eq 'clave-viva-ajena'") && !Ev.proyectos.some(x => x.Clave === 'clave-viva-ajena') && $('dlgProyecto').open && !$('npGuardar').disabled, `POST +${posts() - nP} · filtros ${DB.filtros.slice(nF).join(' | ')}`);
+          filas('proyectos').splice(filas('proyectos').indexOf(ajeno), 1); }
+        clic('npCancelar'); await confirmar(); await esperar(() => !$('dlgProyecto').open, 'descartado');   // U-08 (v0.97.0): con algo escrito, Cancelar pregunta
         // C-01 (v0.74.0): el Cancelar de arriba dejó la clave «tocada»; al reabrir la propuesta desde el nombre sigue viva.
         clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo otra vez');
         poner('npTitulo', 'Prueba de clave');
@@ -380,7 +386,20 @@ try {
         R.ok('U-12 (v0.96.0): el formulario ya no habla de «slug», «default» ni «skill»', !/slug|default|skill/i.test($('formProyecto').textContent), $('formProyecto').textContent.match(/slug|default|skill/i)?.[0]);
         poner('npTitulo', 'Licencia de funcionamiento de la planta de tratamiento Arrocera');
         R.ok('C-10 (v0.96.0): la clave propuesta usa slug() de reglas.js (tope 60, no 40)', $('npClave').value.length > 40 && $('npClave').value.length <= 60 && !$('npClave').value.endsWith('-'), `${$('npClave').value.length}: ${$('npClave').value}`);
-        clic('npCancelar');
+        // U-08 (v0.97.0): con algo escrito, Esc, Atrás y Cancelar preguntan antes de tirarlo; «Cancelar» en la pregunta sigue escribiendo.
+        { const ev = new Event('cancel', { cancelable: true }); $('dlgProyecto').dispatchEvent(ev); await esperar(() => $('dlg').open, 'Esc pregunta');
+          R.ok('U-08 (v0.97.0): Esc con algo escrito no cierra: pide confirmar el descarte', ev.defaultPrevented && $('dlgProyecto').open && $('dlgTitulo').textContent.includes('medio escribir') && $('dlgOk').textContent === 'Descartar', $('dlgTitulo').textContent);
+          clic('dlgCancelar'); await esperar(() => !$('dlg').open, 'seguir escribiendo');
+          R.ok('U-08 (v0.97.0): «Cancelar» en la pregunta deja el formulario abierto con lo escrito', $('dlgProyecto').open && $('npTitulo').value.startsWith('Licencia de funcionamiento'));
+          window.dispatchEvent(new PopStateEvent('popstate')); await esperar(() => $('dlg').open, 'Atrás pregunta');
+          R.ok('U-08 (v0.97.0): Atrás con algo escrito no cierra: pregunta encima del formulario', $('dlgProyecto').open && history.state && history.state.dlg === 'dlg');
+          window.dispatchEvent(new PopStateEvent('popstate')); await esperar(() => !$('dlg').open, 'Atrás sobre la pregunta'); await dormir(40);
+          R.ok('U-08 (v0.97.0): Atrás sobre la pregunta la cierra y el formulario sigue con lo escrito', $('dlgProyecto').open && $('npTitulo').value.startsWith('Licencia de funcionamiento'));
+          clic('npCancelar'); await esperar(() => $('dlg').open, 'Cancelar pregunta'); clic('dlgOk'); await esperar(() => !$('dlgProyecto').open, 'descartado');
+          R.ok('U-08 (v0.97.0): Cancelar → Descartar cierra el formulario sin crear nada', filas('proyectos').length === 1);
+          clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo limpio'); const ev2 = new Event('cancel', { cancelable: true }); $('dlgProyecto').dispatchEvent(ev2);
+          clic('npCancelar'); await dormir(40);
+          R.ok('U-08 (v0.97.0): sin nada escrito, Esc no se detiene y Cancelar cierra sin preguntar', !ev2.defaultPrevented && !$('dlgProyecto').open && !$('dlg').open); }
         R.log('nota', `filtros $filter usados: ${DB.filtros.join(' | ')}`);
     } else {
         // Forzar el guardado sin permiso: la funcion se niega aunque el boton este deshabilitado.
@@ -1435,6 +1454,12 @@ try {
             R.ok('B8: Atrás sobre la confirmación cancela (la tarjeta sigue) y la tarjeta de atrás sigue abierta', filas('tareas').some(x => x.id === t.id) && $('dlgTarea').open);
             clic('tBorrar'); await confirmar(); await esperar(() => !filas('tareas').some(x => x.id === t.id), 'borrada');
             R.ok('tarjeta borrada y la liga queda sin tarjeta', actividad('borrar-tarea').length === 1 && filas('ligas').every(l => l.fields.TareaId !== t.id));
+            // C-09 (v0.97.0): un cambio ajeno antes de Cerrar → 412: no se cierra ni se pisa, se relee y la memoria trae el candado nuevo.
+            { const Ev = (await import('../comun.js')).estado; const pv = filas('proyectos')[0]; const ifm = DB.ifMatch, nC = actividad('cerrar-proyecto').length;
+              pv.etag = (pv.etag || 1) + 1; pv.fields.Descripcion = 'Cambiada por alguien más antes de cerrar';
+              clic('btnCerrarProyecto'); await confirmar(); await esperar(() => avisoCon('Alguien cambió este proyecto'), '412 al cerrar');
+              await esperar(() => Ev.proyectoAbierto && Ev.proyectoAbierto.Descripcion === pv.fields.Descripcion, 'relectura tras el 412 al cerrar');
+              R.ok('C-09 (v0.97.0): 412 al Cerrar: el PATCH llevó If-Match, sigue activo con el cambio ajeno, sin «cerró» en la bitácora, y la memoria trae el candado nuevo', DB.ifMatch === ifm + 1 && pv.fields.Estado === 'activo' && pv.fields.Descripcion === 'Cambiada por alguien más antes de cerrar' && actividad('cerrar-proyecto').length === nC && Ev.proyectoAbierto._etag === `"${pv.etag}"`, `ifMatch +${DB.ifMatch - ifm} · ${pv.fields.Estado} · ${Ev.proyectoAbierto._etag} vs "${pv.etag}"`); }
             clic('btnCerrarProyecto'); await confirmar(); await esperar(() => filas('proyectos')[0].fields.Estado === 'cerrado', 'cerrado');
             const pc = filas('proyectos')[0];
             R.ok('proyecto cerrado con sello', pc.fields.CerradoPor === YO && !!pc.fields.CerradoEl && actividad('cerrar-proyecto').length === 1);
@@ -1455,6 +1480,12 @@ try {
             // F6 (v0.3.0): reabrir. (C-05, v0.74.0: el clic lo atiende el listener delegado, no uno por ficha.)
             document.querySelector('#listaCerrados .pficha').click(); await esperar(() => visible('p-proyecto') && !$('btnReabrirProyecto').classList.contains('oculto'), 'cerrado abierto con Reabrir');
             R.ok('proyecto cerrado: aparece Reabrir y Cerrar dice Cerrado', $('btnCerrarProyecto').textContent === 'Cerrado');
+            // C-09 (v0.97.0): lo mismo al Reabrir: un cambio ajeno → 412, sigue cerrado con su sello, se relee, y el segundo intento (abajo) pasa.
+            { const Ev = (await import('../comun.js')).estado; const ifm = DB.ifMatch, nR = actividad('reabrir-proyecto').length;
+              pc.etag = (pc.etag || 1) + 1; pc.fields.Descripcion = 'Cambiada por alguien más antes de reabrir';
+              clic('btnReabrirProyecto'); await confirmar(); await esperar(() => avisoCon('Alguien cambió este proyecto'), '412 al reabrir');
+              await esperar(() => Ev.proyectoAbierto && Ev.proyectoAbierto.Descripcion === pc.fields.Descripcion, 'relectura tras el 412 al reabrir');
+              R.ok('C-09 (v0.97.0): 412 al Reabrir: el PATCH llevó If-Match, sigue cerrado con su sello y el cambio ajeno, sin «reabrió», y la memoria trae el candado nuevo', DB.ifMatch === ifm + 1 && pc.fields.Estado === 'cerrado' && !!pc.fields.CerradoPor && pc.fields.Descripcion === 'Cambiada por alguien más antes de reabrir' && actividad('reabrir-proyecto').length === nR && Ev.proyectoAbierto._etag === `"${pc.etag}"`, `ifMatch +${DB.ifMatch - ifm} · ${pc.fields.Estado} · ${Ev.proyectoAbierto._etag} vs "${pc.etag}"`); }
             clic('btnReabrirProyecto'); await confirmar(); await esperar(() => pc.fields.Estado === 'activo', 'reabierto');
             R.ok('Reabrir: activo, sin sello, «reabrió» en la bitácora, Reabrir se esconde y Nueva tarea vuelve', !pc.fields.CerradoPor && !pc.fields.CerradoEl && actividad('reabrir-proyecto').length === 1 && $('btnReabrirProyecto').classList.contains('oculto') && !$('btnNuevaTarea').disabled, JSON.stringify(pc.fields));
         } else {
