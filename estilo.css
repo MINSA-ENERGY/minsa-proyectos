@@ -2028,17 +2028,15 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
   .cmeses .c-mes { white-space: normal; }
 }
 /* v0.102.0 (Carlos, 25-sep: «las partidas se distingan un poco mas»). Cada proyecto es un BLOQUE con banda de color y
-   titulo grande en el azul de la marca; cada partida lleva un filete a la izquierda que dice su tipo (necesidad = rojo,
+   titulo grande en el azul de la marca; cada partida llevaba un filete (retirado en v0.105.0) que decia su tipo (necesidad = rojo,
    fondeo = verde) y el concepto sube de tamano. Se revierte borrando este bloque. */
 /* v0.104.0 (Carlos, 25-sep; artifact LS1gmAA6 variante H): «tarjeta elevada» — sin banda lateral ni tinte, sin icono de
    equipo ni contador de partidas; la sombra despega cada proyecto del fondo. */
 .cacor details { border: 0; box-shadow: 0 0 0 1px var(--border-hairline), 0 1px 2px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.07); }   /* el anillo separa en oscuro, donde la sombra no se ve */
 .cacor summary { padding: var(--sp-4) var(--sp-4); }
-.cacor .cgrupo-nombre .t { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; color: var(--text-strong); }
+.cacor .cgrupo-nombre .t { font-family: var(--font-display); font-size: 1rem; font-weight: 600; color: var(--text-strong); }   /* v0.105.0: 1.2rem era demasiado grande (Carlos) */
 .cacor .cgrupo-nombre .eqi, .cacor .cnombre .n { display: none; }
 .cacor summary .ccifras b { font-size: .95rem; font-weight: 600; }
-.ctabla tr.partida td:first-child { box-shadow: inset 3px 0 0 var(--status-danger-fg); }
-.ctabla tr.partida.is-fondeo td:first-child { box-shadow: inset 3px 0 0 var(--status-ok-fg); }
 .ctabla .partida-t { font-size: .95rem; }
 .ctabla tbody tr.partida:nth-child(even) td { background: color-mix(in srgb, var(--text-strong) 3%, transparent); }
 .ctabla tbody tr.partida:hover td { background: var(--surface-hover); }

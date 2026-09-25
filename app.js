@@ -1085,13 +1085,18 @@ async function cancelarFormaProyecto() {
 }
 fijarGuarda('dlgProyecto', { sucio: npSucio, intentar: cancelarFormaProyecto });
 $('dlgProyecto').addEventListener('cancel', ev => { if (npSucio()) { ev.preventDefault(); cancelarFormaProyecto(); } });   // Esc
-$('npTitulo').addEventListener('input', () => { if (!proyectoEnEdicionId && !$('npClave').dataset.tocada) $('npClave').value = slug($('npTitulo').value); });   // C-10 (24-sep): el slug() de reglas.js; la copia en linea cortaba a 40 y validarClave admite 60
+/** v0.105.0 (Carlos, 25-sep): el nombre del proyecto se escribe en MAYUSCULAS mientras se teclea; conserva el cursor. */
+function mayusculasEnVivo(inp) {
+    const v = inp.value.toLocaleUpperCase('es-MX'); if (v === inp.value) return;
+    const [a, b] = [inp.selectionStart, inp.selectionEnd]; inp.value = v; inp.setSelectionRange(a, b);
+}
+$('npTitulo').addEventListener('input', () => { mayusculasEnVivo($('npTitulo')); if (!proyectoEnEdicionId && !$('npClave').dataset.tocada) $('npClave').value = slug($('npTitulo').value); });   // C-10 (24-sep): el slug() de reglas.js; la copia en linea cortaba a 40 y validarClave admite 60
 $('npClave').addEventListener('input', () => { $('npClave').dataset.tocada = '1'; });
 
 async function guardarProyecto(ev) {
     ev.preventDefault();
     if (!PUEDE.proyecto(estado.rol)) { avisar('Solo gerencia crea o edita proyectos.', 'error'); return; }
-    const titulo = $('npTitulo').value.trim();
+    const titulo = $('npTitulo').value.trim().toLocaleUpperCase('es-MX');   // v0.105.0 (Carlos, 25-sep): el nombre del proyecto siempre en MAYUSCULAS
     if (!titulo) { avisar('El proyecto necesita un nombre.', 'error'); $('npTitulo').focus(); return; }
     let vence;
     try { vence = aIsoDia($('npVence').value); } catch (e) { avisar(e.message, 'error'); return; }

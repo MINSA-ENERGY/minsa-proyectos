@@ -386,16 +386,17 @@ try {
         R.ok('U-15 (v0.96.0): las notas de Clave y Carpeta van ligadas a su campo (aria-describedby)', $('npClave').getAttribute('aria-describedby') === 'npNotaClave' && $('npCarpeta').getAttribute('aria-describedby') === 'npNotaCarpeta');
         R.ok('U-12 (v0.96.0): el formulario ya no habla de «slug», «default» ni «skill»', !/slug|default|skill/i.test($('formProyecto').textContent), $('formProyecto').textContent.match(/slug|default|skill/i)?.[0]);
         poner('npTitulo', 'Licencia de funcionamiento de la planta de tratamiento Arrocera');
+        R.ok('v0.105.0: el nombre del proyecto se escribe en MAYUSCULAS', $('npTitulo').value === 'LICENCIA DE FUNCIONAMIENTO DE LA PLANTA DE TRATAMIENTO ARROCERA', $('npTitulo').value);
         R.ok('C-10 (v0.96.0): la clave propuesta usa slug() de reglas.js (tope 60, no 40)', $('npClave').value.length > 40 && $('npClave').value.length <= 60 && !$('npClave').value.endsWith('-'), `${$('npClave').value.length}: ${$('npClave').value}`);
         // U-08 (v0.97.0): con algo escrito, Esc, Atrás y Cancelar preguntan antes de tirarlo; «Cancelar» en la pregunta sigue escribiendo.
         { const ev = new Event('cancel', { cancelable: true }); $('dlgProyecto').dispatchEvent(ev); await esperar(() => $('dlg').open, 'Esc pregunta');
           R.ok('U-08 (v0.97.0): Esc con algo escrito no cierra: pide confirmar el descarte', ev.defaultPrevented && $('dlgProyecto').open && $('dlgTitulo').textContent.includes('medio escribir') && $('dlgOk').textContent === 'Descartar', $('dlgTitulo').textContent);
           clic('dlgCancelar'); await esperar(() => !$('dlg').open, 'seguir escribiendo');
-          R.ok('U-08 (v0.97.0): «Cancelar» en la pregunta deja el formulario abierto con lo escrito', $('dlgProyecto').open && $('npTitulo').value.startsWith('Licencia de funcionamiento'));
+          R.ok('U-08 (v0.97.0): «Cancelar» en la pregunta deja el formulario abierto con lo escrito', $('dlgProyecto').open && $('npTitulo').value.startsWith('LICENCIA DE FUNCIONAMIENTO'));
           window.dispatchEvent(new PopStateEvent('popstate')); await esperar(() => $('dlg').open, 'Atrás pregunta');
           R.ok('U-08 (v0.97.0): Atrás con algo escrito no cierra: pregunta encima del formulario', $('dlgProyecto').open && history.state && history.state.dlg === 'dlg');
           window.dispatchEvent(new PopStateEvent('popstate')); await esperar(() => !$('dlg').open, 'Atrás sobre la pregunta'); await dormir(40);
-          R.ok('U-08 (v0.97.0): Atrás sobre la pregunta la cierra y el formulario sigue con lo escrito', $('dlgProyecto').open && $('npTitulo').value.startsWith('Licencia de funcionamiento'));
+          R.ok('U-08 (v0.97.0): Atrás sobre la pregunta la cierra y el formulario sigue con lo escrito', $('dlgProyecto').open && $('npTitulo').value.startsWith('LICENCIA DE FUNCIONAMIENTO'));
           clic('npCancelar'); await esperar(() => $('dlg').open, 'Cancelar pregunta'); clic('dlgOk'); await esperar(() => !$('dlgProyecto').open, 'descartado');
           R.ok('U-08 (v0.97.0): Cancelar → Descartar cierra el formulario sin crear nada', filas('proyectos').length === 1);
           clic('btnNuevoProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo limpio'); const ev2 = new Event('cancel', { cancelable: true }); $('dlgProyecto').dispatchEvent(ev2);
@@ -2255,7 +2256,7 @@ try {
                 poner('npTitulo', 'Borrable'); poner('npClave', 'borrable'); poner('npEquipo', 'PITEPEC'); clic('npGuardar');
                 await esperar(() => filas('proyectos').some(x => x.fields.Clave === 'borrable'), 'proyecto de prueba creado');
                 const pb = filas('proyectos').find(x => x.fields.Clave === 'borrable');
-                irHash('#p/borrable'); await esperar(() => visible('p-proyecto') && $('pTitulo').textContent === 'Borrable', 'abierto');
+                irHash('#p/borrable'); await esperar(() => visible('p-proyecto') && $('pTitulo').textContent === 'BORRABLE', 'abierto');
                 // v0.29.0 (M5): el titulo es un selector con TODOS los activos (el abierto marcado); elegir otro cambia de proyecto en la
                 // misma pestaña; y la cabecera se contrae/despliega con #btnCabecera y lo recuerda en localStorage `cabecera`.
                 { const nAct = filas('proyectos').filter(x => x.fields.Estado === 'activo').length; const ops = [...document.querySelectorAll('#selLista [data-proyecto]')];
@@ -2272,7 +2273,7 @@ try {
                   const otro = ops.find(o => !o.classList.contains('is-on')); $('selProyecto').open = true; otro.click(); await dormir(60);
                   const mod = await import('../comun.js');
                   R.ok('v0.29.0: elegir otro proyecto en el selector lo abre en la MISMA pestaña (Documentos) y cierra la lista', String(mod.estado.proyectoAbierto.id) === otro.dataset.proyecto && mod.estado.tab === 'docs' && visible('tab-docs') && !$('selProyecto').open && location.hash.startsWith('#p/') && location.hash.endsWith('/docs'));
-                  irHash('#p/borrable'); await esperar(() => $('pTitulo').textContent === 'Borrable', 'de vuelta');
+                  irHash('#p/borrable'); await esperar(() => $('pTitulo').textContent === 'BORRABLE', 'de vuelta');
                   const antes = $('proyectoCab').classList.contains('contraida'); clic('btnCabecera'); await dormir(30);
                   let guardado = null; try { guardado = localStorage.getItem('cabecera'); } catch (_) {}
                   R.ok('v0.29.0: #btnCabecera contrae la cabecera (descripción y resumen ocultos), declara aria-expanded y lo recuerda', $('proyectoCab').classList.contains('contraida') === !antes && $('btnCabecera').getAttribute('aria-expanded') === (antes ? 'true' : 'false') && (antes ? guardado === null : guardado === 'contraida') && (antes || getComputedStyle($('pDesc')).display === 'none'));
@@ -2283,7 +2284,7 @@ try {
                 clic('btnEliminarProyecto'); await esperar(() => $('dlg').open, 'confirmación');
                 R.ok('v0.13.0: eliminar pide confirmación, la nombra y cuenta las tarjetas', $('dlgTitulo').textContent === 'Eliminar el proyecto' && $('dlgOk').textContent === 'Eliminar' && $('dlgTexto').textContent.includes('1 tarjeta'), $('dlgTexto').textContent);
                 clic('dlgOk'); await esperar(() => !filas('proyectos').some(x => x.id === pb.id), 'proyecto borrado');
-                R.ok('v0.13.0: el proyecto borrado se fue con sus tarjetas, quedó «borrar-proyecto» y la app vuelve a Proyectos', !filas('tareas').some(t => Number(t.fields.ProyectoId) === pb.id) && actividad('borrar-proyecto').length === 1 && visible('p-proyectos') && !$('listaProyectos').textContent.includes('Borrable'));
+                R.ok('v0.13.0: el proyecto borrado se fue con sus tarjetas, quedó «borrar-proyecto» y la app vuelve a Proyectos', !filas('tareas').some(t => Number(t.fields.ProyectoId) === pb.id) && actividad('borrar-proyecto').length === 1 && visible('p-proyectos') && !$('listaProyectos').textContent.includes('BORRABLE'));
             } else {
                 $('btnEliminarProyecto').classList.remove('oculto'); clic('btnEliminarProyecto'); await dormir(80);
                 R.ok(`${ROL}: eliminar proyecto se niega aunque se fuerce`, filas('proyectos').length >= 1 && !!avisoCon('Solo gerencia elimina'));
