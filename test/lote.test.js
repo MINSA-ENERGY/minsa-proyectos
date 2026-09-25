@@ -1,6 +1,6 @@
 // node test/lote.test.js — el manifiesto que la app deja en el buzon (contrato 1, firma minsa-proyectos).
 import assert from 'node:assert/strict';
-import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, APP, CONTRATO, NOMBRE_MANIFIESTO } from '../lote.js';
+import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, APP, CONTRATO, NOMBRE_MANIFIESTO, rutaRecibo, validarRecibo, CARPETA_RECIBOS, CONTRATO_RECIBO } from '../lote.js';
 
 let n = 0;
 const ok = (nombre, cond) => { assert.ok(cond, nombre); n++; };
@@ -22,4 +22,21 @@ ok('no se lista a si mismo', validarManifiesto({ ...m, archivos: ['a.pdf', NOMBR
 const bytes = bytesDelManifiesto(m);
 ok('bytes UTF-8 con salto final', bytes[bytes.length - 1] === 10 && JSON.parse(new TextDecoder().decode(bytes)).concepto === 'Filosofía de operación');
 ok('nombre de carpeta', nombreCarpetaLote('2026-09-11', 'Proyecto', 'lau-asea-03-001', 'filosofia-de-operacion') === '2026-09-11_Proyecto_lau-asea-03-001_filosofia-de-operacion');
+// El recibo (v0.108.0): lo que la skill deja en `_resueltos/` al archivar el lote.
+const L1 = '2026-09-25_Proyecto_lau_oficio';
+ok('ruta del recibo desde la Ruta de la liga', rutaRecibo(`99_Pendiente-Archivar/${L1}`) === `99_Pendiente-Archivar/${CARPETA_RECIBOS}/${L1}.json`);
+ok('ruta del recibo sin lote = null', rutaRecibo('') === null);
+const rec = { recibo: CONTRATO_RECIBO, app: APP, lote: L1, proyecto: 'lau', tarea: 17, piezas: [
+    { archivo: 'a.pdf', ruta: '02_Planta/Otros/2026-09-25_CALYTEK_Oficio.pdf', como: 'movido' },
+    { archivo: 'b.pdf', ruta: '02_Planta/Otros/2026-09-01_CALYTEK_Ya.pdf', como: 'duplicado' },
+    { archivo: 'd.pdf', ruta: '02_Planta/Otros/2026-09-01_CALYTEK_Ya.pdf', como: 'duplicado' }] };
+const vr = validarRecibo(rec, { lote: L1, proyecto: 'lau' });
+ok('recibo valido: movida + duplicada, sin repetir ruta', vr.ok && vr.rutas.length === 2 && vr.rutas[1].como === 'duplicado');
+ok('recibo de otro lote se rechaza', validarRecibo(rec, { lote: 'otro', proyecto: 'lau' }).ok === false);
+ok('recibo de otro proyecto se rechaza', validarRecibo(rec, { lote: L1, proyecto: 'otro' }).ok === false);
+ok('recibo de otra app se rechaza', validarRecibo({ ...rec, app: 'calytek-planta' }).ok === false);
+ok('recibo con ruta al buzon se rechaza', validarRecibo({ ...rec, piezas: [{ archivo: 'a', ruta: '99_Pendiente-Archivar/x.pdf', como: 'movido' }] }).ok === false);
+ok('recibo con .. se rechaza', validarRecibo({ ...rec, piezas: [{ archivo: 'a', ruta: '../x.pdf', como: 'movido' }] }).ok === false);
+ok('recibo de contrato nuevo se rechaza', validarRecibo({ ...rec, recibo: 2 }).ok === false);
+ok('recibo PARCIAL (una pieza sin archivar) se rechaza entero', validarRecibo({ ...rec, piezas: [...rec.piezas, { archivo: 'c', ruta: null, como: 'no-archivado' }] }).ok === false);
 console.log(`lote: ok (${n} comprobaciones)`);

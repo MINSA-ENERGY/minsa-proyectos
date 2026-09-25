@@ -83,6 +83,49 @@ export function validarManifiesto(m) {
     return { ok: true };
 }
 
+// ---------------------------------------------------------------- el recibo (el regreso)
+// v0.108.0 (2026-09-25): al archivar un lote de esta app, la skill deja
+// `99_Pendiente-Archivar/_resueltos/<carpeta del lote>.json` (`recibo-lote.py`) con la RUTA FINAL de
+// cada pieza —movida y renombrada, o `duplicado` de algo que ya estaba archivado—. Docs lo lee cuando
+// la carpeta del lote ya no existe, reemplaza la liga de tipo buzon por ligas a esas rutas y borra el
+// recibo. Sin recibo, sigue el camino de antes («Buscar el archivado»).
+
+export const CARPETA_RECIBOS = '_resueltos';
+export const CONTRATO_RECIBO = 1;
+
+/** Ruta del recibo de un lote, relativa a la raiz, a partir de la Ruta de su liga (`<buzon>/<carpeta>`). */
+export function rutaRecibo(rutaLote, buzon = '99_Pendiente-Archivar') {
+    const carpeta = String(rutaLote || '').replace(/\\/g, '/').split('/').filter(Boolean).pop();
+    return carpeta ? `${buzon}/${CARPETA_RECIBOS}/${carpeta}.json` : null;
+}
+
+/**
+ * Revisa un recibo leido del buzon. Lo escribe la skill, pero el buzon lo puede escribir cualquiera
+ * con permiso: se trata como entrada hostil, igual que el manifiesto del otro lado.
+ * @returns {{ok: boolean, motivo?: string, rutas?: {archivo: string, ruta: string, como: string}[]}}
+ *   `rutas` trae cada pieza (movida o duplicada) sin repetir ruta. No hay recibo parcial: una pieza sin ruta
+ *   lo invalida entero — quitar la liga del lote con una pieza pendiente la perderia en silencio.
+ */
+export function validarRecibo(r, { lote, proyecto } = {}) {
+    if (!r || typeof r !== 'object') return { ok: false, motivo: 'no es un objeto' };
+    if (r.app !== APP) return { ok: false, motivo: 'no es un recibo de esta app' };
+    if (r.recibo !== CONTRATO_RECIBO) return { ok: false, motivo: `recibo ${r.recibo}, esta version lee ${CONTRATO_RECIBO}` };
+    if (lote && r.lote !== lote) return { ok: false, motivo: `es del lote ${r.lote}, no de ${lote}` };
+    if (proyecto && texto(r.proyecto) !== texto(proyecto)) return { ok: false, motivo: `es del proyecto ${r.proyecto}, no de ${proyecto}` };
+    if (!Array.isArray(r.piezas) || !r.piezas.length) return { ok: false, motivo: 'sin piezas' };
+    const rutas = [], vistas = new Set();
+    for (const p of r.piezas) {
+        if (!p || !['movido', 'duplicado'].includes(p.como)) return { ok: false, motivo: `pieza con «como» desconocido: ${p && p.como}` };
+        const partes = String(p.ruta || '').replace(/\\/g, '/').split('/').filter(Boolean);
+        if (!partes.length || partes.some(x => x === '..' || x === '.')) return { ok: false, motivo: `ruta invalida: ${p.ruta}` };
+        if (partes[0] === '99_Pendiente-Archivar') return { ok: false, motivo: 'una pieza apunta al buzon' };
+        const ruta = partes.join('/');
+        if (vistas.has(ruta)) continue;
+        vistas.add(ruta); rutas.push({ archivo: texto(p.archivo), ruta, como: p.como });
+    }
+    return { ok: true, rutas };
+}
+
 /** Nombre de la carpeta del lote en el buzon: `<fecha>_Proyecto_<clave>_<slug del concepto>`. */
 export function nombreCarpetaLote(fecha, etiqueta, clave, conceptoSlug) {
     return [fecha, etiqueta, clave, conceptoSlug].filter(Boolean).join('_');

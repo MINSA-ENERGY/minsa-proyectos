@@ -2,6 +2,7 @@
 // unidad (buscador Graph, solo lectura, excluye el buzon) + «Subir al buzon» 99_Pendiente-Archivar
 // con `_lote.json` al final (lote.js). «En el buzon» se DERIVA en vivo: si la carpeta del lote ya
 // no existe (404) es que la skill de archivar lo acomodo. Nada se escribe fuera del buzon.
+// v0.108.0: si la skill dejo su recibo en `_resueltos/` (recibo-lote.py), la liga se reemplaza sola (aplicarRecibo).
 //
 // v0.2.0 (tanda 1 de la auditoria): una liga se QUITA y se cambia de tarjeta desde la app (F1);
 // la liga cuyo lote ya acomodo la skill se REEMPLAZA buscando el archivado (F2); y ligar / subir
@@ -15,7 +16,7 @@
 
 import { CONFIG } from './config.js';
 import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX, hrefSeguro, filtrarLigas, tipoArchivo, ordenarLigas, direccionInicial, nombreDeLiga, columnasDe, nombreColumnaEn, claseDeColumna, colorValido, HECHO, TIPOS_LIGA } from './reglas.js';
-import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO } from './lote.js';
+import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO, rutaRecibo, validarRecibo } from './lote.js';
 import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, iconoSvg, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaCorta, fechaHora, aplicar, pedirRelectura, irAHash, chipVence, conRetardo } from './comun.js';
 import { esConflicto } from './graph.js';
 
@@ -133,6 +134,9 @@ async function marcarBuzonEnVivo(p, ligas, cont, gen, bib, puede) {
             if (!vigente()) return;
             if (existe === undefined) continue;
             estado.buzonExiste[l.Ruta] = existe;
+            // v0.108.0: con recibo de la skill la liga se reemplaza sola (y alCambiar repinta); sin el, el camino de antes.
+            if (existe === false && puede && await aplicarRecibo(p, bib, s, l)) return;
+            if (!vigente()) return;
             const n = cont.querySelector(`[data-liga="${l.id}"] .estado`);
             if (n && existe === false) {
                 n.textContent = ''; n.appendChild(chip('ya lo acomodó la skill', 'ok'));
@@ -493,27 +497,7 @@ async function ligarDocumento(x) {
         }
         // Con la carpeta real ya se sabe si es del buzon, que la busqueda solo excluye cuando Graph manda la ruta.
         if (item.ruta === CONFIG.buzon || String(item.ruta || '').startsWith(CONFIG.buzon + '/')) { avisar(`«${item.nombre}» está en el buzón ${CONFIG.buzon}: todavía no está archivado. Cuando la skill lo acomode vuelve a ligarlo; si es tuyo, súbelo como lote desde «Subir al buzón».`, 'ojo'); return; }
-        const sitioUrl = `https://${CONFIG.sharepointHost}${bib.sitio}`;
-        const corta = urlCortaDeGuid(sitioUrl, item.guid);
-        const url = urlParaLiga(item.url, { sitioUrl, guid: item.guid });
-        if (!url) { avisar(`No se pudo ligar: la liga web de «${item.nombre}» mide ${String(item.url || '').length} caracteres y no cabe en los ${TEXTO_MAX} de la lista; renómbralo más corto o pega un enlace.`, 'error'); return; }
-        const campos = limpiar({ Title: item.nombre, ProyectoId: p.id, TareaId: tareaId, Tipo: 'archivado', Unidad: bib.clave, Ruta: item.ruta, Url: url, DriveItemId: item.id, LigadoPor: estado.cuenta.username });
-        const largos = textosLargos(campos);
-        if (largos.length) { avisar(`No se pudo ligar: ${largos.join(', ')} pasa(n) de los ${TEXTO_MAX} caracteres que admite una columna de texto de SharePoint.`, 'error'); return; }
-        let n;
-        try { n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => avisar(m, 'ojo')); }
-        catch (e) {
-            // El 400 de SharePoint no dice cual campo. Si la Url iba en la forma larga de Graph y hay
-            // forma corta, se reintenta UNA vez con ella (un 400 no escribe nada); si tambien falla,
-            // el aviso lleva el largo de cada texto para que el siguiente diagnostico tenga datos.
-            if (!(e && e.status === 400)) throw e;
-            if (!corta || campos.Url === corta) throw new Error(`${e.message} · largos: ${resumenLargos(campos)}`);
-            console.warn(`PROY_Ligas rechazó la Url larga (${campos.Url.length}); se reintenta con la corta (${corta.length}).`);
-            campos.Url = corta;
-            try { n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => avisar(m, 'ojo')); }
-            catch (e2) { throw (e2 && e2.status === 400) ? new Error(`${e2.message} · largos: ${resumenLargos(campos)} (ya reintentado con la Url corta)`) : e2; }
-        }
-        estado.ligas.push(n);
+        await crearLigaArchivado(p, bib, item, tareaId);
         const vieja = ctx.reemplaza; const alTerminar = ctx.alTerminar; ctx.alTerminar = null;   // v0.70.0: que el `close` no vuelva por su cuenta
         cerrarDialogo('dlgLigar');
         avisar(vieja ? `«${item.nombre}» ligado en lugar de «${vieja.Title}».` : `«${item.nombre}» ligado.`, 'ok');
@@ -523,6 +507,85 @@ async function ligarDocumento(x) {
         alCambiar();
         if (alTerminar) alTerminar();
     } catch (e) { avisar('No se pudo ligar: ' + (e && e.message ? e.message : e), 'error'); }
+}
+
+/**
+ * Crea el renglon de PROY_Ligas de tipo «archivado» para un elemento ya releido ({ id, nombre, ruta, url, guid }).
+ * Lo comparten «Ligar» y el recibo de la skill (v0.108.0). Revienta con el motivo; no avisa.
+ */
+async function crearLigaArchivado(p, bib, item, tareaId) {
+    const sitioUrl = `https://${CONFIG.sharepointHost}${bib.sitio}`;
+    const corta = urlCortaDeGuid(sitioUrl, item.guid);
+    const url = urlParaLiga(item.url, { sitioUrl, guid: item.guid });
+    if (!url) throw new Error(`la liga web de «${item.nombre}» mide ${String(item.url || '').length} caracteres y no cabe en los ${TEXTO_MAX} de la lista; renómbralo más corto o pega un enlace.`);
+    const campos = limpiar({ Title: item.nombre, ProyectoId: p.id, TareaId: tareaId, Tipo: 'archivado', Unidad: bib.clave, Ruta: item.ruta, Url: url, DriveItemId: item.id, LigadoPor: estado.cuenta.username });
+    const largos = textosLargos(campos);
+    if (largos.length) throw new Error(`${largos.join(', ')} pasa(n) de los ${TEXTO_MAX} caracteres que admite una columna de texto de SharePoint.`);
+    let n;
+    try { n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => avisar(m, 'ojo')); }
+    catch (e) {
+        // El 400 de SharePoint no dice cual campo. Si la Url iba en la forma larga de Graph y hay
+        // forma corta, se reintenta UNA vez con ella (un 400 no escribe nada); si tambien falla,
+        // el aviso lleva el largo de cada texto para que el siguiente diagnostico tenga datos.
+        if (!(e && e.status === 400)) throw e;
+        if (!corta || campos.Url === corta) throw new Error(`${e.message} · largos: ${resumenLargos(campos)}`);
+        console.warn(`PROY_Ligas rechazó la Url larga (${campos.Url.length}); se reintenta con la corta (${corta.length}).`);
+        campos.Url = corta;
+        try { n = await estado.cliente.crearRenglon(estado.siteId, L.ligas, campos, m => avisar(m, 'ojo')); }
+        catch (e2) { throw (e2 && e2.status === 400) ? new Error(`${e2.message} · largos: ${resumenLargos(campos)} (ya reintentado con la Url corta)`) : e2; }
+    }
+    estado.ligas.push(n);
+    return n;
+}
+
+// ---------------------------------------------------------------- el recibo de la skill (v0.108.0)
+
+// Una aplicacion por liga y por CARGA (`estado.cargadoEl`, como `estado.buzonExiste`): dos pintadas solapadas esperan la misma
+// promesa, y la siguiente carga (refresco de 120 s o «Actualizar») vuelve a mirar — el recibo puede sincronizar DESPUES de que
+// la carpeta del lote desaparecio.
+const recibosEnCurso = new Map();
+
+/**
+ * La carpeta del lote ya no esta en el buzon: si la skill dejo su recibo en `_resueltos/`, la liga de tipo buzon se
+ * REEMPLAZA por ligas a la ruta final de cada pieza —la renombrada, o el archivo que ya estaba cuando la pieza era
+ * duplicado— y el recibo se borra. true si reemplazo; false si no hay recibo o algo no cuadra (queda el camino de antes,
+ * «Buscar el archivado»). Idempotente: una pieza ya ligada no se liga dos veces, asi que un corte a medias se completa
+ * en la siguiente carga. La liga vieja solo se quita cuando TODAS las piezas quedaron ligadas.
+ */
+function aplicarRecibo(p, bib, s, l) {
+    const k = `${estado.cargadoEl}:${l.id}`;
+    if (!recibosEnCurso.has(k)) {
+        for (const vieja of recibosEnCurso.keys()) if (!vieja.startsWith(`${estado.cargadoEl}:`)) recibosEnCurso.delete(vieja);
+        recibosEnCurso.set(k, aplicarReciboUnaVez(p, bib, s, l).catch(e => { console.warn('Docs: no se pudo aplicar el recibo.', e && e.message ? e.message : e); return false; }));
+    }
+    return recibosEnCurso.get(k);
+}
+
+async function aplicarReciboUnaVez(p, bib, s, l) {
+    const ruta = rutaRecibo(l.Ruta, CONFIG.buzon);
+    const leido = ruta ? await estado.cliente.leerJson(s.id, ruta) : null;
+    if (!leido) return false;
+    const v = validarRecibo(leido.datos, { lote: ruta.split('/').pop().replace(/\.json$/, ''), proyecto: p.Clave });
+    if (!v.ok) { console.warn('Docs: recibo ignorado:', v.motivo); return false; }
+    const tareaId = l.TareaId ? Number(l.TareaId) : undefined;
+    const items = [];
+    for (const x of v.rutas) {
+        const item = await estado.cliente.itemPorRuta(s.id, x.ruta);
+        // Una ruta que aun no existe es casi siempre la sincronizacion de OneDrive atrasada: se reintenta en la siguiente carga.
+        if (!item || !item.esArchivo) { console.warn(`Docs: el recibo nombra ${x.ruta} y aun no esta en la biblioteca.`); return false; }
+        items.push(item);
+    }
+    for (const item of items) {
+        if (estado.ligas.some(k => Number(k.ProyectoId) === p.id && k.DriveItemId === item.id)) continue;
+        await crearLigaArchivado(p, bib, item, tareaId);
+        await registrarActividad('ligar', `ligó «${item.nombre.slice(0, 80)}» (archivado por la skill)`, p.id, tareaId);
+    }
+    const nombres = items.map(i => i.nombre).join(', ');
+    await quitarLiga(l, nombres);
+    try { await estado.cliente.borrarItemDrive(s.id, leido.id); } catch (e) { console.warn('Docs: el recibo no se pudo borrar (lo purga la skill).', e && e.message ? e.message : e); }
+    avisar(`«${l.Title}» ya está archivado: la liga ahora apunta a ${items.length === 1 ? `«${items[0].nombre}»` : `${items.length} archivos`}.`, 'ok');
+    alCambiar();
+    return true;
 }
 
 // ---------------------------------------------------------------- pegar un enlace (F4)

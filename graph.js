@@ -1,5 +1,6 @@
 // Cliente de Microsoft Graph para listas y documentos — copia literal de calytek-planta-app/app/graph.js
-// (2026-09-11) mas cuatro metodos para Docs: `buscarEnDrive`, `itemDeDrive`, `existeRuta` y `sitioOpcional`.
+// (2026-09-11) mas los metodos de Docs: `buscarEnDrive`, `itemDeDrive`, `existeRuta` y `sitioOpcional`,
+// y desde v0.108.0 `itemPorRuta` y `leerJson` (el recibo que deja la skill de archivar).
 //
 // Todo pasa por conReintento: en un celular, un fallo de red o un 429 es el caso normal. Lo que
 // NO se reintenta es un 403 o un 404: esos no mejoran repitiendo.
@@ -322,6 +323,33 @@ export function crearCliente(graph, token) {
             if (r.ok) return true;
             if (r.status === 404) return false;
             throw new Error(`no se pudo consultar ${ruta}: ` + await motivo(r));
+        },
+
+        /** v0.108.0: como `itemDeDrive`, pero por RUTA relativa a la raiz (la que trae el recibo). null si 404. */
+        async itemPorRuta(siteId, ruta, avisar) {
+            const r = await pedir(`${graph}/sites/${siteId}/drive/root:/${rutaUrl(ruta)}?$select=id,name,webUrl,parentReference,sharepointIds,file`, {}, avisar);
+            if (r.status === 404) return null;
+            if (!r.ok) throw errorHttp(`no se pudo leer ${ruta}: ` + await motivo(r), r.status);
+            const it = await r.json();
+            const carpeta = carpetaDe(it);
+            return { id: it.id, nombre: it.name, ruta: carpeta ? `${carpeta}/${it.name}` : it.name, url: it.webUrl, guid: it.sharepointIds && it.sharepointIds.listItemUniqueId || null, esArchivo: !!it.file };
+        },
+
+        /**
+         * v0.108.0: lee un JSON chico de la biblioteca (el recibo de `_resueltos/`). `{ id, datos }`, o null si 404.
+         * Se baja por `@microsoft.graph.downloadUrl` (pre-autenticada, SIN la cabecera Authorization): `/content`
+         * responde 302 a ese mismo host y el token no debe viajar fuera de Graph. El host va en la CSP (connect-src).
+         */
+        async leerJson(siteId, ruta, avisar) {
+            const r = await pedir(`${graph}/sites/${siteId}/drive/root:/${rutaUrl(ruta)}`, {}, avisar);
+            if (r.status === 404) return null;
+            if (!r.ok) throw errorHttp(`no se pudo leer ${ruta}: ` + await motivo(r), r.status);
+            const it = await r.json();
+            const url = it['@microsoft.graph.downloadUrl'];
+            if (!url || (it.size || 0) > 256 * 1024) throw new Error(`${ruta}: sin liga de descarga o demasiado grande`);
+            const b = await conReintento(() => fetch(url, { credentials: 'omit' }), avisar);
+            if (!b.ok) throw errorHttp(`no se pudo bajar ${ruta}: HTTP ${b.status}`, b.status);
+            return { id: it.id, datos: JSON.parse(await b.text()) };
         }
     };
 }
