@@ -2044,4 +2044,4 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .capital-proy { display: grid; gap: var(--sp-3); }
 .capital-proy-barra { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
 .capital-proy-barra .ctotal { flex: 1 1 auto; min-width: 0; }
-#pcapTabla .dtabla { border: 1px solid var(--border-hairline); border-left: 4px solid var(--brand-primary); border-radius: var(--r-md); overflow-x: auto; background: var(--surface-card); }
+#pcapTabla .dtabla { border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow-x: auto; background: var(--surface-card); }
