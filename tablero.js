@@ -8,7 +8,7 @@
 
 import { CONFIG } from './config.js';
 import { sellarAsignadoPor, PUEDE, ordenar, tareasDe, diasQuieta, rotuloQuieta, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas, misAbiertas, porVence, claseVence } from './reglas.js';
-import { $, L, estado, limpiarFiltroTareas, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia, personasActivas, contadorTexto } from './comun.js';
+import { $, L, estado, limpiarFiltroTareas, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, fechaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia, personasActivas, contadorTexto } from './comun.js';
 import { abrirPartida } from './capital.js';   // v0.103.0: «Nueva partida» desde la pestaña Capital del proyecto
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
@@ -695,7 +695,7 @@ function abrirPop(campo, ancla, desde) {
     if (campo === 'asignado') { opciones($('ftAsignado'), personas(), x => x, x => nombreDe(x, estado.roles), 'sin asignar'); $('ftAsignado').value = String(t.Asignado || '').toLowerCase(); }
     if (campo === 'prioridad') ponerPrioridad('ftPrioridad', t.Prioridad);
     if (campo === 'color') selectorTonos($('ftColor'), t.Color, null, 'Color de la tarjeta');   // v0.12.0
-    if (campo === 'vence') { $('ftVence').value = diaInput(t.Vence); atajosFecha('ftVence', 'ftAtajos', p && p.Vence); }   // C2 + D1. v0.70.1: sin «Quitar la fecha» (Carlos, 16-sep); vaciar el input y Guardar sigue dejando Vence en null
+    if (campo === 'vence') { $('ftVence').value = fechaInput(t.Vence); atajosFecha('ftVence', 'ftAtajos', p && p.Vence); }   // C2 + D1. v0.70.1: sin «Quitar la fecha» (Carlos, 16-sep); vaciar el input y Guardar sigue dejando Vence en null
     if (campo === 'descripcion') $('ftDesc').value = t.Descripcion || '';
     ancla.appendChild(pop); pop.classList.remove('oculto');
     if (desde) desde.setAttribute('aria-expanded', 'true');

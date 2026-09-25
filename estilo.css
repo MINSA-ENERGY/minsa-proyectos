@@ -2045,3 +2045,10 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .capital-proy-barra { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
 .capital-proy-barra .ctotal { flex: 1 1 auto; min-width: 0; }
 #pcapTabla .dtabla { border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow-x: auto; background: var(--surface-card); }
+/* v0.106.0 (Carlos, 25-sep): campo de fecha dd/mm/aaaa (comun.js campoFecha) — texto + boton de calendario; el type=date
+   nativo queda invisible y solo presta su selector. */
+.fecha-campo { position: relative; display: flex; gap: var(--sp-2); align-items: stretch; min-width: 0; }
+.fecha-campo > input[type="text"] { flex: 1 1 auto; min-width: 0; font-variant-numeric: tabular-nums; }
+.fecha-campo .fecha-nativa { position: absolute; right: 0; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
+.fecha-campo .fecha-cal { flex: none; padding-inline: var(--sp-2); }
+.fecha-campo .fecha-cal svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }

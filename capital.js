@@ -6,7 +6,7 @@
 
 import { esConflicto } from './graph.js';
 import { PUEDE, CAPITAL_CATEGORIAS, CAPITAL_TIPOS, formatoMXN, leerMonto, validarPartida, resumenCapital, capitalPorProyecto, totalCapital, capitalPorMes, ordenarPartidas, ordenarProyectos, activosDe, diaDe } from './reglas.js';
-import { $, L, estado, el, avisar, abrirDialogo, cerrarDialogo, confirmar, fijarGuarda, opciones, porId, aplicar, pedirRelectura, fechaCorta, aIsoDia, diaInput, limpiar, equipoDe, iconoEquipo, iconoSvg, fijarHash, hashDe } from './comun.js';
+import { $, L, estado, el, avisar, abrirDialogo, cerrarDialogo, confirmar, fijarGuarda, opciones, porId, aplicar, pedirRelectura, fechaCorta, aIsoDia, diaInput, fechaInput, limpiar, equipoDe, iconoEquipo, iconoSvg, fijarHash, hashDe } from './comun.js';
 
 let repintar = () => {};
 export function alCambiarCapital(fn) { repintar = fn; }
@@ -240,7 +240,7 @@ export function abrirPartida(id, proyectoId = null) {
     $('cpProyecto').disabled = !!proyectoId;
     $('cpTipo').value = x && x.Tipo === 'fondeo' ? 'fondeo' : 'necesidad';
     $('cpMonto').value = x ? String(x.Monto ?? '') : '';
-    $('cpFecha').value = diaInput(x && x.Fecha);
+    $('cpFecha').value = fechaInput(x && x.Fecha);
     $('cpCategoria').value = x ? x.Categoria || '' : '';
     $('cpEstado').value = x && x.Estado ? x.Estado : 'estimado';
     $('cpNotas').value = x ? x.Notas || '' : '';

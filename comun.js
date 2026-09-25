@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, marcaFiable, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.105.1';
+export const VERSION = '0.106.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 /** C-13 (v0.95.0): el filtro de tarjetas vacio, en UN lugar — su forma ya cambio dos veces (quien paso a arreglo en v0.30.0, se sumo
@@ -333,6 +333,33 @@ export function aIsoDia(texto) {
 }
 /** Valor para un <input type="date"> (U9, v0.4.0): la parte de dia del ISO guardado, o vacio. */
 export function diaInput(iso) { const s = String(iso || ''); return /^\d{4}-\d{2}-\d{2}/.test(s) ? s.slice(0, 10) : ''; }
+/** v0.106.0: valor para un campo de fecha de la casa (dd/mm/aaaa), o vacio. */
+export function fechaInput(iso) { const s = diaInput(iso); return s ? `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(0, 4)}` : ''; }
+/** v0.106.0: lo escrito en un campo de fecha como aaaa-mm-dd; vacio si esta vacio o aun no es una fecha valida. */
+export function diaDeCampo(texto) { try { const i = aIsoDia(texto); return i ? i.slice(0, 10) : ''; } catch { return ''; } }
+/**
+ * v0.106.0 (Carlos, 25-sep: «todas las fechas dd/mm/aaaa»). El <input type="date"> se pinta en el idioma del DISPOSITIVO
+ * (mm/dd/yyyy en una laptop en ingles) y ni <html lang="es"> ni CSS lo cambian. El campo pasa a texto con mascara
+ * dd/mm/aaaa, y un boton abre el calendario nativo (un type=date invisible) que escribe de vuelta en dd/mm/aaaa.
+ * Se lee con aIsoDia, que ya aceptaba dd/mm/aaaa. Idempotente.
+ */
+export function campoFecha(id) {
+    const inp = $(id); if (!inp || inp.dataset.fecha === '1') return;
+    inp.dataset.fecha = '1'; inp.type = 'text'; inp.inputMode = 'numeric'; inp.placeholder = 'dd/mm/aaaa'; inp.maxLength = 10; inp.autocomplete = 'off';
+    inp.addEventListener('input', e => {
+        if (e.inputType && !e.inputType.startsWith('insert')) return;   // borrar no re-enmascara: dejaria la diagonal pegada
+        if (/-/.test(inp.value)) return;   // aaaa-mm-dd pegado tal cual: aIsoDia lo acepta
+        const d = inp.value.replace(/\D/g, '').slice(0, 8);
+        inp.value = d.length > 4 ? `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}` : d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d;
+    });
+    const caja = el('span', 'fecha-campo'); inp.parentNode.insertBefore(caja, inp); caja.appendChild(inp);
+    const nativo = document.createElement('input'); nativo.type = 'date'; nativo.className = 'fecha-nativa'; nativo.tabIndex = -1; nativo.setAttribute('aria-hidden', 'true');
+    const b = el('button', 'mn-btn is-sm fecha-cal'); b.type = 'button'; b.title = 'Elegir en el calendario'; b.setAttribute('aria-label', 'Elegir en el calendario');
+    b.appendChild(iconoSvg(['M4 6h16v14H4z', 'M4 10h16', 'M8 3v5M16 3v5']));
+    b.addEventListener('click', () => { nativo.value = diaDeCampo(inp.value); try { nativo.showPicker(); } catch { nativo.focus(); nativo.click(); } });
+    nativo.addEventListener('change', () => { inp.value = fechaInput(nativo.value); inp.dispatchEvent(new Event('input', { bubbles: true })); });
+    caja.appendChild(nativo); caja.appendChild(b);
+}
 const DIAS = ['dom', 'lun', 'mar', 'mié', 'jue', 'vie', 'sáb'];
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 /** D1: «jue 18 sep» — el input type=date se pinta en el idioma del DISPOSITIVO (mm/dd/yyyy en una
@@ -366,13 +393,13 @@ export function atajosFecha(idInput, idCaja, finDelFrente) {
         if (fin) opciones.push(['fin del frente', fin]);
         const g = el('div', 'grupo'); caja.appendChild(g);   // v0.32.0: los atajos son excluyentes -> un solo marco
         for (const [texto, valor] of opciones) {
-            const b = boton(texto, inp.value === valor ? 'is-on' : '', () => { inp.value = valor; pintar(); }, { fecha: valor });
+            const b = boton(texto, diaDeCampo(inp.value) === valor ? 'is-on' : '', () => { inp.value = fechaInput(valor); pintar(); }, { fecha: valor });   // v0.106.0: el campo guarda dd/mm/aaaa
             g.appendChild(b);
         }
         // D1: con valor, la fecha leida en el formato de la casa; vacio, el formato que se espera
         // (el campo nativo enseña mm/dd/yyyy si el DISPOSITIVO esta en ingles, que es el caso que
         // motivo D1: justo cuando la persona va a teclear no habia ninguna pista).
-        caja.appendChild(el('span', 'leida', inp.value ? fechaLegible(inp.value) : 'día/mes/año'));
+        caja.appendChild(el('span', 'leida', diaDeCampo(inp.value) ? fechaLegible(diaDeCampo(inp.value)) : 'día/mes/año'));
     };
     // El manejador se pone UNA vez y llama al `pintar` vigente: cada apertura del dialogo trae otro
     // proyecto (otro «fin del frente»), y un `oninput = pintar` ademas pisaria cualquier otro manejador.

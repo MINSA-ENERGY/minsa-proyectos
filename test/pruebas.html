@@ -478,23 +478,26 @@ try {
         R.ok('PROY_Actividad: crear-tarea', actividad('crear-tarea').length === 1);
         // U9 (v0.4.0): selector nativo; una fecha inexistente no se puede teclear (el input la deja vacía) y aIsoDia sigue validando lo que llegue.
         clic('btnNuevaTarea'); await esperar(() => $('dlgNuevaTarea').open, 'diálogo');
-        R.ok('U9: los tres campos de fecha son selectores nativos y la tarea creada trae la fecha bien', $('ntVence').type === 'date' && $('ftVence').type === 'date' && $('npVence').type === 'date' && String(t.fields.Vence).startsWith('2026-09-19'), String(t.fields.Vence));
+        R.ok('v0.106.0: los cuatro campos de fecha son texto dd/mm/aaaa con botón de calendario, y la tarea creada trae la fecha bien', ['ntVence', 'ftVence', 'npVence', 'cpFecha'].every(id => $(id).type === 'text' && $(id).placeholder === 'dd/mm/aaaa' && !!$(id).parentNode.querySelector('.fecha-cal') && $(id).parentNode.querySelector('.fecha-nativa').type === 'date') && String(t.fields.Vence).startsWith('2026-09-19'), String(t.fields.Vence));
+        { const v = $('ntVence'); v.value = '01102026'; v.dispatchEvent(new InputEvent('input', { inputType: 'insertText', bubbles: true }));
+          R.ok('v0.106.0: la máscara pone las diagonales (01102026 → 01/10/2026)', v.value === '01/10/2026', v.value); v.value = ''; }
         // C2 (v0.5.0): los atajos de fecha escriben el campo; «fin del frente» solo existe si el proyecto tiene Vence.
         // El esperado se arma por OTRA vía (toLocaleDateString con la zona de la casa), no con la misma
         // expresión del código: comparar `toISOString()` contra `toISOString()` pasa a cualquier hora y
         // deja pasar justo el defecto que tenía (a partir de las 18:00 «hoy» se volvía mañana).
         const hoyISO = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Mexico_City' });
+        const hoyDMA = hoyISO.split('-').reverse().join('/');   // v0.106.0: el campo guarda dd/mm/aaaa
         document.querySelector('#ntAtajos button[data-fecha]').click(); await dormir(40);
         R.ok('C2: el atajo «hoy» escribe HOY en hora de México (no el día UTC) y lo deja leído en el formato de la casa',
-            $('ntVence').value === hoyISO && /^(lun|mar|mié|jue|vie|sáb|dom) \d{1,2} [a-z]{3}$/.test($('ntAtajos').querySelector('.leida').textContent),
-            `input=${$('ntVence').value} esperado=${hoyISO} · leída=«${$('ntAtajos').querySelector('.leida').textContent}»`);
+            $('ntVence').value === hoyDMA && /^(lun|mar|mié|jue|vie|sáb|dom) \d{1,2} [a-z]{3}$/.test($('ntAtajos').querySelector('.leida').textContent),
+            `input=${$('ntVence').value} esperado=${hoyDMA} · leída=«${$('ntAtajos').querySelector('.leida').textContent}»`);
         R.ok('C2: «mañana» es el día siguiente, no dos', document.querySelectorAll('#ntAtajos button[data-fecha]')[1].dataset.fecha === new Date(new Date(hoyISO + 'T12:00:00').getTime() + 864e5).toLocaleDateString('en-CA'));
         // C1 (v0.5.0): «Crear y otra» guarda, deja el diálogo abierto y conserva asignado/prioridad/columna/vence.
         poner('ntTitulo', 'Segunda del tirón'); poner('ntAsignado', 'colega@example.invalid'); poner('ntPrioridad', 'alta'); poner('ntColumna', 'en-curso');
         clic('ntGuardarYOtra'); await esperar(() => filas('tareas').some(x => x.fields.Title === 'Segunda del tirón'), 'segunda tarea');
         const t2 = filas('tareas').find(x => x.fields.Title === 'Segunda del tirón');
         R.ok('C1: «Crear y otra» crea, deja el diálogo abierto, limpia el título y conserva asignado, prioridad, columna y vence',
-            $('dlgNuevaTarea').open && $('ntTitulo').value === '' && $('ntAsignado').value === 'colega@example.invalid' && $('ntPrioridad').value === 'alta' && $('ntColumna').value === 'en-curso' && $('ntVence').value === hoyISO,
+            $('dlgNuevaTarea').open && $('ntTitulo').value === '' && $('ntAsignado').value === 'colega@example.invalid' && $('ntPrioridad').value === 'alta' && $('ntColumna').value === 'en-curso' && $('ntVence').value === hoyDMA,
             JSON.stringify({ abierto: $('dlgNuevaTarea').open, titulo: $('ntTitulo').value, col: $('ntColumna').value }));
         R.ok('C1: la segunda tarjeta nace en la columna que quedó puesta', t2.fields.Columna === 'en-curso' && Number(t2.fields.ProyectoId) === proyectoId);
         // Se retira del universo: las pruebas de mas abajo cuentan tarjetas con numeros fijos.
@@ -573,10 +576,10 @@ try {
         // Vence: vaciar el input y Guardar deja null (v0.70.1: el boton «Quitar la fecha» ya no existe — Carlos, 16-sep).
         editar('vence');
         { const rp = $('tPop').getBoundingClientRect(), rd = $('dlgTarea').getBoundingClientRect();
-          R.ok('v0.70.1: el popover de Vence trae el input y los atajos, SIN «Quitar la fecha», y no toca la esquina del diálogo', popAbierto() === 'vence' && $('ftVence').value === String(t.fields.Vence).slice(0, 10) && $('ftAtajos').querySelectorAll('button').length >= 3 && !$('ftQuitarFecha') && (matchMedia('(max-width: 720px)').matches || (rp.left > rd.left + 8 && rp.right < rd.right - 8)), JSON.stringify({ pop: [rp.left, rp.right], dlg: [rd.left, rd.right] })); }
+          R.ok('v0.70.1: el popover de Vence trae el input y los atajos, SIN «Quitar la fecha», y no toca la esquina del diálogo', popAbierto() === 'vence' && $('ftVence').value === String(t.fields.Vence).slice(0, 10).split('-').reverse().join('/') && $('ftAtajos').querySelectorAll('button').length >= 3 && !$('ftQuitarFecha') && (matchMedia('(max-width: 720px)').matches || (rp.left > rd.left + 8 && rp.right < rd.right - 8)), JSON.stringify({ pop: [rp.left, rp.right], dlg: [rd.left, rd.right] })); }
         $('ftVence').value = ''; clic('btnGuardarTarea'); await esperar(() => t.fields.Vence == null, 'fecha quitada');
         R.ok('v0.70.1: vaciar la fecha y Guardar deja Vence = null y el renglón dice «Poner fecha»', $('tChips').querySelector('[data-chip="vence"]').textContent === 'Poner fecha');
-        editar('vence'); $('ftAtajos').querySelector('button[data-fecha]').click(); const fechaAtajo = $('ftVence').value; clic('btnGuardarTarea');
+        editar('vence'); $('ftAtajos').querySelector('button[data-fecha]').click(); const fechaAtajo = $('ftVence').value.split('/').reverse().join('-'); clic('btnGuardarTarea');
         await esperar(() => String(t.fields.Vence || '').startsWith(fechaAtajo), 'fecha por atajo');
         R.ok('v0.53.0: un atajo de fecha + Guardar escribe Vence', String(t.fields.Vence).startsWith(fechaAtajo) && !popAbierto() && actividad('editar-tarea').length === 6);
         // v0.53.1: dos ediciones SEGUIDAS sin cerrar la ficha: las dos van con If-Match (el PATCH relee el eTag), y el 412 sigue vivo en la segunda.
@@ -2479,7 +2482,7 @@ try {
             document.querySelector('#capitalTabla th[data-sort="fecha"]').click(); await dormir(30);
             // editar: solo viaja lo que cambió, con If-Match
             document.querySelector(`#capitalTabla tr[data-partida="${x1.id}"] .partida-t`).click(); await esperar(() => $('dlgPartida').open, 'editar partida');
-            R.ok('editar (v0.100.0): el diálogo trae la partida (título, monto, fecha, categoría) y ofrece Borrar', $('cpTituloDlg').textContent === 'Editar partida' && $('cpConcepto').value === 'Mantenimiento de equipo de prueba' && $('cpMonto').value === '10000' && $('cpFecha').value === '2026-10-05' && $('cpCategoria').value === 'mantenimiento' && !$('cpBorrar').classList.contains('oculto'));
+            R.ok('editar (v0.100.0): el diálogo trae la partida (título, monto, fecha, categoría) y ofrece Borrar', $('cpTituloDlg').textContent === 'Editar partida' && $('cpConcepto').value === 'Mantenimiento de equipo de prueba' && $('cpMonto').value === '10000' && $('cpFecha').value === '05/10/2026' && $('cpCategoria').value === 'mantenimiento' && !$('cpBorrar').classList.contains('oculto'));
             const ifm = DB.ifMatch; poner('cpMonto', '12000'); clic('cpGuardar'); await esperar(() => x1.fields.Monto === 12000 && !$('dlgPartida').open, 'partida editada');
             R.ok('editar (v0.100.0): PATCH solo con Monto y con If-Match; Falta sube a $10,500.50', JSON.stringify(DB.ultimoPatch.capital) === '{"Monto":12000}' && DB.ifMatch === ifm + 1 && kpi('falta') === '$10,500.50', JSON.stringify(DB.ultimoPatch.capital) + ' · ' + kpi('falta'));
             // 412: alguien la cambió en medio → se relee, el diálogo se queda con lo escrito
