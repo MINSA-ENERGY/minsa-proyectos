@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, marcaFiable, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.106.0';
+export const VERSION = '0.107.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 /** C-13 (v0.95.0): el filtro de tarjetas vacio, en UN lugar — su forma ya cambio dos veces (quien paso a arreglo en v0.30.0, se sumo
@@ -515,6 +515,12 @@ export const nombreEquipoFiltrado = () => estado.filtroEquipo ? equipoDe({ Equip
 // traian cada uno su copia literal (menciones, asignado, filtro).
 export const personasActivas = () => estado.roles.filter(r => r.Activo !== false).map(r => String(r.Title || '').toLowerCase()).filter(Boolean);
 /** C-06: el contador «N/max» de un cuadro de texto acotado (nota de tarjeta y chat): aparece desde `aviso` y va en rojo al tope. */
+/** v0.105.0 (Carlos, 25-sep): MAYUSCULAS mientras se teclea, conservando el cursor. Proyecto, tarea nueva y partida (v0.107.0). */
+export function mayusculasEnVivo(inp) {
+    const v = inp.value.toLocaleUpperCase('es-MX'); if (v === inp.value) return;
+    const [a, b] = [inp.selectionStart, inp.selectionEnd]; inp.value = v; inp.setSelectionRange(a, b);
+}
+
 export function contadorTexto(idInput, idCont, max, aviso) {
     const n = $(idInput).value.length; const c = $(idCont);
     c.textContent = n >= aviso ? `${n}/${max}` : '';

@@ -6,7 +6,7 @@
 
 import { esConflicto } from './graph.js';
 import { PUEDE, CAPITAL_CATEGORIAS, CAPITAL_TIPOS, formatoMXN, leerMonto, validarPartida, resumenCapital, capitalPorProyecto, totalCapital, capitalPorMes, ordenarPartidas, ordenarProyectos, activosDe, diaDe } from './reglas.js';
-import { $, L, estado, el, avisar, abrirDialogo, cerrarDialogo, confirmar, fijarGuarda, opciones, porId, aplicar, pedirRelectura, fechaCorta, aIsoDia, diaInput, fechaInput, limpiar, equipoDe, iconoEquipo, iconoSvg, fijarHash, hashDe } from './comun.js';
+import { $, L, estado, el, avisar, abrirDialogo, cerrarDialogo, confirmar, fijarGuarda, opciones, porId, aplicar, pedirRelectura, fechaCorta, aIsoDia, diaInput, fechaInput, limpiar, equipoDe, iconoEquipo, iconoSvg, fijarHash, hashDe, mayusculasEnVivo } from './comun.js';
 
 let repintar = () => {};
 export function alCambiarCapital(fn) { repintar = fn; }
@@ -213,6 +213,7 @@ export function pintarCapitalProyecto(p) {
 // ---------------------------------------------------------------- nueva / editar / borrar partida
 
 let enEdicionId = null, alAbrir = '', preguntando = false;
+$('cpConcepto').addEventListener('input', () => mayusculasEnVivo($('cpConcepto')));   // v0.107.0
 const CAMPOS = ['cpConcepto', 'cpProyecto', 'cpTipo', 'cpMonto', 'cpFecha', 'cpCategoria', 'cpEstado', 'cpNotas'];
 const valores = () => JSON.stringify(CAMPOS.map(id => $(id).value));
 const sucio = () => $('dlgPartida').open && valores() !== alAbrir;
@@ -263,7 +264,7 @@ function leerForma() {
     const monto = leerMonto($('cpMonto').value);
     const fecha = aIsoDia($('cpFecha').value);   // lanza con mensaje si la fecha no existe
     return {
-        Title: $('cpConcepto').value.trim(), ProyectoId: Number($('cpProyecto').value) || null, Tipo: $('cpTipo').value,
+        Title: $('cpConcepto').value.trim().toLocaleUpperCase('es-MX'),   /* v0.107.0 (Carlos, 25-sep): MAYUSCULAS */ ProyectoId: Number($('cpProyecto').value) || null, Tipo: $('cpTipo').value,
         Monto: monto, Categoria: $('cpCategoria').value.trim() || null, Fecha: fecha, Estado: $('cpEstado').value, Notas: $('cpNotas').value.trim() || null
     };
 }
