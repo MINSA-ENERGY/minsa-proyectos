@@ -19,6 +19,7 @@ import { $, L, VERSION, estado, limpiarFiltroTareas, activos, visibles, nombreEq
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, repintarFicha, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
+import { pintarCapital, pintarCapitalProyecto, engancharCapital, alCambiarCapital, fijarIrAProyecto } from './capital.js';
 import { pintarRoadmap, pintarRoadmapProyecto, roadmapFull, engancharRoadmap, pintarCalendario, engancharCalendario, enfocarCal, pintarMensajes, engancharMensajes, devolverChat, mensajesNuevos, proyectoDeMensajes, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
@@ -218,7 +219,26 @@ async function cargarTodo() {
         estado.buzonExiste = {}; estado.buzonAvisado = false;   // C-03: el aviso «no se pudo consultar el buzon» va una vez por carga
         estado.cargadoEl = Date.now();
         if (estado.proyectoAbierto) estado.proyectoAbierto = porId(estado.proyectos, estado.proyectoAbierto.id);
+        await cargarCapital(roles);
     } finally { recargando = false; pintarSync(); }
+}
+/**
+ * v0.100.0: PROY_Capital se lee DESPUES de saber el rol y solo para gerencia (dato financiero: a colaborador y lectura ni se les
+ * baja). Copia la guarda de estado.columnasTareas: la lista puede no existir todavia — `idDeLista` lo dice sin pedir nada mas
+ * a Graph (ningun 404 en consola) y se recuerda en estado.capitalLista = false el resto de la sesion; cualquier otra falla
+ * queda en estado.capitalError y la seccion la muestra. Nunca tira la carga del resto de la app.
+ */
+async function cargarCapital(roles) {
+    if (!PUEDE.capital(rolDe(estado.cuenta.username, roles))) { estado.capital = []; return; }
+    if (estado.capitalLista === false) return;
+    try {
+        estado.capital = await estado.cliente.renglones(estado.siteId, L.capital);
+        estado.capitalLista = true; estado.capitalError = null;
+    } catch (e) {
+        const m = String(e && e.message || e);
+        if (/no existe la lista/.test(m)) { estado.capitalLista = false; estado.capital = []; estado.capitalError = null; }
+        else { estado.capitalError = m; console.warn('PROY_Capital: no se pudo leer; se queda lo de la lectura anterior.', m); }
+    }
 }
 async function recargar() {
     // La guarda va ANTES de refrescar el token: dos cierres seguidos (cerrarDialogo + el evento close,
@@ -241,7 +261,7 @@ async function recargar() {
 // Refresco automatico mientras la app esta a la vista; nunca borra un dialogo de EDICION abierto.
 // E4 (v0.6.0): Equipo y Toda la actividad son de lectura y alguien los deja abiertos minutos; con
 // ellos abiertos se sigue releyendo, y al cerrarlos se relee si ya pasaron 60 s (la regla de visibilitychange).
-const DLG_EDICION = ['dlgTarea', 'dlgNuevaTarea', 'dlgProyecto', 'dlgCubetas', 'dlgLigar', 'dlgSubir', 'dlgEnlace', 'dlg'];
+const DLG_EDICION = ['dlgTarea', 'dlgNuevaTarea', 'dlgProyecto', 'dlgCubetas', 'dlgLigar', 'dlgSubir', 'dlgEnlace', 'dlgPartida', 'dlg'];
 const editando = () => DLG_EDICION.some(id => $(id).open);
 const rancio = () => estado.sesion && Date.now() - estado.cargadoEl > 60000;
 if (CONFIG.refrescoMs > 0 && new URLSearchParams(location.search).get('refresco') !== '0') {
@@ -273,6 +293,8 @@ pintarRed();
 // ---------------------------------------------------------------- navegacion
 
 function irA(p) {
+    const negado = p === 'capital' && !PUEDE.capital(estado.rol);   // v0.100.0: Capital es solo de gerencia (una liga pegada tampoco entra)
+    if (negado) p = 'inicio';
     estado.pestana = p;
     // U-03 (v0.90.0): el filtro que fija Inicio («ver en Mis tareas» de las vencidas) dura UNA visita: al entrar a #mis por la pestaña
     // o por un hash sin origen se vuelve a «abiertas». Lo que se elige con los contadores dentro de la pantalla no pasa por aqui.
@@ -288,6 +310,7 @@ function irA(p) {
     repintar();
     fijarHash(hashDe(tarjetaAbiertaId()));
     window.scrollTo({ top: 0 });
+    if (negado) avisar('Capital es solo para gerencia.', 'ojo');
     if (p === 'calendario') enfocarCal();   // U-02 (v0.86.0): al ENTRAR, la agenda del celular aterriza en hoy (no en repintar(): ese corre en cada refresco y moveria la pantalla)
 }
 // Router por hash (v0.2.0, F8): LEE location.hash y deja la pantalla como dice; es idempotente, asi
@@ -297,7 +320,7 @@ function irA(p) {
 // v0.42.0: Mensajes lleva lo elegido en el hash (#mensajes/f/<clave> el hilo del frente), para que Atras regrese a la
 // bandeja y una liga pegada abra justo ese hilo. v0.43.0: #mensajes/d/<alias> (la ficha de la persona) ya no existe;
 // una liga vieja con /d/ cae a la bandeja de Mensajes con aviso.
-const RE_HASH = /^#(?:(inicio|proyectos|mis|roadmap|calendario|mensajes|archivos|reportes)(?:\/(f|d)\/([a-z0-9._-]+))?|p\/([a-z0-9-]+)(?:\/(lista|docs|chat|tablero|resumen|roadmap))?)(?:\/t\/(\d+))?$/;
+const RE_HASH = /^#(?:(inicio|proyectos|mis|roadmap|calendario|mensajes|archivos|reportes|capital)(?:\/(f|d)\/([a-z0-9._-]+))?|p\/([a-z0-9-]+)(?:\/(lista|docs|chat|tablero|resumen|roadmap))?)(?:\/t\/(\d+))?$/;
 function esHashDeLaApp(h) { return RE_HASH.test(String(h || '')); }
 function aplicarHash() {
     if (!estado.sesion) return;
@@ -319,6 +342,12 @@ function aplicarHash() {
         const cambio = JSON.stringify(sel) !== JSON.stringify(estado.mensajesSel || null);
         estado.mensajesSel = sel;
         if (estado.pestana !== 'mensajes') irA('mensajes'); else if (cambio) repintar();
+    } else if (pantalla === 'capital') {
+        // v0.100.0: #capital/f/<clave> = la seccion filtrada por ese proyecto (lo que abre la tarjeta del Resumen); sin sufijo, todos
+        let f = null;
+        if (msjTipo === 'f') { const p = proyectoPorClave(msjClave); if (p) f = p.id; else avisar(`No hay un proyecto con la clave «${msjClave}».`, 'ojo'); }
+        const cambio = f !== estado.filtroCapital; estado.filtroCapital = f;
+        if (estado.pestana !== 'capital') irA('capital'); else if (cambio) repintar();
     } else if (estado.pestana !== pantalla) irA(pantalla);
     const id = tareaId ? Number(tareaId) : null;
     if (id) { if (tarjetaAbiertaId() !== id) { if (porId(estado.tareas, id)) abrirTarjeta(id); else avisar(`No hay una tarjeta #${id}.`, 'ojo'); } }
@@ -358,6 +387,7 @@ function repintar() {
     else if (estado.pestana === 'mensajes') pintarMensajes();
     else if (estado.pestana === 'archivos') pintarArchivos();
     else if (estado.pestana === 'reportes') pintarReportes();
+    else if (estado.pestana === 'capital') pintarCapital();   // v0.100.0
     if ($('dlgActividad').open) pintarActividad();   // C-12 (v0.94.0): el refresco sigue con «Toda la actividad» abierta (E4); acCtx conserva filtro y pagina
 }
 alCambiarTareas(repintar);
@@ -368,6 +398,8 @@ fijarAbrirTarjeta(abrirTarjeta);
 const misAbiertas = () => misAbiertasDe(estado.tareas, estado.cuenta.username);   // C-03 (v0.90.0): la misma regla que pinta la pantalla (reglas.js)
 
 function pintarInsignias() {
+    // v0.100.0: el acceso a Capital (rail en escritorio, menu «···» en celular) solo existe para gerencia
+    for (const id of ['railCapital', 'irCapitalMovil']) $(id).classList.toggle('oculto', !PUEDE.capital(estado.rol));
     const mias = misAbiertas();
     // T4: el contador del rail siempre es VENCIDAS (rojo) y nada si no hay; el total abierto vive en el KPI de Inicio.
     const vencidas = mias.filter(t => estadoVence(t, CONFIG.vencePronto) === 'danger').length;
@@ -988,6 +1020,7 @@ function pintarProyecto() {
     for (const x of deP.slice(0, 6)) act.appendChild(itemActividad(x, false));   // C9
     if (!act.childNodes.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
     $('btnActividadProyecto').hidden = deP.length <= 6;
+    pintarCapitalProyecto(p);   // v0.100.0: «Capital de trabajo · falta $X» (solo gerencia)
 }
 
 // ---------------------------------------------------------------- nuevo / editar / cerrar proyecto
@@ -1293,6 +1326,8 @@ engancharTablero();
 engancharDocs();
 engancharChat();
 engancharMensajes();   // v0.42.0
+engancharCapital(); alCambiarCapital(repintar); fijarIrAProyecto(p => abrirProyecto(p.id));   // v0.100.0
+$('pCapitalIr').addEventListener('click', () => { const p = estado.proyectoAbierto; if (!p) return; estado.filtroCapital = p.id; irA('capital'); });
 engancharRoadmap(); engancharCalendario(); engancharArchivos(); engancharReportes();   // v0.10.0 · v0.26.0 roadmap a pantalla completa
 for (const b of document.querySelectorAll('.ir-movil')) b.addEventListener('click', () => { $('menuMovil').open = false; irA(b.dataset.ir); });   // v0.10.0: Roadmap · Archivos · Reportes no caben en la barra del celular
 $('btnActividadInicio').addEventListener('click', () => abrirActividad(null));

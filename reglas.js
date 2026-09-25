@@ -123,7 +123,8 @@ export const PUEDE = {
     mover: rol => ['gerencia', 'colaborador'].includes(rol),
     ligar: rol => ['gerencia', 'colaborador'].includes(rol),     // ligar y subir al buzon
     borrar: rol => rol === 'gerencia',
-    proyecto: rol => rol === 'gerencia'                          // crear, editar, cerrar
+    proyecto: rol => rol === 'gerencia',                         // crear, editar, cerrar
+    capital: rol => rol === 'gerencia'                           // v0.100.0: ver y editar el capital de trabajo (dato financiero)
 };
 
 /**
@@ -971,4 +972,86 @@ export function acomodarHitos(hitos, rango, umbral = 2, tope = 100) {
         out[i].espacio = Math.max(0, t - out[i].left); out[i].topado = t === tope && tope < sig;   // topado: lo que recorta es la raya del fin, no otro rombo
     }
     return out;
+}
+
+// ---------------------------------------------------------------- v0.100.0: capital de trabajo (PROY_Capital)
+// Carlos, 25-sep: «cuánto capital de trabajo falta / es necesario», con partidas ESTIMADAS ligadas a un proyecto.
+// Por proyecto: Necesario = Σ necesidades (todas, pagadas incluidas: es lo que cuesta el frente) · Cubierto = Σ fondeos ·
+// Falta = max(0, Necesario − Cubierto) · Ya pagado = Σ necesidades en estado «pagado». Solo MXN (un solo total).
+// El sobrante de un proyecto NO cubre a otro: el Falta global es la SUMA de los Falta por proyecto, no Necesario − Cubierto.
+export const CAPITAL_TIPOS = [['necesidad', 'Necesidad'], ['fondeo', 'Fondeo']];
+export const CAPITAL_CATEGORIAS = ['operación', 'mantenimiento', 'equipo', 'permisos', 'personal', 'logística', 'otro'];
+export const CAPITAL_ESTADOS = ['estimado', 'comprometido', 'pagado'];
+export const MONTO_MAX = 1e12;
+/** El monto de una partida (o un numero suelto) como numero; lo que no es numero cuenta 0. */
+export function montoDe(x) { const n = Number(x !== null && typeof x === 'object' ? x.Monto : x); return Number.isFinite(n) ? n : 0; }
+const centavos = n => Math.round(n * 100) / 100;
+const FMT_MXN = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** «$10,000.00» (es-MX). */
+export const formatoMXN = n => FMT_MXN.format(centavos(montoDe(n)));
+/** Lo que se escribe en el campo Monto: acepta «10000», «10,000.50» y «$ 10,000»; null si no es un monto positivo con 2 decimales a lo mas. */
+export function leerMonto(texto) {
+    const s = String(texto ?? '').replace(/[$\s]/g, '').replace(/,/g, '');
+    if (!/^\d+(\.\d{1,2})?$/.test(s)) return null;
+    const n = Number(s);
+    return n > 0 && n <= MONTO_MAX ? n : null;
+}
+/** Valida los campos de una partida antes de escribirla. Devuelve { ok, motivo }. */
+export function validarPartida(c) {
+    if (!String(c.Title || '').trim()) return { ok: false, motivo: 'La partida necesita un concepto.' };
+    if (String(c.Title).length > TEXTO_MAX) return { ok: false, motivo: `El concepto pasa de ${TEXTO_MAX} caracteres.` };
+    if (!(Number(c.ProyectoId) > 0)) return { ok: false, motivo: 'Elige el proyecto al que se liga la partida.' };
+    if (!CAPITAL_TIPOS.some(([k]) => k === c.Tipo)) return { ok: false, motivo: 'Elige si es necesidad o fondeo.' };
+    if (!(typeof c.Monto === 'number' && c.Monto > 0 && c.Monto <= MONTO_MAX)) return { ok: false, motivo: 'El monto debe ser un número mayor que cero, en pesos (hasta 2 decimales).' };
+    if (!CAPITAL_ESTADOS.includes(c.Estado)) return { ok: false, motivo: 'Elige el estado de la partida.' };
+    return { ok: true, motivo: '' };
+}
+/** Necesario · Cubierto · Falta · Sobra · Ya pagado · n de un conjunto de partidas (un proyecto). Un Tipo fuera del catalogo no suma. */
+export function resumenCapital(partidas) {
+    let necesario = 0, cubierto = 0, pagado = 0;
+    for (const x of partidas || []) {
+        if (x.Tipo === 'fondeo') cubierto += montoDe(x);
+        else if (x.Tipo === 'necesidad') { necesario += montoDe(x); if (x.Estado === 'pagado') pagado += montoDe(x); }
+    }
+    necesario = centavos(necesario); cubierto = centavos(cubierto); pagado = centavos(pagado);
+    return { necesario, cubierto, pagado, falta: Math.max(0, centavos(necesario - cubierto)), sobra: Math.max(0, centavos(cubierto - necesario)), n: (partidas || []).length };
+}
+/** Las partidas agrupadas por proyecto, cada grupo con su resumen; primero el que mas falta, luego por nombre. `proyecto` es null si ya no existe. */
+export function capitalPorProyecto(partidas, proyectos) {
+    const grupos = new Map();
+    for (const x of partidas || []) { const id = Number(x.ProyectoId) || 0; if (!grupos.has(id)) grupos.set(id, []); grupos.get(id).push(x); }
+    const nombre = g => g.proyecto ? String(g.proyecto.Title || '') : '￿';
+    return [...grupos].map(([id, ps]) => ({ proyectoId: id, proyecto: (proyectos || []).find(p => Number(p.id) === id) || null, partidas: ps, ...resumenCapital(ps) }))
+        .sort((a, b) => b.falta - a.falta || nombre(a).localeCompare(nombre(b), 'es') || a.proyectoId - b.proyectoId);
+}
+/** Totales de la vista: sumas de los grupos de capitalPorProyecto (el Falta global = Σ Falta por proyecto). */
+export function totalCapital(grupos) {
+    const t = { necesario: 0, cubierto: 0, pagado: 0, falta: 0, n: 0 };
+    for (const g of grupos || []) for (const k in t) t[k] += g[k];
+    for (const k of ['necesario', 'cubierto', 'pagado', 'falta']) t[k] = centavos(t[k]);
+    return t;
+}
+/** Corte por mes segun Fecha (dia de Mexico): [{ mes: 'YYYY-MM' | '' (sin fecha, al final), necesidad, fondeo, n }] en orden de mes. */
+export function capitalPorMes(partidas) {
+    const m = new Map();
+    for (const x of partidas || []) {
+        if (x.Tipo !== 'necesidad' && x.Tipo !== 'fondeo') continue;
+        const d = diaDe(x.Fecha), k = d ? d.slice(0, 7) : '';
+        const g = m.get(k) || { mes: k, necesidad: 0, fondeo: 0, n: 0 };
+        if (x.Tipo === 'fondeo') g.fondeo += montoDe(x); else g.necesidad += montoDe(x);
+        g.n++; m.set(k, g);
+    }
+    return [...m.values()].map(g => ({ ...g, necesidad: centavos(g.necesidad), fondeo: centavos(g.fondeo) })).sort((a, b) => (a.mes || '9999-99').localeCompare(b.mes || '9999-99'));
+}
+/** Orden de la tabla de partidas (dentro de cada proyecto). `dir` 1 asc, -1 desc; la partida sin fecha va al final en los dos sentidos. */
+export const COLUMNAS_CAPITAL = ['concepto', 'tipo', 'categoria', 'fecha', 'estado', 'monto'];
+export function ordenarPartidas(partidas, col = 'fecha', dir = 1) {
+    const llaves = { concepto: x => sinAcentos(x.Title), tipo: x => String(x.Tipo || ''), categoria: x => sinAcentos(x.Categoria), fecha: x => diaDe(x.Fecha) || '', estado: x => CAPITAL_ESTADOS.indexOf(x.Estado), monto: x => montoDe(x) };
+    const llave = llaves[col] || llaves.fecha;
+    return [...(partidas || [])].sort((a, b) => {
+        const va = llave(a), vb = llave(b);
+        if ((col === 'fecha' || !llaves[col]) && !va !== !vb) return va ? -1 : 1;
+        const c = typeof va === 'number' ? va - vb : String(va).localeCompare(String(vb), 'es');
+        return c * dir || Number(a.id) - Number(b.id);
+    });
 }

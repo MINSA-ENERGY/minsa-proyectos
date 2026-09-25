@@ -1725,8 +1725,8 @@ try {
         // ---- v0.10.0: Roadmap · Calendario · Mensajes · Archivos · Reportes (foto de referencia, 12-sep) + titulo con icono + anillo
         {
             const hoyIso = new Date().toISOString();
-            R.ok('v0.10.0: cada pantalla lleva su icono a la izquierda del título', ['p-inicio', 'p-proyectos', 'p-mis', 'p-roadmap', 'p-calendario', 'p-mensajes', 'p-archivos', 'p-reportes'].every(id => !!$(id).querySelector('.cabecera > .titulo-ico svg')));
-            R.ok('v0.10.0: el rail trae las 8 secciones y las 3 que no caben en la barra móvil van en el menú «···»', document.querySelectorAll('#pestanas button').length === 8 && document.querySelectorAll('#menuMovil .ir-movil').length === 3);
+            R.ok('v0.10.0: cada pantalla lleva su icono a la izquierda del título', ['p-inicio', 'p-proyectos', 'p-mis', 'p-roadmap', 'p-calendario', 'p-mensajes', 'p-archivos', 'p-reportes', 'p-capital'].every(id => !!$(id).querySelector('.cabecera > .titulo-ico svg')));
+            R.ok('v0.10.0: el rail trae las 8 secciones (9 con Capital, v0.100.0: solo gerencia la ve) y las que no caben en la barra móvil van en el menú «···»', document.querySelectorAll('#pestanas button').length === 9 && document.querySelectorAll('#menuMovil .ir-movil').length === 4 && document.querySelectorAll('#pestanas button:not(.oculto)').length === (gerencia ? 9 : 8) && document.querySelectorAll('#menuMovil .ir-movil:not(.oculto)').length === (gerencia ? 4 : 3));
             // una tarjeta que vence HOY y una hecha hace 2 dias, para el calendario, el roadmap y «hechas por semana»
             const tHoy = { id: DB.siguienteId++, fields: { Title: 'Vence hoy para el calendario', ProyectoId: proyectoId, Columna: 'en-curso', Asignado: YO, Prioridad: 'normal', Vence: hoyIso, Desde: new Date(Date.now() - 5 * 86400000).toISOString() } };
             filas('tareas').push(tHoy);
@@ -2414,6 +2414,102 @@ try {
         irHash('#reportes'); await esperar(() => visible('p-reportes'), 'reportes');
         R.ok('v0.10.0 (lectura): Reportes cuenta 1 vencida y ninguna pantalla nueva trae botones de escritura', document.querySelectorAll('#repVencidas [data-rep-v]').length === 1 && !document.querySelector('#p-roadmap [data-enlace], #p-archivos [data-quitar], #p-archivos select[data-tarjeta-de]'));
         pestana('inicio'); await dormir(30);
+    }
+    // ---- v0.100.0: Capital de trabajo (PROY_Capital). Solo gerencia la ve y la edita; la lista puede faltar en el tenant.
+    {
+        const pid = filas('proyectos').find(p => p.fields.Clave === CLAVE).id;
+        const cap = () => filas('capital');
+        const leidasCapital = () => DB.llamadas.filter(c => c.includes('/lists/lista-capital/items')).length;
+        const kpi = k => { const e = document.querySelector(`#capitalKpis [data-kpi="${k}"] .mn-kpi-val`); return e ? e.textContent : ''; };
+        if (!gerencia) {
+            cap().push({ id: DB.siguienteId++, fields: { Title: 'Partida sembrada de prueba', ProyectoId: pid, Tipo: 'necesidad', Monto: 1234, Estado: 'estimado' } });
+            const nAntes = leidasCapital(); await recargarYEsperar();
+            R.ok(`${ROL} (v0.100.0): sin «Capital» en el rail ni en el menú «···», y PROY_Capital ni se lee`, $('railCapital').classList.contains('oculto') && $('irCapitalMovil').classList.contains('oculto') && leidasCapital() === nAntes && ESTADO.capital.length === 0, `leidas=${leidasCapital() - nAntes}`);
+            irHash('#capital'); await esperar(() => visible('p-inicio'), 'capital negado');
+            R.ok(`${ROL} (v0.100.0): una liga pegada a #capital cae a Inicio con aviso`, visible('p-inicio') && !visible('p-capital') && !!avisoCon('solo para gerencia'), location.hash);
+            irHash(`#p/${CLAVE}/resumen`); await esperar(() => $('p-proyecto').classList.contains('ver-resumen'), 'resumen');
+            R.ok(`${ROL} (v0.100.0): el Resumen del proyecto no trae la tarjeta de Capital`, $('pCapital').classList.contains('oculto'));
+            DB.listas.capital.items = [];
+            pestana('inicio'); await dormir(30);
+        } else {
+            DB.listas.capital.items = [];
+            await recargarYEsperar();
+            pestana('capital'); await esperar(() => visible('p-capital'), 'capital');
+            R.ok('gerencia (v0.100.0): «Capital» en el rail y en el menú «···»; la sección trae el encabezado de la casa y sale vacía', !$('railCapital').classList.contains('oculto') && !$('irCapitalMovil').classList.contains('oculto') && !!document.querySelector('#p-capital > header.cabecera > .titulo-ico svg') && document.querySelector('#p-capital h1').textContent === 'Capital' && !!$('capitalTabla').querySelector('.vacio') && $('capitalFalta').classList.contains('oculto') && location.hash === '#capital', location.hash);
+            R.ok('gerencia (v0.100.0): UN primario verde por vista («Nueva partida», mn-btn is-primary is-sm)', $('btnNuevaPartida').className === 'mn-btn is-primary is-sm' && document.querySelectorAll('#p-capital .mn-btn.is-primary').length === 1);
+            // crear una necesidad
+            clic('btnNuevaPartida'); await esperar(() => $('dlgPartida').open, 'dlgPartida');
+            R.ok('crear (v0.100.0): el diálogo nace vacío, en «necesidad · estimado», sin Borrar', $('cpConcepto').value === '' && $('cpTipo').value === 'necesidad' && $('cpEstado').value === 'estimado' && $('cpBorrar').classList.contains('oculto') && $('cpTituloDlg').textContent === 'Nueva partida');
+            poner('cpConcepto', 'Mantenimiento de equipo de prueba'); poner('cpProyecto', String(pid)); poner('cpMonto', 'diez');
+            clic('cpGuardar'); await dormir(60);
+            R.ok('crear (v0.100.0): un monto que no es número no escribe y lo dice', cap().length === 0 && $('dlgPartida').open && !!avisoCon('Monto'));
+            poner('cpMonto', '10,000'); poner('cpFecha', '2026-10-05'); poner('cpCategoria', 'mantenimiento');
+            clic('cpGuardar'); await esperar(() => cap().length === 1 && !$('dlgPartida').open, 'partida creada');
+            const x1 = cap()[0];
+            R.ok('crear (v0.100.0): POST a PROY_Capital con concepto, proyecto, tipo, monto 10000, fecha (18:00Z), categoría y estado', x1.fields.Title === 'Mantenimiento de equipo de prueba' && Number(x1.fields.ProyectoId) === pid && x1.fields.Tipo === 'necesidad' && x1.fields.Monto === 10000 && x1.fields.Fecha === '2026-10-05T18:00:00.000Z' && x1.fields.Categoria === 'mantenimiento' && x1.fields.Estado === 'estimado' && !('Notas' in x1.fields), JSON.stringify(x1.fields));
+            R.ok('cálculo (v0.100.0): Necesario $10,000.00 · Cubierto $0.00 · Falta $10,000.00 · 1 partida', kpi('necesario') === '$10,000.00' && kpi('cubierto') === '$0.00' && kpi('falta') === '$10,000.00' && kpi('n') === '1', [kpi('necesario'), kpi('cubierto'), kpi('falta'), kpi('n')].join(' | '));
+            R.ok('cálculo (v0.100.0): la tabla agrupa por proyecto con su «falta» y su subtotal', !!document.querySelector(`#capitalTabla tr.cgrupo[data-capital-proyecto="${pid}"] .cfalta.is-danger`) && document.querySelector(`#capitalTabla tr.csub[data-capital-sub="${pid}"]`).textContent.includes('Falta$10,000.00') && document.querySelectorAll('#capitalTabla tr.partida').length === 1);
+            // un fondeo y una necesidad pagada: Falta = 10,000 + 2,500.50 − 4,000
+            clic('btnNuevaPartida'); await esperar(() => $('dlgPartida').open, 'dlgPartida 2');
+            poner('cpConcepto', 'Aportación de ejemplo'); poner('cpProyecto', String(pid)); poner('cpTipo', 'fondeo'); poner('cpMonto', '4000'); poner('cpEstado', 'comprometido'); poner('cpFecha', '2026-10-01');
+            clic('cpGuardar'); await esperar(() => cap().length === 2 && !$('dlgPartida').open, 'fondeo creado');
+            clic('btnNuevaPartida'); await esperar(() => $('dlgPartida').open, 'dlgPartida 3');
+            poner('cpConcepto', 'Renta de ejemplo'); poner('cpProyecto', String(pid)); poner('cpMonto', '2500.50'); poner('cpEstado', 'pagado');
+            clic('cpGuardar'); await esperar(() => cap().length === 3 && !$('dlgPartida').open, 'pagada creada');
+            R.ok('cálculo (v0.100.0): Necesario $12,500.50 (con $2,500.50 ya pagado) · Cubierto $4,000.00 · Falta $8,500.50', kpi('necesario') === '$12,500.50' && kpi('cubierto') === '$4,000.00' && kpi('falta') === '$8,500.50' && kpi('n') === '3' && document.querySelector('#capitalKpis [data-kpi="necesario"] .kpi-det').textContent.includes('$2,500.50 ya pagado'), [kpi('necesario'), kpi('cubierto'), kpi('falta')].join(' | '));
+            R.ok('mes (v0.100.0): corte por mes — octubre (necesidad $10,000.00, fondeo $4,000.00) y «Sin fecha» al final', [...document.querySelectorAll('#capitalMeses tr.mes')].map(r => r.dataset.mes).join(',') === '2026-10,sin-fecha' && document.querySelector('#capitalMeses tr[data-mes="2026-10"]').textContent.includes('$10,000.00') && document.querySelector('#capitalMeses tr[data-mes="2026-10"]').textContent.includes('$4,000.00'));
+            // orden: Monto (desc al primer clic) y otra vez (asc)
+            document.querySelector('#capitalTabla th[data-sort="monto"]').click(); await dormir(30);
+            const ordenIds = () => [...document.querySelectorAll('#capitalTabla tr.partida')].map(r => Number(r.dataset.partida));
+            const idsMonto = ordenIds();
+            document.querySelector('#capitalTabla th[data-sort="monto"]').click(); await dormir(30);
+            R.ok('orden (v0.100.0): clic en «Monto» ordena de mayor a menor y el segundo clic invierte (aria-sort)', idsMonto[0] === x1.id && ordenIds()[2] === x1.id && document.querySelector('#capitalTabla th[data-sort="monto"]').getAttribute('aria-sort') === 'ascending', idsMonto.join(','));
+            document.querySelector('#capitalTabla th[data-sort="fecha"]').click(); await dormir(30);
+            // editar: solo viaja lo que cambió, con If-Match
+            document.querySelector(`#capitalTabla tr[data-partida="${x1.id}"] .partida-t`).click(); await esperar(() => $('dlgPartida').open, 'editar partida');
+            R.ok('editar (v0.100.0): el diálogo trae la partida (título, monto, fecha, categoría) y ofrece Borrar', $('cpTituloDlg').textContent === 'Editar partida' && $('cpConcepto').value === 'Mantenimiento de equipo de prueba' && $('cpMonto').value === '10000' && $('cpFecha').value === '2026-10-05' && $('cpCategoria').value === 'mantenimiento' && !$('cpBorrar').classList.contains('oculto'));
+            const ifm = DB.ifMatch; poner('cpMonto', '12000'); clic('cpGuardar'); await esperar(() => x1.fields.Monto === 12000 && !$('dlgPartida').open, 'partida editada');
+            R.ok('editar (v0.100.0): PATCH solo con Monto y con If-Match; Falta sube a $10,500.50', JSON.stringify(DB.ultimoPatch.capital) === '{"Monto":12000}' && DB.ifMatch === ifm + 1 && kpi('falta') === '$10,500.50', JSON.stringify(DB.ultimoPatch.capital) + ' · ' + kpi('falta'));
+            // 412: alguien la cambió en medio → se relee, el diálogo se queda con lo escrito
+            document.querySelector(`#capitalTabla tr[data-partida="${x1.id}"] .partida-t`).click(); await esperar(() => $('dlgPartida').open, 'editar 412');
+            x1.etag = (x1.etag || 1) + 5;
+            poner('cpConcepto', 'Mantenimiento de equipo de prueba (rev)'); clic('cpGuardar'); await esperar(() => avisoCon('Alguien cambió esta partida'), 'aviso 412');
+            R.ok('editar (v0.100.0): un 412 no pisa el cambio ajeno — relee, avisa y deja el diálogo abierto con lo escrito', $('dlgPartida').open && $('cpConcepto').value === 'Mantenimiento de equipo de prueba (rev)' && x1.fields.Title === 'Mantenimiento de equipo de prueba');
+            // guarda de descarte: Cancelar con cambios pregunta
+            clic('cpCancelar'); await esperar(() => $('dlg').open, 'confirmar descarte');
+            R.ok('guarda (v0.100.0): Cancelar con cambios pregunta «¿Descartar los cambios?»', $('dlgTitulo').textContent === '¿Descartar los cambios?');
+            clic('dlgOk'); await esperar(() => !$('dlgPartida').open, 'descartado');
+            // filtro por proyecto: una partida de OTRO proyecto activo
+            const otro = filas('proyectos').find(p => p.fields.Estado === 'activo' && p.id !== pid);
+            cap().push({ id: DB.siguienteId++, fields: { Title: 'Partida de otro frente', ProyectoId: otro.id, Tipo: 'necesidad', Monto: 500, Estado: 'estimado' } });
+            await recargarYEsperar(); await dormir(30);
+            R.ok('filtro (v0.100.0): «Todos los proyectos» suma los dos frentes (Falta $11,000.50) en dos grupos', kpi('falta') === '$11,000.50' && document.querySelectorAll('#capitalTabla tr.cgrupo').length === 2 && $('capitalProyecto').options[0].textContent === 'Todos los proyectos', kpi('falta'));
+            poner('capitalProyecto', String(otro.id)); await dormir(30);
+            R.ok('filtro (v0.100.0): elegir un proyecto deja solo sus partidas y KPI (Falta $500.00) y lo pone en el hash', kpi('falta') === '$500.00' && document.querySelectorAll('#capitalTabla tr.cgrupo').length === 1 && location.hash === '#capital/f/' + otro.fields.Clave, location.hash);
+            poner('capitalProyecto', ''); await dormir(30);
+            // Resumen del proyecto → Capital filtrado
+            irHash(`#p/${CLAVE}/resumen`); await esperar(() => $('p-proyecto').classList.contains('ver-resumen'), 'resumen');
+            R.ok('resumen (v0.100.0): la tarjeta «Capital de trabajo» del proyecto dice Falta $10,500.50', !$('pCapital').classList.contains('oculto') && $('pCapitalKv').textContent.includes('Falta$10,500.50') && $('pCapitalIr').textContent === 'Ver las 3 partidas', $('pCapitalKv').textContent);
+            clic('pCapitalIr'); await esperar(() => visible('p-capital'), 'capital desde el resumen');
+            R.ok('resumen (v0.100.0): «Ver las partidas» abre Capital filtrado por ese proyecto (#capital/f/<clave>)', ESTADO.filtroCapital === pid && $('capitalProyecto').value === String(pid) && location.hash === `#capital/f/${CLAVE}` && document.querySelectorAll('#capitalTabla tr.partida').length === 3, location.hash);
+            // borrar
+            document.querySelector(`#capitalTabla tr[data-partida="${x1.id}"] .partida-t`).click(); await esperar(() => $('dlgPartida').open, 'borrar');
+            clic('cpBorrar'); await confirmar(); await esperar(() => !cap().some(x => x.id === x1.id) && !$('dlgPartida').open, 'partida borrada');
+            R.ok('borrar (v0.100.0): confirma, borra el renglón y el Falta baja a $0.00 (queda fondeo de sobra)', !cap().some(x => x.id === x1.id) && kpi('falta') === '$0.00' && !!avisoCon('borrada'), kpi('falta'));
+            R.ok('bitácora (v0.100.0): Capital no escribe en PROY_Actividad (su choice Accion no tiene opción para esto)', !filas('actividad').some(a => /partida/i.test(a.fields.Title || '')));
+            // lista AUSENTE: el sitio no tiene PROY_Capital → aviso claro, ninguna lectura de items, el resto de la app igual
+            const guardada = DB.listas.capital; delete DB.listas.capital; ESTADO.cliente = null; ESTADO.capitalLista = null;
+            const nL = leidasCapital(); await recargarYEsperar(); await dormir(30);
+            R.ok('lista ausente (v0.100.0): aviso «Falta crear la lista PROY_Capital», sin tabla ni botón y sin error de carga', !$('capitalFalta').classList.contains('oculto') && $('capitalFalta').textContent.startsWith('Falta crear la lista PROY_Capital (ver README, «Al publicar v0.100.0»)') && $('capitalCuerpo').classList.contains('oculto') && $('btnNuevaPartida').classList.contains('oculto') && !avisoCon('No se pudieron releer') && ESTADO.capitalLista === false, $('capitalFalta').textContent);
+            const gl = DB.llamadas.filter(c => c.startsWith('GET /sites/sitio-falso/lists?')).length; await recargarYEsperar(); await dormir(30);
+            R.ok('lista ausente (v0.100.0): ningún GET a items de PROY_Capital (ningún 404) y la segunda recarga ya no pregunta por la lista', leidasCapital() === nL && DB.llamadas.filter(c => c.startsWith('GET /sites/sitio-falso/lists?')).length === gl, `items=${leidasCapital() - nL}`);
+            irHash(`#p/${CLAVE}/resumen`); await esperar(() => $('p-proyecto').classList.contains('ver-resumen'), 'resumen sin lista');
+            R.ok('lista ausente (v0.100.0): el Resumen del proyecto no pinta la tarjeta de Capital y el tablero sigue cargado', $('pCapital').classList.contains('oculto') && ESTADO.tareas.length > 0);
+            DB.listas.capital = guardada; ESTADO.cliente = null; ESTADO.capitalLista = null; await recargarYEsperar();
+            R.ok('lista ausente (v0.100.0): al aparecer la lista (sesión nueva) vuelve a leerse', ESTADO.capitalLista === true);
+            DB.listas.capital.items = []; await recargarYEsperar();
+            pestana('inicio'); await dormir(30);
+        }
     }
 } catch (e) {
     R.ok('la corrida terminó sin excepción', false, `hash=${location.hash} · dlgTarea=${$('dlgTarea').open} · pestaña=${[...document.querySelectorAll('.pantalla')].find(x => !x.classList.contains('oculto'))?.id} · ${String(e && e.message || e)}

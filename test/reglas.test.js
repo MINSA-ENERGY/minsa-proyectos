@@ -2,6 +2,8 @@
 import assert from 'node:assert/strict';
 import { ordenarLigas, direccionInicial, nombreHumano, nombreDeLiga, rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, claseVence, fraseVence, semaforo, vencidasEn, sinMovimiento, diasQuieta, rotuloQuieta, pisoNuevo, marcaFiable, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, activosDe, proyectosVisibles, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, diaSemana, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, sellarAsignadoPor, misAbiertas, porVence, vistosDe, leerVisto, fundirVisto, gruposHoy, saludoDe, hitosDe, acomodarHitos } from '../reglas.js';
 
+import { CAPITAL_ESTADOS, CAPITAL_CATEGORIAS, montoDe, formatoMXN, leerMonto, validarPartida, resumenCapital, capitalPorProyecto, totalCapital, capitalPorMes, ordenarPartidas } from '../reglas.js';
+
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
 const ok = (nombre, cond) => { assert.ok(cond, nombre); n++; };
@@ -328,4 +330,37 @@ ok('filtrarLigas: busca tambien por el titulo humano que se ve («propuesta tecn
   ok('saludoDe por hora de Mexico: 12:00 = tardes, 08:00 = dias, 20:00 = noches', saludoDe(HOY) === 'Buenas tardes' && saludoDe(new Date('2026-09-11T14:00:00Z')) === 'Buenos días' && saludoDe(new Date('2026-09-12T02:00:00Z')) === 'Buenas noches'); }
 
 ok('S-12 (v0.96.0): marcaFiable topa la marca en ahora + 5 min: un Cuando del futuro ya no la deja arriba; el desfase de segundos pasa', marcaFiable('9999-01-01T00:00:00Z', HOY) === '2026-09-11T18:05:00.000Z' && marcaFiable('2026-09-12T18:00:00Z', HOY) === '2026-09-11T18:05:00.000Z' && marcaFiable('2026-09-11T18:00:30Z', HOY) === '2026-09-11T18:00:30Z' && marcaFiable('2026-09-10T00:00:00Z', HOY) === '2026-09-10T00:00:00Z');
+// --- v0.100.0: capital de trabajo (PROY_Capital). Fixtures sinteticos, sin montos ni nombres reales.
+{
+  const P = [
+    { id: 1, ProyectoId: 10, Title: 'Mantenimiento de equipo de prueba', Tipo: 'necesidad', Monto: 10000, Estado: 'estimado', Fecha: '2026-10-05T18:00:00Z', Categoria: 'mantenimiento' },
+    { id: 2, ProyectoId: 10, Title: 'Renta de ejemplo', Tipo: 'necesidad', Monto: 2500.5, Estado: 'pagado', Fecha: '2026-09-30T18:00:00Z', Categoria: 'operación' },
+    { id: 3, ProyectoId: 10, Title: 'Aportación de ejemplo', Tipo: 'fondeo', Monto: 4000, Estado: 'comprometido', Fecha: '2026-10-01T18:00:00Z' },
+    { id: 4, ProyectoId: 20, Title: 'Equipo sintético', Tipo: 'necesidad', Monto: 1000, Estado: 'estimado' },
+    { id: 5, ProyectoId: 20, Title: 'Fondeo de sobra', Tipo: 'fondeo', Monto: 1500, Estado: 'pagado', Fecha: '2026-10-20T18:00:00Z' },
+    { id: 6, ProyectoId: 20, Title: 'Tipo raro', Tipo: 'otro', Monto: 999, Estado: 'estimado' }
+  ];
+  const proys = [{ id: 10, Title: 'Beta' }, { id: 20, Title: 'Alfa' }];
+  const r10 = resumenCapital(P.filter(x => x.ProyectoId === 10));
+  ok('capital: Necesario = Σ necesidades (pagadas incluidas), Cubierto = Σ fondeos, Falta = Necesario − Cubierto, Ya pagado = necesidades pagadas', r10.necesario === 12500.5 && r10.cubierto === 4000 && r10.falta === 8500.5 && r10.pagado === 2500.5 && r10.sobra === 0 && r10.n === 3);
+  const r20 = resumenCapital(P.filter(x => x.ProyectoId === 20));
+  ok('capital: con fondeo de sobra, Falta = 0 (no negativo) y Sobra lo dice; un Tipo fuera del catálogo no suma', r20.necesario === 1000 && r20.cubierto === 1500 && r20.falta === 0 && r20.sobra === 500 && r20.n === 3);
+  const g = capitalPorProyecto(P, proys);
+  ok('capital: agrupa por proyecto, primero el que más falta', g.length === 2 && g[0].proyectoId === 10 && g[0].proyecto.Title === 'Beta' && g[1].proyectoId === 20);
+  const t = totalCapital(g);
+  ok('capital: el Falta global es la SUMA de los Falta por proyecto (el sobrante de uno no cubre a otro)', t.falta === 8500.5 && t.necesario === 13500.5 && t.cubierto === 5500 && t.n === 6 && t.pagado === 2500.5);
+  ok('capital: un proyecto que ya no existe queda con proyecto null y al final si empata', capitalPorProyecto([{ id: 9, ProyectoId: 99, Tipo: 'necesidad', Monto: 0, Estado: 'estimado' }, { id: 8, ProyectoId: 20, Tipo: 'necesidad', Monto: 0, Estado: 'estimado' }], proys).map(x => x.proyecto && x.proyecto.Title).join(',') === 'Alfa,');
+  const m = capitalPorMes(P);
+  ok('capital: corte por mes por la fecha (día de México), sin fecha al final, fondeo aparte', m.map(x => x.mes).join(',') === '2026-09,2026-10,' && m[1].necesidad === 10000 && m[1].fondeo === 5500 && m[0].necesidad === 2500.5 && m[2].necesidad === 1000 && m[2].n === 1);
+  ok('capital: formatoMXN es-MX con 2 decimales', formatoMXN(10000) === '$10,000.00' && formatoMXN(2500.5) === '$2,500.50' && formatoMXN({ Monto: 0 }) === '$0.00' && formatoMXN('x') === '$0.00');
+  ok('capital: montoDe acepta número, cadena u objeto; lo que no es número vale 0', montoDe(5) === 5 && montoDe('7.5') === 7.5 && montoDe({ Monto: 3 }) === 3 && montoDe(null) === 0 && montoDe(undefined) === 0);
+  ok('capital: leerMonto acepta 10000 · 10,000.50 · $ 10,000 y rechaza 0, negativos, texto y 3 decimales', leerMonto('10000') === 10000 && leerMonto('10,000.50') === 10000.5 && leerMonto('$ 10,000') === 10000 && leerMonto('0') === null && leerMonto('-5') === null && leerMonto('diez') === null && leerMonto('1.234') === null && leerMonto('') === null);
+  const base = { Title: 'Concepto', ProyectoId: 10, Tipo: 'necesidad', Monto: 10, Estado: 'estimado' };
+  ok('capital: validarPartida pide concepto, proyecto, tipo, monto > 0 y estado', validarPartida(base).ok && !validarPartida({ ...base, Title: ' ' }).ok && !validarPartida({ ...base, ProyectoId: null }).ok && !validarPartida({ ...base, Tipo: 'x' }).ok && !validarPartida({ ...base, Monto: null }).ok && !validarPartida({ ...base, Monto: 0 }).ok && !validarPartida({ ...base, Estado: 'x' }).ok && !validarPartida({ ...base, Title: 'a'.repeat(256) }).ok);
+  ok('capital: ordenarPartidas por fecha asc deja sin fecha al final; desc también', ordenarPartidas(P, 'fecha', 1).map(x => x.id).join(',') === '2,3,1,5,4,6' && ordenarPartidas(P, 'fecha', -1).map(x => x.id).slice(-2).join(',') === '4,6');
+  ok('capital: ordenarPartidas por monto desc y por concepto sin acentos', ordenarPartidas(P, 'monto', -1)[0].id === 1 && ordenarPartidas(P, 'concepto', 1)[0].id === 3);
+  ok('capital: catálogos del esquema (7 categorías, 3 estados)', CAPITAL_CATEGORIAS.length === 7 && CAPITAL_ESTADOS.join(',') === 'estimado,comprometido,pagado');
+  ok('capital: solo gerencia ve y edita (PUEDE.capital)', PUEDE.capital('gerencia') && !PUEDE.capital('colaborador') && !PUEDE.capital('lectura'));
+}
+
 console.log(`reglas: ok (${n} comprobaciones)`);

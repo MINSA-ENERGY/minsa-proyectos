@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, marcaFiable, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.99.0';
+export const VERSION = '0.100.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 /** C-13 (v0.95.0): el filtro de tarjetas vacio, en UN lugar — su forma ya cambio dos veces (quien paso a arreglo en v0.30.0, se sumo
@@ -52,7 +52,12 @@ export const estado = {
     buzonExiste: {},
     buzonAvisado: false,   // C-03 (v0.81.0): ya se aviso una vez en esta carga que el buzon no contesta
     // v0.13.1: ids de proyecto cuya actividad esta COMPLETA en memoria (fuera de la ventana de CONFIG.actividadDias)
-    actividadCompleta: new Set()
+    actividadCompleta: new Set(),
+    // v0.100.0: capital de trabajo (PROY_Capital, solo gerencia). capitalLista: null = no se sabe, true = existe, false = FALTA en el
+    // sitio (se deja de preguntar en esta sesion; tras provisionar, recargar la pagina). capitalError: la ultima lectura fallo por otra cosa.
+    capital: [], capitalLista: null, capitalError: null,
+    filtroCapital: null,                       // id del proyecto elegido en la seccion Capital (null = todos)
+    ordenCapital: { col: 'fecha', dir: 1 }
 };
 
 // ---------------------------------------------------------------- DOM
@@ -250,6 +255,8 @@ export function hashDe(tareaId) {
     } else h = '#' + (estado.pestana || 'inicio');
     // v0.42.0: Mensajes lleva lo elegido (el hilo de un frente o la ficha de una persona, por su alias de @mencion)
     if (estado.pestana === 'mensajes' && estado.mensajesSel) h += estado.mensajesSel.t === 'f' ? `/f/${estado.mensajesSel.k}` : `/d/${aliasParaMencion(estado.mensajesSel.k, estado.roles) || String(estado.mensajesSel.k).split('@')[0]}`;
+    // v0.100.0: Capital lleva el proyecto filtrado (#capital/f/<clave>), para que la tarjeta del Resumen y una liga pegada abran ese corte
+    if (estado.pestana === 'capital' && estado.filtroCapital) { const p = porId(estado.proyectos, estado.filtroCapital); if (p && p.Clave) h += '/f/' + p.Clave; }
     if (tareaId) h += '/t/' + tareaId;
     return h;
 }

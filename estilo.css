@@ -1970,3 +1970,49 @@ body .filtro-movil select, body .doc .tarjeta-de select, body .fila-menu .menu .
     box-shadow: none;
   }
 }
+/* v0.100.0 (Carlos, 25-sep): seccion Capital de trabajo. La tabla reusa la piel de .dtabla (cabecera, orden, filetes) con
+   la clase .ctabla; no hay container-type en la seccion, asi que las fichas de Docs (@container) no le aplican: en celular
+   se esconden Tipo/Categoria/Fecha/Estado y el renglon .p bajo el concepto las dice. Sin pastillas: el color dice. */
+.capital-falta { margin: 0; padding: var(--sp-3) var(--sp-4); border: 1px solid var(--border-hairline); border-left: 3px solid var(--status-warn-solid); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); font-size: .9rem; }
+.capital-falta.is-error { border-left-color: var(--status-danger-solid); }
+.capital-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }   /* minmax(0): el select con un nombre largo no ensancha la pista */
+.capital-filtro { display: flex; align-items: center; gap: var(--sp-2); max-width: 420px; }
+.capital-filtro select { flex: 1 1 auto; min-width: 0; width: 100%; min-height: var(--control-h-sm); font: inherit; font-size: .9rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); }
+.capital-kpis .mn-kpi-val { font-size: 1.5rem; overflow-wrap: anywhere; }
+.capital-kpis .mn-kpi.is-danger .mn-kpi-val { color: var(--status-danger-fg); }
+.capital-kpis .kpi-det { display: block; margin-top: 2px; font-size: .72rem; color: var(--text-muted); }
+.ctabla .c-concepto { width: auto; white-space: normal; }
+.ctabla .c-tipo, .ctabla .c-cat, .ctabla .c-fecha, .ctabla .c-estado, .ctabla .c-n, .ctabla .c-mes { width: 1%; }
+.ctabla .c-monto { width: 1%; text-align: right; font-family: var(--font-data); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.ctabla .c-fecha { font-family: var(--font-data); font-size: .8rem; font-variant-numeric: tabular-nums; }
+.ctabla .partida-t { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--text-strong); cursor: pointer; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.ctabla .partida-t:hover, .ctabla .partida-t:focus-visible { text-decoration: underline; }
+.ctabla .c-concepto .p { display: none; }
+.ctabla tr.partida:hover td { background: var(--surface-hover); }
+.ctabla .tipo-fondeo, .ctabla tr.is-fondeo .c-monto { color: var(--status-ok-fg); }
+.ctabla .estado-pagado { color: var(--text-muted); }
+.ctabla tr.cgrupo td { padding: var(--sp-3) var(--sp-3) var(--sp-1); background: var(--surface-card); white-space: normal; }
+.cgrupo-cab { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
+.cgrupo-nombre { display: inline-flex; align-items: center; gap: var(--sp-2); background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--text-strong); min-width: 0; text-align: left; }
+button.cgrupo-nombre { cursor: pointer; }
+button.cgrupo-nombre:hover .t { text-decoration: underline; }
+.cgrupo-nombre .t { overflow-wrap: anywhere; }
+.cfalta { margin-left: auto; font-family: var(--font-data); font-size: .8rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+.cfalta.is-danger, .csub-par.is-danger b { color: var(--status-danger-fg); }
+.cfalta.is-ok, .csub-par.is-ok b { color: var(--status-ok-fg); }
+.ctabla tr.csub td { background: var(--surface-sunken); padding: var(--sp-2) var(--sp-3); white-space: normal; }
+.csub-linea { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sp-1) var(--sp-4); font-size: .8rem; }
+.csub-par .k { color: var(--text-muted); margin-right: var(--sp-1); }
+.csub-par b { font-family: var(--font-data); font-variant-numeric: tabular-nums; color: var(--text-strong); }
+.capital-resumen .kv .is-danger { color: var(--status-danger-fg); font-weight: 600; }
+.capital-resumen .kv .is-ok { color: var(--status-ok-fg); font-weight: 600; }
+@media (max-width: 720px) {
+  .ctabla .c-tipo, .ctabla .c-cat, .ctabla .c-fecha, .ctabla .c-estado { display: none; }
+  .ctabla .c-concepto .p { display: block; font-family: var(--font-data); font-size: .66rem; color: var(--text-muted); white-space: normal; overflow: visible; }
+  .ctabla td, .ctabla th { padding-left: var(--sp-2); padding-right: var(--sp-2); }
+  .capital-filtro { max-width: none; }
+  .capital-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .capital-kpis .mn-kpi-val { font-size: 1.25rem; overflow-wrap: normal; }
+  .cmeses .c-n { display: none; }
+  .cmeses .c-mes { white-space: normal; }
+}

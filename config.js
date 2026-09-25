@@ -30,7 +30,8 @@ export const CONFIG = {
         tareas: 'PROY_Tareas',
         ligas: 'PROY_Ligas',
         roles: 'PROY_Roles',
-        actividad: 'PROY_Actividad'
+        actividad: 'PROY_Actividad',
+        capital: 'PROY_Capital'   // v0.100.0: capital de trabajo (solo gerencia); puede no existir todavia — la app lo tolera
     },
 
     // Las cubetas (columnas) del tablero YA NO viven aqui: desde v0.11.0 (Carlos, 12-sep) cada proyecto

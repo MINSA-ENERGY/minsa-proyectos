@@ -88,6 +88,22 @@
         { "nombre": "Quien", "titulo": "Quien (correo)", "tipo": "text", "obligatorio": true },
         { "nombre": "Cuando", "titulo": "Cuando", "tipo": "dateTime", "obligatorio": true, "indexada": true }
       ]
+    },
+    {
+      "nombre": "PROY_Capital",
+      "titulo": "Capital de trabajo (partidas estimadas)",
+      "clave": "capital",
+      "regla": "v0.100.0 (2026-09-25, pedido de Carlos: «cuánto capital de trabajo falta / es necesario»): una partida ESTIMADA por renglon, ligada a un proyecto. Necesidad = dinero que el frente va a pedir; fondeo = dinero que ya lo cubre. Por proyecto: Necesario = Σ necesidades, Cubierto = Σ fondeos, Falta = max(0, Necesario − Cubierto); Ya pagado = Σ necesidades en «pagado». Solo MXN. Solo gerencia la ve y la edita (dato financiero); los Miembros del sitio no deberian tener lectura sobre ella. Sin bitacora en PROY_Actividad (su choice Accion no tiene opcion para esto y la actividad la lee todo el equipo). Mientras la lista no exista, la seccion Capital lo dice y el resto de la app funciona igual.",
+      "columnas": [
+        { "nombre": "Title", "titulo": "Concepto", "tipo": "text", "obligatorio": true },
+        { "nombre": "ProyectoId", "titulo": "ID del proyecto", "tipo": "number", "obligatorio": true, "indexada": true },
+        { "nombre": "Tipo", "titulo": "Tipo", "tipo": "choice", "opciones": ["necesidad", "fondeo"], "obligatorio": true },
+        { "nombre": "Monto", "titulo": "Monto (MXN)", "tipo": "number", "obligatorio": true },
+        { "nombre": "Categoria", "titulo": "Categoria", "tipo": "choice", "opciones": ["operación", "mantenimiento", "equipo", "permisos", "personal", "logística", "otro"], "libre": true },
+        { "nombre": "Fecha", "titulo": "Fecha estimada", "tipo": "dateTime", "nota": "cuando se necesita el dinero (necesidad) o cuando entra (fondeo); opcional. Base del corte por mes" },
+        { "nombre": "Estado", "titulo": "Estado", "tipo": "choice", "opciones": ["estimado", "comprometido", "pagado"], "obligatorio": true },
+        { "nombre": "Notas", "titulo": "Notas", "tipo": "note" }
+      ]
     }
   ]
 }
