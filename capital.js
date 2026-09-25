@@ -62,27 +62,28 @@ export function pintarCapital() {
 // cabecera de cada proyecto (nombre a la izquierda; Necesario · Cubierto · Falta a la derecha): arriba y abajo se leen igual.
 const PARTIDAS = n => `${n} ${n === 1 ? 'partida' : 'partidas'}`;
 
-/** Necesario · Cubierto · Falta en columnas alineadas a la derecha (el total y cada cabecera de proyecto). */
-function cifras(r) {
-    const c = el('div', 'ccifras');
-    const par = (clave, rotulo, valor, cls = '') => {
-        const d = el('div'); d.dataset.kpi = clave;
-        d.appendChild(el('span', 'mn-label', rotulo)); d.appendChild(el('b', cls, valor));
-        c.appendChild(d);
-    };
-    par('necesario', 'Necesario', formatoMXN(r.necesario));
-    par('cubierto', 'Cubierto', formatoMXN(r.cubierto), 'is-ok');
-    par('falta', 'Falta', r.falta > 0 ? formatoMXN(r.falta) : '—', r.falta > 0 ? 'is-danger' : 'is-ok');
-    return c;
+// v0.110.0 (Carlos, 25-sep: «que el encabezado así como la sección de abajo sea similar» a la hoja): el total ya no es
+// tarjeta; es una hoja de UN renglon con la misma rejilla que las partidas (Resumen · Partidas · Necesario · Cubierto · Falta).
+/** La hoja-resumen: `titulo` en la primera celda; data-kpi en cada celda (las pruebas leen su <b>). */
+function hojaResumen(titulo, r) {
+    const w = el('div', 'dtabla ctabla choja cresumen'); const t = el('table');
+    const th = el('thead'); const h = el('tr');
+    for (const [cls, texto] of [['c-concepto', 'Resumen'], ['c-n', 'Partidas'], ['c-monto', 'Necesario'], ['c-monto', 'Cubierto'], ['c-monto', 'Falta']]) { const c = el('th', cls, texto); c.scope = 'col'; h.appendChild(c); }
+    th.appendChild(h); t.appendChild(th);
+    const tb = el('tbody'); const tr = el('tr');
+    tr.appendChild(el('td', 'c-concepto cres-t', titulo));
+    const n = el('td', 'c-n', PARTIDAS(r.n) + (r.pagado ? ` · ${formatoMXN(r.pagado)} ya pagado` : '')); n.dataset.kpi = 'n'; tr.appendChild(n);
+    const celda = (clave, valor, cls = '') => { const td = el('td', 'c-monto'); td.dataset.kpi = clave; td.appendChild(el('b', cls, valor)); tr.appendChild(td); };
+    celda('necesario', formatoMXN(r.necesario));
+    celda('cubierto', formatoMXN(r.cubierto), 'is-ok');
+    celda('falta', r.falta > 0 ? formatoMXN(r.falta) : '—', r.falta > 0 ? 'is-danger' : 'is-ok');
+    tb.appendChild(tr); t.appendChild(tb); w.appendChild(t);
+    return w;
 }
 
 function pintarKpis(t) {
     const c = $('capitalKpis'); c.textContent = '';
-    const nombre = el('span', 'cnombre');
-    nombre.appendChild(el('span', 't', estado.filtroCapital ? 'Este proyecto' : 'Todos los proyectos'));
-    const n = el('span', 'n', PARTIDAS(t.n) + (t.pagado ? ` · ${formatoMXN(t.pagado)} ya pagado` : '')); n.dataset.kpi = 'n';
-    nombre.appendChild(n);
-    c.appendChild(nombre); c.appendChild(cifras(t));
+    c.appendChild(hojaResumen(estado.filtroCapital ? 'Este proyecto' : 'Todos los proyectos', t));
 }
 
 // v0.109.0 (Carlos, 25-sep; artifact 7QYCC9Ly, opcion C «Excel literal»): el acordeon sale. Las partidas son UNA hoja:
@@ -118,11 +119,15 @@ const celdaFalta = (r, conRotulo) => {
     return td;
 };
 
+// v0.110.0: el renglon de grupo y el pie ya no usan colSpan=5 — en celular las 4 columnas chicas se esconden y el colSpan
+// dejaba una columna fantasma a la derecha; ahora llevan sus 4 celdas vacias (se esconden con las demas).
+const vacias = tr => { for (const c of ['c-tipo', 'c-cat', 'c-fecha', 'c-estado']) tr.appendChild(el('td', c)); };
+
 /** Pie de la hoja: la falta total en el ultimo numero de fila. */
 function pie(t, n, r) {
     const tf = el('tfoot'); const tr = el('tr');
     tr.appendChild(el('td', 'rn', String(n)));
-    const td = el('td', 'c-concepto', 'FALTA TOTAL (necesario − fondeo)'); td.colSpan = 5; tr.appendChild(td);
+    tr.appendChild(el('td', 'c-concepto', 'FALTA TOTAL (necesario − fondeo)')); vacias(tr);
     tr.appendChild(celdaFalta(r, false)); tf.appendChild(tr); t.appendChild(tf);
 }
 
@@ -136,14 +141,14 @@ function pintarTabla(grupos, n) {
     for (const g of grupos) {
         const tr = el('tr', 'cgrupo'); tr.dataset.capitalProyecto = String(g.proyectoId);
         tr.appendChild(el('td', 'rn', String(fila++)));
-        const td = el('td', 'c-concepto'); td.colSpan = 5;
+        const td = el('td', 'c-concepto');
         if (g.proyecto) {
             const b = el('button', 'cgrupo-nombre', g.proyecto.Title + (g.proyecto.Estado === 'activo' ? '' : ' (cerrado)'));
             b.type = 'button'; b.title = 'Abrir el proyecto';
             b.addEventListener('click', () => irAProyecto(g.proyecto));
             td.appendChild(b);
         } else td.appendChild(el('span', 'cgrupo-nombre', `Proyecto eliminado (#${g.proyectoId})`));
-        tr.appendChild(td); tr.appendChild(celdaFalta(g, true)); tb.appendChild(tr);
+        tr.appendChild(td); vacias(tr); tr.appendChild(celdaFalta(g, true)); tb.appendChild(tr);
         for (const x of ordenarPartidas(g.partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x, fila++));
     }
     pie(w.querySelector('table'), fila, totalCapital(grupos));
@@ -162,11 +167,7 @@ function tablaPartidas(partidas) {
 export function pintarCapitalTab(p) {
     const tot = $('pcapTotal'); tot.textContent = '';
     const mias = estado.capital.filter(x => Number(x.ProyectoId) === p.id);
-    const r = resumenCapital(mias);
-    const nombre = el('span', 'cnombre');
-    nombre.appendChild(el('span', 't', 'Capital de trabajo'));
-    nombre.appendChild(el('span', 'n', PARTIDAS(r.n) + (r.pagado ? ` · ${formatoMXN(r.pagado)} ya pagado` : '')));
-    tot.appendChild(nombre); tot.appendChild(cifras(r));
+    tot.appendChild(hojaResumen('Capital de trabajo', resumenCapital(mias)));
     const cont = $('pcapTabla'); cont.textContent = '';
     if (!mias.length) { cont.appendChild(el('p', 'vacio', 'Este proyecto no tiene partidas todavía. «Nueva partida» agrega la primera.')); return; }
     cont.appendChild(tablaPartidas(mias));
@@ -197,7 +198,8 @@ function pintarMeses(partidas) {
     const cont = $('capitalMeses'); cont.textContent = '';
     const meses = capitalPorMes(partidas);
     if (!meses.length) { cont.appendChild(el('p', 'vacio', 'Sin partidas que repartir por mes.')); return; }
-    const w = el('div', 'dtabla ctabla cmeses'); const t = el('table'); const th = el('thead'); const tr = el('tr');
+    // v0.110.0: la tabla por mes es la misma hoja (rejilla, cifras tabulares) con su renglon TOTAL al pie
+    const w = el('div', 'dtabla ctabla choja cmeses'); const t = el('table'); const th = el('thead'); const tr = el('tr');
     for (const [cls, texto] of [['c-mes', 'Mes'], ['c-monto', 'Necesidad'], ['c-monto', 'Fondeo'], ['c-n', 'Partidas']]) { const h = el('th', cls, texto); h.scope = 'col'; tr.appendChild(h); }
     th.appendChild(tr); t.appendChild(th); const tb = el('tbody'); t.appendChild(tb);
     for (const m of meses) {
@@ -208,6 +210,13 @@ function pintarMeses(partidas) {
         f.appendChild(el('td', 'c-n', String(m.n)));
         tb.appendChild(f);
     }
+    const sum = k => meses.reduce((s, m) => s + (m[k] || 0), 0);
+    const tf = el('tfoot'); const ft = el('tr');
+    ft.appendChild(el('td', 'c-mes', 'TOTAL'));
+    ft.appendChild(el('td', 'c-monto', formatoMXN(sum('necesidad'))));
+    ft.appendChild(el('td', 'c-monto', sum('fondeo') ? '+ ' + formatoMXN(sum('fondeo')) : '—'));
+    ft.appendChild(el('td', 'c-n', String(sum('n'))));
+    tf.appendChild(ft); t.appendChild(tf);
     w.appendChild(t); cont.appendChild(w);
 }
 

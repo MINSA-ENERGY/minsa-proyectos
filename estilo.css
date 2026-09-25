@@ -1975,18 +1975,6 @@ body .filtro-movil select, body .doc .tarjeta-de select, body .fila-menu .menu .
 .capital-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }   /* minmax(0): el select con un nombre largo no ensancha la pista */
 .capital-filtro { display: flex; align-items: center; gap: var(--sp-2); max-width: 420px; }
 .capital-filtro select { flex: 1 1 auto; min-width: 0; width: 100%; min-height: var(--control-h-sm); font: inherit; font-size: .9rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); }
-/* v0.101.0 (Carlos, 25-sep; artifact QSAqBmdn ronda 3): el total y cada cabecera de proyecto comparten la forma .cfila */
-.cfila { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); }
-.cnombre { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; font-weight: 600; color: var(--text-strong); }
-.cnombre .n { font-family: var(--font-data); font-size: .72rem; font-weight: 400; color: var(--text-muted); }
-.ccifras { margin-left: auto; display: flex; gap: var(--sp-4); }
-.ccifras > div { display: grid; justify-items: end; min-width: 96px; }
-.ccifras b { font-family: var(--font-data); font-size: .85rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text-strong); }
-.ccifras b.is-ok { color: var(--status-ok-fg); }
-.ccifras b.is-danger { color: var(--status-danger-fg); font-weight: 600; }
-.ctotal { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); }
-.ctotal .cnombre .t { font-family: var(--font-display); font-size: 1rem; }
-.ctotal .ccifras b { font-size: 1rem; }
 .ctabla th.c-monto, .ctabla th.c-fecha { font-size: .66rem; }   /* .ctabla .c-monto/.c-fecha (0,2,0) le ganaban a .dtabla th: el encabezado salia mas grande */
 .ctabla .c-concepto { width: auto; white-space: normal; }
 .ctabla .c-tipo, .ctabla .c-cat, .ctabla .c-fecha, .ctabla .c-estado, .ctabla .c-n, .ctabla .c-mes { width: 1%; }
@@ -2009,15 +1997,12 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
   .ctabla .c-concepto .p { display: block; font-family: var(--font-data); font-size: .66rem; color: var(--text-muted); white-space: normal; overflow: visible; }
   .ctabla td, .ctabla th { padding-left: var(--sp-2); padding-right: var(--sp-2); }
   .capital-filtro { max-width: none; }
-  .ccifras { margin-left: 0; width: 100%; justify-content: space-between; gap: var(--sp-2); }
-  .ccifras > div { min-width: 0; }
   .cmeses .c-n { display: none; }
   .cmeses .c-mes { white-space: normal; }
 }
 /* v0.102.0: pestaña Capital del proyecto — el total arriba con el boton, la tabla en una hoja con la banda de marca */
 .capital-proy { display: grid; gap: var(--sp-3); }
 .capital-proy-barra { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
-.capital-proy-barra .ctotal { flex: 1 1 auto; min-width: 0; }
 #pcapTabla .dtabla { border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow-x: auto; background: var(--surface-card); }
 /* v0.106.0 (Carlos, 25-sep): campo de fecha dd/mm/aaaa (comun.js campoFecha) — texto + boton de calendario; el type=date
    nativo queda invisible y solo presta su selector. */
@@ -2028,7 +2013,7 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .fecha-campo .fecha-cal svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 /* v0.109.0 (Carlos, 25-sep; artifact 7QYCC9Ly, opcion C «Excel literal»): las partidas son UNA hoja con letras de columna,
    numero de fila, un renglon gris por proyecto y la falta total al pie. Sin acordeon, sin tarjeta, sin pastillas. */
-.choja { overflow-x: auto; }
+.choja { overflow-x: auto; border-radius: var(--r-sm); box-shadow: none; }   /* v0.110.0: esquina chica, sin sombra */
 .choja th, .choja td { border-right: 1px solid var(--border-hairline); }
 .choja th:last-child, .choja td:last-child { border-right: 0; }
 .choja thead tr.letras th { font-weight: 400; letter-spacing: 0; text-align: center; color: var(--text-faint); background: var(--surface-page); padding-top: 2px; padding-bottom: 2px; }
@@ -2049,3 +2034,30 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .choja .estado-pagado { color: var(--status-ok-fg); }
 .choja tfoot td { background: var(--surface-sunken); font-weight: 700; color: var(--text-strong); border-top: 1px solid var(--border-default); border-bottom: 0; }
 @media (max-width: 720px) { .choja thead tr.letras, .choja .rn { display: none; } }
+/* v0.110.0 (Carlos, 25-sep: «legible en claro y oscuro … que no se vea tan bloaty … el encabezado así como la sección de abajo
+   similar» a la hoja): la hoja se compacta (renglon denso, cifras tabulares a la derecha) y el total de arriba y la tabla por
+   mes usan la MISMA rejilla — sin tarjetas, sin sombras. Solo tokens de base.css: el tema oscuro sale solo. */
+.choja table { font-size: .8rem; }
+.choja th { padding: 3px var(--sp-2); font-size: .64rem; }
+.choja td { padding: 3px var(--sp-2); line-height: 1.35; color: var(--text-body); }
+.choja td, .choja th { border-bottom: 1px solid var(--border-hairline); }
+.choja .c-monto, .choja .c-n { text-align: right; font-family: var(--font-data); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.choja th.c-n { text-align: right; }
+.choja .partida-t, .choja tr.cgrupo .cgrupo-nombre { font-size: .8rem; }
+.cres-caja { min-width: 0; }
+.cresumen tbody td { background: var(--surface-card); }
+.cresumen .cres-t { font-weight: 600; color: var(--text-strong); }
+.cresumen td.c-n { color: var(--text-muted); font-size: .72rem; }
+.cresumen td.c-monto b { font-weight: 600; color: var(--text-strong); }
+.cresumen td.c-monto b.is-ok { color: var(--status-ok-fg); }
+.cresumen td.c-monto b.is-danger { color: var(--status-danger-fg); }
+.choja-sec { display: grid; gap: var(--sp-1); min-width: 0; }
+.choja-tit { margin: 0; font-family: var(--font-data); font-size: .66rem; letter-spacing: .07em; font-weight: 600; text-transform: uppercase; color: var(--text-muted); }
+.cmeses.choja tbody tr:nth-child(even) td { background: var(--banda); }
+.cmeses.choja tbody tr:nth-child(odd) td { background: var(--surface-card); }
+.cmeses td.c-mes { text-transform: none; }
+.cmeses td.c-mes::first-letter { text-transform: uppercase; }
+@media (max-width: 720px) {
+  .cresumen .c-n { display: none; }
+  .cresumen .c-concepto { white-space: normal; }
+}
