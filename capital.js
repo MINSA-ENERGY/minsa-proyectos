@@ -85,8 +85,16 @@ function pintarKpis(t) {
     c.appendChild(nombre); c.appendChild(cifras(t));
 }
 
+// v0.109.0 (Carlos, 25-sep; artifact 7QYCC9Ly, opcion C «Excel literal»): el acordeon sale. Las partidas son UNA hoja:
+// letras de columna y numero de fila, cada proyecto un renglon gris (nombre + su Falta) y al pie la falta total. Nada se pliega.
+const LETRAS = 'ABCDEF';
+
+/** La hoja vacia: renglon de letras + encabezado ordenable (con la columna de numero de fila) + tbody. */
 function encabezado() {
-    const w = el('div', 'dtabla ctabla'); const t = el('table'); const th = el('thead'); const tr = el('tr');
+    const w = el('div', 'dtabla ctabla choja'); const t = el('table'); const th = el('thead');
+    const letras = el('tr', 'letras'); letras.appendChild(el('th', 'rn'));
+    for (const c of LETRAS) letras.appendChild(el('th', '', c));
+    const tr = el('tr'); tr.appendChild(el('th', 'rn'));
     const o = estado.ordenCapital;
     for (const [cls, texto, clave] of COLUMNAS) {
         const h = el('th', cls, texto); h.scope = 'col';
@@ -99,8 +107,23 @@ function encabezado() {
         h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); elegir(); } });
         tr.appendChild(h);
     }
-    th.appendChild(tr); t.appendChild(th); t.appendChild(el('tbody')); w.appendChild(t);
+    th.appendChild(letras); th.appendChild(tr); t.appendChild(th); t.appendChild(el('tbody')); w.appendChild(t);
     return w;
+}
+
+const celdaFalta = (r, conRotulo) => {
+    const td = el('td', 'c-monto ' + (r.falta > 0 ? 'is-danger' : 'is-ok'));
+    if (conRotulo) td.appendChild(el('span', 'rot', 'falta'));
+    td.appendChild(document.createTextNode(r.falta > 0 ? formatoMXN(r.falta) : '—'));
+    return td;
+};
+
+/** Pie de la hoja: la falta total en el ultimo numero de fila. */
+function pie(t, n, r) {
+    const tf = el('tfoot'); const tr = el('tr');
+    tr.appendChild(el('td', 'rn', String(n)));
+    const td = el('td', 'c-concepto', 'FALTA TOTAL (necesario − fondeo)'); td.colSpan = 5; tr.appendChild(td);
+    tr.appendChild(celdaFalta(r, false)); tf.appendChild(tr); t.appendChild(tf);
 }
 
 function pintarTabla(grupos, n) {
@@ -109,35 +132,29 @@ function pintarTabla(grupos, n) {
         cont.appendChild(el('p', 'vacio', estado.filtroCapital ? 'Este proyecto no tiene partidas todavía. «Nueva partida» agrega la primera.' : 'Sin partidas todavía. «Nueva partida» agrega la primera: un concepto, el proyecto y el monto estimado.'));
         return;
     }
-    // v0.101.0: un acordeon por proyecto (cabecera = nombre + sus tres cifras; al abrir, su tabla). Nace abierto; lo que
-    // Carlos pliega se recuerda en la sesion (estado.capitalPlegados) para que un repintado no le reabra nada.
-    const acor = el('div', 'cacor');
+    const w = encabezado(); const tb = w.querySelector('tbody'); let fila = 1;
     for (const g of grupos) {
-        const d = el('details', 'cgrupo'); d.dataset.capitalProyecto = String(g.proyectoId);
-        d.open = !estado.capitalPlegados.has(g.proyectoId);
-        d.addEventListener('toggle', () => { if (d.open) estado.capitalPlegados.delete(g.proyectoId); else estado.capitalPlegados.add(g.proyectoId); });
-        const s = el('summary', 'cfila');
-        s.appendChild(iconoSvg(['M9 6l6 6-6 6'], 'fl'));
-        const nombre = el('span', 'cnombre');
+        const tr = el('tr', 'cgrupo'); tr.dataset.capitalProyecto = String(g.proyectoId);
+        tr.appendChild(el('td', 'rn', String(fila++)));
+        const td = el('td', 'c-concepto'); td.colSpan = 5;
         if (g.proyecto) {
-            // el nombre es boton (abre el frente); el resto de la cabecera pliega. Un boton dentro de <summary> no la pliega.
-            const b = el('button', 'cgrupo-nombre'); b.type = 'button'; b.title = 'Abrir el proyecto';
-            b.appendChild(iconoEquipo(equipoDe(g.proyecto), 'sm')); b.appendChild(el('span', 't', g.proyecto.Title + (g.proyecto.Estado === 'activo' ? '' : ' (cerrado)')));
+            const b = el('button', 'cgrupo-nombre', g.proyecto.Title + (g.proyecto.Estado === 'activo' ? '' : ' (cerrado)'));
+            b.type = 'button'; b.title = 'Abrir el proyecto';
             b.addEventListener('click', () => irAProyecto(g.proyecto));
-            nombre.appendChild(b);
-        } else nombre.appendChild(el('span', 'cgrupo-nombre t', `Proyecto eliminado (#${g.proyectoId})`));
-        nombre.appendChild(el('span', 'n', String(g.partidas.length)));
-        s.appendChild(nombre); s.appendChild(cifras(g));
-        d.appendChild(s);
-        d.appendChild(tablaPartidas(g.partidas)); acor.appendChild(d);
+            td.appendChild(b);
+        } else td.appendChild(el('span', 'cgrupo-nombre', `Proyecto eliminado (#${g.proyectoId})`));
+        tr.appendChild(td); tr.appendChild(celdaFalta(g, true)); tb.appendChild(tr);
+        for (const x of ordenarPartidas(g.partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x, fila++));
     }
-    cont.appendChild(acor);
+    pie(w.querySelector('table'), fila, totalCapital(grupos));
+    cont.appendChild(w);
 }
 
-/** La tabla de partidas (encabezado ordenable + un renglon por partida), en el orden de estado.ordenCapital. */
+/** La hoja de UN proyecto (su pestaña): sin renglon de grupo, con su falta al pie. */
 function tablaPartidas(partidas) {
-    const w = encabezado(); const tb = w.querySelector('tbody');
-    for (const x of ordenarPartidas(partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x));
+    const w = encabezado(); const tb = w.querySelector('tbody'); let fila = 1;
+    for (const x of ordenarPartidas(partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x, fila++));
+    pie(w.querySelector('table'), fila, resumenCapital(partidas));
     return w;
 }
 
@@ -155,8 +172,11 @@ export function pintarCapitalTab(p) {
     cont.appendChild(tablaPartidas(mias));
 }
 
-function filaPartida(x) {
+const mayuscula = s => s ? s.charAt(0).toLocaleUpperCase('es-MX') + s.slice(1) : s;
+
+function filaPartida(x, fila) {
     const tr = el('tr', 'partida' + (x.Tipo === 'fondeo' ? ' is-fondeo' : '')); tr.dataset.partida = String(x.id);
+    tr.appendChild(el('td', 'rn', String(fila)));
     const tdc = el('td', 'c-concepto');
     const b = el('button', 'partida-t', x.Title || '(sin concepto)'); b.type = 'button'; b.title = 'Editar la partida';
     b.addEventListener('click', () => abrirPartida(x.id));
@@ -166,10 +186,10 @@ function filaPartida(x) {
     if (x.Notas) tdc.title = x.Notas;
     tr.appendChild(tdc);
     tr.appendChild(el('td', 'c-tipo tipo-' + (x.Tipo || 'otro'), TIPO[x.Tipo] || x.Tipo || '—'));
-    tr.appendChild(el('td', 'c-cat', x.Categoria || '—'));
+    tr.appendChild(el('td', 'c-cat', mayuscula(x.Categoria) || '—'));
     tr.appendChild(el('td', 'c-fecha', x.Fecha ? fechaCorta(x.Fecha) : '—'));
-    tr.appendChild(el('td', 'c-estado estado-' + (x.Estado || ''), x.Estado || '—'));
-    tr.appendChild(el('td', 'c-monto', (x.Tipo === 'fondeo' ? '+ ' : '') + formatoMXN(x)));
+    tr.appendChild(el('td', 'c-estado estado-' + (x.Estado || ''), mayuscula(x.Estado) || '—'));
+    tr.appendChild(el('td', 'c-monto', (x.Tipo === 'fondeo' ? '− ' : '') + formatoMXN(x)));   // v0.109.0: el fondeo RESTA en la hoja
     return tr;
 }
 

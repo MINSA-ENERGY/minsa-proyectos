@@ -1987,17 +1987,6 @@ body .filtro-movil select, body .doc .tarjeta-de select, body .fila-menu .menu .
 .ctotal { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); }
 .ctotal .cnombre .t { font-family: var(--font-display); font-size: 1rem; }
 .ctotal .ccifras b { font-size: 1rem; }
-.cacor { display: grid; gap: var(--sp-3); }   /* v0.102.0: sp-2 -> sp-3, bloques mas separados */
-.cacor details { border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow: hidden; background: var(--surface-card); }
-.cacor summary { list-style: none; cursor: pointer; padding: var(--sp-2) var(--sp-3); }
-.cacor summary::-webkit-details-marker { display: none; }
-.cacor summary:hover { background: var(--surface-hover); }
-.cacor summary:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: -2px; }
-.cacor .fl { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--text-muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--dur-fast); }
-.cacor details[open] .fl { transform: rotate(90deg); }
-.cacor .dtabla { border-top: 1px solid var(--border-hairline); overflow-x: auto; }
-.cacor .dtabla th { border-radius: 0; }
-.cacor .dtabla tr:last-child td { border-bottom: 0; }
 .ctabla th.c-monto, .ctabla th.c-fecha { font-size: .66rem; }   /* .ctabla .c-monto/.c-fecha (0,2,0) le ganaban a .dtabla th: el encabezado salia mas grande */
 .ctabla .c-concepto { width: auto; white-space: normal; }
 .ctabla .c-tipo, .ctabla .c-cat, .ctabla .c-fecha, .ctabla .c-estado, .ctabla .c-n, .ctabla .c-mes { width: 1%; }
@@ -2022,24 +2011,9 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
   .capital-filtro { max-width: none; }
   .ccifras { margin-left: 0; width: 100%; justify-content: space-between; gap: var(--sp-2); }
   .ccifras > div { min-width: 0; }
-  .cacor summary.cfila { display: grid; grid-template-columns: auto minmax(0, 1fr); }   /* flex dejaba la flecha sola en su renglon cuando el nombre envuelve */
-  .cacor summary .ccifras { grid-column: 1 / -1; }
   .cmeses .c-n { display: none; }
   .cmeses .c-mes { white-space: normal; }
 }
-/* v0.102.0 (Carlos, 25-sep: «las partidas se distingan un poco mas»). Cada proyecto es un BLOQUE con banda de color y
-   titulo grande en el azul de la marca; cada partida llevaba un filete (retirado en v0.105.0) que decia su tipo (necesidad = rojo,
-   fondeo = verde) y el concepto sube de tamano. Se revierte borrando este bloque. */
-/* v0.104.0 (Carlos, 25-sep; artifact LS1gmAA6 variante H): «tarjeta elevada» — sin banda lateral ni tinte, sin icono de
-   equipo ni contador de partidas; la sombra despega cada proyecto del fondo. */
-.cacor details { border: 0; box-shadow: 0 0 0 1px var(--border-hairline), 0 1px 2px rgba(0,0,0,.06), 0 4px 14px rgba(0,0,0,.07); }   /* el anillo separa en oscuro, donde la sombra no se ve */
-.cacor summary { padding: var(--sp-4) var(--sp-4); }
-.cacor .cgrupo-nombre .t { font-family: var(--font-display); font-size: 1rem; font-weight: 600; color: var(--text-strong); }   /* v0.105.0: 1.2rem era demasiado grande (Carlos) */
-.cacor .cgrupo-nombre .eqi, .cacor .cnombre .n { display: none; }
-.cacor summary .ccifras b { font-size: .95rem; font-weight: 600; }
-.ctabla .partida-t { font-size: .95rem; }
-.ctabla tbody tr.partida:nth-child(even) td { background: color-mix(in srgb, var(--text-strong) 3%, transparent); }
-.ctabla tbody tr.partida:hover td { background: var(--surface-hover); }
 /* v0.102.0: pestaña Capital del proyecto — el total arriba con el boton, la tabla en una hoja con la banda de marca */
 .capital-proy { display: grid; gap: var(--sp-3); }
 .capital-proy-barra { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
@@ -2052,3 +2026,26 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .fecha-campo .fecha-nativa { position: absolute; right: 0; bottom: 0; width: 1px; height: 1px; padding: 0; border: 0; opacity: 0; pointer-events: none; }
 .fecha-campo .fecha-cal { flex: none; padding-inline: var(--sp-2); }
 .fecha-campo .fecha-cal svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+/* v0.109.0 (Carlos, 25-sep; artifact 7QYCC9Ly, opcion C «Excel literal»): las partidas son UNA hoja con letras de columna,
+   numero de fila, un renglon gris por proyecto y la falta total al pie. Sin acordeon, sin tarjeta, sin pastillas. */
+.choja { overflow-x: auto; }
+.choja th, .choja td { border-right: 1px solid var(--border-hairline); }
+.choja th:last-child, .choja td:last-child { border-right: 0; }
+.choja thead tr.letras th { font-weight: 400; letter-spacing: 0; text-align: center; color: var(--text-faint); background: var(--surface-page); padding-top: 2px; padding-bottom: 2px; }
+.choja .rn { width: 1%; text-align: center; font-family: var(--font-data); font-size: .72rem; color: var(--text-faint); background: var(--surface-page); }
+.choja th.c-monto, .choja th.c-fecha { text-align: right; }
+.choja .c-fecha { text-align: right; }
+.choja tr.cgrupo td { background: var(--surface-sunken); }
+.choja tr.cgrupo .cgrupo-nombre { font-weight: 700; letter-spacing: .02em; font-size: .85rem; }
+.choja tr.cgrupo .rot { font-family: var(--font-ui); font-size: .72rem; color: var(--text-muted); margin-right: var(--sp-2); }
+.choja .c-monto.is-danger { color: var(--status-danger-fg); font-weight: 600; }
+.choja .c-monto.is-ok { color: var(--status-ok-fg); }
+.choja .partida-t { font-size: .85rem; font-weight: 400; color: var(--text-body); }
+.choja tbody tr.partida:nth-child(even) td:not(.rn) { background: var(--banda); }
+.choja tbody tr.partida:nth-child(odd) td:not(.rn) { background: var(--surface-card); }
+.choja tbody tr.partida:hover td:not(.rn) { background: var(--surface-hover); }
+.choja .estado-estimado { color: var(--text-muted); }
+.choja .estado-comprometido { color: var(--status-warn-fg); }
+.choja .estado-pagado { color: var(--status-ok-fg); }
+.choja tfoot td { background: var(--surface-sunken); font-weight: 700; color: var(--text-strong); border-top: 1px solid var(--border-default); border-bottom: 0; }
+@media (max-width: 720px) { .choja thead tr.letras, .choja .rn { display: none; } }

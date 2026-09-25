@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, marcaFiable, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.108.0';
+export const VERSION = '0.109.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 /** C-13 (v0.95.0): el filtro de tarjetas vacio, en UN lugar — su forma ya cambio dos veces (quien paso a arreglo en v0.30.0, se sumo
@@ -57,8 +57,7 @@ export const estado = {
     // sitio (se deja de preguntar en esta sesion; tras provisionar, recargar la pagina). capitalError: la ultima lectura fallo por otra cosa.
     capital: [], capitalLista: null, capitalError: null,
     filtroCapital: null,                       // id del proyecto elegido en la seccion Capital (null = todos)
-    ordenCapital: { col: 'fecha', dir: 1 },
-    capitalPlegados: new Set()                 // v0.101.0: ids de proyecto cuyo acordeon de Capital se plego (solo la sesion)
+    ordenCapital: { col: 'fecha', dir: 1 }
 };
 
 // ---------------------------------------------------------------- DOM
