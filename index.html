@@ -153,7 +153,7 @@
           <div id="tab-lista" class="tabla oculto"></div>
           <div id="tab-roadmap" class="roadmap oculto"></div>
           <div id="tab-docs" class="docs oculto">
-            <div class="docs-acciones"><button id="btnLigar" class="mn-btn is-sm" type="button">Ligar archivo de la biblioteca</button><button id="btnSubir" class="mn-btn is-sm" type="button">Subir al buzón</button><button id="btnEnlace" class="mn-btn is-sm" type="button">Pegar un enlace</button><span class="mn-help" id="docsBiblioteca"></span></div>
+            <div class="docs-acciones"><button id="btnLigar" class="mn-btn is-sm" type="button">Ligar archivo de la biblioteca</button><button id="btnSubir" class="mn-btn is-primary is-sm" type="button">Subir al buzón</button><button id="btnEnlace" class="mn-btn is-sm" type="button">Pegar un enlace</button><span class="mn-help" id="docsBiblioteca"></span></div>
             <!-- v0.17.0: chips de estado + conteo «N de M» + buscador, sobre la tabla de documentos -->
             <div class="docs-barra"><div class="filtros grupo" id="docsFiltro"></div><!-- v0.34.0: abrir / plegar todas las carpetas del árbol --><span class="arbol-todo" id="docsTodo" hidden><button id="docsAbrirTodo" class="mn-btn is-ghost is-sm" type="button" title="Desplegar todas las carpetas">Abrir todo</button><button id="docsPlegarTodo" class="mn-btn is-ghost is-sm" type="button" title="Plegar todas las carpetas">Plegar todo</button></span><span class="p" id="docsResumen"></span><input id="docsBusca" class="buscador" type="search" placeholder="Buscar en los documentos" aria-label="Buscar en los documentos" autocomplete="off" hidden></div>
             <div class="lista" id="docsLista"></div>
@@ -298,7 +298,7 @@
         <label for="tNota" class="oculto">Nueva nota</label>
         <div class="chat-caja"><textarea id="tNota" rows="2" maxlength="250" placeholder="Anota qué pasó, qué falta o por qué está donde está; @nombre avisa a alguien (250 caracteres)"></textarea><div class="selector oculto" id="tNotaSelector" role="listbox" aria-label="Mencionar a"></div></div>
         <span class="cont mn-mono" id="tNotaCont" aria-live="polite"></span>
-        <button class="mn-btn is-sm" id="tAnotar" type="submit" title="Ctrl+Enter también envía">Anotar</button>
+        <button class="mn-btn is-primary is-sm" id="tAnotar" type="submit" title="Ctrl+Enter también envía">Anotar</button>
       </form>
     </div>
     <aside class="t-side" aria-label="Frente y documentos de la tarjeta">

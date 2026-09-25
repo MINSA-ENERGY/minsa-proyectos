@@ -1942,3 +1942,31 @@ body .pficha .cal { border: 0; border-radius: 0; } body .pficha .cal .mes, body 
 body .pficha .cal .mes { color: var(--brand-primary); } body .pficha.is-danger .cal .mes { background: none; color: var(--status-danger-fg); } body .pficha.is-warn .cal .mes { background: none; color: var(--status-warn-fg); } body .pficha.is-cerrado .cal .mes { background: none; color: var(--status-ok-fg); } body .pficha .cal.sin .mes { background: none; color: var(--text-faint); }
 /* controles de seleccion con la esquina de la casa, no pildora */
 body .filtro-movil select, body .doc .tarjeta-de select, body .fila-menu .menu .menu-mover select, body .dtabla .c-tarjeta select, body .dtabla .tarjeta-liga { border-radius: var(--r-sm); }
+/* v0.99.0 (Carlos, 25-sep: «el fondo de la app de calytek-planta ... solo borra el recuadro de abajo a la derecha, lo de los
+   botones con el fade, y los botones de color verde como (nueva góndola)»). Copiado de planta R6 (v0.65.0, estilo.css 1193):
+   en escritorio, rejilla de plano de 24 px (mayor cada 120) detrás del rail y del contenido, que se apaga desde la esquina del
+   logo; la pestaña activa del rail es un degradado del acento que se desvanece a la derecha (el «fade»). SIN el cuadro de rótulo
+   (.rotulo, el cajetín de plano fijo abajo a la derecha: PROYECTO/ESCALA/FECHA/HOJA): no se copió ni su HTML ni su CSS.
+   El primario verde (.mn-btn.is-primary = el .principal de «+ Nueva góndola») gana la sombra ligera en reposo de planta. */
+:root { --rejilla-1: rgba(8, 51, 163, .08); --rejilla-2: rgba(8, 51, 163, .2); --sombra-pri: 0 1px 2px rgba(11, 18, 32, .18), 0 2px 6px rgba(11, 18, 32, .10); }
+:root[data-theme="dark"] { --rejilla-1: rgba(127, 155, 255, .10); --rejilla-2: rgba(127, 155, 255, .24); --sombra-pri: 0 1px 2px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --rejilla-1: rgba(127, 155, 255, .10); --rejilla-2: rgba(127, 155, 255, .24); --sombra-pri: 0 1px 2px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .3); } }
+.mn-btn.is-primary { box-shadow: var(--sombra-pri); }
+.mn-btn.is-primary:disabled { box-shadow: none; }
+@media (min-width: 721px) {
+  .app { isolation: isolate; }
+  .app::before {
+    content: ""; position: fixed; inset: 0; z-index: -1; pointer-events: none;
+    background-image: radial-gradient(circle farthest-corner at 0 0, transparent 21%, var(--surface-page) 85%),
+      linear-gradient(var(--rejilla-2) 1px, transparent 1px), linear-gradient(90deg, var(--rejilla-2) 1px, transparent 1px),
+      linear-gradient(var(--rejilla-1) 1px, transparent 1px), linear-gradient(90deg, var(--rejilla-1) 1px, transparent 1px);
+    background-size: 100% 100%, 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+    -webkit-mask-image: radial-gradient(circle farthest-corner at 0 0, #000 21%, transparent 85%); mask-image: radial-gradient(circle farthest-corner at 0 0, #000 21%, transparent 85%);
+  }
+  body:has(#pantallaEntrar:not(.oculto)) .app::before { display: none; }   /* la entrada trae su propio plano navy */
+  .rail { background: transparent; }
+  .rail nav button.is-on, .rail .equipos button.is-on {
+    background: linear-gradient(90deg, color-mix(in srgb, var(--brand-primary) 30%, transparent) 0%, color-mix(in srgb, var(--brand-primary) 18%, transparent) 45%, color-mix(in srgb, var(--brand-primary) 7%, transparent) 80%, transparent 100%);
+    box-shadow: none;
+  }
+}
