@@ -980,7 +980,7 @@ export function acomodarHitos(hitos, rango, umbral = 2, tope = 100) {
 // Falta = max(0, Necesario − Cubierto) · Ya pagado = Σ necesidades en estado «pagado». Solo MXN (un solo total).
 // El sobrante de un proyecto NO cubre a otro: el Falta global es la SUMA de los Falta por proyecto, no Necesario − Cubierto.
 export const CAPITAL_TIPOS = [['necesidad', 'Necesidad'], ['fondeo', 'Fondeo']];
-export const CAPITAL_CATEGORIAS = ['operación', 'mantenimiento', 'equipo', 'permisos', 'personal', 'logística', 'otro'];
+export const CAPITAL_CATEGORIAS = ['operación', 'mantenimiento', 'equipo', 'permisos', 'personal', 'logística', 'otros'];   // v0.103.0: «otros» (Carlos, 25-sep)
 export const CAPITAL_ESTADOS = ['estimado', 'comprometido', 'pagado'];
 export const MONTO_MAX = 1e12;
 /** El monto de una partida (o un numero suelto) como numero; lo que no es numero cuenta 0. */

@@ -960,6 +960,7 @@ function pintarProyecto() {
     $('btnReabrirProyecto').classList.toggle('oculto', !(PUEDE.proyecto(estado.rol) && p.Estado === 'cerrado'));
     $('btnEliminarProyecto').classList.toggle('oculto', !PUEDE.borrar(estado.rol));   // v0.13.0: solo gerencia, en cualquier estado
     $('btnNuevaTarea').disabled = !PUEDE.tarea(estado.rol) || p.Estado !== 'activo';
+    $('btnNuevaTarea').textContent = estado.tab === 'capital' ? 'Nueva partida' : 'Nueva tarea';   // v0.103.0
     // B2: la linea que resume el frente arriba, donde se lee sin bajar a la lateral.
     const dias = diasPara(p.Vence);
     // C8: el chip «vence en N d · faltan M» de la lista, junto al %, en escritorio y celular. Cuando

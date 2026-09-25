@@ -9,6 +9,7 @@
 import { CONFIG } from './config.js';
 import { sellarAsignadoPor, PUEDE, ordenar, tareasDe, diasQuieta, rotuloQuieta, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas, misAbiertas, porVence, claseVence } from './reglas.js';
 import { $, L, estado, limpiarFiltroTareas, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia, personasActivas, contadorTexto } from './comun.js';
+import { abrirPartida } from './capital.js';   // v0.103.0: «Nueva partida» desde la pestaña Capital del proyecto
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
 import { engancharSelectorMenciones } from './chat.js';
@@ -1150,7 +1151,8 @@ export function engancharTablero() {
     $('tNota').addEventListener('input', contarNota);
     engancharSelectorMenciones('tNota', 'tNotaSelector', () => $('formNota').requestSubmit());
     $('tBorrar').addEventListener('click', borrarTarea);
-    $('btnNuevaTarea').addEventListener('click', abrirNuevaTarea);
+    // v0.103.0: en la pestaña Capital del proyecto el mismo boton es «Nueva partida», con el proyecto fijo
+    $('btnNuevaTarea').addEventListener('click', () => { const p = estado.proyectoAbierto; if (estado.tab === 'capital' && p) abrirPartida(null, p.id); else abrirNuevaTarea(); });
     $('formNuevaTarea').addEventListener('submit', guardarNuevaTarea);
     $('ntGuardarYOtra').addEventListener('click', () => guardarNuevaTarea(null, true));   // C1
     $('ntCancelar').addEventListener('click', () => cerrarDialogo('dlgNuevaTarea'));

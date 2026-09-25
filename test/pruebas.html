@@ -2462,10 +2462,13 @@ try {
             // v0.102.0: la pestaña Capital DENTRO del proyecto — las mismas 3 partidas, el mismo Falta, y «Nueva partida» con el proyecto puesto
             irHash('#p/' + CLAVE + '/capital'); await esperar(() => !$('tab-capital').classList.contains('oculto'), 'pestaña capital del proyecto');
             R.ok('pestaña Capital (v0.102.0): visible para gerencia, con las 3 partidas del frente y Falta $8,500.50', !$('tabCapital').classList.contains('oculto') && document.querySelectorAll('#pcapTabla tr.partida').length === 3 && document.querySelector('#pcapTotal [data-kpi="falta"] b').textContent === '$8,500.50', document.querySelectorAll('#pcapTabla tr.partida').length + ' partidas');
-            clic('btnNuevaPartidaProy'); await esperar(() => $('dlgPartida').open, 'partida desde el proyecto');
-            R.ok('pestaña Capital (v0.102.0): «Nueva partida» nace con este proyecto elegido', $('cpProyecto').value === String(pid), $('cpProyecto').value);
+            R.ok('pestaña Capital (v0.103.0): sin botón propio; el de la barra dice «Nueva partida»', !$('btnNuevaPartidaProy') && $('btnNuevaTarea').textContent === 'Nueva partida', $('btnNuevaTarea').textContent);
+            clic('btnNuevaTarea'); await esperar(() => $('dlgPartida').open, 'partida desde el proyecto');
+            R.ok('pestaña Capital (v0.103.0): Proyecto fijo en este frente y Categoría es un plegable con «otros»', $('cpProyecto').value === String(pid) && $('cpProyecto').disabled && $('cpCategoria').tagName === 'SELECT' && [...$('cpCategoria').options].some(o => o.value === 'otros'), $('cpProyecto').value);
             clic('cpCancelar'); await esperar(() => !$('dlgPartida').open, 'cerrar partida');
+            tab('tablero'); await dormir(20); R.ok('v0.103.0: fuera de Capital el botón vuelve a «Nueva tarea»', $('btnNuevaTarea').textContent === 'Nueva tarea');
             pestana('capital'); await esperar(() => visible('p-capital'), 'capital de vuelta');
+            R.ok('v0.103.0: desde la sección Capital el Proyecto se puede elegir', (clic('btnNuevaPartida'), !$('cpProyecto').disabled)); clic('cpCancelar'); await esperar(() => !$('dlgPartida').open, 'cerrar 2');
             // orden: Monto (desc al primer clic) y otra vez (asc)
             document.querySelector('#capitalTabla th[data-sort="monto"]').click(); await dormir(30);
             const ordenIds = () => [...document.querySelectorAll('#capitalTabla tr.partida')].map(r => Number(r.dataset.partida));

@@ -217,6 +217,7 @@ const CAMPOS = ['cpConcepto', 'cpProyecto', 'cpTipo', 'cpMonto', 'cpFecha', 'cpC
 const valores = () => JSON.stringify(CAMPOS.map(id => $(id).value));
 const sucio = () => $('dlgPartida').open && valores() !== alAbrir;
 
+/** v0.103.0: con `proyectoId` (pestaña Capital del proyecto) el select Proyecto nace fijo en ese frente y no se mueve. */
 export function abrirPartida(id, proyectoId = null) {
     if (!puedeVerCapital()) { avisar('Solo gerencia ve y edita el capital de trabajo.', 'error'); return; }
     if (estado.capitalLista !== true) { avisar('Falta crear la lista PROY_Capital (ver README, «Al publicar v0.100.0»).', 'error'); return; }
@@ -227,13 +228,16 @@ export function abrirPartida(id, proyectoId = null) {
     $('cpGuardar').textContent = x ? 'Guardar cambios' : 'Guardar partida';
     $('cpBorrar').classList.toggle('oculto', !x);
     const lista = ordenarProyectos(activosDe(estado.proyectos));
-    const actual = x ? porId(estado.proyectos, x.ProyectoId) : null;
+    const actual = x ? porId(estado.proyectos, x.ProyectoId) : proyectoId ? porId(estado.proyectos, proyectoId) : null;
     if (actual && !lista.includes(actual)) lista.unshift(actual);
     opciones($('cpProyecto'), lista, p => p.id, p => p.Estado === 'activo' ? p.Title : `${p.Title} (cerrado)`, '— elige el proyecto —');
     if (x && !actual) { const o = el('option', '', `Proyecto eliminado (#${x.ProyectoId})`); o.value = String(x.ProyectoId); $('cpProyecto').appendChild(o); }
-    const dl = $('cpCategorias'); dl.textContent = ''; for (const c of CAPITAL_CATEGORIAS) { const o = el('option'); o.value = c; dl.appendChild(o); }
+    // v0.103.0 (Carlos, 25-sep): Categoría es un plegable; una categoria vieja escrita a mano se conserva como opcion extra.
+    const cats = [...CAPITAL_CATEGORIAS]; if (x && x.Categoria && !cats.includes(x.Categoria)) cats.push(x.Categoria);
+    opciones($('cpCategoria'), cats, c => c, c => c, '— elige la categoría —');
     $('cpConcepto').value = x ? x.Title || '' : '';
     $('cpProyecto').value = x ? String(x.ProyectoId) : proyectoId ? String(proyectoId) : estado.filtroCapital ? String(estado.filtroCapital) : '';
+    $('cpProyecto').disabled = !!proyectoId;
     $('cpTipo').value = x && x.Tipo === 'fondeo' ? 'fondeo' : 'necesidad';
     $('cpMonto').value = x ? String(x.Monto ?? '') : '';
     $('cpFecha').value = diaInput(x && x.Fecha);
@@ -313,7 +317,6 @@ async function borrar() {
 
 export function engancharCapital() {
     $('btnNuevaPartida').addEventListener('click', () => abrirPartida(null));
-    $('btnNuevaPartidaProy').addEventListener('click', () => { const p = estado.proyectoAbierto; if (p) abrirPartida(null, p.id); });   // v0.102.0
     $('formPartida').addEventListener('submit', guardar);
     $('cpCancelar').addEventListener('click', cancelar);
     $('cpBorrar').addEventListener('click', borrar);
