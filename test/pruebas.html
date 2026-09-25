@@ -1645,7 +1645,7 @@ try {
             tab('tablero'); await dormir(50);
             const cara = document.querySelector(`.tarjeta[data-t="${tid}"]`);
             R.ok('v0.8.0 / v0.64.0: la tarjeta enseña cuántas notas trae (insignia con icono) y la cabecera de la columna lleva el filete de 2 px de su color, sin punto', !!cara && !!cara.querySelector('.insig.is-notas svg') && Number(cara.querySelector('.insig.is-notas span').textContent) >= 1 && !document.querySelector('#tableroCols .col h3 .punto') && getComputedStyle(document.querySelector('.col[data-col="en-curso"] h3')).borderBottomWidth === '2px' && getComputedStyle(document.querySelector('.col[data-col="en-curso"] h3')).borderBottomColor !== getComputedStyle(document.querySelector('.col[data-col="por-hacer"] h3')).borderBottomColor);
-            R.ok('v0.61.0: ningún avatar (.av) en toda la app (Carlos, 15-sep); el tono por persona sigue en las burbujas del chat', !document.querySelector('.av') && !!document.querySelector('#chatHilo .msg[data-tono]'), String(document.querySelectorAll('.av').length) + ' .av');
+            R.ok('v0.61.0: ningún avatar (.av) en toda la app (Carlos, 15-sep); el tono por persona sigue en el nombre de cada mensaje del chat (v0.98.0: sin burbuja)', !document.querySelector('.av') && !!document.querySelector('#chatHilo .msg[data-tono]'), String(document.querySelectorAll('.av').length) + ' .av');
             // Iconos de archivo: la liga archivada (.pdf) y el enlace.
             tab('docs'); await dormir(50);
             R.ok('v0.8.0: Documentos pinta el .pdf con su icono (data-tipo=pdf, letras «PDF») y el .docx como Word', !!document.querySelector('#docsLista .fico[data-tipo="pdf"] svg text') && document.querySelector('#docsLista .fico[data-tipo="pdf"] svg text').textContent === 'PDF' && !!document.querySelector('#docsLista .fico[data-tipo="word"]'));
@@ -2233,7 +2233,8 @@ try {
         {
             const marca = document.querySelector('#rail .marca');
             R.ok('v0.13.0: el rótulo «PROYECTOS» mide 12 px y cabe dentro del rail sin recortarse', getComputedStyle(marca.querySelector('span')).fontSize === '12px' && marca.scrollWidth <= marca.clientWidth, `${marca.scrollWidth}/${marca.clientWidth}`);
-            R.ok('v0.13.0: el contador del rail es un cuadrado redondeado (5 px), no una píldora', getComputedStyle($('nProyectos')).borderRadius === '5px' && getComputedStyle($('nProyectos')).height === '20px', getComputedStyle($('nProyectos')).borderRadius);
+            R.ok('v0.98.0: el contador del rail es texto (sin caja ni fondo), no una píldora ni un cuadrado', getComputedStyle($('nProyectos')).borderRadius === '0px' && getComputedStyle($('nProyectos')).backgroundColor === 'rgba(0, 0, 0, 0)', getComputedStyle($('nProyectos')).borderRadius);
+            R.ok('v0.98.0: ningún .mn-chip visible lleva fondo ni radio (los datos son texto)', [...document.querySelectorAll('.mn-chip')].every(c => { const s = getComputedStyle(c); return s.backgroundColor === 'rgba(0, 0, 0, 0)' && parseFloat(s.borderTopLeftRadius) === 0; }), String(document.querySelectorAll('.mn-chip').length) + ' chips');
             const temaBtn = t => document.querySelector(`#rail .tema button[data-tema="${t}"]`);
             const temaAntes = localStorage.getItem('tema');
             R.ok('v0.13.0: sin elección guardada, el tema del sistema aparece marcado (siempre hay uno)', document.querySelectorAll('#rail .tema button[aria-pressed="true"]').length === 1);

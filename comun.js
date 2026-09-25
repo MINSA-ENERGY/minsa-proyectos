@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, marcaFiable, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.97.0';
+export const VERSION = '0.98.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 /** C-13 (v0.95.0): el filtro de tarjetas vacio, en UN lugar — su forma ya cambio dos veces (quien paso a arreglo en v0.30.0, se sumo
@@ -113,7 +113,7 @@ export function tonoDe(correo) {
     let h = 0; for (let k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) >>> 0;   // fuera del roster: hash
     return (h % AVATAR_TONOS) + 1;
 }
-// v0.61.0 (Carlos, 15-sep): sin avatares en toda la app — «no me gusta como se ve». Se fue avatar(); tonoDe() se queda para las burbujas del chat.
+// v0.61.0 (Carlos, 15-sep): sin avatares en toda la app — «no me gusta como se ve». Se fue avatar(); tonoDe() se queda para el nombre de cada mensaje del chat (v0.98.0: sin burbuja).
 export function chip(texto, estado2) { return el('span', 'mn-chip' + (estado2 ? ' is-' + estado2 : ''), texto); }
 export function limpiar(obj) { const o = {}; for (const k in obj) if (obj[k] !== undefined && obj[k] !== '') o[k] = obj[k]; return o; }
 export function porId(coleccion, id) { return coleccion.find(x => x.id === Number(id)) || null; }

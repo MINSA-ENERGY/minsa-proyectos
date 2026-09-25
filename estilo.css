@@ -143,7 +143,7 @@
 .rail .equipos { margin-top: var(--sp-3); display: grid; gap: 1px; }
 /* v0.7.0: rotulo de RAMA como el .railgroup del tablero (mayusculas, tracking .15em) y cada equipo con su icono. */
 .rail .equipos .rama { padding: var(--sp-3) var(--sp-3) var(--sp-1); letter-spacing: .15em; color: var(--rail-tx-faint); }
-.rail .equipos button { min-height: var(--control-h-sm); font-weight: 500; font-size: .82rem; gap: var(--sp-2); }
+.rail .equipos button { min-height: var(--control-h-sm); font-weight: 500; font-size: .8rem; gap: var(--sp-2); }
 .rail .equipos button .n { margin-left: auto; font-family: var(--font-data); font-size: .72rem; font-weight: 500; padding: 1px 6px; border-radius: var(--r-pill); background: var(--rail-chip); color: var(--rail-tx); }
 .rail .equipos button.is-on { background: var(--rail-on); color: var(--rail-tx-strong); font-weight: 600; }
 /* El elegido NO rellena el icono (revisor 12-sep: trazo blanco sobre los pasteles del oscuro daba 1.6–2.6:1); el fondo del boton ya lo marca, como en el tablero. */
@@ -163,7 +163,7 @@
 .rail .sesion .quien b { font-weight: 600; }
 /* v0.48.0 (Carlos, 15-sep; artifact M3B6fy3g «A4»): el rol es un ROTULO DE DATOS — la misma metrica que el rotulo
    «EQUIPOS» del rail (mono, versalitas, gris). Antes era `mn-chip is-info`: el unico celeste de toda la columna. */
-.rail .sesion .quien .rol { font-family: var(--font-data); font-size: .64rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 500; color: var(--text-muted); }
+.rail .sesion .quien .rol { font-family: var(--font-data); font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; font-weight: 500; color: var(--text-muted); }
 /* v0.48.0: renglon 1 = nombre/rol + «···» a la derecha; renglon 2 = el tema como segmento a todo el ancho. */
 .rail .sesion-fila { display: flex; align-items: center; gap: var(--sp-2); }
 .rail .sesion-fila .quien { flex: 1; }
@@ -197,7 +197,7 @@
 /* v0.48.0: SEGMENTO Claro | Oscuro en el rail — caja hundida, el activo es pastilla de tarjeta con sombra corta
    (la misma pastilla que la pestana activa). Solo el rail lo lleva (`.tema.seg`); el menu movil conserva sus dos iconos. */
 .rail .tema.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 2px; margin: 0; padding: 2px; background: var(--surface-sunken); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); }
-.rail .tema.seg .mn-btn { min-height: 26px; height: 26px; padding: 0 var(--sp-2); border: 0; border-radius: 4px; background: transparent; color: var(--text-muted); font-size: .76rem; gap: var(--sp-1); }
+.rail .tema.seg .mn-btn { min-height: 26px; height: 26px; padding: 0 var(--sp-2); border: 0; border-radius: 4px; background: transparent; color: var(--text-muted); font-size: .72rem; gap: var(--sp-1); }
 .rail .tema.seg .mn-btn svg { width: 14px; height: 14px; }
 .rail .tema.seg button[aria-pressed="true"] { background: var(--surface-card); color: var(--text-strong); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
 .rail .tema.seg .mn-btn:hover { background: var(--surface-hover); }
@@ -330,13 +330,13 @@
    posicion (emisor y rev son opcionales: sin gap, cada pieza trae su margen). */
 .dtabla .nombre { display: grid; grid-template-columns: auto auto minmax(0, 1fr) auto; min-width: 200px; align-items: center; }   /* v0.29.0: 240 -> 200, que ahora todo lo demas es nowrap */
 .dtabla .nombre .fico { grid-column: 1; }
-.dtabla .nombre .emisor { grid-column: 2; margin-left: var(--sp-2); font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
+.dtabla .nombre .emisor { grid-column: 2; margin-left: var(--sp-2); font-family: var(--font-data); font-size: .66rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .04em; }
 .dtabla .nombre .t { grid-column: 3; margin-left: var(--sp-2); }
 .dtabla .nombre .rev { grid-column: 4; margin-left: var(--sp-2); font-family: var(--font-data); font-size: .66rem; padding: 0 6px; background: var(--status-idle-bg); color: var(--status-idle-fg); }
-.dtabla td.c-del { font-family: var(--font-data); font-size: .78rem; color: var(--text-body); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.dtabla td .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dtabla td.c-del { font-family: var(--font-data); font-size: .8rem; color: var(--text-body); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dtabla td .t { font-weight: 600; color: var(--text-strong); font-size: .85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dtabla td .t a { color: inherit; text-decoration: none; } .dtabla td .t a:hover { text-decoration: underline; }
-.dtabla td .p { font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dtabla td .p { font-family: var(--font-data); font-size: .66rem; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dtabla .fico { width: 24px; height: 26px; } .dtabla .fico svg { width: 22px; height: 22px; }   /* v0.29.0: compacta */
 .dtabla .quien { display: inline-flex; gap: var(--sp-1); align-items: center; white-space: nowrap; } .dtabla .quien > span:last-child { max-width: 130px; overflow: hidden; text-overflow: ellipsis; }
 /* cuando el PANEL (no la ventana) se estrecha, la tabla cede columnas antes que desbordar: primero quien, luego la fecha */
@@ -346,11 +346,11 @@
 @container (max-width: 900px) { .dtabla .c-tipo { display: none; } }   /* v0.29.0: quien y fecha ya no existen; Tipo sigue cediendo */   /* y Tipo: el icono ya lo dice, y sus ~86 px van al titulo (medido: la tabla del panel de Docs a 1366 mide 808 y Nombre quedaba en 270) */
 @container (max-width: 760px) { .dtabla .nombre { min-width: 170px; } .dtabla .c-tarjeta select { width: 150px; } }
 /* v0.29.0: la nota «Ligado por X · fecha» del menu «⋯» (antes dos columnas) */
-.fila-menu .menu .menu-nota { display: inline-flex; gap: var(--sp-2); align-items: center; padding: var(--sp-1) var(--sp-2) var(--sp-2); margin-bottom: 2px; border-bottom: 1px solid var(--border-hairline); font-size: .78rem; color: var(--text-muted); white-space: nowrap; }
+.fila-menu .menu .menu-nota { display: inline-flex; gap: var(--sp-2); align-items: center; padding: var(--sp-1) var(--sp-2) var(--sp-2); margin-bottom: 2px; border-bottom: 1px solid var(--border-hairline); font-size: .8rem; color: var(--text-muted); white-space: nowrap; }
 /* v0.55.0: «Mover a» del menu «⋯» de Docs — el select de tarjeta que antes era la columna Tarjeta (v0.19.0), a lo ancho del menu */
-.fila-menu .menu .menu-mover { display: grid; gap: var(--sp-1); padding: var(--sp-1) var(--sp-2); font-size: .78rem; color: var(--text-muted); }
-.fila-menu .menu .menu-mover select { min-height: var(--control-h-sm); font: inherit; font-family: var(--font-ui); font-size: .82rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); width: 100%; }
-.dtabla .c-tarjeta select { min-height: var(--control-h-sm); font: inherit; font-family: var(--font-ui); font-size: .82rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); width: 180px; max-width: 100%; }   /* v0.19.0: width fijo, no max-width: con max-width la tabla reservaba a la columna el ancho de la opcion mas larga del select (~400 px) y recortaba el Nombre */
+.fila-menu .menu .menu-mover { display: grid; gap: var(--sp-1); padding: var(--sp-1) var(--sp-2); font-size: .8rem; color: var(--text-muted); }
+.fila-menu .menu .menu-mover select { min-height: var(--control-h-sm); font: inherit; font-family: var(--font-ui); font-size: .8rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); width: 100%; }
+.dtabla .c-tarjeta select { min-height: var(--control-h-sm); font: inherit; font-family: var(--font-ui); font-size: .8rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); color: var(--text-body); width: 180px; max-width: 100%; }   /* v0.19.0: width fijo, no max-width: con max-width la tabla reservaba a la columna el ancho de la opcion mas larga del select (~400 px) y recortaba el Nombre */
 /* v0.29.0: la tarjeta es una PILDORA de ancho fijo con «…» (boton en #archivos, texto en lectura); el select de Docs ya media 180 */
 .dtabla .tarjeta-liga { display: inline-block; max-width: 190px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: middle; border: 1px solid var(--border-hairline); border-radius: var(--r-pill); background: var(--surface-card); font: inherit; font-size: .8rem; color: var(--text-body); text-align: left; padding: 2px 10px; }
 .dtabla button.tarjeta-liga { color: var(--text-link); cursor: pointer; } .dtabla button.tarjeta-liga:hover { border-color: var(--text-link); }
@@ -364,7 +364,7 @@
 .mn-chip.tipo.is-imagen { --c: var(--serie2); } .mn-chip.tipo.is-lote, .mn-chip.tipo.is-correo { --c: var(--info-solid); } .mn-chip.tipo.is-plano { --c: var(--sky-700); } .mn-chip.tipo.is-zip { --c: var(--amber-700); }
 /* v0.27.0 («C7»): el chip de ESTADO de la tabla de documentos es un SELLO —contorno cuadrado del color, versalitas
    monospace, un grado y medio girado, como el «RECIBIDO» sobre papel—. Solo en la tabla: los chips del resto de la app no cambian. */
-.dtabla .c-estado .mn-chip { --c: var(--idle-solid); display: inline-flex; border-radius: 3px; background: transparent; border: 1.5px solid var(--c); color: var(--c); text-transform: uppercase; font-family: var(--font-data); font-size: .62rem; letter-spacing: .12em; padding: 2px 7px; transform: rotate(-1.5deg); }
+.dtabla .c-estado .mn-chip { --c: var(--idle-solid); display: inline-flex; border-radius: 3px; background: transparent; border: 1.5px solid var(--c); color: var(--c); text-transform: uppercase; font-family: var(--font-data); font-size: .66rem; letter-spacing: .12em; padding: 2px 7px; transform: rotate(-1.5deg); }
 .dtabla .c-estado .mn-chip.is-ok { --c: var(--ok-solid); } .dtabla .c-estado .mn-chip.is-info { --c: var(--info-solid); } .dtabla .c-estado .mn-chip.is-danger { --c: var(--bad-solid); } .dtabla .c-estado .mn-chip.is-warn { --c: var(--warn-solid); }
 /* renglon de grupo: la lengüeta de v0.16.0 */
 .dtabla tr.pest td { padding: var(--sp-3) var(--sp-3) 0; border-bottom: 0; background: var(--surface-card); }
@@ -373,7 +373,7 @@
 button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter: brightness(1.08); }
 .pest .cab svg { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .pest .cab .grupo { font-family: var(--font-display); font-weight: 600; font-size: .85rem; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pest .cab .n { font-family: var(--font-data); font-size: .68rem; opacity: .8; flex: none; }
+.pest .cab .n { font-family: var(--font-data); font-size: .66rem; opacity: .8; flex: none; }
 .pest.is-proyecto .cab { background: var(--surface-sunken); color: var(--text-muted); border: 1px solid var(--border-default); }
 /* menu «⋯» por renglon */
 .fila-menu { position: relative; display: inline-block; }
@@ -435,7 +435,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .mensaje.error { background: var(--status-danger-bg); color: var(--status-danger-fg); }
 .mensaje.ok { background: var(--status-ok-bg); color: var(--status-ok-fg); }
 .mensaje.ojo { background: var(--status-warn-bg); color: var(--status-warn-fg); }
-.mensaje .accion { border: 1px solid currentColor; background: transparent; color: inherit; font: inherit; font-size: .82rem; font-weight: 600; border-radius: var(--r-sm); padding: 0 var(--sp-2); min-height: 28px; cursor: pointer; white-space: nowrap; }
+.mensaje .accion { border: 1px solid currentColor; background: transparent; color: inherit; font: inherit; font-size: .8rem; font-weight: 600; border-radius: var(--r-sm); padding: 0 var(--sp-2); min-height: 28px; cursor: pointer; white-space: nowrap; }
 /* T2: sin red se ve, no se guarda. La banda va arriba del contenido; el cuerpo lleva .sin-red y apaga lo que escribe. */
 .sin-red-banda { background: var(--status-warn-bg); color: var(--status-warn-fg); padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); font-size: .85rem; font-weight: 600; margin-bottom: var(--sp-3); }
 .sin-red .mn-btn.is-primary, .sin-red #tMover button, .sin-red #tOrden button, .sin-red #btnCubetas, .sin-red #tAnotar, .sin-red [data-quitar], .sin-red [data-buscar], .sin-red [data-ligar], .sin-red [data-subir], .sin-red [data-enlace], .sin-red [data-tarjeta-de], .sin-red #btnCerrarProyecto, .sin-red #btnReabrirProyecto, .sin-red #btnEditarProyecto, .sin-red #btnLigar, .sin-red #btnSubir, .sin-red #btnEnlace { opacity: .5; pointer-events: none; }
@@ -472,7 +472,7 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .entrada .lema { margin: 0; color: rgba(242, 246, 255, .62); max-width: 30ch; text-wrap: balance; }
 .entrada .mn-btn.is-primary, .entrada .mn-btn.is-primary:hover:not(:disabled), .entrada .mn-btn.is-primary:focus-visible { margin-top: .4rem; background: #61cd6a; color: #04123d; border-color: transparent; border-radius: .4rem; box-shadow: none; }   /* v0.30.0: la entrada conserva su boton lleno en reposo, hover y foco (el hover verde de .is-primary es (0,4,0) y le ganaba) */
 .entrada .mn-btn.is-primary:hover:not(:disabled) { filter: brightness(1.06); }
-.entrada .pista { align-self: center; margin: 0; min-height: 1.2em; color: rgba(242, 246, 255, .5); font-family: var(--font-data); font-size: .68rem; letter-spacing: .14em; text-transform: uppercase; }
+.entrada .pista { align-self: center; margin: 0; min-height: 1.2em; color: rgba(242, 246, 255, .5); font-family: var(--font-data); font-size: .66rem; letter-spacing: .14em; text-transform: uppercase; }
 .entrada .pista.estado { color: rgba(242, 246, 255, .86); font-size: .85rem; letter-spacing: .02em; text-transform: none; }   /* U-05 (v0.87.0): cuando la pista lleva un ESTADO (Entrando…, un error) se lee; la marca en reposo se queda chica */
 @media (min-width: 721px) {
   .entrada-caja { max-width: 64rem; flex-direction: row; align-items: center; gap: 4rem; padding: 1rem 2rem; }   /* v0.93.2 (Carlos, 23-sep): mismo padding que calytek-planta-app — la columna del texto queda a la misma distancia del logo */
@@ -516,7 +516,7 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .sel-lista button:hover, .sel-lista button:focus-visible { background: var(--surface-hover); outline: none; }
 .sel-lista button.is-on { background: var(--surface-sunken); color: var(--text-strong); font-weight: 600; }
 .sel-lista button .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sel-lista button .n { flex: none; font-family: var(--font-data); font-size: .7rem; color: var(--text-muted); white-space: nowrap; }
+.sel-lista button .n { flex: none; font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); white-space: nowrap; }
 .sel-lista button .n.is-danger { color: var(--status-danger-fg); font-weight: 600; }
 .sel-lista .vacio { padding: var(--sp-2); font-size: .85rem; color: var(--text-muted); }
 .cab-plegar svg { transition: transform var(--dur-fast); }
@@ -542,7 +542,7 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 /* La linea-resumen era solo de CELULAR (en escritorio la lateral decia lo mismo); desde v0.30.0 (L6) la lateral
    es la pestaña Resumen y ya no esta a la vista, asi que la linea se muestra en todo ancho (la cabecera
    contraida de v0.29.0 la sigue ocultando). */
-.resumen-linea { display: block; flex-basis: 100%; margin: 0; font-size: .82rem; color: var(--text-muted); }
+.resumen-linea { display: block; flex-basis: 100%; margin: 0; font-size: .8rem; color: var(--text-muted); }
 .resumen-linea:empty { display: none; }
 .resumen-linea.is-danger { color: var(--status-danger-fg); font-weight: 600; }
 .solo-movil { display: none; }
@@ -576,21 +576,21 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .pficha:hover { background: var(--surface-hover); }
 .pficha .cal { display: grid; grid-template-rows: 16px 1fr; width: 56px; height: 56px; border: 1px solid var(--border-default); border-radius: var(--r-md); overflow: hidden; text-align: center; }
 .pficha .cal .mes { font-family: var(--font-data); font-size: .66rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; line-height: 16px; color: var(--text-on-brand); background: var(--brand-primary); }
-.pficha .cal .dia { display: grid; place-items: center; font-family: var(--font-display); font-size: 1.45rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text-strong); background: var(--surface-card); }
+.pficha .cal .dia { display: grid; place-items: center; font-family: var(--font-display); font-size: 1.5rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text-strong); background: var(--surface-card); }
 .pficha.is-danger .cal .mes { background: var(--status-danger-solid); }
 .pficha.is-warn .cal .mes { background: var(--status-warn-solid); }
 .pficha.is-cerrado .cal .mes { background: var(--status-ok-solid); }
 .pficha .cal.sin .mes { background: var(--surface-sunken); color: var(--text-faint); }
-.pficha .cal.sin .dia { color: var(--text-faint); font-family: var(--font-data); font-size: .7rem; letter-spacing: .04em; }   /* U-07: «SIN / fecha» */
+.pficha .cal.sin .dia { color: var(--text-faint); font-family: var(--font-data); font-size: .72rem; letter-spacing: .04em; }   /* U-07: «SIN / fecha» */
 .pficha .cab { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--sp-2); align-items: center; min-width: 0; }
 /* .tt es un bloque de texto: el titulo y la etiqueta corren en linea, y la etiqueta cae a la siguiente cuando no cabe (a 820 px con la
    etiqueta en su propia columna nowrap el titulo se estrangulaba a 75 px — revisor 14-sep). */
 .pficha .tt { min-width: 0; line-height: 1.25; overflow: hidden; }   /* U-03 (16-sep): una etiqueta nowrap que no cabe se recorta, no se monta sobre las cifras */
-.pficha .t { font-weight: 600; color: var(--text-strong); font-size: .98rem; overflow-wrap: anywhere; }
-.pficha .uni { display: inline-block; margin-left: var(--sp-2); vertical-align: 1px; font-family: var(--font-data); font-size: .62rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--c, var(--text-muted)); white-space: nowrap; }
+.pficha .t { font-weight: 600; color: var(--text-strong); font-size: 1rem; overflow-wrap: anywhere; }
+.pficha .uni { display: inline-block; margin-left: var(--sp-2); vertical-align: 1px; font-family: var(--font-data); font-size: .66rem; font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--c, var(--text-muted)); white-space: nowrap; }
 .pficha .stats { display: flex; gap: var(--sp-3); }
 .pficha .stats span { display: grid; justify-items: end; min-width: 3.6rem; }
-.pficha .stats b { font-family: var(--font-display); font-size: 1.15rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text-strong); }
+.pficha .stats b { font-family: var(--font-display); font-size: 1.1rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; color: var(--text-strong); }
 .pficha .stats b.bad { color: var(--status-danger-fg); }
 .pficha .stats small { font-family: var(--font-data); font-size: .66rem; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); margin-top: 3px; }   /* U-14 (24-sep): de .56rem en --text-faint (9 px tenues) a .66rem en --text-muted */
 #proyectosSub [data-todos] { margin-left: var(--sp-2); vertical-align: middle; }   /* U-09: «Ver todos» junto a «Solo CALYTEK · 2 de 4» */
@@ -607,7 +607,7 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .filtro-movil select { flex: 1; }
 .barra { height: 6px; background: var(--surface-sunken); border-radius: var(--r-pill); overflow: hidden; }
 .barra i { display: block; height: 100%; background: var(--brand-accent); border-radius: var(--r-pill); width: 0; transition: width var(--dur); }
-.cerrados summary { cursor: pointer; color: var(--text-muted); font-size: .82rem; font-weight: 600; padding: 0; min-height: var(--control-h-sm); display: flex; align-items: center; gap: var(--sp-1); }   /* misma metrica que .editar summary */
+.cerrados summary { cursor: pointer; color: var(--text-muted); font-size: .8rem; font-weight: 600; padding: 0; min-height: var(--control-h-sm); display: flex; align-items: center; gap: var(--sp-1); }   /* misma metrica que .editar summary */
 /* U-13 (24-sep): display:flex quita el triangulo nativo; el marcador vuelve como el de .msj-sec para que se lea plegable */
 .cerrados > summary::before { content: "▾"; font-size: .8rem; color: var(--text-faint); width: 10px; }
 .cerrados:not([open]) > summary::before { content: "▸"; }
@@ -639,7 +639,7 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .menu-quien > summary svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--dur-fast); }
 .menu-quien[open] > summary svg { transform: rotate(180deg); }
 .menu-quien > summary.is-on, .menu-quien[open] > summary { color: var(--brand-primary); border-color: var(--brand-primary); background: var(--surface-selected); }
-.menu-quien > summary .n { background: var(--brand-primary); color: var(--text-on-brand); border-radius: var(--r-pill); font-family: var(--font-data); font-size: .62rem; font-weight: 600; padding: 1px 6px; line-height: 1.4; }
+.menu-quien > summary .n { background: var(--brand-primary); color: var(--text-on-brand); border-radius: var(--r-pill); font-family: var(--font-data); font-size: .66rem; font-weight: 600; padding: 1px 6px; line-height: 1.4; }
 .menu-quien .caja { position: absolute; top: calc(100% + 4px); left: 0; z-index: var(--z-pop); min-width: 250px; max-width: min(92vw, 340px); background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-md); box-shadow: var(--shadow-pop); padding: var(--sp-2); display: grid; gap: 2px; }
 .menu-quien .caja .tit { padding: var(--sp-1) var(--sp-2) var(--sp-1); }
 .menu-quien .caja label { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-1) var(--sp-2); min-height: var(--control-h-sm); border-radius: var(--r-sm); cursor: pointer; font-size: .85rem; color: var(--text-body); }
@@ -649,7 +649,7 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .menu-quien .caja label .nom { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .menu-quien .caja label .n { margin-left: auto; font-size: .72rem; color: var(--text-faint); }
 .menu-quien .caja hr { border: 0; border-top: 1px solid var(--border-hairline); margin: var(--sp-1) 0; }
-.menu-quien .caja .vacio { padding: var(--sp-1) var(--sp-2); font-size: .82rem; color: var(--text-faint); }
+.menu-quien .caja .vacio { padding: var(--sp-1) var(--sp-2); font-size: .8rem; color: var(--text-faint); }
 .menu-quien .caja .limp { background: none; border: 0; font: inherit; font-size: .8rem; font-weight: 600; color: var(--brand-primary); text-align: left; padding: var(--sp-1) var(--sp-2); min-height: var(--control-h-sm); border-radius: var(--r-sm); cursor: pointer; }
 .menu-quien .caja .limp:hover { background: var(--surface-hover); }
 /* Auditoria #7: es el mismo .buscador de Proyectos y Mis tareas; aqui solo cambia el acomodo. */
@@ -676,7 +676,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .mini .it .f { color: var(--text-body); }
 .mini .it .f b { font-weight: 600; color: var(--text-strong); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .mini .it .f .sino { display: block; font-size: .8rem; color: var(--text-muted); }
-.mini .it .w { color: var(--text-faint); font-size: .75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mini .it .w { color: var(--text-faint); font-size: .72rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mini .it .d { font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); white-space: nowrap; }
 .mini .it .d.is-danger { color: var(--status-danger-fg); font-weight: 600; }
 .mini .it .d.is-warn { color: var(--status-warn-fg); font-weight: 600; }
@@ -691,7 +691,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   #inicioActividad .it .f { display: block; }
   #inicioActividad .it .f b { display: inline; -webkit-line-clamp: unset; overflow: visible; }
   #inicioActividad .it .f .sino { display: inline; margin-left: var(--sp-1); }
-  #inicioActividad .it .w { font-size: .78rem; }
+  #inicioActividad .it .w { font-size: .8rem; }
 }
 /* v0.63.0 (Carlos, 15-sep; artifact BL8t8H9H, cortes B + G): icono redondo por accion a la izquierda de cada renglon de
    actividad (las tres listas), corte por dia y estado nuevo/visto en la de Inicio. El color del icono es el estado semantico
@@ -704,7 +704,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .mini .ico.is-asignar, .mini .ico.is-reabrir { background: var(--warn-bg); color: var(--warn-fg); }
 .mini .ico.is-liga, .mini .ico.is-subir { background: color-mix(in srgb, var(--brand) 14%, transparent); color: var(--brand); }
 .mini .ico.is-borrar { background: var(--bad-bg); color: var(--bad-fg); }
-.mini .dia { font: 600 .68rem var(--f-data); letter-spacing: .08em; text-transform: uppercase; color: var(--tx-faint); display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) 0 var(--sp-1); }
+.mini .dia { font: 600 .66rem var(--f-data); letter-spacing: .08em; text-transform: uppercase; color: var(--tx-faint); display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) 0 var(--sp-1); }
 .mini .dia:first-child { padding-top: 0; }
 .mini .dia::after { content: ""; flex: 1; height: 1px; background: var(--line-soft); }
 .mini .dia b { font-weight: 500; color: var(--tx-mute); letter-spacing: 0; }
@@ -713,7 +713,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .mini .it.es-nuevo .q::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--brand); box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 18%, transparent); margin-right: var(--sp-2); vertical-align: middle; }
 .mini .it.es-visto { opacity: .62; }
 .mini .it.es-visto:hover { opacity: 1; }
-.mini .tuya { font: 500 .64rem var(--f-data); color: var(--warn-fg); background: var(--warn-bg); padding: 1px 5px; border-radius: 4px; margin-left: var(--sp-2); vertical-align: middle; }
+.mini .tuya { font: 500 .66rem var(--f-data); color: var(--warn-fg); background: var(--warn-bg); padding: 1px 5px; border-radius: 4px; margin-left: var(--sp-2); vertical-align: middle; }
 /* C9 (v0.6.0): el renglon de actividad con tarjeta es un boton que la abre (mismo acomodo que el div). */
 .mini button.it { width: 100%; background: none; border: 0; border-top: 1px solid var(--border-hairline); font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: var(--r-sm); }
 .mini button.it:first-child { border-top: 0; }
@@ -757,9 +757,9 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   .col:not(.is-activa) { display: none; }
 }
 .col { background: var(--surface-sunken); border-radius: var(--r-md); padding: var(--sp-2); display: grid; gap: var(--sp-2); align-content: start; min-height: 200px; container-type: inline-size; }   /* container-type: las @container de .col h3 .n, mas abajo (C-08: antes vivia en un segundo bloque .col) */
-.col h3 { margin: 0; font-family: var(--font-display); font-size: .82rem; font-weight: 600; color: var(--text-strong); display: flex; gap: var(--sp-2); align-items: center; padding: var(--sp-1) var(--sp-1) 6px; border-bottom: 2px solid var(--cub); }   /* v0.64.0: el filete lleva el color de la cubeta (--cub) */
+.col h3 { margin: 0; font-family: var(--font-display); font-size: .8rem; font-weight: 600; color: var(--text-strong); display: flex; gap: var(--sp-2); align-items: center; padding: var(--sp-1) var(--sp-1) 6px; border-bottom: 2px solid var(--cub); }   /* v0.64.0: el filete lleva el color de la cubeta (--cub) */
 .col h3 .n { margin-left: auto; font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); font-weight: 500; }
-.col .vacio { color: var(--text-faint); font-size: .78rem; padding: var(--sp-1); }
+.col .vacio { color: var(--text-faint); font-size: .8rem; padding: var(--sp-1); }
 .tarjeta { background: var(--surface-card); border: 1px solid var(--border-hairline); border-left-width: 3px; border-radius: var(--r-sm); padding: var(--sp-2) var(--sp-3); display: grid; gap: var(--sp-1); text-align: left; color: inherit; font: inherit; cursor: pointer; min-width: 0; }   /* auditoria #10: sin sombra, como .mn-card y .doc; la piel lo dice */
 .tarjeta:hover { border-color: var(--border-default); }
 /* D4 (v0.6.0): la prioridad alta era el borde izquierdo. v0.20.0 (iteracion 2): el borde izquierdo (3 px en TODAS)
@@ -784,20 +784,20 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* Conmutador Cómodo / Compacto: en la fila de FILTROS, tras el buscador (en la de pestañas desbordaba 84 px a 820);
    solo se ve en el tablero. En celular vive, como los filtros, detrás de «Filtrar». */
 .densidad { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); flex: none; }
-.densidad button { border: 0; background: none; font: inherit; font-size: .74rem; font-weight: 600; padding: 0 var(--sp-2); min-height: calc(var(--control-h-sm) - 4px); border-radius: 4px; color: var(--text-muted); cursor: pointer; }   /* 28 px dentro de 32: el mismo alto que los chips de al lado */
+.densidad button { border: 0; background: none; font: inherit; font-size: .72rem; font-weight: 600; padding: 0 var(--sp-2); min-height: calc(var(--control-h-sm) - 4px); border-radius: 4px; color: var(--text-muted); cursor: pointer; }   /* 28 px dentro de 32: el mismo alto que los chips de al lado */
 .densidad button[aria-pressed="true"] { background: var(--brand-primary); color: var(--text-on-brand); }
 .densidad button:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 1px; }
 /* Compacto: una linea por tarjeta — titulo con puntos suspensivos · avatar · chip de fecha. El nombre, las
    insignias, «en el buzon» y «sin movimiento» se esconden (siguen en el title y en la ficha). */
 .tablero.is-compacto .col { gap: 4px; }
 .tablero.is-compacto .tarjeta { grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--sp-2); padding: 4px var(--sp-2); min-height: 36px; }   /* 36 px: el umbral tactil que mide driver.js (revisor: a 32 salian «chicos») */
-.tablero.is-compacto .tarjeta .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; font-size: .84rem; }
+.tablero.is-compacto .tarjeta .t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; font-size: .85rem; }
 .tablero.is-compacto .tarjeta .f { flex-wrap: nowrap; }
 .tablero.is-compacto .tarjeta .f > :not(.vence) { display: none; }
-.tablero.is-compacto .tarjeta .f .mn-chip { padding: 0; font-size: .68rem; }
+.tablero.is-compacto .tarjeta .f .mn-chip { padding: 0; font-size: .66rem; }
 .tablero.is-compacto .tarjeta .f .mn-chip::before { content: none; }   /* v0.64.0: en compacto el chip va solo, sin el «·» */
-.tarjeta .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; line-height: 1.3; }
-.tarjeta .f { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; font-size: .75rem; color: var(--text-muted); }
+.tarjeta .t { font-weight: 600; color: var(--text-strong); font-size: .85rem; line-height: 1.3; }
+.tarjeta .f { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; font-size: .72rem; color: var(--text-muted); }
 /* v0.64.0 (Carlos, 15-sep; artifact WFuYDBHS): en la cara de la tarjeta las pastillas («en el buzón», «vence …», y en Mis tareas la clave y la
    cubeta) son TEXTO PLANO con «·» delante; el color se queda solo donde es semaforo (ambar/rojo de vence) o informacion (azul del buzon).
    Siguen siendo .mn-chip: fuera de estos tres sitios (pestaña Docs, cabecera del proyecto) la pastilla no cambia.
@@ -834,7 +834,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .bloques > .vacio { padding: var(--sp-3); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); }
 .bloq { display: grid; gap: 6px; min-width: 0; }
 .bloq .rot { display: flex; align-items: baseline; gap: 8px; margin: 0; padding: 0 4px; font-family: var(--font-data); font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; color: var(--text-muted); }
-.bloq .rot b { font-family: var(--font-display); font-size: .95rem; color: var(--text-strong); letter-spacing: 0; text-transform: none; line-height: 1; }
+.bloq .rot b { font-family: var(--font-display); font-size: .9rem; color: var(--text-strong); letter-spacing: 0; text-transform: none; line-height: 1; }
 .bloq.is-vencida .rot b { color: var(--status-danger-fg); } .bloq.is-pronto .rot b { color: var(--status-warn-fg); }
 .densa { display: grid; background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow: hidden; min-width: 0; align-content: start; }
 /* v0.66.0 (Carlos, 15-sep): la fecha va en COLUMNA a la izquierda como la cola «Hoy» de Inicio (.hoy-r .k); el filete .sem de 4 px
@@ -843,17 +843,17 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .densa .tr:first-child { border-top: 0; }
 .densa .tr { padding: 7px var(--sp-3); border: 0; border-top: 1px solid var(--border-hairline); background: none; text-align: left; font: inherit; color: inherit; cursor: pointer; min-height: 40px; min-width: 0; }
 .densa .tr:hover { background: var(--surface-sunken); }
-.densa .tr .k { display: grid; gap: 1px; text-align: right; font: 500 .7rem/1.1 var(--font-data); color: var(--text-faint); }
-.densa .tr .k b { font-weight: 600; font-size: .82rem; color: var(--status-idle-fg); font-variant-numeric: tabular-nums; }
-.densa .tr .k small { font-size: .68rem; }
+.densa .tr .k { display: grid; gap: 1px; text-align: right; font: 500 .72rem/1.1 var(--font-data); color: var(--text-faint); }
+.densa .tr .k b { font-weight: 600; font-size: .8rem; color: var(--status-idle-fg); font-variant-numeric: tabular-nums; }
+.densa .tr .k small { font-size: .66rem; }
 .densa .tr.is-vencida .k b { color: var(--status-danger-fg); } .densa .tr.is-pronto .k b { color: var(--status-warn-fg); }
 .densa .tr.is-vencida { background: color-mix(in srgb, var(--status-danger-bg) 55%, transparent); }
 .densa .tr.is-vencida:hover { background: color-mix(in srgb, var(--status-danger-bg) 80%, transparent); }
-.densa .tr .t { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; font-weight: 600; color: var(--text-strong); font-size: .88rem; }
+.densa .tr .t { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; font-weight: 600; color: var(--text-strong); font-size: .85rem; }
 .densa .tr .t .tit { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* el titulo largo se corta: el completo vive en el title */
-.densa .tr .t .quien { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; font-size: .75rem; color: var(--text-muted); white-space: nowrap; }
+.densa .tr .t .quien { display: inline-flex; align-items: center; gap: 4px; font-weight: 500; font-size: .72rem; color: var(--text-muted); white-space: nowrap; }
 .densa .tr .t .insig, .densa .tr .t .mn-chip { flex: none; }
-.densa .tr .eqc, .densa .tr .cu { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .78rem; color: var(--text-muted); }
+.densa .tr .eqc, .densa .tr .cu { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: .8rem; color: var(--text-muted); }
 .densa .tr[data-tono]:not(.is-vencida) { background: color-mix(in srgb, var(--tono) 13%, var(--surface-card)); }   /* el color elegido tiñe el renglon como a la tarjeta; el vencido gana */
 @media (max-width: 720px) {
   .densa .tr { grid-template-columns: 40px minmax(0, 1fr); }
@@ -869,7 +869,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* ---- lista (tabla) */
 .tabla { overflow-x: auto; }
 .tabla table { border-collapse: collapse; width: 100%; font-size: .85rem; }
-.tabla th { text-align: left; font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; font-weight: 600; text-transform: uppercase; color: var(--text-muted); padding: var(--sp-2); border-bottom: 1px solid var(--border-hairline); }
+.tabla th { text-align: left; font-family: var(--font-data); font-size: .66rem; letter-spacing: .07em; font-weight: 600; text-transform: uppercase; color: var(--text-muted); padding: var(--sp-2); border-bottom: 1px solid var(--border-hairline); }
 .tabla td { padding: var(--sp-2); border-bottom: 1px solid var(--border-hairline); vertical-align: top; }
 .tabla tr.clic { cursor: pointer; }
 /* v0.59.0: cebra blanco/gris en la lista del proyecto (Carlos, 15-sep); misma --banda que .dtabla */
@@ -914,10 +914,10 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
    «tarjeta:» empujaba la pagina 103 px a la derecha en cuanto el proyecto tenia ligas — lo cazo el
    barrido de capturas, no la E2E. `minmax(0, 1fr)` es lo que deja encoger de verdad. */
 .doc { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; padding: var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-md); background: var(--surface-card); min-width: 0; }   /* auditoria #11: primer nivel = r-md; anidado (.urgente, .eq-ficha, .lg-resultado) = r-sm */
-.doc .t { font-weight: 600; color: var(--text-strong); font-size: .88rem; }
+.doc .t { font-weight: 600; color: var(--text-strong); font-size: .85rem; }
 .doc .t a { color: inherit; text-decoration: none; }
 .doc .t a:hover { text-decoration: underline; }
-.doc .p { font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); word-break: break-all; }
+.doc .p { font-family: var(--font-data); font-size: .66rem; color: var(--text-muted); word-break: break-all; }
 .doc .lado { display: grid; gap: var(--sp-1); justify-items: end; }
 .doc .estado { display: inline-flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; justify-content: flex-end; }
 .doc .tarjeta-de { display: flex; gap: var(--sp-1); align-items: center; }
@@ -938,7 +938,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .mn-dialog-foot .is-danger { margin-right: auto; }
 /* Un pie cuyo unico boton esta oculto (Actividad sin «ver 50 mas») no deja la barra vacia. */
 .mn-dialog-foot:has(> [hidden]:only-child) { display: none; }
-.progreso { font-size: .78rem; color: var(--text-muted); min-height: 1.2em; }
+.progreso { font-size: .8rem; color: var(--text-muted); min-height: 1.2em; }
 .progreso:empty { display: none; }   /* v0.31.0: vacio dejaba ~110 px en blanco entre la ayuda y el pie de «Subir» */
 .mn-dialog .kv:empty { display: none; }
 .head-botones { display: flex; gap: var(--sp-2); flex: none; }
@@ -961,10 +961,10 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .tdoc a:hover { text-decoration: underline; }
 .tdoc .mn-btn { margin-left: auto; }
 .tdoc-acciones { display: flex; gap: var(--sp-2); flex-wrap: wrap; margin-top: var(--sp-1); }
-.tdocs .vacio, .notas .vacio { color: var(--text-faint); font-size: .82rem; }
+.tdocs .vacio, .notas .vacio { color: var(--text-faint); font-size: .8rem; }
 .notas { display: grid; gap: var(--sp-2); margin: var(--sp-1) 0 var(--sp-2); font-size: .85rem; }
 .nota { display: grid; grid-template-columns: 1fr; gap: var(--sp-2); align-items: start; }
-.nota .w { color: var(--text-muted); font-size: .75rem; }
+.nota .w { color: var(--text-muted); font-size: .72rem; }
 .nota p { margin: 2px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .nota-forma { display: grid; grid-template-columns: 1fr auto auto; gap: var(--sp-2); align-items: end; margin-bottom: var(--sp-3); }
 .nota-forma textarea { font: inherit; font-size: .85rem; padding: var(--sp-2); border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); resize: vertical; min-width: 0; }
@@ -976,19 +976,19 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .solo-lectura { margin: 0 0 var(--sp-3); }
 /* v0.31.0: .lg-acciones se retiro — «Buscar» vive en .lg-fila */
 .lg-resultado { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--sp-2); align-items: center; padding: var(--sp-2) var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); font-size: .85rem; }
-.lg-resultado .p { font-family: var(--font-data); font-size: .68rem; color: var(--text-muted); word-break: break-all; }
+.lg-resultado .p { font-family: var(--font-data); font-size: .66rem; color: var(--text-muted); word-break: break-all; }
 
 /* C2 + D1: atajos de fecha y la fecha leida en el formato de la casa (el campo nativo la pinta en
    el idioma del DISPOSITIVO: mm/dd/yyyy en una laptop en ingles). */
 .atajos-fecha { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; margin-top: var(--sp-1); }
-.atajos-fecha .leida { font-size: .75rem; color: var(--text-body); }
+.atajos-fecha .leida { font-size: .72rem; color: var(--text-body); }
 /* D3: a media anchura el select corta los nombres de mas de 15 caracteres («Persona de Pruel»).
    Cuatro dialogos heredan esta fila. */
 @media (max-width: 480px) { .mn-row { grid-template-columns: 1fr; } }
 /* U-01 (mejorar-app, 16-sep): la piel solo separa .mn-field + .mn-field; una fila (.mn-row) antes o despues de un campo
    quedaba pegada (CLAVE tocaba el anillo de foco de Nombre). Mismo aire que entre dos campos. Candidato a base.css. */
 .mn-dialog-body .mn-field + .mn-row, .mn-dialog-body .mn-row + .mn-field, .mn-dialog-body .mn-row + .mn-row { margin-top: var(--sp-3); }
-.mn-field > .mn-help { margin: 0; font-size: .78rem; }   /* U-04: la nota bajo su campo, sin el margen de la nota suelta */
+.mn-field > .mn-help { margin: 0; font-size: .8rem; }   /* U-04: la nota bajo su campo, sin el margen de la nota suelta */
 
 /* ==== celular (<=720 px) — v0.5.0. Va AL FINAL a proposito: una regla movil escrita arriba
    la pisa su regla base de mas abajo con la misma especificidad (paso justo el 2026-09-12
@@ -1002,7 +1002,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
   /* La fila de pestanas rueda dentro de si misma y «Documentos» es «Docs»: desde v0.30.0 lo pone el bloque <=900 de arriba. */
   .tabs .tab { padding: var(--sp-2); }
   .proyecto-cab { gap: var(--sp-1) var(--sp-2); }
-  .proyecto-cab h1 { font-size: 1.15rem; }
+  .proyecto-cab h1 { font-size: 1.1rem; }
   .proyecto-cab .titulo h1 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
   /* v0.29.2: en celular el chip/reloj no compite con el titulo (lo dejaba en 65 px a 390): baja a su propio renglon dentro de .titulo. */
   .proyecto-cab .titulo { flex-wrap: wrap; }   /* el <details> con base 0 para que no se lleve al icono a otro renglon */
@@ -1031,8 +1031,8 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
      (numero + etiqueta a 2 lineas); el 5.o («sin dueño», solo si hay) cae a la fila de abajo. */
   .mn-kpis { grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: var(--sp-1); }
   .mn-kpi { padding: var(--sp-2) var(--sp-2) var(--sp-2) calc(var(--sp-2) + 3px); }
-  .mn-kpi .mn-kpi-label { font-size: .58rem; letter-spacing: .04em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.25; }
-  .mn-kpi .mn-kpi-val { font-size: 1.35rem; margin-top: 2px; }
+  .mn-kpi .mn-kpi-label { font-size: .66rem; letter-spacing: .04em; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.25; }
+  .mn-kpi .mn-kpi-val { font-size: 1.5rem; margin-top: 2px; }
   /* C4: el boton «Anotar» debajo del textarea, a todo el ancho; el contador arriba del boton a la derecha */
   .nota-forma { grid-template-columns: 1fr; }
   .nota-forma .cont { justify-self: end; padding-bottom: 0; }
@@ -1084,7 +1084,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .fico.is-sm svg .marca { stroke-width: 2; }
 
 /* ---- insignias en la cara de la tarjeta (Trello): notas y documentos, sin abrirla. */
-.insig { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-data); font-size: .7rem; color: var(--text-muted); }
+.insig { display: inline-flex; align-items: center; gap: 3px; font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); }
 .insig svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 /* ---- v0.64.0 (Carlos, 15-sep; artifact WFuYDBHS, corte E «filete bajo el título»): el color de la cubeta es `--cub`, que .col h3 pinta como
    FILETE de 2 px bajo la cabecera; el punto de 8 px a la izquierda del nombre se fue. Mismo color que la barra segmentada de la lista de proyectos. */
@@ -1107,14 +1107,14 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* En celular la cuenta baja a un segundo renglon; el nombre y los tres botones se quedan en el primero. */
 @media (max-width: 720px) { .cubeta { grid-template-columns: auto 1fr auto auto auto; row-gap: 2px; } .cubeta .n { grid-column: 2 / -1; grid-row: 2; } }
 /* ---- contador en la pestana (Documentos · N, Chat · N) */
-.tab .n { margin-left: 6px; font-family: var(--font-data); font-size: .7rem; font-weight: 500; padding: 1px 6px; border-radius: var(--r-pill); background: var(--surface-sunken); color: var(--text-muted); }
+.tab .n { margin-left: 6px; font-family: var(--font-data); font-size: .72rem; font-weight: 500; padding: 1px 6px; border-radius: var(--r-pill); background: var(--surface-sunken); color: var(--text-muted); }
 .tab.is-on .n { background: var(--surface-selected); color: var(--brand-primary); }
 
 /* ---- chat por proyecto: hilo con lo ultimo abajo y el redactor debajo, como cualquier chat. */
 .chat { display: grid; gap: var(--sp-2); min-width: 0; }
 .chat .hilo { display: grid; gap: var(--sp-1); align-content: start; max-height: min(62vh, 640px); overflow-y: auto; padding: var(--sp-3); background: var(--surface-card); border: 1px solid var(--border-default); border-radius: var(--r-md); scrollbar-width: thin; }
 .chat .hilo .vacio { color: var(--text-faint); font-size: .85rem; margin: 0; }
-.chat .dia { justify-self: center; margin: var(--sp-2) 0 var(--sp-1); padding: 2px 10px; border-radius: var(--r-pill); background: var(--surface-sunken); font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }   /* muted, no faint: 2.45:1 a 10 px (revisor) */
+.chat .dia { justify-self: center; margin: var(--sp-2) 0 var(--sp-1); padding: 2px 10px; border-radius: var(--r-pill); background: var(--surface-sunken); font-family: var(--font-data); font-size: .66rem; letter-spacing: .07em; text-transform: uppercase; color: var(--text-muted); }   /* muted, no faint: 2.45:1 a 10 px (revisor) */
 /* v0.49.0 (Carlos, 15-sep; artifact C8meacEE, opcion B): el hilo y la bandeja pierden la columna del avatar — el nombre
    escrito y el tono del fondo ya dicen quien es. La rejilla de .msg pasa a UNA columna (+ la del boton borrar). */
 .msg { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-2); align-items: start; padding: var(--sp-1) 0; }
@@ -1191,7 +1191,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .borrar-msg:hover, .borrar-msg:focus-visible { color: var(--status-danger-fg); background: var(--status-danger-bg); }
 @media (hover: none) { .borrar-msg { opacity: 1; width: 36px; height: 36px; } }
 /* ---- «N nuevos desde tu ultima visita»: raya ambar en el hilo, y el contador de la pestana Chat en ambar. */
-.chat .nuevos { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0 var(--sp-1); font-family: var(--font-data); font-size: .68rem; letter-spacing: .07em; text-transform: uppercase; font-weight: 600; color: var(--status-warn-fg); }
+.chat .nuevos { display: flex; align-items: center; gap: var(--sp-2); margin: var(--sp-2) 0 var(--sp-1); font-family: var(--font-data); font-size: .66rem; letter-spacing: .07em; text-transform: uppercase; font-weight: 600; color: var(--status-warn-fg); }
 .chat .nuevos::before, .chat .nuevos::after { content: ''; flex: 1; height: 1px; background: var(--status-warn-fg); opacity: .5; }
 .tab .n.is-nuevo { background: var(--status-warn-bg); color: var(--status-warn-fg); font-weight: 600; }
 /* ---- una direccion pegada en el chat o en una nota se abre con un clic. */
@@ -1204,12 +1204,12 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 /* ---- rail: la insignia de Mensajes es informativa (azul), no alarma (rojo, la de vencidas). */
 .mn-rail .mn-rail-hot.is-info { background: var(--status-info-bg); color: var(--status-info-fg); }
 /* v0.13.0 (Carlos, 12-sep): el contador del rail deja la pildora por un cuadrado redondeado de 20 px con borde fino del mismo tono; solo cambia la forma, los colores siguen de minsa-ui. */
-.mn-rail .mn-rail-hot { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 5px; box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent); font-size: .7rem; line-height: 1; }
+.mn-rail .mn-rail-hot { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 5px; box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent); font-size: .72rem; line-height: 1; }
 /* ---- gantt: etiqueta fija a la izquierda + pista en %; la cabecera trae meses y el dia del lunes de cada semana. */
 .gantt-caja { overflow-x: auto; min-width: 0; }
 /* La tarjeta que contiene el gantt no puede tomar el ancho minimo de su contenido (a 390 desbordaba 176 px, medido). */
 #p-roadmap .mn-card { min-width: 0; }
-.gantt { --eti: 230px; display: grid; gap: 0; min-width: 640px; font-size: .82rem; }
+.gantt { --eti: 230px; display: grid; gap: 0; min-width: 640px; font-size: .8rem; }
 .g-fila { display: grid; grid-template-columns: var(--eti) minmax(0, 1fr); align-items: stretch; border-top: 1px solid var(--border-hairline); }
 .g-cab { display: grid; grid-template-columns: var(--eti) minmax(0, 1fr); align-items: stretch; position: sticky; top: 0; background: var(--surface-card); z-index: 6; }   /* U-02 (v0.78.0): por encima de las etiquetas pegadas (z 5) */
 /* U-02 (v0.78.0): la columna del nombre se queda pegada a la izquierda al desplazar la pista (a 390 el gantt mide 520 en una tarjeta de 342). */
@@ -1222,8 +1222,8 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .g-meses span, .g-semanas span { position: absolute; top: 0; height: 20px; line-height: 20px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; padding-left: 4px; box-sizing: border-box; border-left: 1px solid var(--border-default); }
 .g-meses span { font-family: var(--font-display); font-weight: 600; font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--text-muted); }
 .g-semanas span { font-family: var(--font-data); font-size: .66rem; color: var(--text-faint); border-left-color: var(--border-hairline); }
-.g-eti { min-width: 0; padding: var(--sp-1) var(--sp-2) var(--sp-1) 0; display: flex; align-items: center; font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--text-muted); }
-.g-fila .g-eti { text-transform: none; letter-spacing: 0; font-size: .82rem; font-weight: 500; color: var(--text-body); }
+.g-eti { min-width: 0; padding: var(--sp-1) var(--sp-2) var(--sp-1) 0; display: flex; align-items: center; font-size: .66rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--text-muted); }
+.g-fila .g-eti { text-transform: none; letter-spacing: 0; font-size: .8rem; font-weight: 500; color: var(--text-body); }
 .g-fila.is-grupo { background: var(--surface-sunken); }
 .g-grupo { display: inline-flex; align-items: center; gap: var(--sp-2); font-size: .72rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--text-muted); }
 .g-grupo .n { font-family: var(--font-data); font-weight: 500; color: var(--text-faint); }
@@ -1239,7 +1239,7 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .g-hoy { position: absolute; top: 0; bottom: 0; border-left: 2px solid var(--status-danger-solid); z-index: 1; }
 /* v0.22.0 (iteracion 4): la raya de hoy lleva etiqueta en la cabecera (sobre la fila de semanas, fija al hacer scroll); cerca del borde derecho se lee hacia la izquierda */
 .g-cab .g-hoy { top: 20px; z-index: 2; }
-.g-cab .g-hoy b { position: absolute; top: 20px; left: 3px; font-family: var(--font-data); font-size: .62rem; font-weight: 600; line-height: 16px; padding: 0 5px; border-radius: 3px; background: linear-gradient(var(--status-danger-bg), var(--status-danger-bg)), var(--surface-card); color: var(--status-danger-fg); white-space: nowrap; }   /* fondo opaco: el token es translucido y en oscuro se leia el numero de la semana detras */
+.g-cab .g-hoy b { position: absolute; top: 20px; left: 3px; font-family: var(--font-data); font-size: .66rem; font-weight: 600; line-height: 16px; padding: 0 5px; border-radius: 3px; background: linear-gradient(var(--status-danger-bg), var(--status-danger-bg)), var(--surface-card); color: var(--status-danger-fg); white-space: nowrap; }   /* fondo opaco: el token es translucido y en oscuro se leia el numero de la semana detras */
 .g-cab .g-hoy.is-der b { left: auto; right: 3px; }
 /* v0.22.0: el gantt con hitos (el global) es mas alto —56 px por fila— para que quepan los rombos sobre la barra y su titulo debajo */
 .gantt.is-hitos .g-pista { min-height: 56px; }
@@ -1253,13 +1253,13 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 .g-rombo.is-vencida, .g-rombo-mini.is-vencida { background: var(--status-danger-solid); border-color: var(--status-danger-solid); }
 .g-rombo.is-pronto, .g-rombo-mini.is-pronto { background: var(--status-warn-solid); border-color: var(--status-warn-solid); }
 .g-rombo.is-grupo { width: 16px; height: 16px; top: 13px; }
-.g-rombo-txt { position: absolute; top: 37px; padding: 0 2px 0 8px; font-family: var(--font-data); font-size: .64rem; line-height: 14px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; z-index: 2; box-sizing: border-box; }
+.g-rombo-txt { position: absolute; top: 37px; padding: 0 2px 0 8px; font-family: var(--font-data); font-size: .66rem; line-height: 14px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; z-index: 2; box-sizing: border-box; }
 .g-rombo-txt.is-grupo { font-weight: 600; color: var(--text-strong); }
 .g-fin { position: absolute; top: 6px; height: 31px; border-left: 2px solid var(--text-faint); z-index: 4; pointer-events: none; }   /* encima del rombo: un hito el dia del fin no la tapa; sin robarle el clic */
-.g-fin b { position: absolute; top: 31px; right: 1px; font-family: var(--font-data); font-size: .64rem; line-height: 14px; color: var(--text-faint); white-space: nowrap; }
-.g-leyenda { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); align-items: center; margin-top: var(--sp-3); font-size: .75rem; color: var(--text-muted); }
+.g-fin b { position: absolute; top: 31px; right: 1px; font-family: var(--font-data); font-size: .66rem; line-height: 14px; color: var(--text-faint); white-space: nowrap; }
+.g-leyenda { display: flex; flex-wrap: wrap; gap: var(--sp-2) var(--sp-4); align-items: center; margin-top: var(--sp-3); font-size: .72rem; color: var(--text-muted); }
 .g-leyenda > span { display: inline-flex; align-items: center; gap: 8px; }
-.g-leyenda .fin { flex-basis: 100%; font-family: var(--font-data); font-size: .7rem; color: var(--text-faint); }
+.g-leyenda .fin { flex-basis: 100%; font-family: var(--font-data); font-size: .72rem; color: var(--text-faint); }
 .g-rombo-mini { display: inline-block; width: 9px; height: 9px; box-sizing: border-box; border: 2px solid var(--brand-primary); border-radius: 2px; background: var(--surface-card); transform: rotate(45deg); }
 .g-barra { position: absolute; top: 7px; height: 22px; box-sizing: border-box; display: flex; align-items: center; padding: 0 6px; border: 0; border-radius: 4px; background: var(--status-idle-bg); color: var(--status-idle-fg); font: inherit; font-size: .72rem; font-weight: 600; white-space: nowrap; overflow: hidden; cursor: default; z-index: 2; min-width: 6px; }
 button.g-barra { cursor: pointer; } button.g-barra:hover { filter: brightness(.95); } button.g-barra:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: 2px; }
@@ -1291,7 +1291,7 @@ button.g-barra.is-corta { overflow: visible; } button.g-barra.is-corta::after { 
 .g-pop-it { display: flex; align-items: center; gap: var(--sp-3); min-height: 44px; padding: var(--sp-1) var(--sp-2); border: 0; border-radius: var(--r-sm); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .g-pop-it:hover, .g-pop-it:active { background: var(--surface-hover); }
 .g-pop-it .g-rombo-mini { flex: none; margin-left: 3px; }
-.g-pop-it .cuerpo { display: grid; min-width: 0; } .g-pop-it b { font-weight: 600; overflow-wrap: anywhere; } .g-pop-it .m { font-size: .78rem; color: var(--text-muted); font-family: var(--font-data); }
+.g-pop-it .cuerpo { display: grid; min-width: 0; } .g-pop-it b { font-weight: 600; overflow-wrap: anywhere; } .g-pop-it .m { font-size: .8rem; color: var(--text-muted); font-family: var(--font-data); }
 .g-pop-pie { display: flex; gap: var(--sp-2); margin-top: var(--sp-1); } .g-pop-pie .mn-btn { flex: 1; }
 #roadmapLinea.is-full { position: fixed; inset: 0; z-index: var(--z-pop); border-radius: 0; overflow: auto; padding: var(--sp-3) var(--sp-4); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: var(--sp-2); }
 #roadmapLinea.is-full .gantt-caja { overflow: auto; min-height: 0; }
@@ -1303,14 +1303,14 @@ body.sin-scroll { overflow: hidden; }
 .hito { display: grid; grid-template-columns: 44px minmax(0, 1fr) auto; gap: var(--sp-3); align-items: center; width: 100%; padding: var(--sp-2) 0; border: 0; border-top: 1px solid var(--border-hairline); background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: var(--r-sm); }
 .hito:first-child { border-top: 0; } .hito:hover { background: var(--surface-hover); }
 .hito .fecha { display: grid; justify-items: center; line-height: 1; padding: 4px 0; border-radius: var(--r-sm); background: var(--surface-sunken); }
-.hito .fecha small { font-size: .58rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); }
-.hito .fecha b { font-family: var(--font-display); font-size: 1.15rem; color: var(--text-strong); }
+.hito .fecha small { font-size: .66rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-faint); }
+.hito .fecha b { font-family: var(--font-display); font-size: 1.1rem; color: var(--text-strong); }
 .hito.is-warn .fecha { background: var(--status-warn-bg); } .hito.is-warn .fecha b { color: var(--status-warn-fg); }
 .hito.is-danger .fecha { background: var(--status-danger-bg); } .hito.is-danger .fecha b { color: var(--status-danger-fg); }
-.hito .cuerpo { display: grid; min-width: 0; } .hito .t { font-weight: 600; color: var(--text-strong); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } .hito .m { font-size: .75rem; color: var(--text-muted); }
+.hito .cuerpo { display: grid; min-width: 0; } .hito .t { font-weight: 600; color: var(--text-strong); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; } .hito .m { font-size: .72rem; color: var(--text-muted); }
 /* ---- calendario */
 .cal-nav { display: inline-flex; align-items: center; gap: var(--sp-2); }
-.cal-titulo { font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; color: var(--text-strong); text-transform: capitalize; margin-left: var(--sp-1); }
+.cal-titulo { font-family: var(--font-display); font-weight: 600; font-size: 1.1rem; color: var(--text-strong); text-transform: capitalize; margin-left: var(--sp-1); }
 .cal-rejilla { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background: var(--border-hairline); border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow: hidden; }
 .cal-dow { background: var(--surface-sunken); padding: var(--sp-1) var(--sp-2); font-size: .66rem; text-transform: uppercase; letter-spacing: .09em; font-weight: 600; color: var(--text-faint); }
 .cal-dia { background: var(--surface-card); min-height: 96px; padding: var(--sp-1); display: grid; align-content: start; gap: 2px; min-width: 0; cursor: pointer; }
@@ -1320,7 +1320,7 @@ body.sin-scroll { overflow: hidden; }
 .cal-dia .num { font-family: var(--font-data); font-size: .72rem; color: var(--text-muted); justify-self: end; width: 22px; height: 22px; line-height: 22px; text-align: center; border-radius: 50%; }
 .cal-dia.is-hoy .num { background: var(--brand-primary); color: var(--text-on-brand); font-weight: 700; }
 .cal-dia.is-elegido { outline: 2px solid var(--brand-primary); outline-offset: -2px; }
-.cal-it { display: flex; align-items: center; gap: 4px; width: 100%; min-width: 0; padding: 2px 6px; border: 0; border-left: 3px solid var(--status-idle-solid); border-radius: 3px; background: var(--status-idle-bg); color: var(--status-idle-fg); font: inherit; font-size: .7rem; font-weight: 600; text-align: left; cursor: pointer; }
+.cal-it { display: flex; align-items: center; gap: 4px; width: 100%; min-width: 0; padding: 2px 6px; border: 0; border-left: 3px solid var(--status-idle-solid); border-radius: 3px; background: var(--status-idle-bg); color: var(--status-idle-fg); font: inherit; font-size: .72rem; font-weight: 600; text-align: left; cursor: pointer; }
 .cal-it .t { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .cal-it.is-brand { background: color-mix(in srgb, var(--brand-primary) 14%, var(--surface-card)); color: var(--brand-primary); border-left-color: var(--brand-primary); }
 .cal-it.is-info { background: var(--status-info-bg); color: var(--status-info-fg); border-left-color: var(--status-info-solid); }
@@ -1329,10 +1329,10 @@ body.sin-scroll { overflow: hidden; }
 .cal-it.is-hito { background: var(--surface-sunken); color: var(--text-strong); border-left-color: var(--brand-primary); }
 .cal-it .eqi.is-sm { width: 18px; height: 18px; } .cal-it .eqi.is-sm svg { width: 11px; height: 11px; }
 .cal-it .m { font-weight: 400; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-left: auto; padding-left: 6px; max-width: 45%; }
-.cal-mas { border: 0; background: none; font: inherit; font-size: .68rem; color: var(--text-link); cursor: pointer; text-align: left; padding: 0 6px; }
+.cal-mas { border: 0; background: none; font: inherit; font-size: .66rem; color: var(--text-link); cursor: pointer; text-align: left; padding: 0 6px; }
 .cal-dia .cal-it, .cal-dia .cal-mas { min-height: 28px; }   /* U-06 (v0.86.0): en la rejilla (tablet desde 721 px) eran 21 y ~14 px apilados dentro de una celda que tambien es boton; la celda crece de 96 a ~120 px con 3 */
 .cal-detalle { display: grid; gap: var(--sp-1); } .cal-detalle h2 { margin-bottom: var(--sp-1); }
-.cal-detalle .cal-it { font-size: .82rem; padding: 6px 8px; min-height: 36px; }
+.cal-detalle .cal-it { font-size: .8rem; padding: 6px 8px; min-height: 36px; }
 .cal-agenda { display: none; }
 /* ---- mensajes: bandeja + hilo (v0.42.0, artifact 17j5wESZ). Dos columnas: la bandeja (secciones plegables) y lo elegido.
    En ≤ 900 (tableta y celular) se ve UNA columna a la vez: la bandeja, o el hilo/ficha con «← Bandeja» arriba. */
@@ -1345,7 +1345,7 @@ body.sin-scroll { overflow: hidden; }
 .msj-hilo .chat { padding-bottom: 0; }   /* el hueco del FAB es de la pestana del proyecto, no de aqui */
 /* U-01 (17-sep): la cabecera del hilo — icono de la unidad + titulo del frente, que liga al frente. */
 .msj-titulo { display: flex; align-items: center; gap: var(--sp-2); min-width: 0; }
-.msj-titulo-frente { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; min-height: 44px; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; color: var(--text-strong); text-decoration: none; }   /* 44 px: objetivo tactil (revisor 17-sep: 25 px) */
+.msj-titulo-frente { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; min-height: 44px; font-family: var(--font-display); font-weight: 600; font-size: 1.1rem; color: var(--text-strong); text-decoration: none; }   /* 44 px: objetivo tactil (revisor 17-sep: 25 px) */
 .msj-titulo-frente:hover .t { color: var(--brand-primary); text-decoration: underline; }
 .msj-titulo-frente .t { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 .msj-sec > summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-3) 0 var(--sp-1); font-family: var(--font-data); font-size: .66rem; letter-spacing: .12em; text-transform: uppercase; color: var(--text-muted); min-height: 36px; }
@@ -1353,7 +1353,7 @@ body.sin-scroll { overflow: hidden; }
 .msj-sec > summary::before { content: "▾"; font-size: .8rem; color: var(--text-faint); width: 10px; }
 .msj-sec:not([open]) > summary::before { content: "▸"; }
 .msj-sec > summary .cnt { margin-left: auto; letter-spacing: 0; color: var(--text-faint); }
-.msj-sec > .vacio { color: var(--text-faint); font-size: .82rem; margin: 0; padding: var(--sp-1) 0 var(--sp-2); }
+.msj-sec > .vacio { color: var(--text-faint); font-size: .8rem; margin: 0; padding: var(--sp-1) 0 var(--sp-2); }
 .msj-sec + .msj-sec { border-top: 1px solid var(--border-hairline); }
 .msg-proy.is-on { background: var(--surface-selected); margin: 0 calc(-1 * var(--sp-3)); padding-left: var(--sp-3); padding-right: var(--sp-3); width: calc(100% + 2 * var(--sp-3)); border-radius: var(--r-sm); }   /* el relleno cubre el renglon entero: el boton en grid no crece solo con width:auto (captura 14-sep) */
 .msg-proy .t > span:last-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }   /* «LAU ASEA-03-001 (Licenc» se cortaba sin puntos: el span interno del inline-flex no heredaba la elipsis */
@@ -1374,7 +1374,7 @@ body.sin-scroll { overflow: hidden; }
   .msj-rail .msj-frente:hover { background: var(--surface-hover); }
   .msj-rail .msj-frente.is-on { background: var(--surface-selected); box-shadow: inset 0 0 0 1px var(--border-default); }
   .msj-rail .msj-frente.is-vacio { opacity: .45; }
-  .msj-rail .msj-frente .msj-hot { position: absolute; top: 1px; right: 1px; display: inline-grid; place-items: center; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 4px; background: var(--status-info-bg); color: var(--status-info-fg); box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent); font-family: var(--font-data); font-size: .58rem; font-weight: 700; line-height: 1; }
+  .msj-rail .msj-frente .msj-hot { position: absolute; top: 1px; right: 1px; display: inline-grid; place-items: center; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 4px; background: var(--status-info-bg); color: var(--status-info-fg); box-shadow: inset 0 0 0 1px color-mix(in srgb, currentColor 35%, transparent); font-family: var(--font-data); font-size: .66rem; font-weight: 700; line-height: 1; }
 }
 @media (max-width: 900px) {
   .msj { grid-template-columns: 1fr; }
@@ -1410,7 +1410,7 @@ body.sin-scroll { overflow: hidden; }
 .anillo .seg { fill: none; stroke-width: 4; stroke-linecap: butt; }
 .anillo .seg.is-h { stroke: var(--status-ok-solid); } .anillo .seg.is-r { stroke: var(--status-info-solid); } .anillo .seg.is-c { stroke: var(--brand-primary); } .anillo .seg.is-p { stroke: var(--border-default); }
 .anillo .pct { font-family: var(--font-display); font-weight: 600; font-size: 8px; fill: var(--text-strong); }
-.leyenda { display: grid; gap: var(--sp-1); font-size: .82rem; color: var(--text-body); }
+.leyenda { display: grid; gap: var(--sp-1); font-size: .8rem; color: var(--text-body); }
 .leyenda span { display: inline-flex; align-items: center; gap: var(--sp-2); } .leyenda b { font-family: var(--font-data); font-weight: 500; margin-left: auto; }
 .leyenda i { width: 10px; height: 10px; border-radius: 50%; background: var(--border-default); }
 .leyenda .is-h i { background: var(--status-ok-solid); } .leyenda .is-r i { background: var(--status-info-solid); } .leyenda .is-c i { background: var(--brand-primary); }
@@ -1440,7 +1440,7 @@ body.sin-scroll { overflow: hidden; }
 .rep-cols .col-s b { font-family: var(--font-data); font-size: .72rem; font-weight: 500; color: var(--text-strong); }
 .rep-cols .col-s i { width: 70%; align-self: end; background: var(--status-ok-solid); border-radius: 4px 4px 0 0; min-height: 2px; }
 .rep-cols .col-s i.cero { background: var(--border-hairline); }
-.rep-cols .col-s small { font-family: var(--font-data); font-size: .7rem; line-height: 1.15; height: 2.3em; display: flex; align-items: flex-end; justify-content: center; color: var(--text-muted); text-align: center; overflow-wrap: anywhere; max-width: 100%; }   /* U-05 (18-sep): .6rem/faint era ilegible y con nowrap+ellipsis «27 jul» salia «27 j…» hasta a 1366; ahora parte en dos lineas (dia / mes) y TODAS reservan las dos, para que las barras compartan la base */
+.rep-cols .col-s small { font-family: var(--font-data); font-size: .72rem; line-height: 1.15; height: 2.3em; display: flex; align-items: flex-end; justify-content: center; color: var(--text-muted); text-align: center; overflow-wrap: anywhere; max-width: 100%; }   /* U-05 (18-sep): .6rem/faint era ilegible y con nowrap+ellipsis «27 jul» salia «27 j…» hasta a 1366; ahora parte en dos lineas (dia / mes) y TODAS reservan las dos, para que las barras compartan la base */
 /* ---- avance del proyecto: el anillo junto a la barra en la lateral */
 .avance-anillo { display: flex; justify-content: center; margin-bottom: var(--sp-2); }
 @media print { .cal-nav, #btnImprimirReportes, .archivos-filtros { display: none !important; } .gantt-caja { overflow: visible; max-height: none !important; } .rep-rejilla { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }   /* U-03 (18-sep): sin `exact` el navegador quita los fondos y las barras (segbar, hbar, columnas) se van con sus cifras blancas */   /* max-height: none !important (v0.79.0, va ANTES del @media de 720 y perderia sin el): que el tope de U-06 (celular) no recorte la impresion desde un viewport angosto */
@@ -1459,10 +1459,10 @@ body.sin-scroll { overflow: hidden; }
   .cal-rejilla, .cal-detalle { display: none !important; }
   .cal-agenda { display: grid; gap: var(--sp-2); }
   .cal-ag { display: grid; gap: 4px; padding: var(--sp-2) var(--sp-3); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); }
-  .cal-ag h3 { margin: 0 0 2px; font-family: var(--font-display); font-size: .82rem; font-weight: 600; color: var(--text-muted); text-transform: capitalize; }
+  .cal-ag h3 { margin: 0 0 2px; font-family: var(--font-display); font-size: .8rem; font-weight: 600; color: var(--text-muted); text-transform: capitalize; }
   .cal-ag.is-hoy { border-color: var(--brand-primary); } .cal-ag.is-hoy h3 { color: var(--brand-primary); }
   .cal-ag.is-pasado { opacity: .75; }
-  .cal-ag .cal-it { font-size: .82rem; padding: 6px 8px; min-height: 40px; flex-wrap: wrap; }
+  .cal-ag .cal-it { font-size: .8rem; padding: 6px 8px; min-height: 40px; flex-wrap: wrap; }
   /* U-03 (v0.86.0): a 390 el titulo se cortaba a ~25 caracteres y el proyecto a «LAU ASEA-03-001 (Lic…» (nowrap + elipsis en dos columnas). Titulo hasta 2 lineas; el proyecto como segundo renglon tenue completo. */
   .cal-ag .cal-it .t { white-space: normal; overflow-wrap: anywhere; flex: 1 1 60%; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .cal-ag .cal-it .m { flex: 1 1 100%; max-width: none; margin-left: 0; padding-left: 0; white-space: normal; }
@@ -1470,7 +1470,7 @@ body.sin-scroll { overflow: hidden; }
   /* U-06 (v0.79.0): la cabecera de meses/semanas no se pegaba al bajar: .gantt-caja (overflow-x: auto) ya era el scrollport y solo se movia a lo ancho. En celular la caja toma tambien el scroll vertical (tope: la ventana menos cabecera y barra), y el sticky top: 0 de .g-cab ya tiene contra que pegarse. Mas corta que eso, no hay scroll interno y nada cambia. Revertir = borrar este renglon. */
   .gantt-caja { max-height: calc(100dvh - 200px); overflow: auto; }
   #roadmapLinea.is-full .gantt-caja { max-height: none; }   /* U-06 (revisor): en pantalla completa la caja ya es la ventana; el tope la dejaba 200 px corta */
-  .g-proy .m { font-size: .64rem; }   /* U-09 (v0.78.0): «7/17 · fin 31/10» son 16 caracteres y el cuerpo mide ~102 px; a .72rem no cabian */
+  .g-proy .m { font-size: .66rem; }   /* U-09 (v0.78.0): «7/17 · fin 31/10» son 16 caracteres y el cuerpo mide ~102 px; a .72rem no cabian */
   .rep-rejilla { grid-template-columns: 1fr; }
   .rep-fila { grid-template-columns: 1fr; gap: var(--sp-1); }
   .msg-proy .t { font-size: .9rem; }
@@ -1539,13 +1539,13 @@ body.sin-scroll { overflow: hidden; }
 .cola-cab h2 .n:not(:empty)::before, #cardSinMov h2 .n:not(:empty)::before { content: "· "; }   /* C-09 (v0.94.0): «Sin movimiento · N» */
 .cola-lista { display: grid; }
 /* El encabezado de grupo: texto en mayusculas chicas, conteo mono; el color dice la urgencia. */
-.hoy-g { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3); padding: 0 0 var(--sp-1); border-bottom: 1px solid var(--border-hairline); font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--text-muted); }
+.hoy-g { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3); padding: 0 0 var(--sp-1); border-bottom: 1px solid var(--border-hairline); font-size: .66rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--text-muted); }
 .hoy-g:first-child { margin-top: 0; }
 .hoy-g .n { font-family: var(--font-data); font-weight: 600; letter-spacing: 0; }
 .hoy-g.is-danger { color: var(--status-danger-fg); } .hoy-g.is-warn { color: var(--status-warn-fg); } .hoy-g.is-info { color: var(--status-info-fg); }
-button.hoy-g { width: 100%; min-height: 36px; background: none; border: 0; border-bottom: 1px solid var(--border-hairline); font: inherit; font-size: .68rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; text-align: left; cursor: pointer; border-radius: 0; }
+button.hoy-g { width: 100%; min-height: 36px; background: none; border: 0; border-bottom: 1px solid var(--border-hairline); font: inherit; font-size: .66rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; text-align: left; cursor: pointer; border-radius: 0; }
 /* «+N más · ver en …»: cierra un grupo recortado a 6; boton de texto a la derecha, 36 px de alto (tactil). */
-.hoy-mas { justify-self: end; min-height: 36px; padding: 0 var(--sp-2); border: 0; background: none; font: inherit; font-size: .75rem; font-weight: 600; color: var(--brand-primary); cursor: pointer; border-radius: var(--r-sm); }
+.hoy-mas { justify-self: end; min-height: 36px; padding: 0 var(--sp-2); border: 0; background: none; font: inherit; font-size: .72rem; font-weight: 600; color: var(--brand-primary); cursor: pointer; border-radius: var(--r-sm); }
 .hoy-mas:hover, .hoy-mas:focus-visible { background: var(--surface-hover); }
 button.hoy-g::after { content: "ver en su tablero →"; margin-left: auto; text-transform: none; letter-spacing: 0; font-weight: 500; color: var(--text-faint); }
 button.hoy-g:hover::after, button.hoy-g:focus-visible::after { color: var(--brand-primary); }
@@ -1557,13 +1557,13 @@ button.hoy-g:hover::after, button.hoy-g:focus-visible::after { color: var(--bran
 button.hoy-r { cursor: pointer; }
 button.hoy-r:hover { background: var(--surface-hover); }
 button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: -2px; }
-.hoy-r .k { display: grid; gap: 1px; text-align: right; font: 500 .7rem/1.1 var(--font-data); color: var(--text-faint); }
-.hoy-r .k b { font-weight: 600; font-size: .82rem; color: var(--status-idle-fg); font-variant-numeric: tabular-nums; }
-.hoy-r .k small { font-size: .68rem; }
+.hoy-r .k { display: grid; gap: 1px; text-align: right; font: 500 .72rem/1.1 var(--font-data); color: var(--text-faint); }
+.hoy-r .k b { font-weight: 600; font-size: .8rem; color: var(--status-idle-fg); font-variant-numeric: tabular-nums; }
+.hoy-r .k small { font-size: .66rem; }
 .hoy-r.is-danger .k b { color: var(--status-danger-fg); } .hoy-r.is-warn .k b { color: var(--status-warn-fg); } .hoy-r.is-info .k b { color: var(--status-info-fg); }
 .hoy-r .cuerpo { display: grid; min-width: 0; gap: 1px; }
 .hoy-r .t { font-size: .85rem; font-weight: 600; color: var(--text-strong); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
-.hoy-r .p { font-size: .75rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hoy-r .p { font-size: .72rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cola-lista .vacio { color: var(--text-faint); font-size: .85rem; margin: 0; }
 /* v0.39.0: las reglas .fines (Fines de frente, v0.21.0) se fueron con la tarjeta. */
 @media (max-width: 720px) {
@@ -1596,7 +1596,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
    sustituye por los renglones .t-props y el menu de cubetas: las reglas viven en el bloque v0.50.0 al final del archivo. */
 .t-desc { margin: 0 0 var(--sp-3); font-size: .9rem; color: var(--text-body); white-space: pre-line; overflow-wrap: anywhere; }
 /* La columna derecha: rotulo, kv a una columna de rotulo estrecha, documentos en renglones que parten. */
-.t-side .kv { grid-template-columns: 82px minmax(0, 1fr); font-size: .82rem; }
+.t-side .kv { grid-template-columns: 82px minmax(0, 1fr); font-size: .8rem; }
 .t-side .kv span { overflow-wrap: anywhere; }
 .t-side .kv .proy { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: start; }   /* en 280 px el titulo del frente parte en dos lineas y el icono del equipo caia solo en una tercera: el icono va en su columna, a la derecha */
 .t-side .tdocs { margin-bottom: 0; }
@@ -1630,7 +1630,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 /* Subir: el input de archivos nativo salia sin piel («Choose Files» en gris del navegador). El boton toma la caja de un
    .mn-btn.is-sm; el texto lo pone el navegador en SU idioma (no se controla desde CSS). */
 .mn-field input[type="file"] { padding: 5px var(--sp-2); cursor: pointer; font-size: .85rem; color: var(--text-muted); }
-.mn-field input[type="file"]::file-selector-button { font: inherit; font-size: .82rem; font-weight: 500; min-height: var(--control-h-sm); padding: 0 var(--sp-3); margin-right: var(--sp-2); border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); cursor: pointer; }
+.mn-field input[type="file"]::file-selector-button { font: inherit; font-size: .8rem; font-weight: 500; min-height: var(--control-h-sm); padding: 0 var(--sp-3); margin-right: var(--sp-2); border: 1px solid var(--border-default); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); cursor: pointer; }
 .mn-field input[type="file"]::file-selector-button:hover { background: var(--surface-hover); }
 /* Documentos en la tarjeta: las tres acciones (Ligar · Subir · Pegar un enlace) con la misma caja; en 280 px envuelven. */
 .t-side .tdoc-acciones { gap: var(--sp-1); }
@@ -1644,9 +1644,9 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
    detalle, C columnas, D fichas, F pestañas, G carriles por fecha, H indice fijo — no re-proponer. */
 .is-arbol { --sangria: 22px; min-width: 0; }   /* #docsLista es grid: sin esto el item toma su min-content, y el titulo nowrap de un nodo (407 px a 390, medido con --medir) ensancha la tabla entera */
 .is-arbol tr.raiz td { padding: var(--sp-2) var(--sp-3) 0; border-bottom: 0; }
-.is-arbol tr.raiz .cab { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); max-width: 100%; min-width: 0; font-family: var(--font-display); font-weight: 600; font-size: .95rem; color: var(--text-strong); white-space: normal; }
+.is-arbol tr.raiz .cab { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-1) var(--sp-2); max-width: 100%; min-width: 0; font-family: var(--font-display); font-weight: 600; font-size: .9rem; color: var(--text-strong); white-space: normal; }
 .is-arbol tr.raiz .grupo-raiz { min-width: 0; overflow-wrap: anywhere; }
-.is-arbol tr.raiz .cab .n { font-family: var(--font-data); font-size: .68rem; font-weight: 400; color: var(--text-muted); }
+.is-arbol tr.raiz .cab .n { font-family: var(--font-data); font-size: .66rem; font-weight: 400; color: var(--text-muted); }
 .is-arbol .cab .carpeta, .is-arbol .nombre .carpeta { width: 18px; height: 18px; flex: none; fill: var(--tono, var(--brand-primary)); stroke: none; }   /* .cab delante: `.pest .cab svg` (fill none, trazo) pesa 0,2,1 y ganaba */
 .cab .grupo { display: block; border: 0; border-radius: 0; background: none; }   /* v0.32.0 hizo de `.grupo` el marco de los filtros (borde + inline-flex); el titulo del grupo de la tabla comparte el nombre desde v0.16.0 y se veia enmarcado (cazado en la captura oscura a 1366) */
 .is-arbol tr.raiz .cab .carpeta { fill: var(--brand-primary); }
@@ -1672,13 +1672,13 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .is-arbol .cab.nodo .grupo { color: var(--text-strong); white-space: normal; overflow-wrap: anywhere; }   /* el titulo de la tarjeta ENVUELVE en vez de recortarse: nowrap aqui es min-content de toda la tabla (tabla y grid lo respetan) */
 .is-arbol .cab.nodo .n { color: var(--text-muted); opacity: 1; }
 /* cubeta y vencimiento dentro del nodo: rotulo mono con el punto del color, y el chip de vence de la casa */
-.is-arbol .cubeta-de { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-data); font-size: .64rem; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; flex: none; }
+.is-arbol .cubeta-de { display: inline-flex; align-items: center; gap: 5px; font-family: var(--font-data); font-size: .66rem; letter-spacing: .05em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; flex: none; }
 .is-arbol .cubeta-de::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--tono, var(--brand-primary)); flex: none; }
 .is-arbol .cab.nodo .mn-chip { flex: none; }
 /* color de la carpeta sin color elegido: por posicion de la cubeta (claseDeColumna), como los puntos del tablero */
 .is-arbol .is-p { --tono: var(--idle-solid); } .is-arbol .is-c { --tono: var(--brand-primary); } .is-arbol .is-r { --tono: var(--info-solid); } .is-arbol .is-h { --tono: var(--ok-solid); }
 .is-arbol .cab.nodo.is-vacio { color: var(--text-muted); } .is-arbol .cab.nodo.is-vacio .carpeta { fill: var(--border-default); }
-.is-arbol .grupo-vacio { font-family: var(--font-ui); font-size: .84rem; }
+.is-arbol .grupo-vacio { font-family: var(--font-ui); font-size: .85rem; }
 .is-arbol tr.pest.is-proyecto .cab.nodo { background: none; border-color: transparent; color: var(--text-strong); } .is-arbol tr.pest.is-proyecto .cab.nodo:hover { background: var(--surface-hover); border-color: var(--border-hairline); }
 .is-arbol tr.pest.is-proyecto .cab.nodo .carpeta { fill: var(--idle-solid); }
 /* la hoja: sangria doble y la linea de conexion (vertical desde la carpeta + ramal horizontal) dibujada en la celda del nombre */
@@ -1725,7 +1725,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
    chevron; lo que esta en su valor por DEFAULT («Sin asignar», «Poner fecha», «Normal») va en gris tenue. El semaforo de la fecha
    tine el texto (vencio en rojo, hoy/pronto en ambar). Descartadas en el artifact: 1B linea de metadatos · 1C controles con
    caja · 1D solo lo que no es default — no re-proponer. */
-.t-props { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.1fr) minmax(0, 1.05fr) minmax(0, .9fr) minmax(0, 1.2fr); font-size: .86rem; margin-bottom: var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-page); }   /* v0.69.0 (A2): UNA franja de celdas con divisores (las reglas de .t-cel en el bloque v0.69.0 al final). v0.70.0: SIN overflow hidden — recortaba #tPop y el menu de cubetas, que cuelgan de la celda (captura de Carlos, 16-sep) */
+.t-props { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.1fr) minmax(0, 1.05fr) minmax(0, .9fr) minmax(0, 1.2fr); font-size: .85rem; margin-bottom: var(--sp-3); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-page); }   /* v0.69.0 (A2): UNA franja de celdas con divisores (las reglas de .t-cel en el bloque v0.69.0 al final). v0.70.0: SIN overflow hidden — recortaba #tPop y el menu de cubetas, que cuelgan de la celda (captura de Carlos, 16-sep) */
 .t-props .t-cel > b { color: var(--text-muted); font-weight: 500; font-size: .72rem; font-family: var(--font-display); letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }   /* v0.69.0: «PRIORIDAD» (70 px) se salia de una celda de 57 px interiores (revisor): celdas parejas y padding corto */
 .t-props .val { display: flex; align-items: center; gap: var(--sp-1) var(--sp-2); flex-wrap: wrap; min-width: 0; min-height: var(--control-h-sm); position: relative; }
 .t-props .val > span, .t-props .prop-btn > span { display: inline-flex; align-items: center; gap: var(--sp-1); color: var(--text-strong); overflow-wrap: anywhere; }
@@ -1747,7 +1747,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 #dlgTarea .mover.menu .mn-btn:hover:not(:disabled) { background: var(--surface-hover); }
 #dlgTarea .mover.menu .mn-btn.is-here { background: var(--surface-selected); color: var(--brand-primary); font-weight: 600; }
 #dlgTarea .mover.menu .mn-btn:disabled:not(.is-here) { opacity: .5; }
-#dlgTarea .orden { margin: 0; gap: 2px; font-family: var(--font-data); font-size: .74rem; }
+#dlgTarea .orden { margin: 0; gap: 2px; font-family: var(--font-data); font-size: .72rem; }
 #dlgTarea .orden > span { margin-right: var(--sp-1); }
 #dlgTarea .orden .mn-btn { min-width: 26px; padding-inline: var(--sp-1); }
 #dlgTarea .orden:empty { display: none; }
@@ -1756,7 +1756,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
    y Mis tareas. Colores v0.50.0: gris · gris medio · azul de marca (Carlos descarto el rojo); v0.60.0 (Carlos, 15-sep, artifact 2dJkkWxg):
    SEMAFORO — rojo alta · ambar normal · verde baja. Descartadas: 3B chevrones · 3C tres tarjetas · 3D select con glifo. */
 .prio { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border: 1px solid var(--border-default); border-radius: var(--r-sm); overflow: hidden; min-height: var(--control-h); background: var(--surface-card); }
-.prio button { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); border: 0; border-right: 1px solid var(--border-default); background: none; font: inherit; font-size: .86rem; color: var(--text-body); cursor: pointer; padding: 0 var(--sp-2); min-height: 0; border-radius: 0; }
+.prio button { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-2); border: 0; border-right: 1px solid var(--border-default); background: none; font: inherit; font-size: .85rem; color: var(--text-body); cursor: pointer; padding: 0 var(--sp-2); min-height: 0; border-radius: 0; }
 .prio button:last-child { border-right: 0; }
 .prio button:hover { background: var(--surface-hover); }
 .prio button[aria-checked="true"] { background: var(--surface-sunken); color: var(--text-strong); font-weight: 600; box-shadow: inset 0 -2px 0 var(--brand-primary); }
@@ -1770,7 +1770,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 .densa .tr .t .barras { flex: none; }
 .t-props .barras { margin-right: 2px; }
 /* 4 — «Proyecto (moverla a otro frente)» salio del editor: Descripcion toma las dos columnas de la rejilla de v0.31.0. */
-@media (max-width: 720px) { .t-props { grid-template-columns: repeat(2, minmax(0, 1fr)); } .prio button { font-size: .82rem; gap: var(--sp-1); } }
+@media (max-width: 720px) { .t-props { grid-template-columns: repeat(2, minmax(0, 1fr)); } .prio button { font-size: .8rem; gap: var(--sp-1); } }
 
 /* ==== v0.53.0 (2026-09-15): la ficha se edita EN SITIO con un popover por propiedad (Carlos; artifact CMmGTirt, opcion D) ==== */
 /* El acordeon «Editar la tarjeta» (v0.24.0-v0.52.0) se fue. Cada valor editable de la ficha —titulo, asignado, vence, prioridad,
@@ -1791,7 +1791,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 /* Descripcion: el lapiz al final del texto; vacia, «Agregar descripción» en gris tenue. */
 .t-desc-caja { position: relative; margin: 0 0 var(--sp-3); padding: var(--sp-2) var(--sp-3); border-left: 3px solid var(--border-default); background: var(--surface-page); border-radius: 0 var(--r-sm) var(--r-sm) 0; }   /* v0.69.0: en su caja con filete */
 .t-desc-caja .t-desc { margin: 0; }
-.t-desc .prop-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1); font: inherit; font-size: .86rem; color: var(--text-strong); border: 0; background: none; cursor: pointer; padding: 0 var(--sp-1); margin: -4px 0; min-height: var(--control-h-sm); min-width: var(--control-h-sm); border-radius: var(--r-sm); vertical-align: middle; }   /* 32 / 40 tactil, como los demas lapices (el revisor lo cazo en 23x24) */
+.t-desc .prop-btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-1); font: inherit; font-size: .85rem; color: var(--text-strong); border: 0; background: none; cursor: pointer; padding: 0 var(--sp-1); margin: -4px 0; min-height: var(--control-h-sm); min-width: var(--control-h-sm); border-radius: var(--r-sm); vertical-align: middle; }   /* 32 / 40 tactil, como los demas lapices (el revisor lo cazo en 23x24) */
 .t-desc .prop-btn.default { color: var(--text-faint); }
 .t-desc .prop-btn:hover { background: var(--surface-hover); }
 .t-desc .prop-btn:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 1px; }
@@ -1802,7 +1802,7 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 #dlgTarea .mn-dialog-head > #tPop { left: var(--sp-4); right: var(--sp-4); top: calc(100% - 2px); width: auto; }
 .t-desc-caja > #tPop { left: 0; right: 0; width: auto; }
 #tPop .pop-campo { margin: 0; }
-#tPop .pop-campo > label { font-size: .78rem; }
+#tPop .pop-campo > label { font-size: .8rem; }
 #tPop .pop-campo .tonos { min-height: var(--control-h-sm); }
 #tPop .pop-pie { display: flex; justify-content: flex-end; gap: var(--sp-2); margin-top: var(--sp-1); }
 /* «···» de la cabecera: el mismo details.fila-menu de Docs, alineado con los otros dos botones. */
@@ -1827,24 +1827,24 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
    A3 sin cajas · A4 banda arriba; y de la primera ronda B chips · C portada navy · D expediente — no re-proponer. */
 #dlgTarea .mn-dialog-head { align-items: flex-start; }
 .t-titular { flex: 1; min-width: 0; display: grid; gap: 4px; }
-.t-ceja { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); font-size: .78rem; color: var(--text-muted); min-height: 0; }
+.t-ceja { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-1) var(--sp-2); font-size: .8rem; color: var(--text-muted); min-height: 0; }
 .t-ceja:empty { display: none; }
 .t-ceja .eq { font-family: var(--font-display); font-weight: 600; letter-spacing: .06em; text-transform: uppercase; font-size: .72rem; color: var(--text-body); }
 .t-ceja .sep { color: var(--text-faint); }
 .t-ceja a { color: var(--text-link); text-decoration: none; font-weight: 500; overflow-wrap: anywhere; }
 .t-ceja a:hover { text-decoration: underline; }
-.t-ceja .id { color: var(--text-faint); font-size: .74rem; }
+.t-ceja .id { color: var(--text-faint); font-size: .72rem; }
 .t-props .t-cel { display: grid; gap: 2px; align-content: start; padding: var(--sp-2); border-right: 1px solid var(--border-hairline); min-width: 0; }
 .t-props .t-cel:last-child { border-right: 0; }
 .t-props .t-cel .val > span, .t-props .t-cel .prop-btn > span { overflow-wrap: normal; }   /* en una celda estrecha «anywhere» partia «Sin color» letra por letra (captura 1366): parte entre palabras, nunca dentro */
 #dlgTarea .orden > span { white-space: nowrap; }
-.t-props .val .rel { color: var(--text-faint); font-size: .74rem; }
+.t-props .val .rel { color: var(--text-faint); font-size: .72rem; }
 .t-desc-caja:has(> .t-desc > .prop-btn.default) { padding: 0; border-left: 0; background: none; }   /* sin descripcion, «Agregar descripción» va sin caja */
 .notas .nota { padding: var(--sp-2) var(--sp-3); background: var(--surface-page); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); }
 .t-side .tdoc { display: flex; align-items: center; gap: var(--sp-2); padding: var(--sp-2); background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); }
 .t-side .tdoc .fico { flex: none; }
 .t-side .tdoc .t { display: grid; gap: 2px; min-width: 0; flex: 1; }
-.t-side .tdoc .t .mn-chip { color: var(--text-muted); font-weight: 500; font-size: .76rem; }
+.t-side .tdoc .t .mn-chip { color: var(--text-muted); font-weight: 500; font-size: .72rem; }
 .t-side .tdoc .t .mn-chip::before { content: none; }   /* v0.68.0 le puso el «·» delante; dentro de la tarjeta va en su renglon */
 .t-side .tdoc .quitar { margin-left: auto; flex: none; color: var(--text-faint); }
 .t-side .tdoc .quitar:hover { color: var(--status-danger-fg); }
@@ -1903,3 +1903,42 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
   .is-arbol tr.doc.vacia .nombre .t { flex: 1 1 calc(100% - 28px); white-space: normal; overflow-wrap: anywhere; }
   .is-arbol tr.doc.vacia .nombre .mn-btn { margin-left: auto; }
 }
+
+/* ==== v0.98.0 (Carlos, 25-sep: «consistencia en toda la app, sin burbujas»). Capa final, una sola: se revierte borrando
+   este bloque. Los selectores llevan `body` delante para ganarle a las reglas de arriba sin duplicar su texto.
+   1) Ningun DATO va en pastilla: estado, tipo, fecha, conteos y el separador de dia son TEXTO (color = semantica, «·» = separador).
+      Los controles (filtros, segmentados, «Visto», la nota citada en el chat) siguen siendo botones, con esquina --r-sm, nunca pildora.
+   2) Chat plano (supera v0.14.0, reversible): sin fondo por persona; el nombre lleva el tono y el texto va debajo.
+   3) Encabezados: toda tarjeta titula con el mismo rotulo (.mn-card > h2: mono-sans .66rem versalitas gris), «Hoy» incluido. */
+body .mn-chip, body .dtabla .c-estado .mn-chip, body .mn-chip.tipo { background: none; border: 0; border-radius: 0; padding: 0; box-shadow: none; transform: none; font-size: .72rem; font-weight: 600; letter-spacing: .02em; color: var(--text-muted); }
+body .mn-chip.is-ok { background: none; color: var(--status-ok-fg); } body .mn-chip.is-warn { background: none; color: var(--status-warn-fg); }
+body .mn-chip.is-danger { background: none; color: var(--status-danger-fg); } body .mn-chip.is-info { background: none; color: var(--status-info-fg); }
+body .mn-chip.tipo { font-family: var(--font-data); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--c); }
+body .dtabla .c-estado .mn-chip { text-transform: none; font-family: var(--font-ui); letter-spacing: 0; color: var(--c); }
+body .dtabla .nombre .rev { background: none; padding: 0; color: var(--text-muted); }
+/* conteos: numero mono en el color de su semantica, sin caja */
+body .rail .equipos button .n, body .tab .n, body .mn-rail .mn-rail-hot, body .msj-rail .msj-frente .msj-hot, body .menu-quien > summary .n { background: none; box-shadow: none; border-radius: 0; padding: 0; min-width: 0; font-family: var(--font-data); font-size: .72rem; font-weight: 600; }
+body .mn-rail .mn-rail-hot { color: var(--status-danger-fg); } body .mn-rail .mn-rail-hot.is-info { background: none; color: var(--status-info-fg); }
+body .menu-quien > summary .n { color: var(--brand-primary); }
+body .msj-rail .msj-frente .msj-hot { color: var(--status-info-fg); }
+body .mini .tuya { background: none; padding: 0; font-weight: 600; }
+body .mini .tuya::before { content: "· "; color: var(--text-faint); }
+body .chat .dia { background: none; padding: 0; border-radius: 0; font-size: .66rem; }
+body .hito .fecha { background: none; }
+body .mencion { background: none; padding: 0; border-radius: 0; }
+body .mencion.is-yo { background: none; text-decoration: underline; text-underline-offset: 2px; }
+@media (max-width: 900px) { body .tabla th { border-radius: var(--r-sm); } }
+/* controles: la misma esquina que .mn-btn */
+body .msg .ref, body .visto-btn { border-radius: var(--r-sm); }
+/* chat plano */
+body .msg .cuerpo { background: none; border-radius: 0; padding: 0 0 0 var(--sp-1); }
+body .msg .cab .q { color: var(--msg-tono, var(--text-strong)); }
+body .msg.is-mio .cab .q { color: var(--brand-primary); }
+body .msg + .msg:not(.is-seguido) { border-top: 1px solid var(--border-hairline); padding-top: var(--sp-2); }
+/* encabezados de tarjeta: un solo rotulo */
+body .cola-cab h2 { font-size: .66rem; text-transform: uppercase; letter-spacing: .07em; font-weight: 600; color: var(--text-muted); font-family: var(--font-ui); }
+/* la fecha de la ficha de proyecto (Inicio, Proyectos, Roadmap): mes en versalitas de color + dia, sin caja ni banda de fondo */
+body .pficha .cal { border: 0; border-radius: 0; } body .pficha .cal .mes, body .pficha .cal .dia { background: none; }
+body .pficha .cal .mes { color: var(--brand-primary); } body .pficha.is-danger .cal .mes { background: none; color: var(--status-danger-fg); } body .pficha.is-warn .cal .mes { background: none; color: var(--status-warn-fg); } body .pficha.is-cerrado .cal .mes { background: none; color: var(--status-ok-fg); } body .pficha .cal.sin .mes { background: none; color: var(--text-faint); }
+/* controles de seleccion con la esquina de la casa, no pildora */
+body .filtro-movil select, body .doc .tarjeta-de select, body .fila-menu .menu .menu-mover select, body .dtabla .c-tarjeta select, body .dtabla .tarjeta-liga { border-radius: var(--r-sm); }
