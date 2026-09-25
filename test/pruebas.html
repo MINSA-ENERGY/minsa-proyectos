@@ -2420,7 +2420,7 @@ try {
         const pid = filas('proyectos').find(p => p.fields.Clave === CLAVE).id;
         const cap = () => filas('capital');
         const leidasCapital = () => DB.llamadas.filter(c => c.includes('/lists/lista-capital/items')).length;
-        const kpi = k => { const e = document.querySelector(`#capitalKpis [data-kpi="${k}"] .mn-kpi-val`); return e ? e.textContent : ''; };
+        const kpi = k => { const e = document.querySelector(`#capitalKpis [data-kpi="${k}"]`); return !e ? '' : k === 'n' ? String(parseInt(e.textContent, 10)) : (e.querySelector('b') || e).textContent; };   // v0.101.0: renglón total (.ctotal), ya no mn-kpi
         if (!gerencia) {
             cap().push({ id: DB.siguienteId++, fields: { Title: 'Partida sembrada de prueba', ProyectoId: pid, Tipo: 'necesidad', Monto: 1234, Estado: 'estimado' } });
             const nAntes = leidasCapital(); await recargarYEsperar();
@@ -2448,7 +2448,9 @@ try {
             const x1 = cap()[0];
             R.ok('crear (v0.100.0): POST a PROY_Capital con concepto, proyecto, tipo, monto 10000, fecha (18:00Z), categoría y estado', x1.fields.Title === 'Mantenimiento de equipo de prueba' && Number(x1.fields.ProyectoId) === pid && x1.fields.Tipo === 'necesidad' && x1.fields.Monto === 10000 && x1.fields.Fecha === '2026-10-05T18:00:00.000Z' && x1.fields.Categoria === 'mantenimiento' && x1.fields.Estado === 'estimado' && !('Notas' in x1.fields), JSON.stringify(x1.fields));
             R.ok('cálculo (v0.100.0): Necesario $10,000.00 · Cubierto $0.00 · Falta $10,000.00 · 1 partida', kpi('necesario') === '$10,000.00' && kpi('cubierto') === '$0.00' && kpi('falta') === '$10,000.00' && kpi('n') === '1', [kpi('necesario'), kpi('cubierto'), kpi('falta'), kpi('n')].join(' | '));
-            R.ok('cálculo (v0.100.0): la tabla agrupa por proyecto con su «falta» y su subtotal', !!document.querySelector(`#capitalTabla tr.cgrupo[data-capital-proyecto="${pid}"] .cfalta.is-danger`) && document.querySelector(`#capitalTabla tr.csub[data-capital-sub="${pid}"]`).textContent.includes('Falta$10,000.00') && document.querySelectorAll('#capitalTabla tr.partida').length === 1);
+            R.ok('cálculo (v0.101.0): un acordeón por proyecto, abierto, con Falta en rojo en su cabecera y su tabla adentro', !!document.querySelector(`#capitalTabla details.cgrupo[open][data-capital-proyecto="${pid}"] > summary [data-kpi="falta"] b.is-danger`) && document.querySelector(`#capitalTabla details.cgrupo[data-capital-proyecto="${pid}"] > summary [data-kpi="falta"]`).textContent.includes('$10,000.00') && document.querySelectorAll('#capitalTabla details.cgrupo tr.partida').length === 1);
+            { const d = () => document.querySelector(`#capitalTabla details.cgrupo[data-capital-proyecto="${pid}"]`); d().open = false; await dormir(30); pestana('inicio'); await dormir(20); pestana('capital'); await esperar(() => visible('p-capital'), 'capital de vuelta');
+              R.ok('acordeón (v0.101.0): el proyecto plegado sigue plegado tras repintar; el total no se pliega', !d().open && !!document.querySelector('#capitalKpis.ctotal [data-kpi="falta"]')); d().open = true; await dormir(30); }
             // un fondeo y una necesidad pagada: Falta = 10,000 + 2,500.50 − 4,000
             clic('btnNuevaPartida'); await esperar(() => $('dlgPartida').open, 'dlgPartida 2');
             poner('cpConcepto', 'Aportación de ejemplo'); poner('cpProyecto', String(pid)); poner('cpTipo', 'fondeo'); poner('cpMonto', '4000'); poner('cpEstado', 'comprometido'); poner('cpFecha', '2026-10-01');
@@ -2456,7 +2458,7 @@ try {
             clic('btnNuevaPartida'); await esperar(() => $('dlgPartida').open, 'dlgPartida 3');
             poner('cpConcepto', 'Renta de ejemplo'); poner('cpProyecto', String(pid)); poner('cpMonto', '2500.50'); poner('cpEstado', 'pagado');
             clic('cpGuardar'); await esperar(() => cap().length === 3 && !$('dlgPartida').open, 'pagada creada');
-            R.ok('cálculo (v0.100.0): Necesario $12,500.50 (con $2,500.50 ya pagado) · Cubierto $4,000.00 · Falta $8,500.50', kpi('necesario') === '$12,500.50' && kpi('cubierto') === '$4,000.00' && kpi('falta') === '$8,500.50' && kpi('n') === '3' && document.querySelector('#capitalKpis [data-kpi="necesario"] .kpi-det').textContent.includes('$2,500.50 ya pagado'), [kpi('necesario'), kpi('cubierto'), kpi('falta')].join(' | '));
+            R.ok('cálculo (v0.100.0): Necesario $12,500.50 (con $2,500.50 ya pagado) · Cubierto $4,000.00 · Falta $8,500.50', kpi('necesario') === '$12,500.50' && kpi('cubierto') === '$4,000.00' && kpi('falta') === '$8,500.50' && kpi('n') === '3' && document.querySelector('#capitalKpis [data-kpi="n"]').textContent.includes('$2,500.50 ya pagado'), [kpi('necesario'), kpi('cubierto'), kpi('falta')].join(' | '));
             R.ok('mes (v0.100.0): corte por mes — octubre (necesidad $10,000.00, fondeo $4,000.00) y «Sin fecha» al final', [...document.querySelectorAll('#capitalMeses tr.mes')].map(r => r.dataset.mes).join(',') === '2026-10,sin-fecha' && document.querySelector('#capitalMeses tr[data-mes="2026-10"]').textContent.includes('$10,000.00') && document.querySelector('#capitalMeses tr[data-mes="2026-10"]').textContent.includes('$4,000.00'));
             // orden: Monto (desc al primer clic) y otra vez (asc)
             document.querySelector('#capitalTabla th[data-sort="monto"]').click(); await dormir(30);
@@ -2483,9 +2485,9 @@ try {
             const otro = filas('proyectos').find(p => p.fields.Estado === 'activo' && p.id !== pid);
             cap().push({ id: DB.siguienteId++, fields: { Title: 'Partida de otro frente', ProyectoId: otro.id, Tipo: 'necesidad', Monto: 500, Estado: 'estimado' } });
             await recargarYEsperar(); await dormir(30);
-            R.ok('filtro (v0.100.0): «Todos los proyectos» suma los dos frentes (Falta $11,000.50) en dos grupos', kpi('falta') === '$11,000.50' && document.querySelectorAll('#capitalTabla tr.cgrupo').length === 2 && $('capitalProyecto').options[0].textContent === 'Todos los proyectos', kpi('falta'));
+            R.ok('filtro (v0.100.0): «Todos los proyectos» suma los dos frentes (Falta $11,000.50) en dos grupos', kpi('falta') === '$11,000.50' && document.querySelectorAll('#capitalTabla details.cgrupo').length === 2 && $('capitalProyecto').options[0].textContent === 'Todos los proyectos', kpi('falta'));
             poner('capitalProyecto', String(otro.id)); await dormir(30);
-            R.ok('filtro (v0.100.0): elegir un proyecto deja solo sus partidas y KPI (Falta $500.00) y lo pone en el hash', kpi('falta') === '$500.00' && document.querySelectorAll('#capitalTabla tr.cgrupo').length === 1 && location.hash === '#capital/f/' + otro.fields.Clave, location.hash);
+            R.ok('filtro (v0.100.0): elegir un proyecto deja solo sus partidas y KPI (Falta $500.00) y lo pone en el hash', kpi('falta') === '$500.00' && document.querySelectorAll('#capitalTabla details.cgrupo').length === 1 && location.hash === '#capital/f/' + otro.fields.Clave, location.hash);
             poner('capitalProyecto', ''); await dormir(30);
             // Resumen del proyecto → Capital filtrado
             irHash(`#p/${CLAVE}/resumen`); await esperar(() => $('p-proyecto').classList.contains('ver-resumen'), 'resumen');
@@ -2495,7 +2497,7 @@ try {
             // borrar
             document.querySelector(`#capitalTabla tr[data-partida="${x1.id}"] .partida-t`).click(); await esperar(() => $('dlgPartida').open, 'borrar');
             clic('cpBorrar'); await confirmar(); await esperar(() => !cap().some(x => x.id === x1.id) && !$('dlgPartida').open, 'partida borrada');
-            R.ok('borrar (v0.100.0): confirma, borra el renglón y el Falta baja a $0.00 (queda fondeo de sobra)', !cap().some(x => x.id === x1.id) && kpi('falta') === '$0.00' && !!avisoCon('borrada'), kpi('falta'));
+            R.ok('borrar (v0.101.0): confirma, borra el renglón y el Falta queda en «—» en verde (queda fondeo de sobra)', !cap().some(x => x.id === x1.id) && kpi('falta') === '—' && !!document.querySelector('#capitalKpis [data-kpi="falta"] b.is-ok') && !!avisoCon('borrada'), kpi('falta'));
             R.ok('bitácora (v0.100.0): Capital no escribe en PROY_Actividad (su choice Accion no tiene opción para esto)', !filas('actividad').some(a => /partida/i.test(a.fields.Title || '')));
             // lista AUSENTE: el sitio no tiene PROY_Capital → aviso claro, ninguna lectura de items, el resto de la app igual
             const guardada = DB.listas.capital; delete DB.listas.capital; ESTADO.cliente = null; ESTADO.capitalLista = null;

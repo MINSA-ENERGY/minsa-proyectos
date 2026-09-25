@@ -6,7 +6,7 @@
 
 import { esConflicto } from './graph.js';
 import { PUEDE, CAPITAL_CATEGORIAS, CAPITAL_TIPOS, formatoMXN, leerMonto, validarPartida, resumenCapital, capitalPorProyecto, totalCapital, capitalPorMes, ordenarPartidas, ordenarProyectos, activosDe, diaDe } from './reglas.js';
-import { $, L, estado, el, avisar, abrirDialogo, cerrarDialogo, confirmar, fijarGuarda, opciones, porId, aplicar, pedirRelectura, fechaCorta, aIsoDia, diaInput, limpiar, equipoDe, iconoEquipo, fijarHash, hashDe } from './comun.js';
+import { $, L, estado, el, avisar, abrirDialogo, cerrarDialogo, confirmar, fijarGuarda, opciones, porId, aplicar, pedirRelectura, fechaCorta, aIsoDia, diaInput, limpiar, equipoDe, iconoEquipo, iconoSvg, fijarHash, hashDe } from './comun.js';
 
 let repintar = () => {};
 export function alCambiarCapital(fn) { repintar = fn; }
@@ -58,19 +58,31 @@ export function pintarCapital() {
     pintarMeses(partidas);
 }
 
+// v0.101.0 (Carlos, 25-sep; artifact QSAqBmdn ronda 3): los 4 KPI salen. El total es UN renglon con la misma forma que la
+// cabecera de cada proyecto (nombre a la izquierda; Necesario · Cubierto · Falta a la derecha): arriba y abajo se leen igual.
+const PARTIDAS = n => `${n} ${n === 1 ? 'partida' : 'partidas'}`;
+
+/** Necesario · Cubierto · Falta en columnas alineadas a la derecha (el total y cada cabecera de proyecto). */
+function cifras(r) {
+    const c = el('div', 'ccifras');
+    const par = (clave, rotulo, valor, cls = '') => {
+        const d = el('div'); d.dataset.kpi = clave;
+        d.appendChild(el('span', 'mn-label', rotulo)); d.appendChild(el('b', cls, valor));
+        c.appendChild(d);
+    };
+    par('necesario', 'Necesario', formatoMXN(r.necesario));
+    par('cubierto', 'Cubierto', formatoMXN(r.cubierto), 'is-ok');
+    par('falta', 'Falta', r.falta > 0 ? formatoMXN(r.falta) : '—', r.falta > 0 ? 'is-danger' : 'is-ok');
+    return c;
+}
+
 function pintarKpis(t) {
     const c = $('capitalKpis'); c.textContent = '';
-    const kpi = (clave, rotulo, valor, estadoK, detalle) => {
-        const k = el('div', 'mn-kpi' + (estadoK ? ' is-' + estadoK : '')); k.dataset.kpi = clave;
-        k.appendChild(el('span', 'mn-kpi-label', rotulo));
-        k.appendChild(el('span', 'mn-kpi-val', valor));
-        if (detalle) k.appendChild(el('span', 'kpi-det', detalle));
-        c.appendChild(k);
-    };
-    kpi('necesario', 'Necesario', formatoMXN(t.necesario), 'info', t.pagado ? `${formatoMXN(t.pagado)} ya pagado` : 'nada pagado todavía');
-    kpi('cubierto', 'Cubierto', formatoMXN(t.cubierto), 'ok', 'fondeo registrado');
-    kpi('falta', 'Falta', formatoMXN(t.falta), t.falta > 0 ? 'danger' : 'ok', t.falta > 0 ? 'por conseguir' : 'todo cubierto');
-    kpi('n', 'Partidas', String(t.n), '', `${t.n === 1 ? 'renglón' : 'renglones'} en PROY_Capital`);
+    const nombre = el('span', 'cnombre');
+    nombre.appendChild(el('span', 't', estado.filtroCapital ? 'Este proyecto' : 'Todos los proyectos'));
+    const n = el('span', 'n', PARTIDAS(t.n) + (t.pagado ? ` · ${formatoMXN(t.pagado)} ya pagado` : '')); n.dataset.kpi = 'n';
+    nombre.appendChild(n);
+    c.appendChild(nombre); c.appendChild(cifras(t));
 }
 
 function encabezado() {
@@ -97,31 +109,31 @@ function pintarTabla(grupos, n) {
         cont.appendChild(el('p', 'vacio', estado.filtroCapital ? 'Este proyecto no tiene partidas todavía. «Nueva partida» agrega la primera.' : 'Sin partidas todavía. «Nueva partida» agrega la primera: un concepto, el proyecto y el monto estimado.'));
         return;
     }
-    const w = encabezado(); const tb = w.querySelector('tbody');
+    // v0.101.0: un acordeon por proyecto (cabecera = nombre + sus tres cifras; al abrir, su tabla). Nace abierto; lo que
+    // Carlos pliega se recuerda en la sesion (estado.capitalPlegados) para que un repintado no le reabra nada.
+    const acor = el('div', 'cacor');
     for (const g of grupos) {
-        // cabecera del grupo: icono del equipo + proyecto (liga a su frente) + «falta» a la derecha
-        const trg = el('tr', 'cgrupo'); trg.dataset.capitalProyecto = String(g.proyectoId);
-        const td = el('td'); td.colSpan = COLUMNAS.length;
-        const cab = el('div', 'cgrupo-cab');
+        const d = el('details', 'cgrupo'); d.dataset.capitalProyecto = String(g.proyectoId);
+        d.open = !estado.capitalPlegados.has(g.proyectoId);
+        d.addEventListener('toggle', () => { if (d.open) estado.capitalPlegados.delete(g.proyectoId); else estado.capitalPlegados.add(g.proyectoId); });
+        const s = el('summary', 'cfila');
+        s.appendChild(iconoSvg(['M9 6l6 6-6 6'], 'fl'));
+        const nombre = el('span', 'cnombre');
         if (g.proyecto) {
+            // el nombre es boton (abre el frente); el resto de la cabecera pliega. Un boton dentro de <summary> no la pliega.
             const b = el('button', 'cgrupo-nombre'); b.type = 'button'; b.title = 'Abrir el proyecto';
             b.appendChild(iconoEquipo(equipoDe(g.proyecto), 'sm')); b.appendChild(el('span', 't', g.proyecto.Title + (g.proyecto.Estado === 'activo' ? '' : ' (cerrado)')));
             b.addEventListener('click', () => irAProyecto(g.proyecto));
-            cab.appendChild(b);
-        } else cab.appendChild(el('span', 'cgrupo-nombre t', `Proyecto eliminado (#${g.proyectoId})`));
-        cab.appendChild(el('span', 'cfalta ' + (g.falta > 0 ? 'is-danger' : 'is-ok'), g.falta > 0 ? `falta ${formatoMXN(g.falta)}` : g.sobra > 0 ? `cubierto · sobra ${formatoMXN(g.sobra)}` : 'cubierto'));
-        td.appendChild(cab); trg.appendChild(td); tb.appendChild(trg);
+            nombre.appendChild(b);
+        } else nombre.appendChild(el('span', 'cgrupo-nombre t', `Proyecto eliminado (#${g.proyectoId})`));
+        nombre.appendChild(el('span', 'n', String(g.partidas.length)));
+        s.appendChild(nombre); s.appendChild(cifras(g));
+        d.appendChild(s);
+        const w = encabezado(); const tb = w.querySelector('tbody');
         for (const x of ordenarPartidas(g.partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x));
-        // subtotal del proyecto
-        const trs = el('tr', 'csub'); trs.dataset.capitalSub = String(g.proyectoId);
-        const ts = el('td'); ts.colSpan = COLUMNAS.length;
-        const linea = el('div', 'csub-linea');
-        const par = (k, v, cls = '') => { const s = el('span', 'csub-par' + (cls ? ' ' + cls : '')); s.appendChild(el('span', 'k', k)); s.appendChild(el('b', '', v)); linea.appendChild(s); };
-        par('Necesario', formatoMXN(g.necesario)); par('Cubierto', formatoMXN(g.cubierto)); if (g.pagado) par('Ya pagado', formatoMXN(g.pagado));
-        par('Falta', formatoMXN(g.falta), g.falta > 0 ? 'is-danger' : 'is-ok');
-        ts.appendChild(linea); trs.appendChild(ts); tb.appendChild(trs);
+        d.appendChild(w); acor.appendChild(d);
     }
-    cont.appendChild(w);
+    cont.appendChild(acor);
 }
 
 function filaPartida(x) {

@@ -1978,9 +1978,30 @@ body .filtro-movil select, body .doc .tarjeta-de select, body .fila-menu .menu .
 .capital-cuerpo { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-3); }   /* minmax(0): el select con un nombre largo no ensancha la pista */
 .capital-filtro { display: flex; align-items: center; gap: var(--sp-2); max-width: 420px; }
 .capital-filtro select { flex: 1 1 auto; min-width: 0; width: 100%; min-height: var(--control-h-sm); font: inherit; font-size: .9rem; padding: 0 var(--sp-2); border: 1px solid var(--border-hairline); border-radius: var(--r-sm); background: var(--surface-card); color: var(--text-body); }
-.capital-kpis .mn-kpi-val { font-size: 1.5rem; overflow-wrap: anywhere; }
-.capital-kpis .mn-kpi.is-danger .mn-kpi-val { color: var(--status-danger-fg); }
-.capital-kpis .kpi-det { display: block; margin-top: 2px; font-size: .72rem; color: var(--text-muted); }
+/* v0.101.0 (Carlos, 25-sep; artifact QSAqBmdn ronda 3): el total y cada cabecera de proyecto comparten la forma .cfila */
+.cfila { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-2) var(--sp-4); }
+.cnombre { display: inline-flex; align-items: center; gap: var(--sp-2); min-width: 0; font-weight: 600; color: var(--text-strong); }
+.cnombre .n { font-family: var(--font-data); font-size: .72rem; font-weight: 400; color: var(--text-muted); }
+.ccifras { margin-left: auto; display: flex; gap: var(--sp-4); }
+.ccifras > div { display: grid; justify-items: end; min-width: 96px; }
+.ccifras b { font-family: var(--font-data); font-size: .85rem; font-weight: 500; font-variant-numeric: tabular-nums; color: var(--text-strong); }
+.ccifras b.is-ok { color: var(--status-ok-fg); }
+.ccifras b.is-danger { color: var(--status-danger-fg); font-weight: 600; }
+.ctotal { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); }
+.ctotal .cnombre .t { font-family: var(--font-display); font-size: 1rem; }
+.ctotal .ccifras b { font-size: 1rem; }
+.cacor { display: grid; gap: var(--sp-2); }
+.cacor details { border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow: hidden; background: var(--surface-card); }
+.cacor summary { list-style: none; cursor: pointer; padding: var(--sp-2) var(--sp-3); }
+.cacor summary::-webkit-details-marker { display: none; }
+.cacor summary:hover { background: var(--surface-hover); }
+.cacor summary:focus-visible { outline: 2px solid var(--brand-primary); outline-offset: -2px; }
+.cacor .fl { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--text-muted); stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform var(--dur-fast); }
+.cacor details[open] .fl { transform: rotate(90deg); }
+.cacor .dtabla { border-top: 1px solid var(--border-hairline); overflow-x: auto; }
+.cacor .dtabla th { border-radius: 0; }
+.cacor .dtabla tr:last-child td { border-bottom: 0; }
+.ctabla th.c-monto, .ctabla th.c-fecha { font-size: .66rem; }   /* .ctabla .c-monto/.c-fecha (0,2,0) le ganaban a .dtabla th: el encabezado salia mas grande */
 .ctabla .c-concepto { width: auto; white-space: normal; }
 .ctabla .c-tipo, .ctabla .c-cat, .ctabla .c-fecha, .ctabla .c-estado, .ctabla .c-n, .ctabla .c-mes { width: 1%; }
 .ctabla .c-monto { width: 1%; text-align: right; font-family: var(--font-data); font-size: .8rem; font-variant-numeric: tabular-nums; }
@@ -1991,19 +2012,10 @@ body .filtro-movil select, body .doc .tarjeta-de select, body .fila-menu .menu .
 .ctabla tr.partida:hover td { background: var(--surface-hover); }
 .ctabla .tipo-fondeo, .ctabla tr.is-fondeo .c-monto { color: var(--status-ok-fg); }
 .ctabla .estado-pagado { color: var(--text-muted); }
-.ctabla tr.cgrupo td { padding: var(--sp-3) var(--sp-3) var(--sp-1); background: var(--surface-card); white-space: normal; }
-.cgrupo-cab { display: flex; align-items: center; gap: var(--sp-2); flex-wrap: wrap; }
 .cgrupo-nombre { display: inline-flex; align-items: center; gap: var(--sp-2); background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--text-strong); min-width: 0; text-align: left; }
 button.cgrupo-nombre { cursor: pointer; }
 button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .cgrupo-nombre .t { overflow-wrap: anywhere; }
-.cfalta { margin-left: auto; font-family: var(--font-data); font-size: .8rem; font-weight: 600; font-variant-numeric: tabular-nums; }
-.cfalta.is-danger, .csub-par.is-danger b { color: var(--status-danger-fg); }
-.cfalta.is-ok, .csub-par.is-ok b { color: var(--status-ok-fg); }
-.ctabla tr.csub td { background: var(--surface-sunken); padding: var(--sp-2) var(--sp-3); white-space: normal; }
-.csub-linea { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--sp-1) var(--sp-4); font-size: .8rem; }
-.csub-par .k { color: var(--text-muted); margin-right: var(--sp-1); }
-.csub-par b { font-family: var(--font-data); font-variant-numeric: tabular-nums; color: var(--text-strong); }
 .capital-resumen .kv .is-danger { color: var(--status-danger-fg); font-weight: 600; }
 .capital-resumen .kv .is-ok { color: var(--status-ok-fg); font-weight: 600; }
 @media (max-width: 720px) {
@@ -2011,8 +2023,10 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
   .ctabla .c-concepto .p { display: block; font-family: var(--font-data); font-size: .66rem; color: var(--text-muted); white-space: normal; overflow: visible; }
   .ctabla td, .ctabla th { padding-left: var(--sp-2); padding-right: var(--sp-2); }
   .capital-filtro { max-width: none; }
-  .capital-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .capital-kpis .mn-kpi-val { font-size: 1.25rem; overflow-wrap: normal; }
+  .ccifras { margin-left: 0; width: 100%; justify-content: space-between; gap: var(--sp-2); }
+  .ccifras > div { min-width: 0; }
+  .cacor summary.cfila { display: grid; grid-template-columns: auto minmax(0, 1fr); }   /* flex dejaba la flecha sola en su renglon cuando el nombre envuelve */
+  .cacor summary .ccifras { grid-column: 1 / -1; }
   .cmeses .c-n { display: none; }
   .cmeses .c-mes { white-space: normal; }
 }
