@@ -94,7 +94,7 @@ function encabezado() {
         h.dataset.sort = clave; h.tabIndex = 0;
         h.title = activo ? `Ordenar por ${texto.toLowerCase()} ${o.dir === 1 ? 'descendente' : 'ascendente'}` : `Ordenar por ${texto.toLowerCase()}`;
         if (activo) h.setAttribute('aria-sort', o.dir === 1 ? 'ascending' : 'descending');
-        const elegir = () => { estado.ordenCapital = activo ? { col: clave, dir: -o.dir } : { col: clave, dir: clave === 'monto' ? -1 : 1 }; pintarCapital(); };
+        const elegir = () => { estado.ordenCapital = activo ? { col: clave, dir: -o.dir } : { col: clave, dir: clave === 'monto' ? -1 : 1 }; repintar(); };   // v0.102.0: repintar() cubre la seccion y la pestaña del proyecto
         h.addEventListener('click', elegir);
         h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); elegir(); } });
         tr.appendChild(h);
@@ -129,11 +129,30 @@ function pintarTabla(grupos, n) {
         nombre.appendChild(el('span', 'n', String(g.partidas.length)));
         s.appendChild(nombre); s.appendChild(cifras(g));
         d.appendChild(s);
-        const w = encabezado(); const tb = w.querySelector('tbody');
-        for (const x of ordenarPartidas(g.partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x));
-        d.appendChild(w); acor.appendChild(d);
+        d.appendChild(tablaPartidas(g.partidas)); acor.appendChild(d);
     }
     cont.appendChild(acor);
+}
+
+/** La tabla de partidas (encabezado ordenable + un renglon por partida), en el orden de estado.ordenCapital. */
+function tablaPartidas(partidas) {
+    const w = encabezado(); const tb = w.querySelector('tbody');
+    for (const x of ordenarPartidas(partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x));
+    return w;
+}
+
+/** v0.102.0 (Carlos, 25-sep): la pestaña «Capital» DENTRO del proyecto — su total (misma forma que la seccion) y sus partidas. */
+export function pintarCapitalTab(p) {
+    const tot = $('pcapTotal'); tot.textContent = '';
+    const mias = estado.capital.filter(x => Number(x.ProyectoId) === p.id);
+    const r = resumenCapital(mias);
+    const nombre = el('span', 'cnombre');
+    nombre.appendChild(el('span', 't', 'Capital de trabajo'));
+    nombre.appendChild(el('span', 'n', PARTIDAS(r.n) + (r.pagado ? ` · ${formatoMXN(r.pagado)} ya pagado` : '')));
+    tot.appendChild(nombre); tot.appendChild(cifras(r));
+    const cont = $('pcapTabla'); cont.textContent = '';
+    if (!mias.length) { cont.appendChild(el('p', 'vacio', 'Este proyecto no tiene partidas todavía. «Nueva partida» agrega la primera.')); return; }
+    cont.appendChild(tablaPartidas(mias));
 }
 
 function filaPartida(x) {
@@ -198,7 +217,7 @@ const CAMPOS = ['cpConcepto', 'cpProyecto', 'cpTipo', 'cpMonto', 'cpFecha', 'cpC
 const valores = () => JSON.stringify(CAMPOS.map(id => $(id).value));
 const sucio = () => $('dlgPartida').open && valores() !== alAbrir;
 
-export function abrirPartida(id) {
+export function abrirPartida(id, proyectoId = null) {
     if (!puedeVerCapital()) { avisar('Solo gerencia ve y edita el capital de trabajo.', 'error'); return; }
     if (estado.capitalLista !== true) { avisar('Falta crear la lista PROY_Capital (ver README, «Al publicar v0.100.0»).', 'error'); return; }
     const x = id ? porId(estado.capital, id) : null;
@@ -214,7 +233,7 @@ export function abrirPartida(id) {
     if (x && !actual) { const o = el('option', '', `Proyecto eliminado (#${x.ProyectoId})`); o.value = String(x.ProyectoId); $('cpProyecto').appendChild(o); }
     const dl = $('cpCategorias'); dl.textContent = ''; for (const c of CAPITAL_CATEGORIAS) { const o = el('option'); o.value = c; dl.appendChild(o); }
     $('cpConcepto').value = x ? x.Title || '' : '';
-    $('cpProyecto').value = x ? String(x.ProyectoId) : estado.filtroCapital ? String(estado.filtroCapital) : '';
+    $('cpProyecto').value = x ? String(x.ProyectoId) : proyectoId ? String(proyectoId) : estado.filtroCapital ? String(estado.filtroCapital) : '';
     $('cpTipo').value = x && x.Tipo === 'fondeo' ? 'fondeo' : 'necesidad';
     $('cpMonto').value = x ? String(x.Monto ?? '') : '';
     $('cpFecha').value = diaInput(x && x.Fecha);
@@ -294,6 +313,7 @@ async function borrar() {
 
 export function engancharCapital() {
     $('btnNuevaPartida').addEventListener('click', () => abrirPartida(null));
+    $('btnNuevaPartidaProy').addEventListener('click', () => { const p = estado.proyectoAbierto; if (p) abrirPartida(null, p.id); });   // v0.102.0
     $('formPartida').addEventListener('submit', guardar);
     $('cpCancelar').addEventListener('click', cancelar);
     $('cpBorrar').addEventListener('click', borrar);

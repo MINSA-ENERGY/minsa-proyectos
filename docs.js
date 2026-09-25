@@ -66,13 +66,6 @@ export async function pintarDocs(p) {
     const cont = $('docsLista'); cont.textContent = '';
     const bib = bibliotecaDe(p);
     const puede = puedeLigarEn(p);
-    $('btnLigar').disabled = !puede; $('btnSubir').disabled = !puede; $('btnEnlace').disabled = !puedeEnlazarEn(p);
-    // A1: si la biblioteca no esta autorizada, el boton apagado lo dice; «Pegar un enlace» sigue vivo.
-    const porQue = bib && bib.piloto === false ? `Esta biblioteca (${bib.nombre}) aún no está autorizada; pídelo a gerencia. Mientras tanto: «Pegar un enlace».` : '';
-    for (const id of ['btnLigar', 'btnSubir']) $(id).title = porQue;
-    $('docsBiblioteca').textContent = bib
-        ? (bib.piloto ? `Biblioteca: ${bib.nombre}` : `Biblioteca: ${bib.nombre} — aún sin autorizar. Se pueden pegar enlaces; ligar y subir se abren cuando gerencia otorgue el permiso.`)
-        : 'Este equipo no tiene biblioteca ligada en el piloto: se ven las ligas guardadas y se pueden pegar enlaces.';
     const todas = estado.ligas.filter(l => Number(l.ProyectoId) === p.id);
     // U10: chips por tipo (solo si hay de mas de uno), grupos «Del proyecto» y por tarjeta, chip de estado junto al nombre.
     const fl = $('docsFiltro'); fl.textContent = '';
@@ -653,14 +646,11 @@ async function subirAlBuzon(ev) {
 // ---------------------------------------------------------------- enganche
 
 export function engancharDocs() {
-    $('btnLigar').addEventListener('click', () => abrirLigar());
     $('lgCerrar').addEventListener('click', () => { cerrarDialogo('dlgLigar'); volverSiCancela(); });
     $('lgBuscar').addEventListener('click', buscarDocumento);
     $('lgTexto').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); buscarDocumento(); } });
-    $('btnSubir').addEventListener('click', () => abrirSubir());
     $('sbCancelar').addEventListener('click', () => { cerrarDialogo('dlgSubir'); volverSiCancela(); });
     $('formSubir').addEventListener('submit', subirAlBuzon);
-    $('btnEnlace').addEventListener('click', () => abrirEnlace());
     // v0.17.0: buscador de la pestaña; el proyecto abierto se repinta al teclear.
     // C-07 (17-sep): con retardo — el arbol se reconstruye entero por tecla; `change` (Enter, salir del campo) pinta al instante.
     const buscar = conRetardo(() => { estado.buscaDocs = $('docsBusca').value; if (estado.proyectoAbierto) pintarDocs(estado.proyectoAbierto); });

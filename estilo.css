@@ -908,8 +908,6 @@ button.mn-kpi:focus-visible { outline: 2px solid var(--brand-primary); outline-o
 
 /* ---- documentos */
 .docs { display: grid; gap: var(--sp-3); }
-.docs-acciones { display: flex; flex-wrap: wrap; gap: var(--sp-2); align-items: center; }
-.docs-acciones .mn-label { margin-left: auto; }
 /* 2026-09-12: la 2.a columna iba en `1fr` (minimo automatico = el contenido) y el select de
    «tarjeta:» empujaba la pagina 103 px a la derecha en cuanto el proyecto tenia ligas — lo cazo el
    barrido de capturas, no la E2E. `minmax(0, 1fr)` es lo que deja encoger de verdad. */
@@ -1910,11 +1908,10 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
       Los controles (filtros, segmentados, «Visto», la nota citada en el chat) siguen siendo botones, con esquina --r-sm, nunca pildora.
    2) Chat plano (supera v0.14.0, reversible): sin fondo por persona; el nombre lleva el tono y el texto va debajo.
    3) Encabezados: toda tarjeta titula con el mismo rotulo (.mn-card > h2: mono-sans .66rem versalitas gris), «Hoy» incluido. */
-body .mn-chip, body .dtabla .c-estado .mn-chip, body .mn-chip.tipo { background: none; border: 0; border-radius: 0; padding: 0; box-shadow: none; transform: none; font-size: .72rem; font-weight: 600; letter-spacing: .02em; color: var(--text-muted); }
+body .mn-chip { background: none; border: 0; border-radius: 0; padding: 0; box-shadow: none; transform: none; font-size: .72rem; font-weight: 600; letter-spacing: .02em; color: var(--text-muted); }
 body .mn-chip.is-ok { background: none; color: var(--status-ok-fg); } body .mn-chip.is-warn { background: none; color: var(--status-warn-fg); }
 body .mn-chip.is-danger { background: none; color: var(--status-danger-fg); } body .mn-chip.is-info { background: none; color: var(--status-info-fg); }
-body .mn-chip.tipo { font-family: var(--font-data); font-size: .66rem; letter-spacing: .08em; text-transform: uppercase; color: var(--c); }
-body .dtabla .c-estado .mn-chip { text-transform: none; font-family: var(--font-ui); letter-spacing: 0; color: var(--c); }
+/* v0.102.0 (Carlos, 25-sep): EXCEPCION — en la tabla de documentos vuelven la etiqueta de expediente (Tipo, v0.27.0) y el sello (Estado, v0.27.0); aqui ya no se aplanan */
 body .dtabla .nombre .rev { background: none; padding: 0; color: var(--text-muted); }
 /* conteos: numero mono en el color de su semantica, sin caja */
 body .rail .equipos button .n, body .tab .n, body .mn-rail .mn-rail-hot, body .msj-rail .msj-frente .msj-hot, body .menu-quien > summary .n { background: none; box-shadow: none; border-radius: 0; padding: 0; min-width: 0; font-family: var(--font-data); font-size: .72rem; font-weight: 600; }
@@ -1990,7 +1987,7 @@ body .filtro-movil select, body .doc .tarjeta-de select, body .fila-menu .menu .
 .ctotal { background: var(--surface-card); border: 1px solid var(--border-hairline); border-radius: var(--r-md); padding: var(--sp-3) var(--sp-4); }
 .ctotal .cnombre .t { font-family: var(--font-display); font-size: 1rem; }
 .ctotal .ccifras b { font-size: 1rem; }
-.cacor { display: grid; gap: var(--sp-2); }
+.cacor { display: grid; gap: var(--sp-3); }   /* v0.102.0: sp-2 -> sp-3, bloques mas separados */
 .cacor details { border: 1px solid var(--border-hairline); border-radius: var(--r-md); overflow: hidden; background: var(--surface-card); }
 .cacor summary { list-style: none; cursor: pointer; padding: var(--sp-2) var(--sp-3); }
 .cacor summary::-webkit-details-marker { display: none; }
@@ -2030,3 +2027,22 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
   .cmeses .c-n { display: none; }
   .cmeses .c-mes { white-space: normal; }
 }
+/* v0.102.0 (Carlos, 25-sep: «las partidas se distingan un poco mas»). Cada proyecto es un BLOQUE con banda de color y
+   titulo grande en el azul de la marca; cada partida lleva un filete a la izquierda que dice su tipo (necesidad = rojo,
+   fondeo = verde) y el concepto sube de tamano. Se revierte borrando este bloque. */
+.cacor details { border-left: 4px solid var(--brand-primary); }
+.cacor summary { padding: var(--sp-3) var(--sp-4); background: color-mix(in srgb, var(--brand-primary) 7%, var(--surface-card)); }
+.cacor summary:hover { background: color-mix(in srgb, var(--brand-primary) 12%, var(--surface-card)); }
+.cacor .cgrupo-nombre .t { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--brand-primary); }
+.cacor .cnombre .n { font-size: .75rem; }
+.cacor summary .ccifras b { font-size: .95rem; font-weight: 600; }
+.ctabla tr.partida td:first-child { box-shadow: inset 3px 0 0 var(--status-danger-fg); }
+.ctabla tr.partida.is-fondeo td:first-child { box-shadow: inset 3px 0 0 var(--status-ok-fg); }
+.ctabla .partida-t { font-size: .95rem; }
+.ctabla tbody tr.partida:nth-child(even) td { background: color-mix(in srgb, var(--text-strong) 3%, transparent); }
+.ctabla tbody tr.partida:hover td { background: var(--surface-hover); }
+/* v0.102.0: pestaña Capital del proyecto — el total arriba con el boton, la tabla en una hoja con la banda de marca */
+.capital-proy { display: grid; gap: var(--sp-3); }
+.capital-proy-barra { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3); }
+.capital-proy-barra .ctotal { flex: 1 1 auto; min-width: 0; }
+#pcapTabla .dtabla { border: 1px solid var(--border-hairline); border-left: 4px solid var(--brand-primary); border-radius: var(--r-md); overflow-x: auto; background: var(--surface-card); }

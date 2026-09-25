@@ -220,7 +220,7 @@ export function pintarBotonFiltros() {
     b.textContent = n ? `Filtrar · ${n}` : 'Filtrar';
     b.classList.toggle('is-on', !!n || estado.filtrosAbiertos);
     b.setAttribute('aria-expanded', estado.filtrosAbiertos ? 'true' : 'false');
-    b.classList.toggle('oculto', ['docs', 'chat', 'resumen'].includes(estado.tab));
+    b.classList.toggle('oculto', ['docs', 'chat', 'resumen', 'capital'].includes(estado.tab));
     $('densidad').classList.toggle('oculto', estado.tab !== 'tablero');   // v0.20.0: el conmutador solo tiene sentido en el tablero
     // U-01 (17-sep): con filtro puesto, el propio tablero/lista lo dice — a 390 «Filtrar · N» vive al final de la fila de pestañas, fuera de la vista.
     const av = $('filtroAviso'); av.textContent = '';

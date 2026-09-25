@@ -236,6 +236,7 @@
 <script type="module">
 import { diasPara, diaDe } from '../reglas.js';
 import { estado as ESTADO } from '../comun.js';   // U-04 (v0.79.0): forzar «tactil» (headless no cambia de viewport)
+import { abrirLigar, abrirSubir, abrirEnlace } from '../docs.js';   // v0.102.0: Docs ya no trae los tres botones; la E2E abre los mismos dialogos por la funcion
 const R = window.__PRUEBAS;
 const TACTIL = matchMedia('(hover: none)').matches;   // U-04 (v0.79.0): a 390 el driver emula touch y el rombo abre la hoja, no la tarjeta
 const DB = window.__DB;
@@ -1175,8 +1176,8 @@ try {
 
         // 5. Docs: buscar, ligar, subir, 404 del buzon, 403 fuera del piloto.
         await abrirLau(); tab('docs'); await esperar(() => !$('tab-docs').classList.contains('oculto'), 'docs');
-        R.ok('Docs: botones habilitados y biblioteca nombrada', !$('btnLigar').disabled && $('docsBiblioteca').textContent.includes('Ambiental-CALYTEK'));
-        clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar');
+        R.ok('v0.102.0: Docs sin Ligar / Subir / Pegar un enlace (viven en la tarjeta)', !$('btnLigar') && !$('btnSubir') && !$('btnEnlace'));
+        abrirLigar(); await esperar(() => $('dlgLigar').open, 'ligar');
         poner('lgTexto', 'contingencia'); clic('lgBuscar'); await esperar(() => document.querySelector('#lgResultados .lg-resultado'), 'resultados');
         const res = [...document.querySelectorAll('#lgResultados .lg-resultado')];
         R.ok('buscador: encuentra el archivado y excluye el del buzón', res.length === 1 && res[0].textContent.includes('rev01.pdf'), String(res.length));
@@ -1187,7 +1188,7 @@ try {
         R.ok('PROY_Actividad: ligar', actividad('ligar').length === 1);
         await esperar(() => document.querySelector('#docsLista .doc'), 'docs repintado');
         // Subir al buzon.
-        clic('btnSubir'); await esperar(() => $('dlgSubir').open, 'subir');
+        abrirSubir(); await esperar(() => $('dlgSubir').open, 'subir');
         poner('sbConcepto', 'Borrador de filosofía de operación'); poner('sbTarea', String(t.id)); archivosFalsos();
         clic('sbGuardar'); await esperar(() => filas('ligas').length === 2, 'lote subido', 10000);
         const lote = filas('ligas')[1];
@@ -1217,7 +1218,7 @@ try {
           R.ok('C-03 (v0.85.1): dos pintarDocs solapados con la caché vacía dejan UN «ya lo acomodó la skill» y UN «Buscar el archivado»', chips() === 1 && cont.querySelectorAll('[data-buscar]').length === 1, `chips=${chips()} · buscar=${cont.querySelectorAll('[data-buscar]').length}`); }
         // Subida a medias: la 2a pieza falla -> se borra la carpeta y no queda liga.
         DB.fallas.push({ metodo: 'PUT', incluye: 'nota.txt', status: 403, veces: 1 });
-        clic('btnSubir'); await esperar(() => $('dlgSubir').open, 'subir'); poner('sbConcepto', 'A medias'); archivosFalsos(); clic('sbGuardar');
+        abrirSubir(); await esperar(() => $('dlgSubir').open, 'subir'); poner('sbConcepto', 'A medias'); archivosFalsos(); clic('sbGuardar');
         await esperar(() => avisoCon('No se pudo subir'), 'falla de subida');
         R.ok('subida a medias: se borra la carpeta y no nace la liga', !DB.carpetas.some(c => c.ruta.includes('a-medias')) && filas('ligas').length === 2 && !!avisoCon('sin permiso (403)'));
         clic('sbCancelar');
@@ -1250,8 +1251,8 @@ try {
         await esperar(() => !filas('ligas').some(l => l.id === nueva.id), 'quitada');
         R.ok('Quitar liga: borra el renglón y deja «desligó»', filas('ligas').length === 1 && actividad('desligar').length === 2 && actividad('desligar')[1].fields.Title.startsWith('desligó'));
         // 5c. v0.3.0 — F4: pegar un enlace (no necesita biblioteca).
-        R.ok('Docs ofrece «Pegar un enlace»', !$('btnEnlace').disabled);
-        clic('btnEnlace'); await esperar(() => $('dlgEnlace').open, 'enlace');
+        
+        abrirEnlace(); await esperar(() => $('dlgEnlace').open, 'enlace');
         poner('enTitulo', 'Oficio ASEA en el correo'); poner('enUrl', 'javascript:alert(1)'); clic('enGuardar'); await dormir(60);
         R.ok('enlace: javascript: se rechaza', !!avisoCon('solo enlaces http') && filas('ligas').length === 1);
         poner('enUrl', 'https://outlook.office.com/mail/id/abc'); poner('enTarea', String(t.id)); clic('enGuardar');
@@ -1261,7 +1262,7 @@ try {
         await esperar(() => $('docsLista').textContent.includes('Oficio ASEA en el correo'), 'docs repintado');
         // v0.8.0: el icono es un <svg> por tipo (.fico[data-tipo]), ya no la extension escrita.
         R.ok('Docs pinta el enlace con su icono de cadena y la bitácora dice «pegó el enlace»', !!document.querySelector(`#docsLista [data-liga="${en.id}"] .fico[data-tipo="enlace"] svg`) && actividad('ligar').some(a => a.fields.Title.startsWith('pegó el enlace')));
-        clic('btnEnlace'); await esperar(() => $('dlgEnlace').open, 'enlace'); poner('enTitulo', 'Repetido'); poner('enUrl', 'https://outlook.office.com/mail/id/abc'); clic('enGuardar'); await dormir(60);
+        abrirEnlace(); await esperar(() => $('dlgEnlace').open, 'enlace'); poner('enTitulo', 'Repetido'); poner('enUrl', 'https://outlook.office.com/mail/id/abc'); clic('enGuardar'); await dormir(60);
         R.ok('enlace repetido en el proyecto se avisa y no se duplica', !!avisoCon('ya está en este proyecto') && filas('ligas').length === 2); clic('enCancelar');
         // U10 (v0.4.0): Docs agrupa «Del proyecto» / por tarjeta, chip de estado junto al nombre, chips por tipo.
         await esperar(() => document.querySelectorAll('#docsLista .grupo').length === 2, 'grupos');
@@ -1370,7 +1371,7 @@ try {
         await abrirLau(); tab('docs');
         // v0.4.1: el caso del 2026-09-12 — nombre de la convencion (77), webUrl Doc.aspx de 268 y la
         // busqueda sin carpeta. Antes: POST con Url de 268 → 400 «Invalid request» del tenant.
-        clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar largo');
+        abrirLigar(); await esperar(() => $('dlgLigar').open, 'ligar largo');
         poner('lgTexto', 'estudio_mercado'); clic('lgBuscar'); await esperar(() => document.querySelector('#lgResultados .lg-resultado'), 'resultado largo');
         const res3 = [...document.querySelectorAll('#lgResultados .lg-resultado')];
         R.ok('buscador: la carpeta que Graph no mandó se declara, no se pinta como raíz', res3.length === 1 && res3[0].textContent.includes('se resuelve al ligar'), res3.map(r => r.textContent).join('|'));
@@ -1381,14 +1382,14 @@ try {
         R.ok('liga larga: releyó el elemento por id, Ruta real y Url ≤ 255 en la forma corta con GUID', DB.itemsLeidos.includes('archivo-l1') && lg3.fields.Ruta.startsWith('98_Archivo/') && lg3.fields.Url.length <= 255 && lg3.fields.Url.includes('sourcedoc=%7B8F2C4E1A') && !lg3.fields.Url.includes('&file='), JSON.stringify({ ruta: lg3.fields.Ruta, url: lg3.fields.Url }));
         R.ok('ningún texto > 255 llegó a Graph en toda la corrida (el falso lo rechaza como SharePoint)', DB.textoLargo.length === 0, DB.textoLargo.join('|'));
         // Un enlace pegado de 300 caracteres se detiene en la app, con aviso, no en el 400.
-        clic('btnEnlace'); await esperar(() => $('dlgEnlace').open, 'enlace largo');
+        abrirEnlace(); await esperar(() => $('dlgEnlace').open, 'enlace largo');
         poner('enTitulo', 'Enlace kilométrico'); poner('enUrl', 'https://tenant.example.invalid/' + 'x'.repeat(280)); clic('enGuardar');
         await esperar(() => avisoCon('pasa(n) de los 255'), 'aviso de 255');
         R.ok('enlace > 255: la app avisa antes del POST y el renglón no nace', filas('ligas').length === ligasAntes + 1 && DB.textoLargo.length === 0);
         clic('enCancelar');
         // Un 400 que NO es de largo: la app reintenta UNA vez con la Url corta del GUID y la liga nace con ella.
         DB.fallas.push({ metodo: 'POST', incluye: 'lista-ligas/items', status: 400, veces: 1 });
-        clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar a4');
+        abrirLigar(); await esperar(() => $('dlgLigar').open, 'ligar a4');
         poner('lgTexto', 'matriz-riesgos'); clic('lgBuscar'); await esperar(() => document.querySelector('#lgResultados .lg-resultado'), 'resultado a4');
         poner('lgTarea', ''); document.querySelector('#lgResultados .lg-resultado button').click();
         await esperar(() => filas('ligas').length === ligasAntes + 2, 'liga a4 tras reintento');
@@ -1396,7 +1397,7 @@ try {
         R.ok('400 en el primer POST: reintenta con la Url corta (GUID) y la liga nace con ella', DB.llamadas.filter(c => c === 'POST /sites/sitio-falso/lists/lista-ligas/items').length >= 2 && lg4.fields.Url.endsWith('/sites/Ambiental-CALYTEK/_layouts/15/Doc.aspx?sourcedoc=%7BAAAAAAAA-0000-0000-0000-000000000004%7D&action=default'), lg4.fields.Url);
         // Un 400 persistente: el aviso trae el largo de cada texto, no solo «Invalid request».
         DB.fallas.push({ metodo: 'POST', incluye: 'lista-ligas/items', status: 400, veces: 2 });
-        clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar a5');
+        abrirLigar(); await esperar(() => $('dlgLigar').open, 'ligar a5');
         poner('lgTexto', 'matriz-aspectos'); clic('lgBuscar'); await esperar(() => document.querySelector('#lgResultados .lg-resultado'), 'resultado a5');
         document.querySelector('#lgResultados .lg-resultado button').click();
         await esperar(() => avisoCon('largos:'), 'aviso con largos');
@@ -1414,11 +1415,9 @@ try {
             await esperar(() => filas('proyectos').length === 2 && visible('p-proyecto'), 'segundo proyecto');
             // A1 (v0.5.0): con la biblioteca sin autorizar, Ligar y Subir quedan APAGADOS antes de
             // que nadie llegue al 403; «Pegar un enlace» sigue vivo porque no toca el sitio.
-            tab('docs'); await esperar(() => $('docsBiblioteca').textContent.includes('sin autorizar'), 'aviso de piloto');
-            R.ok('biblioteca fuera del piloto: Ligar y Subir apagados, con el porqué en el title, y Pegar un enlace vivo',
-                $('btnLigar').disabled && $('btnSubir').disabled && !$('btnEnlace').disabled && $('btnLigar').title.includes('gerencia'));
+            tab('docs'); await dormir(50);
             // Si aun asi se fuerza el boton, el 403 sigue nombrando el sitio (y a gerencia le dice el script).
-            $('btnLigar').disabled = false; clic('btnLigar'); await esperar(() => $('dlgLigar').open, 'ligar'); poner('lgTexto', 'algo'); clic('lgBuscar');
+            abrirLigar(); await esperar(() => $('dlgLigar').open, 'ligar'); poner('lgTexto', 'algo'); clic('lgBuscar');
             await esperar(() => avisoCon('Sin acceso a Administracion-Legal'), '403 con nombre');
             R.ok('biblioteca fuera del piloto: 403 nombra el sitio', !!avisoCon('otorgar-permiso-sitio'));
             clic('lgCerrar');
@@ -2234,7 +2233,7 @@ try {
             const marca = document.querySelector('#rail .marca');
             R.ok('v0.13.0: el rótulo «PROYECTOS» mide 12 px y cabe dentro del rail sin recortarse', getComputedStyle(marca.querySelector('span')).fontSize === '12px' && marca.scrollWidth <= marca.clientWidth, `${marca.scrollWidth}/${marca.clientWidth}`);
             R.ok('v0.98.0: el contador del rail es texto (sin caja ni fondo), no una píldora ni un cuadrado', getComputedStyle($('nProyectos')).borderRadius === '0px' && getComputedStyle($('nProyectos')).backgroundColor === 'rgba(0, 0, 0, 0)', getComputedStyle($('nProyectos')).borderRadius);
-            R.ok('v0.98.0: ningún .mn-chip visible lleva fondo ni radio (los datos son texto)', [...document.querySelectorAll('.mn-chip')].every(c => { const s = getComputedStyle(c); return s.backgroundColor === 'rgba(0, 0, 0, 0)' && parseFloat(s.borderTopLeftRadius) === 0; }), String(document.querySelectorAll('.mn-chip').length) + ' chips');
+            R.ok('v0.98.0: ningún .mn-chip visible lleva fondo ni radio (los datos son texto; v0.102.0: salvo Tipo y Estado de la tabla de documentos)', [...document.querySelectorAll('.mn-chip')].filter(c => !c.closest('.dtabla .c-tipo, .dtabla .c-estado')).every(c => { const s = getComputedStyle(c); return s.backgroundColor === 'rgba(0, 0, 0, 0)' && parseFloat(s.borderTopLeftRadius) === 0; }), String(document.querySelectorAll('.mn-chip').length) + ' chips');
             const temaBtn = t => document.querySelector(`#rail .tema button[data-tema="${t}"]`);
             const temaAntes = localStorage.getItem('tema');
             R.ok('v0.13.0: sin elección guardada, el tema del sistema aparece marcado (siempre hay uno)', document.querySelectorAll('#rail .tema button[aria-pressed="true"]').length === 1);
@@ -2383,7 +2382,7 @@ try {
         R.ok('lectura: moverTarea se niega aunque se fuerce el botón', t.fields.Columna === 'por-hacer' && !!avisoCon('lectura'));
         clic('tCerrar');
         tab('docs'); await dormir(50);
-        R.ok('lectura: Ligar, Subir y Pegar un enlace deshabilitados', $('btnLigar').disabled && $('btnSubir').disabled && $('btnEnlace').disabled);
+        R.ok('lectura: Docs no trae botones de escritura', !$('btnLigar') && !$('btnSubir') && !$('btnEnlace'));
         // v0.8.0: el chat se lee; el redactor no existe para este rol y una linea gris lo dice.
         tab('chat'); await dormir(50);
         R.ok('v0.8.0 (lectura): el chat se ve, sin redactor y con la línea «Solo lectura»', visible('tab-chat') && $('formChat').classList.contains('oculto') && !$('chatSoloLectura').classList.contains('oculto') && $('chatSoloLectura').textContent.startsWith('Solo lectura') && $('chatHilo').textContent.includes('Nadie ha escrito'));
@@ -2460,6 +2459,13 @@ try {
             clic('cpGuardar'); await esperar(() => cap().length === 3 && !$('dlgPartida').open, 'pagada creada');
             R.ok('cálculo (v0.100.0): Necesario $12,500.50 (con $2,500.50 ya pagado) · Cubierto $4,000.00 · Falta $8,500.50', kpi('necesario') === '$12,500.50' && kpi('cubierto') === '$4,000.00' && kpi('falta') === '$8,500.50' && kpi('n') === '3' && document.querySelector('#capitalKpis [data-kpi="n"]').textContent.includes('$2,500.50 ya pagado'), [kpi('necesario'), kpi('cubierto'), kpi('falta')].join(' | '));
             R.ok('mes (v0.100.0): corte por mes — octubre (necesidad $10,000.00, fondeo $4,000.00) y «Sin fecha» al final', [...document.querySelectorAll('#capitalMeses tr.mes')].map(r => r.dataset.mes).join(',') === '2026-10,sin-fecha' && document.querySelector('#capitalMeses tr[data-mes="2026-10"]').textContent.includes('$10,000.00') && document.querySelector('#capitalMeses tr[data-mes="2026-10"]').textContent.includes('$4,000.00'));
+            // v0.102.0: la pestaña Capital DENTRO del proyecto — las mismas 3 partidas, el mismo Falta, y «Nueva partida» con el proyecto puesto
+            irHash('#p/' + CLAVE + '/capital'); await esperar(() => !$('tab-capital').classList.contains('oculto'), 'pestaña capital del proyecto');
+            R.ok('pestaña Capital (v0.102.0): visible para gerencia, con las 3 partidas del frente y Falta $8,500.50', !$('tabCapital').classList.contains('oculto') && document.querySelectorAll('#pcapTabla tr.partida').length === 3 && document.querySelector('#pcapTotal [data-kpi="falta"] b').textContent === '$8,500.50', document.querySelectorAll('#pcapTabla tr.partida').length + ' partidas');
+            clic('btnNuevaPartidaProy'); await esperar(() => $('dlgPartida').open, 'partida desde el proyecto');
+            R.ok('pestaña Capital (v0.102.0): «Nueva partida» nace con este proyecto elegido', $('cpProyecto').value === String(pid), $('cpProyecto').value);
+            clic('cpCancelar'); await esperar(() => !$('dlgPartida').open, 'cerrar partida');
+            pestana('capital'); await esperar(() => visible('p-capital'), 'capital de vuelta');
             // orden: Monto (desc al primer clic) y otra vez (asc)
             document.querySelector('#capitalTabla th[data-sort="monto"]').click(); await dormir(30);
             const ordenIds = () => [...document.querySelectorAll('#capitalTabla tr.partida')].map(r => Number(r.dataset.partida));

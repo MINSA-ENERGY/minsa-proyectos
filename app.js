@@ -19,7 +19,7 @@ import { $, L, VERSION, estado, limpiarFiltroTareas, activos, visibles, nombreEq
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, repintarFicha, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
-import { pintarCapital, pintarCapitalProyecto, engancharCapital, alCambiarCapital, fijarIrAProyecto } from './capital.js';
+import { pintarCapital, pintarCapitalProyecto, pintarCapitalTab, puedeVerCapital, engancharCapital, alCambiarCapital, fijarIrAProyecto } from './capital.js';
 import { pintarRoadmap, pintarRoadmapProyecto, roadmapFull, engancharRoadmap, pintarCalendario, engancharCalendario, enfocarCal, pintarMensajes, engancharMensajes, devolverChat, mensajesNuevos, proyectoDeMensajes, pintarArchivos, engancharArchivos, pintarReportes, engancharReportes, anillo } from './vistas.js';
 
 // NO llamar `msal` a esta variable: taparia el global del bundle UMD.
@@ -320,7 +320,7 @@ function irA(p) {
 // v0.42.0: Mensajes lleva lo elegido en el hash (#mensajes/f/<clave> el hilo del frente), para que Atras regrese a la
 // bandeja y una liga pegada abra justo ese hilo. v0.43.0: #mensajes/d/<alias> (la ficha de la persona) ya no existe;
 // una liga vieja con /d/ cae a la bandeja de Mensajes con aviso.
-const RE_HASH = /^#(?:(inicio|proyectos|mis|roadmap|calendario|mensajes|archivos|reportes|capital)(?:\/(f|d)\/([a-z0-9._-]+))?|p\/([a-z0-9-]+)(?:\/(lista|docs|chat|tablero|resumen|roadmap))?)(?:\/t\/(\d+))?$/;
+const RE_HASH = /^#(?:(inicio|proyectos|mis|roadmap|calendario|mensajes|archivos|reportes|capital)(?:\/(f|d)\/([a-z0-9._-]+))?|p\/([a-z0-9-]+)(?:\/(lista|docs|chat|tablero|resumen|roadmap|capital))?)(?:\/t\/(\d+))?$/;
 function esHashDeLaApp(h) { return RE_HASH.test(String(h || '')); }
 function aplicarHash() {
     if (!estado.sesion) return;
@@ -974,9 +974,13 @@ function pintarProyecto() {
     // B1: la descripcion va a una linea en celular; el clic la abre.
     $('pDesc').title = p.Descripcion || '';
     $('pDesc').classList.remove('abierta');
+    // v0.102.0: la pestaña Capital solo existe para gerencia con PROY_Capital creada; si no, una liga #…/capital cae al tablero.
+    const verCap = puedeVerCapital() && estado.capitalLista === true;
+    $('tabCapital').classList.toggle('oculto', !verCap);
+    if (estado.tab === 'capital' && !verCap) estado.tab = 'tablero';
     for (const b of document.querySelectorAll('.tab')) { const on = b.dataset.tab === estado.tab; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }
     { const on = document.querySelector('.tabs .tab.is-on'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }   // U-02 (17-sep): a 390 la fila rueda y «Resumen» quedaba fuera aun activa
-    for (const t of ['tablero', 'lista', 'roadmap', 'docs', 'chat']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
+    for (const t of ['tablero', 'lista', 'roadmap', 'docs', 'chat', 'capital']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
     if (estado.tab !== 'chat') salirDelChat();   // v0.9.0: cambiar de pestana dentro del proyecto tambien es salir
     document.body.classList.toggle('is-chat', estado.tab === 'chat');   // v0.15.0: pintarProyecto no pasa por repintar() al cambiar de pestana
     // v0.8.0: las pestanas dicen cuanto hay adentro (Trello): documentos ligados y comentarios del chat.
@@ -989,7 +993,7 @@ function pintarProyecto() {
     $('nChatTab').title = nNuevos ? `${nNuevos} nuevo${nNuevos === 1 ? '' : 's'} desde tu última visita` : '';
     // B2: «Resumen» es una pestana mas; v0.30.0 (L6): en todo ancho, ya no solo en celular.
     $('p-proyecto').classList.toggle('ver-resumen', estado.tab === 'resumen');
-    const sinFiltros = ['docs', 'chat', 'resumen', 'roadmap'].includes(estado.tab);
+    const sinFiltros = ['docs', 'chat', 'resumen', 'roadmap', 'capital'].includes(estado.tab);
     $('filtroTareas').classList.toggle('oculto', sinFiltros);
     $('filtroTareas').classList.toggle('plegado', !estado.filtrosAbiertos);
     if (!sinFiltros) pintarFiltroTareas(p);
@@ -999,6 +1003,7 @@ function pintarProyecto() {
     else if (estado.tab === 'roadmap') pintarRoadmapProyecto(p);   // v0.10.0
     else if (estado.tab === 'docs') pintarDocs(p);
     else if (estado.tab === 'chat') pintarChat(p);
+    else if (estado.tab === 'capital') pintarCapitalTab(p);   // v0.102.0
     // lateral
     $('pBarra').style.width = a.pct + '%';
     $('pAnillo').textContent = ''; $('pAnillo').appendChild(anillo(segmentosDe(a), a.total, 96));   // v0.10.0: el anillo de la foto; v0.11.0: por cubeta del proyecto
