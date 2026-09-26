@@ -347,7 +347,9 @@ export function pintarLista(proyecto) {
         r.appendChild(el('td', '', nombreColumna(t)));   // v0.59.0: texto plano, sin chip (Carlos, 15-sep) — el chip sigue en tarjeta y Mis tareas
         // U-09 (mejorar-app proyecto, 17-sep): bajo 720 px el CSS acomoda el renglon como FICHA y enseña la fecha corta («15 sep»);
         // la larga (con año) es la de la tabla. Van las dos en el DOM y el CSS elige; textContent del td trae ambas.
-        const tdv = el('td', 'mn-mono'); const md = t.Vence ? mesDia(t.Vence) : null;
+        // U-15 (v0.114.0): el td lleva el mismo estado de fecha que el chip de la tarjeta (vencida / hoy o pronto).
+        const ev = estadoVence(t, CONFIG.vencePronto);
+        const tdv = el('td', 'mn-mono vence' + (ev === 'danger' || ev === 'warn' ? ' is-' + ev : '')); const md = t.Vence ? mesDia(t.Vence) : null;
         tdv.appendChild(el('span', 'fecha-larga', fechaCorta(t.Vence))); tdv.appendChild(el('span', 'fecha-corta', md ? `${md.dia} ${md.mes}` : '—'));
         r.appendChild(tdv);
         r.addEventListener('click', () => abrirTarjeta(t.id));
@@ -668,8 +670,9 @@ function pintarOrdenFicha(t, p, celdaCubeta, or) {
         const i = hermanas.findIndex(x => x.id === t.id);
         if (hermanas.length > 1) {
             or.appendChild(el('span', '', `${i + 1} de ${hermanas.length}`));
-            const up = boton('↑', 'mn-btn is-ghost is-sm', () => reordenarTarea(t.id, -1), { orden: 'subir' }); up.disabled = i <= 0; up.title = 'Subir un lugar'; up.setAttribute('aria-label', 'Subir'); or.appendChild(up);
-            const dn = boton('↓', 'mn-btn is-ghost is-sm', () => reordenarTarea(t.id, 1), { orden: 'bajar' }); dn.disabled = i >= hermanas.length - 1; dn.title = 'Bajar un lugar'; dn.setAttribute('aria-label', 'Bajar'); or.appendChild(dn);
+            // U-16 (v0.114.0): .flecha = 36 px de ancho minimo y separacion (estilo.css); antes 26 px pegadas.
+            const up = boton('↑', 'mn-btn is-ghost is-sm flecha',() => reordenarTarea(t.id, -1), { orden: 'subir' }); up.disabled = i <= 0; up.title = 'Subir un lugar'; up.setAttribute('aria-label', 'Subir'); or.appendChild(up);
+            const dn = boton('↓', 'mn-btn is-ghost is-sm flecha',() => reordenarTarea(t.id, 1), { orden: 'bajar' }); dn.disabled = i >= hermanas.length - 1; dn.title = 'Bajar un lugar'; dn.setAttribute('aria-label', 'Bajar'); or.appendChild(dn);
         }
     }
 }

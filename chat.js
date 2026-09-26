@@ -65,9 +65,14 @@ export function pintarChat(p) {
         if (c.TareaId) {
             // La nota de una tarjeta: el chip la nombra y la abre (la nota vive en la tarjeta; aqui se lee en contexto).
             const t = porId(estado.tareas, c.TareaId);
+            // U-21 (v0.114.0): la tarjeta borrada ya no es una caja deshabilitada: texto tenue en la linea del autor.
+            const cabR = cuerpo.querySelector('.cab');
+            if (!t && cabR) { const s = el('span', 'ref-borrada', '· tarjeta borrada'); s.title = 'La tarjeta ya no existe'; cabR.appendChild(s); }
+            else {
             const ref = boton('', 'ref', () => { if (t) abrirTarjeta(t.id); }, { tarjeta: String(c.TareaId) });
             ref.appendChild(iconoSvg(TRAZOS.tarjeta)); ref.appendChild(el('span', '', t ? t.Title : 'tarjeta borrada')); ref.title = t ? 'Abrir la tarjeta' : 'La tarjeta ya no existe'; ref.disabled = !t;
             cuerpo.appendChild(ref);
+            }
         }
         const texto = el('p', 't'); texto.appendChild(textoConMenciones(c.Title, yo));
         if (seguido) texto.title = fechaHora(c.Cuando);

@@ -413,7 +413,7 @@ button.cab.grupo-proy { cursor: pointer; } button.cab.grupo-proy:hover { filter:
 .doc .t .mn-chip { margin-right: var(--sp-1); vertical-align: middle; }
 /* U11: imprimir = lo que hay en pantalla, sin cromo. Ctrl+P o el boton «Imprimir». */
 @media print {
-  .mn-rail, .barra-movil, .sync, #avisos, #sinRed, .tabs, .filtros, .col-tabs, .proyecto-cab .acciones, .cab-plegar, .sel-lista, .sel-proyecto > summary svg, .lateral, .col .mas, .ver-toda, .pie, .tema, .docs-acciones { display: none !important; }
+  .mn-rail, .barra-movil, .sync, #avisos, #sinRed, .tabs, .tabs-fila, .filtros, .col-tabs, .proyecto-cab .acciones, .cab-plegar, .sel-lista, .sel-proyecto > summary svg, .lateral, .col .mas, .ver-toda, .pie, .tema, .docs-acciones { display: none !important; }
   body { background: #fff; color: #000; }
   .contenido { padding: 0; }
   .mn-shell { display: block; }
@@ -1876,10 +1876,10 @@ button.hoy-r:focus-visible { outline: 2px solid var(--brand-primary); outline-of
 @media (max-width: 720px) {
   /* U-01: «Filtrar · N» se queda PEGADO al borde derecho mientras las pestañas ruedan debajo (como hacia .is-primary en tableta);
      su sombra hacia la izquierda es tambien la señal de que la fila sigue (U-02). */
-  .tabs #btnFiltros { position: sticky; right: 0; background: var(--surface-page); box-shadow: -10px 0 8px -2px var(--surface-page); }
-  .tabs #btnFiltros.is-on { background: var(--surface-selected); }
+  .tabs-fila > #btnFiltros { flex: none; }   /* U-17 (v0.114.0): Filtrar sale de la zona que rueda y ya no tapa la ultima pestaña (antes sticky dentro de .tabs) */
+  .tabs-fila > #btnFiltros.is-on { background: var(--surface-selected); }
   /* U-02: en Docs · Chat · Resumen (sin «Filtrar») un degradado pegado al borde derecho dice que la fila sigue; no recibe clics. */
-  .tabs:has(#btnFiltros.oculto)::after { content: ""; position: sticky; right: 0; flex: none; align-self: stretch; width: 20px; margin-left: -20px; background: linear-gradient(to right, transparent, var(--surface-page)); pointer-events: none; }
+  .tabs::after { content: ""; position: sticky; right: 0; flex: none; align-self: stretch; width: 20px; margin-left: -20px; background: linear-gradient(to right, transparent, var(--surface-page)); pointer-events: none; }
   .filtro-aviso:not(.oculto) { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); padding: var(--sp-1) var(--sp-2); font-size: .8rem; color: var(--text-body); background: var(--surface-selected); border: 1px solid var(--brand-primary); border-radius: var(--r-sm); }
   .filtro-aviso .txt { min-width: 0; overflow-wrap: anywhere; }
   .filtro-aviso .mn-btn { flex: none; }
@@ -2072,3 +2072,25 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
   .cresumen .c-n { display: none; }
   .cresumen .c-concepto { white-space: normal; }
 }
+/* ---- v0.114.0: tanda 1 de /mejorar-app proyectos proyecto */
+/* U-17: la fila de pestañas y «Filtrar» (celular) van lado a lado; solo las pestañas ruedan. La raya de abajo pasa al envoltorio. */
+.tabs-fila { display: flex; align-items: center; gap: var(--sp-1); min-width: 0; border-bottom: 1px solid var(--border-hairline); }   /* min-width 0: item de la rejilla .apilado; sin el se estira al contenido y la pagina desborda (medido a 390: 164 px) */
+.tabs-fila > .tabs { flex: 1 1 auto; min-width: 0; border-bottom: 0; }
+/* U-15: en Lista la fecha lleva el estado de la tarjeta (vencida en rojo, hoy o pronto en ambar). */
+#tab-lista td.vence.is-danger { color: var(--status-danger-fg); font-weight: 600; }
+#tab-lista td.vence.is-warn { color: var(--status-warn-fg); font-weight: 600; }
+/* U-16: Subir/Bajar de la ficha con 36 px de ancho y aire entre las dos (median 26 px pegadas). */
+#dlgTarea .orden .mn-btn.flecha { min-width: 36px; justify-content: center; }
+#dlgTarea .orden .flecha + .flecha { margin-left: var(--sp-1); }
+#dlgTarea .t-cel .orden { flex-wrap: wrap; row-gap: 2px; }   /* en la celda Cubeta de escritorio (1/5 del ancho) el «↓» se salia sobre VENCE (revisor): las flechas bajan de renglon */
+/* U-20: en escritorio visto y borrar miden 32 px de alto, como el resto de los mn-btn (en tactil ya van a 36 px). */
+@media (hover: hover) { .visto-btn { min-height: 32px; } .borrar-msg { width: 32px; height: 32px; } }
+/* U-21: la nota de una tarjeta borrada lo dice en la linea del autor, tenue y sin caja. */
+.msg .cab .ref-borrada { color: var(--text-faint); font-size: .72rem; font-weight: 400; }
+/* U-22: «· N ediciones» junto al nombre cuando se fusionan ediciones seguidas de la misma tarjeta. */
+.mini .it .cab .fusion { color: var(--text-muted); font-size: .72rem; font-weight: 400; }
+/* U-23: la muestra de color del segmento del anillo junto a Hechas y las cubetas de en medio. */
+.kv b.muestra { display: inline-flex; align-items: center; gap: 6px; }
+.kv b.muestra i { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--border-default); }
+.kv b.muestra.is-h i { background: var(--status-ok-solid); } .kv b.muestra.is-r i { background: var(--status-info-solid); } .kv b.muestra.is-c i { background: var(--brand-primary); }
+.kv b.muestra[data-tono] i { background: var(--tono); }

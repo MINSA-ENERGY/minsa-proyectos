@@ -121,8 +121,8 @@ const celdaFalta = (r, conRotulo) => {
 // dejaba una columna fantasma a la derecha; ahora llevan sus 4 celdas vacias (se esconden con las demas).
 const vacias = tr => { for (const c of ['c-tipo', 'c-cat', 'c-fecha', 'c-estado']) tr.appendChild(el('td', c)); };
 
-/** Pie de la hoja: la falta total en el ultimo numero de fila. */
-function pie(t, n, r) {
+/** Pie de la hoja: la falta total (C-15, v0.114.0: sin el parametro de numero de fila, que ya no se leia desde v0.111.0). */
+function pie(t, r) {
     const tf = el('tfoot'); const tr = el('tr');
     tr.appendChild(el('td', 'rn'));   // v0.111.0: solo los frentes llevan numero
     tr.appendChild(el('td', 'c-concepto', 'FALTA TOTAL (necesario − fondeo)')); vacias(tr);
@@ -151,15 +151,15 @@ function pintarTabla(grupos, n) {
         tr.appendChild(td); vacias(tr); tr.appendChild(celdaFalta(g, true)); tb.appendChild(tr);
         for (const x of ordenarPartidas(g.partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x));
     }
-    pie(w.querySelector('table'), fila, totalCapital(grupos));
+    pie(w.querySelector('table'), totalCapital(grupos));
     cont.appendChild(w);
 }
 
 /** La hoja de UN proyecto (su pestaña): sin renglon de grupo, con su falta al pie. */
 function tablaPartidas(partidas) {
-    const w = encabezado(); const tb = w.querySelector('tbody'); let fila = 1;
+    const w = encabezado(); const tb = w.querySelector('tbody');
     for (const x of ordenarPartidas(partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x));
-    pie(w.querySelector('table'), fila, resumenCapital(partidas));
+    pie(w.querySelector('table'), resumenCapital(partidas));
     return w;
 }
 

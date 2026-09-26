@@ -1088,10 +1088,11 @@ try {
                 editar('prioridad'); $('ftPrioridadSeg').querySelector(`[data-prio="${prioC4}"]`).click(); clic('btnGuardarTarea'); await esperar(() => t.fields.Prioridad === prioC4, 'de vuelta');
                 // C-07 (compartir): «Copiar liga» sin navigator.share copia la URL de la tarjeta y avisa «Liga copiada».
                 { let copiado = ''; const shareOrig = Object.getOwnPropertyDescriptor(Navigator.prototype, 'share'), clipOrig = Object.getOwnPropertyDescriptor(Navigator.prototype, 'clipboard');
-                  Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: { writeText: async s => { copiado = s; } }, configurable: true });
+                  // v0.114.0 (C-09): a 390 Edge expone navigator.share y la rama de compartir nunca avisa; se BORRA del prototipo y la instancia, y el mock se deshace en finally aunque la espera se agote.
+                  try { delete Navigator.prototype.share; Object.defineProperty(navigator, 'share', { value: undefined, configurable: true }); Object.defineProperty(navigator, 'clipboard', { value: { writeText: async s => { copiado = s; } }, configurable: true });
                   clic('tCompartir'); await esperar(() => avisoCon('Liga copiada'), 'liga copiada');
                   R.ok('C-07: «Copiar liga» copia #p/<clave>/t/<id> al portapapeles y avisa', copiado.endsWith(`#p/${CLAVE}/t/${t.id}`) && !!avisoCon('pégala en el chat'), copiado);
-                  delete navigator.share; delete navigator.clipboard; if (shareOrig) Object.defineProperty(Navigator.prototype, 'share', shareOrig); if (clipOrig) Object.defineProperty(Navigator.prototype, 'clipboard', clipOrig); }
+                  } finally { delete navigator.share; delete navigator.clipboard; if (shareOrig) Object.defineProperty(Navigator.prototype, 'share', shareOrig); if (clipOrig) Object.defineProperty(Navigator.prototype, 'clipboard', clipOrig); } }
                 clic('tCerrar'); await esperar(() => !$('dlgTarea').open, 'cerrada');
                 // C-02: el evento `online` con un diálogo de edición abierto NO relee (misma guarda que el timer).
                 document.querySelector(`.tarjeta[data-t="${t.id}"]`).click(); await esperar(() => $('dlgTarea').open, 'tarjeta');
@@ -1565,14 +1566,15 @@ try {
             tab('chat'); await esperar(() => visible('tab-chat'), 'chat');
             const masNuevo = filas('actividad').filter(a => a.fields.Accion === 'comentar' && Number(a.fields.ProyectoId) === proyectoId).sort((a, b) => String(a.fields.Cuando).localeCompare(String(b.fields.Cuando))).pop();
             R.ok('v0.8.0: el hash dice /chat y el hilo trae los comentarios en orden (el más nuevo abajo)', location.hash === `#p/${CLAVE}/chat` && document.querySelectorAll('#chatHilo .msg').length === notasAntes && [...document.querySelectorAll('#chatHilo .msg')].pop().dataset.comentario === String(masNuevo.id) && $('chatHilo').textContent.includes('ya viste el oficio'), location.hash);
-            R.ok('v0.8.0: la nota de una tarjeta sale en el hilo con su chip que la nombra', !!document.querySelector('#chatHilo .msg .ref[data-tarjeta]') && document.querySelector('#chatHilo .msg .ref[data-tarjeta] span').textContent.length > 0);
+            { const r = document.querySelector('#chatHilo .msg .ref[data-tarjeta] span, #chatHilo .msg .cab .ref-borrada');   // U-21 (v0.114.0): si la tarjeta ya se borró, la nombra el texto tenue de la cabecera
+              R.ok('v0.8.0: la nota de una tarjeta sale en el hilo con su chip que la nombra (o «tarjeta borrada» en la cabecera)', !!r && r.textContent.length > 0); }
             R.ok('v0.8.0: la mención a mí se pinta como chip «is-yo» con el nombre en el title', !!document.querySelector('#chatHilo .mencion.is-yo') && document.querySelector('#chatHilo .mencion.is-yo').title === 'Persona de Prueba');
             R.ok('v0.8.0: hay separadores de día y el redactor está a la vista para quien escribe', document.querySelectorAll('#chatHilo .dia').length >= 1 && !$('formChat').classList.contains('oculto') && $('chatSoloLectura').classList.contains('oculto'));
             // C-05 (v0.84.0): el rótulo de día dice «ayer» para lo de ayer y «<día> <n> <mes>» para lo de antier; el chip de una tarjeta borrada queda deshabilitado.
             { const dias = [...document.querySelectorAll('#chatHilo .dia')].map(d => d.textContent);
               R.ok('v0.84.0 (C-05): el rótulo de día del hilo dice «ayer» y, para antier, «<día> <n> <mes>»', dias.includes('ayer') && dias.some(d => /^(lunes|martes|miércoles|jueves|viernes|sábado|domingo) \d{1,2} (ene|feb|mar|abr|may|jun|jul|ago|sep|oct|nov|dic)/.test(d)), JSON.stringify(dias));
-              const refB = document.querySelector('#chatHilo .msg .ref:disabled');
-              R.ok(`v0.84.0 (C-05): la nota de una tarjeta borrada sale con chip «tarjeta borrada» deshabilitado (${gerencia ? 'gerencia la borró' : 'colaborador: no aplica'})`, !gerencia || (!!refB && refB.textContent === 'tarjeta borrada' && refB.title === 'La tarjeta ya no existe')); }
+              const refB = document.querySelector('#chatHilo .msg .cab .ref-borrada');
+              R.ok(`U-21 (v0.114.0): la nota de una tarjeta borrada dice «· tarjeta borrada» como texto tenue en la línea del autor, sin caja (${gerencia ? 'gerencia la borró' : 'colaborador: no aplica'})`, !gerencia || (!!refB && refB.textContent === '· tarjeta borrada' && refB.title === 'La tarjeta ya no existe' && !document.querySelector('#chatHilo .msg .ref:disabled'))); }
             // C-05 (v0.84.0) + C-01 (v0.83.0): el hilo desbordado conserva el scroll al refrescar y no marca visto lo que no se vio.
             { const chat = await import('../chat.js'), mod = await import('../comun.js'); const hilo = $('chatHilo'); const pAb = mod.estado.proyectoAbierto;
               hilo.style.maxHeight = '120px'; hilo.style.height = '120px';
@@ -2479,6 +2481,9 @@ try {
             R.ok(`${ROL} (v0.100.0): una liga pegada a #capital cae a Inicio con aviso`, visible('p-inicio') && !visible('p-capital') && !!avisoCon('solo para gerencia'), location.hash);
             irHash(`#p/${CLAVE}/resumen`); await esperar(() => $('p-proyecto').classList.contains('ver-resumen'), 'resumen');
             R.ok(`${ROL} (v0.100.0): el Resumen del proyecto no trae la tarjeta de Capital`, $('pCapital').classList.contains('oculto'));
+            // C-14 (v0.114.0): una liga pegada a la pestaña Capital del proyecto cae al tablero con la pestaña oculta.
+            irHash(`#p/${CLAVE}/capital`); await esperar(() => !$('tab-tablero').classList.contains('oculto'), 'capital del proyecto negado');
+            R.ok(`${ROL} (C-14, v0.114.0): #p/<clave>/capital sin permiso cae al Tablero y la pestaña Capital queda oculta`, !$('tab-tablero').classList.contains('oculto') && $('tab-capital').classList.contains('oculto') && $('tabCapital').classList.contains('oculto'), location.hash);
             DB.listas.capital.items = [];
             pestana('inicio'); await dormir(30);
         } else {
@@ -2513,6 +2518,12 @@ try {
             irHash('#p/' + CLAVE + '/capital'); await esperar(() => !$('tab-capital').classList.contains('oculto'), 'pestaña capital del proyecto');
             R.ok('pestaña Capital (v0.102.0): visible para gerencia, con las 3 partidas del frente y Falta $8,500.50', !$('tabCapital').classList.contains('oculto') && document.querySelectorAll('#pcapTabla tr.partida').length === 3 && document.querySelector('#pcapTotal [data-kpi="falta"] b').textContent === '$8,500.50', document.querySelectorAll('#pcapTabla tr.partida').length + ' partidas');
             R.ok('pestaña Capital (v0.103.0): sin botón propio; el de la barra dice «Nueva partida»', !$('btnNuevaPartidaProy') && $('btnNuevaTarea').textContent === 'Nueva partida', $('btnNuevaTarea').textContent);
+            R.ok('C-13 (v0.114.0): en Capital «Nueva partida» se habilita por puedeVerCapital + lista, no por la regla de tarea', !$('btnNuevaTarea').disabled);
+            // C-14 (v0.114.0): el orden por encabezado también funciona DENTRO de la pestaña (repintar de capital.js).
+            { const idsP = () => [...document.querySelectorAll('#pcapTabla tr.partida')].map(r => Number(r.dataset.partida));
+              document.querySelector('#pcapTabla th[data-sort="monto"]').click(); await dormir(30); const desc = idsP();
+              document.querySelector('#pcapTabla th[data-sort="monto"]').click(); await dormir(30);
+              R.ok('C-14 (v0.114.0): en la pestaña Capital, clic en «Monto» ordena de mayor a menor y el segundo invierte', desc[0] === x1.id && idsP()[2] === x1.id && document.querySelector('#pcapTabla th[data-sort="monto"]').getAttribute('aria-sort') === 'ascending', desc.join(',')); }
             clic('btnNuevaTarea'); await esperar(() => $('dlgPartida').open, 'partida desde el proyecto');
             R.ok('pestaña Capital (v0.103.0): Proyecto fijo en este frente y Categoría es un plegable con «otros»', $('cpProyecto').value === String(pid) && $('cpProyecto').disabled && $('cpCategoria').tagName === 'SELECT' && [...$('cpCategoria').options].some(o => o.value === 'otros'), $('cpProyecto').value);
             clic('cpCancelar'); await esperar(() => !$('dlgPartida').open, 'cerrar partida');

@@ -15,7 +15,7 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, slug, validarClave, tareasDe, avance, proximos, diasQuieta, rotuloQuieta, pisoNuevo, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias, misAbiertas as misAbiertasDe } from './reglas.js';
-import { mayusculasEnVivo, $, L, VERSION, estado, limpiarFiltroTareas, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, fechaInput, campoFecha, mesDia, opciones, limpiar, porId, proyectoPorClave, nuevosDe, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, fijarGuarda, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
+import { mayusculasEnVivo, $, L, VERSION, estado, limpiarFiltroTareas, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, fechaInput, campoFecha, mesDia, chipVence, opciones, limpiar, porId, proyectoPorClave, nuevosDe, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, fijarGuarda, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, repintarFicha, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
@@ -500,6 +500,8 @@ function pintarFichas(cont, proyectos) {
 /** Un renglon de mini lista (2026-09-12): cabecera = quien + cuando; debajo la frase a todo el ancho;
  *  debajo el proyecto en una linea. `texto` NO trae el nombre (lo pone la cabecera); si `texto` ES el
  *  nombre completo (lista Equipo), la cabecera lo lleva entero y no hay frase. */
+/** U-18 (v0.114.0): la misma frase que el chip de la tarjeta («venció dd/mm/aaaa» · «vence hoy» · «vence dd/mm/aaaa»). */
+function fraseVenceTarjeta(t) { const c = chipVence(t); return c ? c.textContent : fechaCorta(t.Vence); }
 function itemMini(quien, texto, sub, derecha, claseDerecha, abre) {
     // C9 (v0.6.0): con `abre` el renglon es un boton que lleva a la tarjeta (antes era texto que habia que buscar).
     // C-11 (v0.95.0): `abre` es una LLAVE (llaveTarea / llaveEvento) que resuelve el delegado de abajo al clic; antes un closure por renglon.
@@ -959,8 +961,6 @@ function pintarProyecto() {
     // F6: un cerrado se reabre (solo gerencia); el boton solo existe en ese estado.
     $('btnReabrirProyecto').classList.toggle('oculto', !(PUEDE.proyecto(estado.rol) && p.Estado === 'cerrado'));
     $('btnEliminarProyecto').classList.toggle('oculto', !PUEDE.borrar(estado.rol));   // v0.13.0: solo gerencia, en cualquier estado
-    $('btnNuevaTarea').disabled = !PUEDE.tarea(estado.rol) || p.Estado !== 'activo';
-    $('btnNuevaTarea').textContent = estado.tab === 'capital' ? 'Nueva partida' : 'Nueva tarea';   // v0.103.0
     // B2: la linea que resume el frente arriba, donde se lee sin bajar a la lateral.
     const dias = diasPara(p.Vence);
     // C8: el chip «vence en N d · faltan M» de la lista, junto al %, en escritorio y celular. Cuando
@@ -979,6 +979,9 @@ function pintarProyecto() {
     const verCap = puedeVerCapital() && estado.capitalLista === true;
     $('tabCapital').classList.toggle('oculto', !verCap);
     if (estado.tab === 'capital' && !verCap) estado.tab = 'tablero';
+    // C-13 (v0.114.0): el boton sigue a la pestaña — en Capital abre una partida (abrirPartida exige puedeVerCapital), en las demas una tarea.
+    $('btnNuevaTarea').disabled = estado.tab === 'capital' ? !verCap : (!PUEDE.tarea(estado.rol) || p.Estado !== 'activo');
+    $('btnNuevaTarea').textContent = estado.tab === 'capital' ? 'Nueva partida' : 'Nueva tarea';   // v0.103.0
     for (const b of document.querySelectorAll('.tab')) { const on = b.dataset.tab === estado.tab; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on ? 'true' : 'false'); }
     { const on = document.querySelector('.tabs .tab.is-on'); if (on && on.scrollIntoView) on.scrollIntoView({ inline: 'nearest', block: 'nearest' }); }   // U-02 (17-sep): a 390 la fila rueda y «Resumen» quedaba fuera aun activa
     for (const t of ['tablero', 'lista', 'roadmap', 'docs', 'chat', 'capital']) $('tab-' + t).classList.toggle('oculto', estado.tab !== t);
@@ -1009,21 +1012,37 @@ function pintarProyecto() {
     $('pBarra').style.width = a.pct + '%';
     $('pAnillo').textContent = ''; $('pAnillo').appendChild(anillo(segmentosDe(a), a.total, 96));   // v0.10.0: el anillo de la foto; v0.11.0: por cubeta del proyecto
     const kv = $('pAvance'); kv.textContent = '';
-    const par = (k, v) => { kv.appendChild(el('b', '', k)); kv.appendChild(el('span', '', v)); };
-    par('Hechas', `${a.hechas} de ${a.total}`); for (const c of a.columnas.slice(1, -1)) par(c.nombre, String(a.porColumna[c.clave]));
+    // U-23 (v0.114.0): Hechas y las cubetas de en medio llevan la muestra del color de su segmento del anillo (mismas clases que .leyenda).
+    const par = (k, v, seg) => { const b = el('b', seg ? 'muestra is-' + seg[2] : '', k); if (seg) { if (seg[3]) b.dataset.tono = seg[3]; b.prepend(el('i')); } kv.appendChild(b); kv.appendChild(el('span', '', v)); };
+    const segDe = clave => segmentosDe(a).find(s => s[0].clave === clave);
+    par('Hechas', `${a.hechas} de ${a.total}`, segDe(a.columnas[a.columnas.length - 1].clave)); for (const c of a.columnas.slice(1, -1)) par(c.nombre, String(a.porColumna[c.clave]), segDe(c.clave));
     par('Fin del frente', fechaCorta(p.Vence)); par('Responsable', p.Responsable ? nombreDe(p.Responsable, estado.roles) : '—'); par('Clave', p.Clave);
     if (p.Carpeta) par('Carpeta', p.Carpeta);
     if (p.Estado === 'cerrado') par('Cerrado', `${nombreDe(p.CerradoPor, estado.roles)} · ${fechaCorta(p.CerradoEl)}`);
     const q = $('pQuienes'); q.textContent = '';
-    const quienes = [...new Set(ts.map(x => String(x.Asignado || '').toLowerCase()).filter(Boolean))];
-    for (const k of quienes) q.appendChild(itemMini(k, nombreDe(k, estado.roles), `${ts.filter(t => String(t.Asignado || '').toLowerCase() === k && t.Columna !== 'hecho').length} abiertas`, ''));
+    // C-16 (v0.114.0): abiertas por persona en UNA pasada (antes un filter por persona dentro del for).
+    const abiertasDe = new Map();
+    for (const x of ts) { const k = String(x.Asignado || '').toLowerCase(); if (!k) continue; abiertasDe.set(k, (abiertasDe.get(k) || 0) + (x.Columna !== 'hecho' ? 1 : 0)); }
+    const quienes = [...abiertasDe.keys()];
+    for (const k of quienes) q.appendChild(itemMini(k, nombreDe(k, estado.roles), `${abiertasDe.get(k)} abiertas`, ''));
     if (!quienes.length) q.appendChild(el('p', 'vacio', 'Nadie asignado todavía.'));
     const v = $('pVence'); v.textContent = '';
-    for (const { tarea: t, dias } of proximos(ts, 5)) v.appendChild(itemMini(t.Asignado, t.Title, '', fechaCorta(t.Vence), claseVence(dias, CONFIG.vencePronto, null), llaveTarea(t)));   // C9
+    for (const { tarea: t, dias } of proximos(ts, 5)) v.appendChild(itemMini(t.Asignado, t.Title, '', fraseVenceTarjeta(t), claseVence(dias, CONFIG.vencePronto, null), llaveTarea(t)));   // C9
     if (!v.childNodes.length) v.appendChild(el('p', 'vacio', 'Nada por vencer.'));
     const act = $('pActividad'); act.textContent = '';
     const deP = actividadVisible().filter(x => Number(x.ProyectoId) === p.id);   // v0.11.0: sin movimientos
-    for (const x of deP.slice(0, 6)) act.appendChild(itemActividad(x, false));   // C9
+    // U-22 (v0.114.0): ediciones SEGUIDAS de la misma persona sobre la misma tarjeta van en un renglon (el mas reciente) con su conteo.
+    const grupos = [];
+    for (const x of deP) {
+        const g = grupos[grupos.length - 1];
+        const mismo = g && x.Accion === 'editar-tarea' && g.a.Accion === 'editar-tarea' && x.TareaId && Number(x.TareaId) === Number(g.a.TareaId) && String(x.Quien || '').toLowerCase() === String(g.a.Quien || '').toLowerCase();
+        if (mismo) g.n++; else grupos.push({ a: x, n: 1 });
+    }
+    for (const { a: x, n } of grupos.slice(0, 6)) {
+        const it = itemActividad(x, false);   // C9
+        if (n > 1) { const q = it.querySelector('.cab .q'); if (q) q.after(el('span', 'fusion', `· ${n} ediciones`)); }
+        act.appendChild(it);
+    }
     if (!act.childNodes.length) act.appendChild(el('p', 'vacio', 'Sin actividad todavía.'));
     $('btnActividadProyecto').hidden = deP.length <= 6;
     pintarCapitalProyecto(p);   // v0.100.0: «Capital de trabajo · falta $X» (solo gerencia)
@@ -1271,7 +1290,14 @@ function pintarSelectorProyecto(p) {
         const b = el('button', q.id === p.id ? 'is-on' : ''); b.type = 'button'; b.setAttribute('role', 'option'); b.setAttribute('aria-selected', q.id === p.id ? 'true' : 'false'); b.dataset.proyecto = String(q.id);
         b.appendChild(iconoEquipo(equipoDe(q), 'sm')); b.appendChild(el('span', 't', q.Title));
         const n = el('span', 'n' + (vencidas ? ' is-danger' : ''), q.Estado !== 'activo' ? 'cerrado' : `${abiertas} abierta${abiertas === 1 ? '' : 's'}${vencidas ? ` · ${vencidas} vencida${vencidas === 1 ? '' : 's'}` : ''}`); b.appendChild(n);
-        b.addEventListener('click', () => { $('selProyecto').open = false; if (q.id === p.id) return; fijarProyectoAbierto(q); irA('proyecto'); });
+        // C-10 (v0.114.0): se resuelve por id AL CLIC (regla v0.4.0); una relectura en medio reemplaza estado.proyectos.
+        b.addEventListener('click', () => {
+            $('selProyecto').open = false;
+            const vivo = porId(estado.proyectos, b.dataset.proyecto);
+            if (!vivo) { avisar('Ese proyecto ya no existe.', 'ojo'); return; }
+            if (estado.proyectoAbierto && estado.proyectoAbierto.id === vivo.id) return;
+            fijarProyectoAbierto(vivo); irA('proyecto');
+        });
         caja.appendChild(b);
     }
 }

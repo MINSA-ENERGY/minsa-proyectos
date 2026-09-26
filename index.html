@@ -133,6 +133,7 @@
       </header>
       <div class="dos-columnas ancha">
         <div class="apilado">
+          <div class="tabs-fila"><!-- U-17 (v0.114.0): «Filtrar» fuera de la fila que rueda -->
           <div class="tabs" role="tablist">
             <button class="tab" data-tab="tablero" role="tab" type="button">Tablero</button>
             <button class="tab" data-tab="lista" role="tab" type="button">Lista</button>
@@ -146,8 +147,9 @@
             <!-- v0.102.0 (Carlos, 25-sep): el capital de trabajo del frente como pestaña (solo gerencia, y con PROY_Capital creada) -->
             <button class="tab oculto" data-tab="capital" id="tabCapital" role="tab" type="button">Capital</button>
             <button class="tab" data-tab="resumen" role="tab" type="button">Resumen</button>
-            <button id="btnFiltros" class="mn-btn is-sm solo-movil" type="button" aria-expanded="false">Filtrar</button>
             <button id="btnNuevaTarea" class="mn-btn is-primary is-sm" type="button">Nueva tarea</button>
+          </div>
+            <button id="btnFiltros" class="mn-btn is-sm solo-movil" type="button" aria-expanded="false">Filtrar</button>
           </div>
           <div class="filtros tareas-filtros oculto" id="filtroTareas"><div class="chips" id="filtroChips"></div><input id="filtroTexto" class="buscador" type="search" placeholder="Buscar en las tarjetas" aria-label="Buscar en las tarjetas" autocomplete="off"><!-- v0.20.0 (iteracion 2): densidad del tablero, junto a los filtros; se recuerda por dispositivo --><div class="densidad" id="densidad" role="group" aria-label="Densidad del tablero"><button type="button" data-densidad="comodo" aria-pressed="true" title="Tarjeta completa: título, quién, fecha y avisos">Cómodo</button><button type="button" data-densidad="compacto" aria-pressed="false" title="Una línea por tarjeta: título, quién y fecha">Compacto</button></div></div>
           <!-- U-01 (17-sep): con filtro puesto, el tablero y la lista lo dicen aqui (a 390 «Filtrar · N» queda fuera de la fila de pestañas). Lo pinta pintarBotonFiltros. -->

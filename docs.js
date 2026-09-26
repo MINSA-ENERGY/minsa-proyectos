@@ -82,7 +82,7 @@ export async function pintarDocs(p) {
     const ligas = ordenarDocs(filtrarLigas(todas, { tipo: estado.filtroDocs, texto: estado.buscaDocs }));   // v0.18.0: por la columna elegida, dentro de cada grupo
     $('docsResumen').textContent = todas.length ? `${ligas.length} de ${todas.length}` : '';
     $('docsTodo').hidden = true;   // v0.34.0: «Abrir todo / Plegar todo» solo con arbol pintado
-    if (!ligas.length) { cont.appendChild(el('p', 'vacio', todas.length ? 'Nada con ese filtro.' : 'Sin documentos ligados todavía.')); return; }
+    if (!ligas.length) { cont.appendChild(el('p', 'vacio', todas.length ? 'Nada con ese filtro.' : 'Sin documentos ligados todavía. Se ligan desde una tarjeta: ábrela y usa Ligar, Subir o Enlace.')); return; }   // U-19 (v0.114.0)
     const puedeDe = l => puede || (l.Tipo === 'enlace' && puedeEnlazarEn(p));
     // v0.33.0 (Carlos, 14-sep; artifact HMVvZx2L, opcion E de ocho): Docs es un ARBOL DE EXPEDIENTE. La misma tabla
     // (.dtabla.is-arbol, mismas columnas y orden) con el proyecto como raiz, cada tarjeta como CARPETA —icono con el
