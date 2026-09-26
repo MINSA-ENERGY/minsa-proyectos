@@ -9,7 +9,7 @@
 // junta «Te mencionaron». El selector aparece al teclear @ (tambien en la nota de la tarjeta).
 
 import { PUEDE, mencionEnCurso, aliasDe, aliasParaMencion, nombreDe, sinAcentos, diaDe } from './reglas.js';
-import { $, L, estado, el, boton, tonoDe, avisar, porId, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos, vistosDeComentario, miVistoDe, puedeMarcarVisto, alternarVisto, personasActivas, contadorTexto, fusionarActividad, rotuloDia } from './comun.js';
+import { $, L, estado, el, boton, tonoDe, avisar, porId, proyectoAbierto, fechaHora, textoConMenciones, comentariosDe, iconoSvg, TRAZOS, puedeBorrarComentario, borrarComentario, chatVistoHasta, marcarChatVisto, comentariosNuevos, vistosDeComentario, miVistoDe, puedeMarcarVisto, alternarVisto, personasActivas, contadorTexto, fusionarActividad, rotuloDia } from './comun.js';
 
 let alCambiar = () => {};
 export function alCambiarChat(fn) { alCambiar = fn; }
@@ -17,7 +17,7 @@ let abrirTarjeta = () => {};
 export function fijarAbrirTarjeta(fn) { abrirTarjeta = fn; }
 
 const COMENTARIO_MAX = 250, COMENTARIO_AVISO = 200;
-// v0.42.0: el hilo sabe de que proyecto es. Antes `enviar` leia estado.proyectoAbierto, que era siempre el mismo
+// v0.42.0: el hilo sabe de que proyecto es. Antes `enviar` leia proyectoAbierto(), que era siempre el mismo
 // porque el chat solo vivia en la pestana del proyecto; en Mensajes el #tab-chat se aloja junto a la bandeja y pinta
 // el frente elegido AHI, que no es el abierto. La ultima pintada fija el destino; salirDelChat lo suelta.
 let proyectoChat = null;
@@ -159,7 +159,7 @@ const contar = () => contadorTexto('chatTexto', 'chatCont', COMENTARIO_MAX, COME
 
 async function enviar(ev) {
     ev.preventDefault();
-    const p = (proyectoChat && porId(estado.proyectos, proyectoChat.id)) || estado.proyectoAbierto; if (!p) return;   // v0.42.0: el frente que el hilo pinta, no el abierto; C-02: resuelto por id
+    const p = (proyectoChat && porId(estado.proyectos, proyectoChat.id)) || proyectoAbierto(); if (!p) return;   // v0.42.0: el frente que el hilo pinta, no el abierto; C-02: resuelto por id
     if (!PUEDE.tarea(estado.rol)) { avisar('Tu rol es de lectura: no puedes comentar.', 'error'); return; }
     if (p.Estado !== 'activo') { avisar('El proyecto está cerrado.', 'error'); return; }
     if (navigator.onLine === false) { avisar('Sin conexión: el comentario se manda cuando regrese la red (vuelve a intentarlo).', 'ojo'); return; }   // T2: Ctrl+Enter no pasa por pointer-events

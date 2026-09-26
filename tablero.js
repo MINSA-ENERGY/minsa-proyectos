@@ -8,7 +8,7 @@
 
 import { CONFIG } from './config.js';
 import { sellarAsignadoPor, PUEDE, ordenar, tareasDe, diasQuieta, rotuloQuieta, camposDeMovimiento, nombreDe, diasPara, estadoVence, semaforo, vencidasEn, filtrarTareas, ordenarLista, reordenar, sinAcentos, columnasDe, normalizarColumnas, nombreColumnaEn, claseDeColumna, HECHO, MAX_COLUMNAS, MAX_NOMBRE_COLUMNA, COLORES, colorValido, hrefSeguro, delegadas, misAbiertas, porVence, claseVence } from './reglas.js';
-import { $, L, estado, limpiarFiltroTareas, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, fechaInput, atajosFecha, opciones, limpiar, porId, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia, personasActivas, contadorTexto, mayusculasEnVivo } from './comun.js';
+import { $, L, estado, limpiarFiltroTareas, el, boton, chip, chipVence, avisar, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, fechaInput, atajosFecha, opciones, limpiar, porId, proyectoAbierto, registrarActividad, hashDe, fijarHash, irAHash, ligaDeTarjeta, notasDe, aplicar, pedirRelectura, equipoDe, iconoEquipo, iconoArchivo, textoConMenciones, insignia, TRAZOS, iconoSvg, puedeBorrarComentario, borrarComentario, columnasDeTarea, notasPorTarea, ligasPorTarea, buzonPorTarea, mesDia, personasActivas, contadorTexto, mayusculasEnVivo } from './comun.js';
 import { abrirPartida } from './capital.js';   // v0.103.0: «Nueva partida» desde la pestaña Capital del proyecto
 import { abrirLigar, abrirSubir, abrirEnlace, quitarLiga, puedeLigarEn, puedeEnlazarEn } from './docs.js';
 import { esConflicto } from './graph.js';
@@ -233,7 +233,7 @@ export function pintarBotonFiltros() {
     av.classList.toggle('oculto', !mostrar);
     if (mostrar) {
         av.appendChild(el('span', 'txt', 'Filtrado: ' + partes.join(' · ')));
-        av.appendChild(boton('× limpiar', 'mn-btn is-ghost is-sm', () => { limpiarFiltroTareas(); if (estado.proyectoAbierto) pintarFiltroTareas(estado.proyectoAbierto); pintarSoloTareas(); }, { filtro: 'limpiarAviso' }));
+        av.appendChild(boton('× limpiar', 'mn-btn is-ghost is-sm', () => { limpiarFiltroTareas(); if (proyectoAbierto()) pintarFiltroTareas(proyectoAbierto()); pintarSoloTareas(); }, { filtro: 'limpiarAviso' }));
     }
 }
 
@@ -256,7 +256,7 @@ function pintarDensidad() {
 }
 /** Repinta solo el tablero o la lista (no la pantalla entera: el foco del cuadro de texto se queda). */
 function pintarSoloTareas() {
-    const p = estado.proyectoAbierto; if (!p) return;
+    const p = proyectoAbierto(); if (!p) return;
     pintarBotonFiltros();
     if (estado.tab === 'tablero') pintarTablero(p); else if (estado.tab === 'lista') pintarLista(p);
 }
@@ -960,7 +960,7 @@ async function borrarTarea() {
 $('ntTitulo').addEventListener('input', () => mayusculasEnVivo($('ntTitulo')));   // v0.106.0
 
 export function abrirNuevaTarea() {
-    const p = estado.proyectoAbierto; if (!p) return;
+    const p = proyectoAbierto(); if (!p) return;
     if (!PUEDE.tarea(estado.rol)) { avisar('Tu rol es de lectura: no puedes crear tarjetas.', 'error'); return; }
     if (p.Estado !== 'activo') { avisar('El proyecto está cerrado.', 'error'); return; }
     opciones($('ntAsignado'), personas(), x => x, x => nombreDe(x, estado.roles), 'sin asignar');
@@ -981,7 +981,7 @@ export function abrirNuevaTarea() {
  */
 async function guardarNuevaTarea(ev, seguirCapturando = false) {
     if (ev) ev.preventDefault();
-    const p = estado.proyectoAbierto; if (!p) return;
+    const p = proyectoAbierto(); if (!p) return;
     if (!PUEDE.tarea(estado.rol)) { avisar('Tu rol es de lectura: no puedes crear tarjetas.', 'error'); return; }
     const titulo = $('ntTitulo').value.trim().toLocaleUpperCase('es-MX');   // v0.107.0 (Carlos, 25-sep): la tarea nueva siempre en MAYUSCULAS
     if (!titulo) { avisar('La tarea necesita un título.', 'error'); $('ntTitulo').focus(); return; }
@@ -1027,7 +1027,7 @@ async function guardarNuevaTarea(ev, seguirCapturando = false) {
 
 let cubetasEdicion = null;   // [{clave, nombre, nueva?}] mientras el dialogo esta abierto
 export function abrirCubetas() {
-    const p = estado.proyectoAbierto; if (!p) return;
+    const p = proyectoAbierto(); if (!p) return;
     if (!PUEDE.proyecto(estado.rol)) { avisar('Solo gerencia cambia las cubetas del proyecto.', 'error'); return; }
     if (p.Estado !== 'activo') { avisar('El proyecto está cerrado.', 'error'); return; }
     cubetasEdicion = columnasDe(p);
@@ -1035,7 +1035,7 @@ export function abrirCubetas() {
     abrirDialogo('dlgCubetas');
 }
 function pintarCubetas() {
-    const p = estado.proyectoAbierto; const ts = tareasDe(p, estado.tareas);
+    const p = proyectoAbierto(); const ts = tareasDe(p, estado.tareas);
     const l = $('cbLista'); l.textContent = '';
     for (const [i, c] of cubetasEdicion.entries()) {
         const esHecho = c.clave === HECHO; const n = ts.filter(t => t.Columna === c.clave).length;
@@ -1068,7 +1068,7 @@ function agregarCubeta() {
 }
 async function guardarCubetas(ev) {
     ev.preventDefault();
-    const p = estado.proyectoAbierto; if (!p || !cubetasEdicion) return;
+    const p = proyectoAbierto(); if (!p || !cubetasEdicion) return;
     if (!PUEDE.proyecto(estado.rol)) { avisar('Solo gerencia cambia las cubetas del proyecto.', 'error'); return; }
     // Las claves ya usadas no cambian; una nueva nace del nombre y no puede chocar con una existente.
     const v = normalizarColumnas(cubetasEdicion.map(c => ({ clave: c.nueva ? '' : c.clave, nombre: c.nombre, color: c.color || '' })));
@@ -1114,7 +1114,7 @@ export function engancharTablero() {
     $('formCubetas').addEventListener('submit', guardarCubetas);
     $('cbAgregar').addEventListener('click', agregarCubeta);
     $('cbCancelar').addEventListener('click', () => cerrarDialogo('dlgCubetas'));
-    $('filtroTexto').addEventListener('input', () => { estado.filtroTareas.texto = $('filtroTexto').value; if (estado.proyectoAbierto) pintarFiltroTareas(estado.proyectoAbierto); pintarSoloTareas(); });
+    $('filtroTexto').addEventListener('input', () => { estado.filtroTareas.texto = $('filtroTexto').value; if (proyectoAbierto()) pintarFiltroTareas(proyectoAbierto()); pintarSoloTareas(); });
     // v0.30.0 (F3): el menu «Quién» se cierra al hacer clic fuera o con Esc (un details abierto no se cierra solo).
     // Se juzga por ANCESTRO del nodo pulsado (closest), no por contains: «Quitar el filtro» repinta en fase objetivo y cuando el
     // evento llega aqui el boton ya esta desprendido — con contains el menu nuevo se cerraba (revisor, 14-sep).
@@ -1157,7 +1157,7 @@ export function engancharTablero() {
     engancharSelectorMenciones('tNota', 'tNotaSelector', () => $('formNota').requestSubmit());
     $('tBorrar').addEventListener('click', borrarTarea);
     // v0.103.0: en la pestaña Capital del proyecto el mismo boton es «Nueva partida», con el proyecto fijo
-    $('btnNuevaTarea').addEventListener('click', () => { const p = estado.proyectoAbierto; if (estado.tab === 'capital' && p) abrirPartida(null, p.id); else abrirNuevaTarea(); });
+    $('btnNuevaTarea').addEventListener('click', () => { const p = proyectoAbierto(); if (estado.tab === 'capital' && p) abrirPartida(null, p.id); else abrirNuevaTarea(); });
     $('formNuevaTarea').addEventListener('submit', guardarNuevaTarea);
     $('ntGuardarYOtra').addEventListener('click', () => guardarNuevaTarea(null, true));   // C1
     $('ntCancelar').addEventListener('click', () => cerrarDialogo('dlgNuevaTarea'));

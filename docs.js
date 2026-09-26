@@ -17,7 +17,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, tareasDe, slug, fechaMexico, nombreDe, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, TEXTO_MAX, hrefSeguro, filtrarLigas, tipoArchivo, ordenarLigas, direccionInicial, nombreDeLiga, columnasDe, nombreColumnaEn, claseDeColumna, colorValido, HECHO, TIPOS_LIGA } from './reglas.js';
 import { construirManifiesto, validarManifiesto, bytesDelManifiesto, nombreCarpetaLote, NOMBRE_MANIFIESTO, rutaRecibo, validarRecibo } from './lote.js';
-import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, iconoSvg, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, registrarActividad, equipoDe, fechaCorta, fechaHora, aplicar, pedirRelectura, irAHash, chipVence, conRetardo } from './comun.js';
+import { $, L, VERSION, estado, el, boton, chip, iconoArchivo, iconoSvg, avisar, abrirDialogo, cerrarDialogo, confirmar, opciones, limpiar, porId, proyectoAbierto, registrarActividad, equipoDe, fechaCorta, fechaHora, aplicar, pedirRelectura, irAHash, chipVence, conRetardo } from './comun.js';
 import { esConflicto } from './graph.js';
 
 let alCambiar = () => {};
@@ -437,7 +437,7 @@ function opcionesTarjetas(sel, p) {
  * { texto, reemplaza }.
  */
 export function abrirLigar(opts = {}) {
-    const p = opts.proyecto || estado.proyectoAbierto; const bib = p && bibliotecaDe(p);
+    const p = opts.proyecto || proyectoAbierto(); const bib = p && bibliotecaDe(p);
     if (!p || !bib) return;
     if (!PUEDE.ligar(estado.rol)) { avisar('Tu rol es de lectura: no puedes ligar documentos.', 'error'); return; }
     ctx = { proyecto: p, tareaId: opts.tareaId ? Number(opts.tareaId) : null, reemplaza: opts.reemplaza || null, alTerminar: opts.alTerminar || null };
@@ -592,7 +592,7 @@ async function aplicarReciboUnaVez(p, bib, s, l) {
 
 /** Abre «Pegar un enlace». Sin argumentos es el boton de Docs; desde la tarjeta llega { proyecto, tareaId, alTerminar }. */
 export function abrirEnlace(opts = {}) {
-    const p = opts.proyecto || estado.proyectoAbierto; if (!p) return;
+    const p = opts.proyecto || proyectoAbierto(); if (!p) return;
     if (!puedeEnlazarEn(p)) { avisar(PUEDE.ligar(estado.rol) ? 'El proyecto está cerrado.' : 'Tu rol es de lectura: no puedes pegar enlaces.', 'error'); return; }
     ctx = { proyecto: p, tareaId: opts.tareaId ? Number(opts.tareaId) : null, reemplaza: null, alTerminar: opts.alTerminar || null };
     $('enTitulo').value = ''; $('enUrl').value = '';
@@ -634,7 +634,7 @@ async function guardarEnlace(ev) {
 
 /** Abre «Subir al buzon». Sin argumentos es el boton de Docs; desde la tarjeta (F3) llega { proyecto, tareaId, alTerminar }. */
 export function abrirSubir(opts = {}) {
-    const p = opts.proyecto || estado.proyectoAbierto; const bib = p && bibliotecaDe(p);
+    const p = opts.proyecto || proyectoAbierto(); const bib = p && bibliotecaDe(p);
     if (!p || !bib) return;
     if (!PUEDE.ligar(estado.rol)) { avisar('Tu rol es de lectura: no puedes subir documentos.', 'error'); return; }
     ctx = { proyecto: p, tareaId: opts.tareaId ? Number(opts.tareaId) : null, reemplaza: null, alTerminar: opts.alTerminar || null };
@@ -716,7 +716,7 @@ export function engancharDocs() {
     $('formSubir').addEventListener('submit', subirAlBuzon);
     // v0.17.0: buscador de la pestaña; el proyecto abierto se repinta al teclear.
     // C-07 (17-sep): con retardo — el arbol se reconstruye entero por tecla; `change` (Enter, salir del campo) pinta al instante.
-    const buscar = conRetardo(() => { estado.buscaDocs = $('docsBusca').value; if (estado.proyectoAbierto) pintarDocs(estado.proyectoAbierto); });
+    const buscar = conRetardo(() => { estado.buscaDocs = $('docsBusca').value; if (proyectoAbierto()) pintarDocs(proyectoAbierto()); });
     $('docsBusca').addEventListener('input', buscar); $('docsBusca').addEventListener('change', buscar.ahora);
     // Un clic fuera cierra el menu «⋯» abierto.
     document.addEventListener('click', e => { for (const o of document.querySelectorAll('.fila-menu[open]')) if (!o.contains(e.target)) o.open = false; });

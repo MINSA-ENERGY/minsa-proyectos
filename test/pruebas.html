@@ -431,27 +431,27 @@ try {
     if (gerencia) {
         // C-04 (v0.75.0): el tramo de EDICIÓN de guardarProyecto no tenía ninguna aserción. Cambia Vence y Carpeta y afirma
         // el PATCH con If-Match, el renglón en memoria y en la DB, el aviso y la bitácora; luego el 412 con un cambio ajeno en medio.
-        const E = (await import('../comun.js')).estado; const pE = filas('proyectos')[0]; const ifmE = DB.ifMatch; const nEd = actividad('editar-proyecto').length;
+        const mE = await import('../comun.js'); const E = mE.estado; const pE = filas('proyectos')[0]; const ifmE = DB.ifMatch; const nEd = actividad('editar-proyecto').length;
         clic('btnEditarProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo de edición');
         R.ok('C-04 (v0.75.0): el diálogo abre en modo edición con los datos del frente y la clave bloqueada', $('npTituloDlg').textContent === 'Editar proyecto' && $('npClave').value === 'lau-asea-03-001' && $('npClave').disabled && $('npNotaClave').hidden && $('npCarpeta').value === '03_Predios/Arrocera', `${$('npClave').value} · ${$('npCarpeta').value}`);
         poner('npVence', '2026-11-15'); poner('npCarpeta', '\\03_Predios\\Arrocera\\LAU/'); clic('npGuardar');
         await esperar(() => avisoCon('Proyecto actualizado'), 'guardado');
         await esperar(() => actividad('editar-proyecto').length === nEd + 1, 'bitácora editar-proyecto');
         R.ok('C-04 (v0.75.0): el PATCH lleva If-Match y la DB guarda Vence y la Carpeta normalizada', DB.ifMatch === ifmE + 1 && String(pE.fields.Vence).startsWith('2026-11-15') && pE.fields.Carpeta === '03_Predios/Arrocera/LAU', `ifMatch +${DB.ifMatch - ifmE} · ${pE.fields.Vence} · ${pE.fields.Carpeta}`);
-        R.ok('C-04 (v0.75.0): el renglón en memoria refleja la edición y conserva el candado nuevo', E.proyectoAbierto.Carpeta === '03_Predios/Arrocera/LAU' && String(E.proyectoAbierto.Vence).startsWith('2026-11-15') && E.proyectoAbierto._etag === `"${pE.etag}"`, `${E.proyectoAbierto._etag} vs "${pE.etag}"`);
+        R.ok('C-04 (v0.75.0): el renglón en memoria refleja la edición y conserva el candado nuevo', mE.proyectoAbierto().Carpeta === '03_Predios/Arrocera/LAU' && String(mE.proyectoAbierto().Vence).startsWith('2026-11-15') && mE.proyectoAbierto()._etag === `"${pE.etag}"`, `${mE.proyectoAbierto()._etag} vs "${pE.etag}"`);
         R.ok('C-04 (v0.75.0): la bitácora dice «editó el proyecto» y el diálogo cerró', actividad('editar-proyecto')[nEd].fields.Title.includes('editó el proyecto') && !$('dlgProyecto').open);
         // 412: alguien cambió el proyecto entre abrir el diálogo y guardar → no se pisa, se relee y se avisa.
         pE.etag = (pE.etag || 1) + 1; pE.fields.Descripcion = 'Cambiada por alguien más';
         clic('btnEditarProyecto'); await esperar(() => $('dlgProyecto').open, 'diálogo otra vez');
         poner('npDesc', 'La mía'); clic('npGuardar');
         await esperar(() => avisoCon('Alguien cambió este proyecto'), '412 avisado');
-        await esperar(() => E.proyectoAbierto.Descripcion === 'Cambiada por alguien más', 'releído');
+        await esperar(() => mE.proyectoAbierto().Descripcion === 'Cambiada por alguien más', 'releído');
         R.ok('C-04 (v0.75.0): un cambio ajeno ANTES de abrir el diálogo (el _etag viaja en memoria) dispara el 412: no se pisa, se relee y se avisa', pE.fields.Descripcion === 'Cambiada por alguien más' && actividad('editar-proyecto').length === nEd + 1, pE.fields.Descripcion);
         R.ok('C-08 (v0.96.0): tras el 412 el diálogo sigue abierto con lo escrito y el aviso dice qué campo cambió el otro', $('dlgProyecto').open && $('npDesc').value === 'La mía' && !!avisoCon('(descripción)'), `${$('dlgProyecto').open} · ${$('npDesc').value}`);
         // C-06 (v0.96.0): la relectura reemplazó estado.proyectos; el segundo Guardar resuelve por id y usa el _etag NUEVO (antes: 412 contra uno mismo)
         clic('npGuardar');
         await esperar(() => pE.fields.Descripcion === 'La mía' && !$('dlgProyecto').open, 'segundo guardado tras el 412');
-        R.ok('C-06 (v0.96.0): el segundo Guardar tras la relectura pasa y la memoria (objeto vivo) lo refleja', E.proyectoAbierto.Descripcion === 'La mía' && E.proyectos.includes(E.proyectoAbierto) && E.proyectoAbierto._etag === `"${pE.etag}"`, `${E.proyectoAbierto.Descripcion} · ${E.proyectoAbierto._etag}`);
+        R.ok('C-06 (v0.96.0): el segundo Guardar tras la relectura pasa y la memoria (objeto vivo) lo refleja', mE.proyectoAbierto().Descripcion === 'La mía' && E.proyectos.includes(mE.proyectoAbierto()) && mE.proyectoAbierto()._etag === `"${pE.etag}"`, `${mE.proyectoAbierto().Descripcion} · ${mE.proyectoAbierto()._etag}`);
         await esperar(() => actividad('editar-proyecto').length === nEd + 2, 'bitácora del segundo guardado');
         // C-07 (v0.96.0): con la Responsable inactiva, el select la conserva y un guardado de otro dato no la borra.
         const jefa = E.roles.find(r => r.Title === 'jefa@example.invalid'); jefa.Activo = false;
@@ -724,7 +724,7 @@ try {
         R.ok('filtro: chip por persona (yo) y los dos fijos', !!document.querySelector(`#filtroChips [data-quien="${YO}"]`) && !!document.querySelector('#filtroChips [data-filtro="alta"]') && !!document.querySelector('#filtroChips [data-filtro="vencidas"]'));
         // v0.30.0 (F3): las personas viven en el menu «Quién»: casilla por persona con conteo, varias a la vez, y se cierra al hacer clic fuera.
         {
-            const mod = await import('../comun.js'); const yo = YO.toLowerCase(); const mias = mod.estado.tareas.filter(x => Number(x.ProyectoId) === mod.estado.proyectoAbierto.id && String(x.Asignado || '').toLowerCase() === yo).length;
+            const mod = await import('../comun.js'); const yo = YO.toLowerCase(); const mias = mod.estado.tareas.filter(x => Number(x.ProyectoId) === mod.proyectoAbierto().id && String(x.Asignado || '').toLowerCase() === yo).length;
             const menu = document.querySelector('#filtroChips .menu-quien'); menu.querySelector('summary').click(); await dormir(20);
             R.ok('F3: el menu «Quién» abre desde su summary y trae mi casilla con el conteo de mis tarjetas', menu.open && !!document.querySelector(`#filtroChips label[data-quien="${yo}"] .n`) && document.querySelector(`#filtroChips label[data-quien="${yo}"] .n`).textContent === String(mias), (document.querySelector(`#filtroChips label[data-quien="${yo}"]`) || {}).textContent);
             document.querySelector(`#filtroChips label[data-quien="${yo}"]`).click(); await dormir(30);
@@ -1231,10 +1231,10 @@ try {
         // queda en vuelo) — sin la guarda el chip se escribiria igual dentro del nodo suelto; con ella el nodo vuelve sin chip.
         { const docs = await import('../docs.js'); const modC = await import('../comun.js'); const cont = $('docsLista'); const padre = cont.parentNode; const sig = cont.nextSibling;
           const chips = () => [...cont.querySelectorAll('.estado')].filter(n => n.textContent.includes('ya lo acomodó la skill')).length;
-          modC.estado.buzonExiste = {}; const pr = docs.pintarDocs(modC.estado.proyectoAbierto); padre.removeChild(cont); await pr; await dormir(80);
+          modC.estado.buzonExiste = {}; const pr = docs.pintarDocs(modC.proyectoAbierto()); padre.removeChild(cont); await pr; await dormir(80);
           const sueltos = chips(); padre.insertBefore(cont, sig);
           R.ok('C-03 (v0.85.1): si #docsLista se desmonta con la consulta del buzón en vuelo, marcarBuzonEnVivo NO escribe el chip en el nodo suelto (cont.isConnected)', sueltos === 0 && cont.querySelectorAll('.doc').length === 2, `chips en el nodo suelto=${sueltos}`);
-          modC.estado.buzonExiste = {}; docs.pintarDocs(modC.estado.proyectoAbierto); docs.pintarDocs(modC.estado.proyectoAbierto);
+          modC.estado.buzonExiste = {}; docs.pintarDocs(modC.proyectoAbierto()); docs.pintarDocs(modC.proyectoAbierto());
           await esperar(() => chips() === 1, '404 tras dos pintadas'); await dormir(80);
           R.ok('C-03 (v0.85.1): dos pintarDocs solapados con la caché vacía dejan UN «ya lo acomodó la skill» y UN «Buscar el archivado»', chips() === 1 && cont.querySelectorAll('[data-buscar]').length === 1, `chips=${chips()} · buscar=${cont.querySelectorAll('[data-buscar]').length}`); }
         // Subida a medias: la 2a pieza falla -> se borra la carpeta y no queda liga.
@@ -1506,11 +1506,11 @@ try {
             clic('tBorrar'); await confirmar(); await esperar(() => !filas('tareas').some(x => x.id === t.id), 'borrada');
             R.ok('tarjeta borrada y la liga queda sin tarjeta', actividad('borrar-tarea').length === 1 && filas('ligas').every(l => l.fields.TareaId !== t.id));
             // C-09 (v0.97.0): un cambio ajeno antes de Cerrar → 412: no se cierra ni se pisa, se relee y la memoria trae el candado nuevo.
-            { const Ev = (await import('../comun.js')).estado; const pv = filas('proyectos')[0]; const ifm = DB.ifMatch, nC = actividad('cerrar-proyecto').length;
+            { const mEv = await import('../comun.js'); const Ev = mEv.estado; const pv = filas('proyectos')[0]; const ifm = DB.ifMatch, nC = actividad('cerrar-proyecto').length;
               pv.etag = (pv.etag || 1) + 1; pv.fields.Descripcion = 'Cambiada por alguien más antes de cerrar';
               clic('btnCerrarProyecto'); await confirmar(); await esperar(() => avisoCon('Alguien cambió este proyecto'), '412 al cerrar');
-              await esperar(() => Ev.proyectoAbierto && Ev.proyectoAbierto.Descripcion === pv.fields.Descripcion, 'relectura tras el 412 al cerrar');
-              R.ok('C-09 (v0.97.0): 412 al Cerrar: el PATCH llevó If-Match, sigue activo con el cambio ajeno, sin «cerró» en la bitácora, y la memoria trae el candado nuevo', DB.ifMatch === ifm + 1 && pv.fields.Estado === 'activo' && pv.fields.Descripcion === 'Cambiada por alguien más antes de cerrar' && actividad('cerrar-proyecto').length === nC && Ev.proyectoAbierto._etag === `"${pv.etag}"`, `ifMatch +${DB.ifMatch - ifm} · ${pv.fields.Estado} · ${Ev.proyectoAbierto._etag} vs "${pv.etag}"`); }
+              await esperar(() => mEv.proyectoAbierto() && mEv.proyectoAbierto().Descripcion === pv.fields.Descripcion, 'relectura tras el 412 al cerrar');
+              R.ok('C-09 (v0.97.0): 412 al Cerrar: el PATCH llevó If-Match, sigue activo con el cambio ajeno, sin «cerró» en la bitácora, y la memoria trae el candado nuevo', DB.ifMatch === ifm + 1 && pv.fields.Estado === 'activo' && pv.fields.Descripcion === 'Cambiada por alguien más antes de cerrar' && actividad('cerrar-proyecto').length === nC && mEv.proyectoAbierto()._etag === `"${pv.etag}"`, `ifMatch +${DB.ifMatch - ifm} · ${pv.fields.Estado} · ${mEv.proyectoAbierto()._etag} vs "${pv.etag}"`); }
             clic('btnCerrarProyecto'); await confirmar(); await esperar(() => filas('proyectos')[0].fields.Estado === 'cerrado', 'cerrado');
             const pc = filas('proyectos')[0];
             R.ok('proyecto cerrado con sello', pc.fields.CerradoPor === YO && !!pc.fields.CerradoEl && actividad('cerrar-proyecto').length === 1);
@@ -1532,11 +1532,11 @@ try {
             document.querySelector('#listaCerrados .pficha').click(); await esperar(() => visible('p-proyecto') && !$('btnReabrirProyecto').classList.contains('oculto'), 'cerrado abierto con Reabrir');
             R.ok('proyecto cerrado: aparece Reabrir y Cerrar dice Cerrado', $('btnCerrarProyecto').textContent === 'Cerrado');
             // C-09 (v0.97.0): lo mismo al Reabrir: un cambio ajeno → 412, sigue cerrado con su sello, se relee, y el segundo intento (abajo) pasa.
-            { const Ev = (await import('../comun.js')).estado; const ifm = DB.ifMatch, nR = actividad('reabrir-proyecto').length;
+            { const mEv = await import('../comun.js'); const Ev = mEv.estado; const ifm = DB.ifMatch, nR = actividad('reabrir-proyecto').length;
               pc.etag = (pc.etag || 1) + 1; pc.fields.Descripcion = 'Cambiada por alguien más antes de reabrir';
               clic('btnReabrirProyecto'); await confirmar(); await esperar(() => avisoCon('Alguien cambió este proyecto'), '412 al reabrir');
-              await esperar(() => Ev.proyectoAbierto && Ev.proyectoAbierto.Descripcion === pc.fields.Descripcion, 'relectura tras el 412 al reabrir');
-              R.ok('C-09 (v0.97.0): 412 al Reabrir: el PATCH llevó If-Match, sigue cerrado con su sello y el cambio ajeno, sin «reabrió», y la memoria trae el candado nuevo', DB.ifMatch === ifm + 1 && pc.fields.Estado === 'cerrado' && !!pc.fields.CerradoPor && pc.fields.Descripcion === 'Cambiada por alguien más antes de reabrir' && actividad('reabrir-proyecto').length === nR && Ev.proyectoAbierto._etag === `"${pc.etag}"`, `ifMatch +${DB.ifMatch - ifm} · ${pc.fields.Estado} · ${Ev.proyectoAbierto._etag} vs "${pc.etag}"`); }
+              await esperar(() => mEv.proyectoAbierto() && mEv.proyectoAbierto().Descripcion === pc.fields.Descripcion, 'relectura tras el 412 al reabrir');
+              R.ok('C-09 (v0.97.0): 412 al Reabrir: el PATCH llevó If-Match, sigue cerrado con su sello y el cambio ajeno, sin «reabrió», y la memoria trae el candado nuevo', DB.ifMatch === ifm + 1 && pc.fields.Estado === 'cerrado' && !!pc.fields.CerradoPor && pc.fields.Descripcion === 'Cambiada por alguien más antes de reabrir' && actividad('reabrir-proyecto').length === nR && mEv.proyectoAbierto()._etag === `"${pc.etag}"`, `ifMatch +${DB.ifMatch - ifm} · ${pc.fields.Estado} · ${mEv.proyectoAbierto()._etag} vs "${pc.etag}"`); }
             clic('btnReabrirProyecto'); await confirmar(); await esperar(() => pc.fields.Estado === 'activo', 'reabierto');
             R.ok('Reabrir: activo, sin sello, «reabrió» en la bitácora, Reabrir se esconde y Nueva tarea vuelve', !pc.fields.CerradoPor && !pc.fields.CerradoEl && actividad('reabrir-proyecto').length === 1 && $('btnReabrirProyecto').classList.contains('oculto') && !$('btnNuevaTarea').disabled, JSON.stringify(pc.fields));
         } else {
@@ -1576,7 +1576,7 @@ try {
               const refB = document.querySelector('#chatHilo .msg .cab .ref-borrada');
               R.ok(`U-21 (v0.114.0): la nota de una tarjeta borrada dice «· tarjeta borrada» como texto tenue en la línea del autor, sin caja (${gerencia ? 'gerencia la borró' : 'colaborador: no aplica'})`, !gerencia || (!!refB && refB.textContent === '· tarjeta borrada' && refB.title === 'La tarjeta ya no existe' && !document.querySelector('#chatHilo .msg .ref:disabled'))); }
             // C-05 (v0.84.0) + C-01 (v0.83.0): el hilo desbordado conserva el scroll al refrescar y no marca visto lo que no se vio.
-            { const chat = await import('../chat.js'), mod = await import('../comun.js'); const hilo = $('chatHilo'); const pAb = mod.estado.proyectoAbierto;
+            { const chat = await import('../chat.js'), mod = await import('../comun.js'); const hilo = $('chatHilo'); const pAb = mod.proyectoAbierto();
               hilo.style.maxHeight = '120px'; hilo.style.height = '120px';
               hilo.scrollTop = hilo.scrollHeight; chat.pintarChat(pAb);
               R.ok('v0.84.0 (C-05): con el hilo desbordado y al fondo, repintar aterriza al fondo', hilo.scrollHeight > hilo.clientHeight && hilo.scrollTop + hilo.clientHeight >= hilo.scrollHeight - 40, `${hilo.scrollTop}/${hilo.scrollHeight}/${hilo.clientHeight}`);
@@ -2231,7 +2231,7 @@ try {
               irD.click(); await esperar(() => visible('tab-docs'), 'docs desde el menu'); await dormir(30);
               R.ok('C-04 (v0.85.0): «Documentos del proyecto» del menu «⋯» abre los Docs de ESE proyecto (C-02: resuelto por id al clic)', visible('tab-docs') && location.hash === `#p/${pD.fields.Clave}/docs`, location.hash);
               // C-08: dos pintadas concurrentes de Docs piden el sitio UNA vez (se cachea la promesa).
-              { const docs = await import('../docs.js'); const pA = mod.estado.proyectoAbierto; const bib = docs.bibliotecaDe(pA);
+              { const docs = await import('../docs.js'); const pA = mod.proyectoAbierto(); const bib = docs.bibliotecaDe(pA);
                 if (bib) { mod.estado.sitiosUnidad = {}; const antesN = DB.llamadas.filter(c => c.startsWith('GET /sites/') && c.endsWith(bib.sitio)).length; docs.pintarDocs(pA); docs.pintarDocs(pA); await dormir(80);
                   R.ok('C-08 (v0.85.0): dos pintarDocs concurrentes con la cache vacia piden el sitio de la biblioteca UNA sola vez', DB.llamadas.filter(c => c.startsWith('GET /sites/') && c.endsWith(bib.sitio)).length === antesN + 1, `+${DB.llamadas.filter(c => c.startsWith('GET /sites/') && c.endsWith(bib.sitio)).length - antesN}`); }
                 else R.ok('C-08 (v0.85.0): no aplica — el proyecto abierto no tiene biblioteca', true); }
@@ -2324,7 +2324,7 @@ try {
                   document.querySelector('.tab[data-tab="docs"]').click(); await dormir(30);
                   const otro = ops.find(o => !o.classList.contains('is-on')); $('selProyecto').open = true; otro.click(); await dormir(60);
                   const mod = await import('../comun.js');
-                  R.ok('v0.29.0: elegir otro proyecto en el selector lo abre en la MISMA pestaña (Documentos) y cierra la lista', String(mod.estado.proyectoAbierto.id) === otro.dataset.proyecto && mod.estado.tab === 'docs' && visible('tab-docs') && !$('selProyecto').open && location.hash.startsWith('#p/') && location.hash.endsWith('/docs'));
+                  R.ok('v0.29.0: elegir otro proyecto en el selector lo abre en la MISMA pestaña (Documentos) y cierra la lista', String(mod.proyectoAbierto().id) === otro.dataset.proyecto && mod.estado.tab === 'docs' && visible('tab-docs') && !$('selProyecto').open && location.hash.startsWith('#p/') && location.hash.endsWith('/docs'));
                   irHash('#p/borrable'); await esperar(() => $('pTitulo').textContent === 'BORRABLE', 'de vuelta');
                   const antes = $('proyectoCab').classList.contains('contraida'); clic('btnCabecera'); await dormir(30);
                   let guardado = null; try { guardado = localStorage.getItem('cabecera'); } catch (_) {}
@@ -2445,7 +2445,7 @@ try {
         await recargarYEsperar(); tab('chat'); await esperar(() => document.querySelectorAll('#chatHilo .msg').length === 2, 'hilo con 2');
         R.ok('v0.9.0 (lectura): ni el propio ni el ajeno traen borrar', !document.querySelector('#chatHilo .borrar-msg'));
         R.ok('v0.15.0 (lectura): tampoco el botón ✓ visto', !document.querySelector('#chatHilo .visto-btn'));
-        { const mod = await import('../comun.js'); const c = mod.comentariosDe(filas('proyectos')[0].id)[0]; const nAntes = filas('actividad').length; await mod.borrarComentario(c, mod.estado.proyectoAbierto);
+        { const mod = await import('../comun.js'); const c = mod.comentariosDe(filas('proyectos')[0].id)[0]; const nAntes = filas('actividad').length; await mod.borrarComentario(c, mod.proyectoAbierto());
           R.ok('v0.9.0 (lectura): borrarComentario se niega aunque se fuerce', filas('actividad').length === nAntes && !!avisoCon('Solo quien lo escribió')); }
         pestana('mis'); await esperar(() => visible('p-mis'), 'mis');
         R.ok('lectura (v0.58.0): Mis tareas trae la sembrada como renglón vencido de la tabla densa, bajo el separador «Vencidas» y con «1 sep» en la columna de la izquierda', document.querySelectorAll('#misLista .tr').length === 1 && document.querySelector('#misLista .tr').classList.contains('is-vencida') && document.querySelector('#misLista > .bloq').dataset.bloque === 'vencidas' && $('misLista').querySelector('.tr .k b').textContent.trim() === '1' && $('misLista').querySelector('.tr .k small').textContent.trim() === 'sep');

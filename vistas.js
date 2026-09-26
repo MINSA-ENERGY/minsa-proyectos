@@ -7,7 +7,7 @@
 
 import { CONFIG } from './config.js';
 import { tareasDe, avance, avanceGlobal, estadoVence, claseVence, fraseVence, diasPara, nombreDe, ordenarProyectos, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, TIPOS_LIGA, diaDe, diaSemana, mesSumar, sumarDias, diasEntre, columnasDe, claseDeColumna, segmentosDe, segmentosGlobales, tituloSegmentos, hrefSeguro, hitosDe, acomodarHitos, sinAcentos } from './reglas.js';
-import { $, estado, activos, visibles, nombreEquipoFiltrado, el, boton, chip, fechaCorta, fechaHora, fechaBandeja, porId, proyectoPorClave, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, nuevosDe, verboComentario, opciones, columnasDeTarea, avisar, conRetardo } from './comun.js';
+import { $, estado, activos, visibles, nombreEquipoFiltrado, el, boton, chip, fechaCorta, fechaHora, fechaBandeja, porId, proyectoAbierto, proyectoPorClave, equipoDe, iconoEquipo, iconoArchivo, irAHash, textoConMenciones, nuevosDe, verboComentario, opciones, columnasDeTarea, avisar, conRetardo } from './comun.js';
 import { pintarChat } from './chat.js';   // v0.42.0: Mensajes pinta el hilo del frente elegido en su propia columna
 import { tablaDocs, filaRaiz, filasDeExpediente, ordenarDocs } from './docs.js';   // v0.17.0: la misma tabla que Docs del proyecto; v0.18.0: y el mismo orden; v0.36.0: y el mismo arbol
 
@@ -453,7 +453,7 @@ export function mensajesNuevos() {
     // El chat que esta en pantalla ya se esta leyendo: no cuenta (la pestana Chat tampoco lo pinta en ambar, app.js).
     // v0.42.0: tambien el frente cuyo hilo esta abierto en Mensajes.
     const sel = estado.pestana === 'mensajes' ? proyectoDeMensajes() : null;
-    const leyendo = estado.pestana === 'proyecto' && estado.tab === 'chat' && estado.proyectoAbierto ? estado.proyectoAbierto.id : sel ? sel.id : null;
+    const leyendo = estado.pestana === 'proyecto' && estado.tab === 'chat' && proyectoAbierto() ? proyectoAbierto().id : sel ? sel.id : null;
     return activos().reduce((n, p) => n + (p.id === leyendo ? 0 : nuevosDe(p.id)), 0);   // C-04
 }
 // ---------------------------------------------------------------- archivos

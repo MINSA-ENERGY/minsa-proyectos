@@ -15,7 +15,7 @@
 import { CONFIG } from './config.js';
 import { crearCliente, esConflicto } from './graph.js';
 import { rolDe, PUEDE, slug, validarClave, tareasDe, avance, proximos, diasQuieta, rotuloQuieta, pisoNuevo, sinDueno, nombreDe, diasPara, estadoVence, claseVence, fraseVence, ordenarProyectos, filtrarProyectos, proyectosVisibles, columnasDe, segmentosDe, vencidasEn, desdeHaceDias, nuevoParaMi, gruposHoy, saludoDe, diaDe, sumarDias, misAbiertas as misAbiertasDe } from './reglas.js';
-import { mayusculasEnVivo, $, L, VERSION, estado, limpiarFiltroTareas, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, fechaInput, campoFecha, mesDia, chipVence, opciones, limpiar, porId, proyectoPorClave, nuevosDe, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, fijarGuarda, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
+import { mayusculasEnVivo, $, L, VERSION, estado, limpiarFiltroTareas, activos, visibles, nombreEquipoFiltrado, el, boton, ondaAlPulsar, chip, avisar, limpiarAvisos, abrirDialogo, cerrarDialogo, confirmar, fechaCorta, fechaHora, aIsoDia, diaInput, fechaInput, campoFecha, mesDia, chipVence, opciones, limpiar, porId, proyectoAbierto, proyectoPorClave, nuevosDe, registrarActividad, haceCuanto, fechaLegible, equipoDe, iconoEquipo, hashDe, fijarHash, irAHash, aplicar, fijarReleer, pedirRelectura, fijarAlCerrar, fijarGuarda, verboComentario, mencionesA, notasDe, comentariosDe, comentariosNuevos, textoConMenciones, actividadVisible, columnasDeTarea, fusionarActividad, asegurarActividadDe, inicioVistoHasta, marcarInicioVisto, guardarVisto, personasActivas } from './comun.js';
 import { pintarTablero, pintarLista, pintarMisTareas, engancharTablero, alCambiarTareas, abrirTarjeta, tarjetaAbiertaId, repintarFicha, pintarFiltroTareas, pintarBotonFiltros, abrirNuevaTarea } from './tablero.js';
 import { pintarDocs, engancharDocs, alCambiarDocs, abrirLigar, abrirEnlace, puedeLigarEn } from './docs.js';
 import { pintarChat, engancharChat, alCambiarChat, fijarAbrirTarjeta, salirDelChat } from './chat.js';
@@ -197,7 +197,7 @@ async function cargarTodo() {
         // indexada) y el proyecto abierto se completa con todo su historial en la misma tanda. Si el tenant
         // rechazara el filtro de fecha (400), se cae a la lectura entera de antes y se avisa en consola.
         const piso = desdeHaceDias(CONFIG.actividadDias);
-        const abierto = estado.proyectoAbierto ? Number(estado.proyectoAbierto.id) : 0;
+        const abierto = proyectoAbierto() ? Number(estado.proyectoAbiertoId) : 0;
         const actividadAcotada = async () => {
             if (!piso) return c.renglones(s, L.actividad);
             try { return await c.renglones(s, L.actividad, `fields/Cuando ge '${piso}'`); }
@@ -218,7 +218,6 @@ async function cargarTodo() {
         if (delAbierto) { estado.actividadCompleta.add(abierto); fusionarActividad(delAbierto); }
         estado.buzonExiste = {}; estado.buzonAvisado = false;   // C-03: el aviso «no se pudo consultar el buzon» va una vez por carga
         estado.cargadoEl = Date.now();
-        if (estado.proyectoAbierto) estado.proyectoAbierto = porId(estado.proyectos, estado.proyectoAbierto.id);
         await cargarCapital(roles);
     } finally { recargando = false; pintarSync(); }
 }
@@ -331,7 +330,7 @@ function aplicarHash() {
         const p = proyectoPorClave(clave);   // C-07 (mensajes, 17-sep)
         if (!p) { irA('inicio'); avisar(`No hay un proyecto con la clave «${clave}».`, 'ojo'); return; }
         const tab = tabHash || 'tablero';
-        if (estado.pestana !== 'proyecto' || !estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id || estado.tab !== tab) {
+        if (estado.pestana !== 'proyecto' || estado.proyectoAbiertoId !== p.id || estado.tab !== tab) {
             fijarProyectoAbierto(p); estado.tab = tab; irA('proyecto');
         }
     } else if (pantalla === 'mensajes') {
@@ -357,17 +356,17 @@ window.addEventListener('popstate', aplicarHash);     // Atras / Adelante (fijar
 window.addEventListener('hashchange', aplicarHash);   // una URL pegada o editada a mano
 /** Deja `p` como proyecto abierto; si es OTRO proyecto, el filtro de tarjetas y la columna del celular vuelven al default. */
 function fijarProyectoAbierto(p) {
-    if (!estado.proyectoAbierto || estado.proyectoAbierto.id !== p.id) {
+    if (estado.proyectoAbiertoId !== p.id) {
         limpiarFiltroTareas();   // C-13 (v0.95.0)
         estado.colMovil = null; estado.ordenLista = { col: 'vence', dir: 1 };   // v0.11.0: null = la primera cubeta del proyecto
         estado.hechoTodas = false; estado.filtroDocs = null; estado.buscaDocs = '';   // v0.17.0: el buscador de Docs tampoco viaja entre proyectos
         estado.ordenDocs = { col: 'del', dir: -1 };   // v0.18.0: ni su orden (una columna oculta en este panel no puede quedar mandando); v0.19.0: la del documento, que si se ve
         estado.abiertasDocs = new Set();   // v0.52.0: ni que carpetas del arbol abriste (nace todo plegado)
     }
-    estado.proyectoAbierto = p;
+    estado.proyectoAbiertoId = p.id;   // C-11 (v0.115.0): el id, no el objeto
     // v0.13.1: la actividad de este proyecto se completa fuera de la ventana (chat y notas viejas); si trae algo
     // nuevo y el proyecto sigue abierto, se repinta. Best-effort: sin red se queda lo que hay.
-    asegurarActividadDe(p.id).then(hubo => { if (hubo && estado.proyectoAbierto && estado.proyectoAbierto.id === p.id) repintar(); });
+    asegurarActividadDe(p.id).then(hubo => { if (hubo && estado.proyectoAbiertoId === p.id) repintar(); });
 }
 function repintar() {
     // v0.42.0: el hilo tambien vive en Mensajes (#mensajes/f/<clave>); ahi el chat esta «en pantalla» y no se sale de el.
@@ -941,11 +940,20 @@ function abrirProyecto(id) {
     fijarProyectoAbierto(p); estado.tab = 'tablero';
     irA('proyecto');
 }
+/** C-12 (v0.115.0): el proyecto se pinta en tres partes; el clic de pestaña solo repinta pintarPestanas y «Filtrar» solo pintarFiltrosProyecto. */
 function pintarProyecto() {
-    const p = estado.proyectoAbierto; if (!p) { irA('proyectos'); return; }
+    const p = proyectoAbierto(); if (!p) { irA('proyectos'); return; }
     // B2 (v0.5.0) caia de «resumen» a «tablero» en escritorio porque la pestaña solo existia en celular;
     // desde v0.30.0 (L6) «Resumen» es una pestaña en todo ancho y el hash #p/<clave>/resumen vale en la laptop.
-    const eq = equipoDe(p); const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p));
+    const ts = tareasDe(p, estado.tareas); const a = avance(ts, columnasDe(p));
+    pintarCabeceraProyecto(p, ts, a);
+    pintarPestanas(p);
+    pintarLateralProyecto(p, ts, a);
+}
+/** Lo que cambia con la pestaña (y nada mas): botones de pestaña, contadores, filtros y el contenido de la pestaña. */
+function pintarPestanasAbierto() { const p = proyectoAbierto(); if (!p) { irA('proyectos'); return; } pintarPestanas(p); }
+function pintarCabeceraProyecto(p, ts, a) {
+    const eq = equipoDe(p);
     $('pEquipo').textContent = ''; $('pEquipo').appendChild(iconoEquipo(eq, 'lg'));   // v0.7.0: icono, no nombre
     $('pTitulo').textContent = p.Title; $('pDesc').textContent = p.Descripcion || '';
     pintarSelectorProyecto(p);   // v0.29.0 (M5): los demas frentes activos, bajo el titulo
@@ -975,6 +983,8 @@ function pintarProyecto() {
     // B1: la descripcion va a una linea en celular; el clic la abre.
     $('pDesc').title = p.Descripcion || '';
     $('pDesc').classList.remove('abierta');
+}
+function pintarPestanas(p) {
     // v0.102.0: la pestaña Capital solo existe para gerencia con PROY_Capital creada; si no, una liga #…/capital cae al tablero.
     const verCap = puedeVerCapital() && estado.capitalLista === true;
     $('tabCapital').classList.toggle('oculto', !verCap);
@@ -997,18 +1007,23 @@ function pintarProyecto() {
     $('nChatTab').title = nNuevos ? `${nNuevos} nuevo${nNuevos === 1 ? '' : 's'} desde tu última visita` : '';
     // B2: «Resumen» es una pestana mas; v0.30.0 (L6): en todo ancho, ya no solo en celular.
     $('p-proyecto').classList.toggle('ver-resumen', estado.tab === 'resumen');
-    const sinFiltros = ['docs', 'chat', 'resumen', 'roadmap', 'capital'].includes(estado.tab);
-    $('filtroTareas').classList.toggle('oculto', sinFiltros);
-    $('filtroTareas').classList.toggle('plegado', !estado.filtrosAbiertos);
-    if (!sinFiltros) pintarFiltroTareas(p);
-    pintarBotonFiltros();
+    pintarFiltrosProyecto(p);
     if (estado.tab === 'tablero') pintarTablero(p);
     else if (estado.tab === 'lista') pintarLista(p);
     else if (estado.tab === 'roadmap') pintarRoadmapProyecto(p);   // v0.10.0
     else if (estado.tab === 'docs') pintarDocs(p);
     else if (estado.tab === 'chat') pintarChat(p);
     else if (estado.tab === 'capital') pintarCapitalTab(p);   // v0.102.0
-    // lateral
+}
+/** La barra de chips/buscador de tarjetas: depende de la pestaña y de estado.filtrosAbiertos. */
+function pintarFiltrosProyecto(p) {
+    const sinFiltros = ['docs', 'chat', 'resumen', 'roadmap', 'capital'].includes(estado.tab);
+    $('filtroTareas').classList.toggle('oculto', sinFiltros);
+    $('filtroTareas').classList.toggle('plegado', !estado.filtrosAbiertos);
+    if (!sinFiltros) pintarFiltroTareas(p);
+    pintarBotonFiltros();
+}
+function pintarLateralProyecto(p, ts, a) {
     $('pBarra').style.width = a.pct + '%';
     $('pAnillo').textContent = ''; $('pAnillo').appendChild(anillo(segmentosDe(a), a.total, 96));   // v0.10.0: el anillo de la foto; v0.11.0: por cubeta del proyecto
     const kv = $('pAvance'); kv.textContent = '';
@@ -1162,7 +1177,7 @@ async function guardarProyecto(ev) {
 }
 
 async function cerrarProyecto() {
-    const p = estado.proyectoAbierto; if (!p) return;
+    const p = proyectoAbierto(); if (!p) return;
     if (!PUEDE.proyecto(estado.rol)) { avisar('Solo gerencia cierra proyectos.', 'error'); return; }
     const faltan = tareasDe(p, estado.tareas).filter(t => t.Columna !== 'hecho').length;
     const { ok } = await confirmar({ titulo: 'Cerrar el proyecto', ok: 'Cerrar', texto: `«${p.Title}» pasa a cerrado con tu sello. Sale de Inicio; sus tarjetas quedan como registro y nada se borra.${faltan ? ` Ojo: queda${faltan === 1 ? '' : 'n'} ${faltan} tarjeta${faltan === 1 ? '' : 's'} sin terminar.` : ''}` });
@@ -1183,7 +1198,7 @@ async function cerrarProyecto() {
 
 /** F6: un cierre por error se deshace aqui, no en SharePoint. Solo gerencia; limpia el sello y deja «reabrió». */
 async function reabrirProyecto() {
-    const p = estado.proyectoAbierto; if (!p) return;
+    const p = proyectoAbierto(); if (!p) return;
     if (!PUEDE.proyecto(estado.rol)) { avisar('Solo gerencia reabre proyectos.', 'error'); return; }
     if (p.Estado !== 'cerrado') return;
     const { ok } = await confirmar({ titulo: 'Reabrir el proyecto', ok: 'Reabrir', texto: `«${p.Title}» vuelve a activo y a Inicio; se borra el sello de cierre (${nombreDe(p.CerradoPor, estado.roles)} · ${fechaCorta(p.CerradoEl)}). Sus tarjetas quedan como están.` });
@@ -1205,7 +1220,7 @@ async function reabrirProyecto() {
  *  y al final el proyecto (en ese orden: si algo falla a medias queda un proyecto vaciado, nunca tarjetas huerfanas).
  *  Los archivos de la biblioteca no se tocan; la actividad se queda como registro y se anota «borrar-proyecto». */
 async function eliminarProyecto() {
-    const p = estado.proyectoAbierto; if (!p) return;
+    const p = proyectoAbierto(); if (!p) return;
     if (!PUEDE.borrar(estado.rol)) { avisar('Solo gerencia elimina proyectos.', 'error'); return; }
     const tareas = tareasDe(p, estado.tareas); const ligas = estado.ligas.filter(l => Number(l.ProyectoId) === p.id);
     const { ok } = await confirmar({ titulo: 'Eliminar el proyecto', ok: 'Eliminar', texto: `«${p.Title}» se borra con sus ${tareas.length} tarjeta${tareas.length === 1 ? '' : 's'} y ${ligas.length} liga${ligas.length === 1 ? '' : 's'} a documentos. Los archivos de la biblioteca no se tocan y la actividad queda como registro. No se puede deshacer desde la app: los renglones van a la papelera del sitio.` });
@@ -1216,7 +1231,7 @@ async function eliminarProyecto() {
         for (const l of ligas) { await estado.cliente.borrarRenglon(estado.siteId, L.ligas, l.id, m => avisar(m, 'ojo')); estado.ligas = estado.ligas.filter(x => x.id !== l.id); }
         await estado.cliente.borrarRenglon(estado.siteId, L.proyectos, p.id, m => avisar(m, 'ojo'));
         estado.proyectos = estado.proyectos.filter(x => x.id !== p.id);
-        estado.proyectoAbierto = null; $('accMenu').open = false;
+        estado.proyectoAbiertoId = null; $('accMenu').open = false;
         irA('proyectos'); avisar(`Proyecto «${titulo}» eliminado.`, 'ok'); repintar();
         await registrarActividad('borrar-proyecto', `eliminó el proyecto «${titulo.slice(0, 80)}»${tareas.length ? ` con ${tareas.length} tarjeta${tareas.length === 1 ? '' : 's'}` : ''}`, p.id, null); repintar();
     } catch (e) { avisar('No se pudo eliminar: ' + (e && e.message ? e.message : e), 'error'); repintar(); }
@@ -1295,7 +1310,7 @@ function pintarSelectorProyecto(p) {
             $('selProyecto').open = false;
             const vivo = porId(estado.proyectos, b.dataset.proyecto);
             if (!vivo) { avisar('Ese proyecto ya no existe.', 'ojo'); return; }
-            if (estado.proyectoAbierto && estado.proyectoAbierto.id === vivo.id) return;
+            if (estado.proyectoAbiertoId === vivo.id) return;
             fijarProyectoAbierto(vivo); irA('proyecto');
         });
         caja.appendChild(b);
@@ -1320,9 +1335,9 @@ $('btnSalirMovil').addEventListener('click', salir);
 $('btnActualizar').addEventListener('click', recargar);
 $('btnActualizarMovil').addEventListener('click', () => { $('menuMovil').open = false; recargar(); });
 for (const b of document.querySelectorAll('#pestanas button')) b.addEventListener('click', () => irA(b.dataset.p));
-for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => { estado.tab = b.dataset.tab; pintarProyecto(); fijarHash(hashDe()); });
+for (const b of document.querySelectorAll('.tab')) b.addEventListener('click', () => { estado.tab = b.dataset.tab; pintarPestanasAbierto(); fijarHash(hashDe()); });   // C-12 (v0.115.0): solo lo que cambia con la pestaña
 // B1: filtros plegados en celular; el boton los abre y dice cuantos hay puestos.
-$('btnFiltros').addEventListener('click', () => { estado.filtrosAbiertos = !estado.filtrosAbiertos; pintarProyecto(); });
+$('btnFiltros').addEventListener('click', () => { estado.filtrosAbiertos = !estado.filtrosAbiertos; const p = proyectoAbierto(); if (p) pintarFiltrosProyecto(p); });   // C-12 (v0.115.0)
 $('pDesc').addEventListener('click', () => $('pDesc').classList.toggle('abierta'));
 // B1: el menu «···» del proyecto se cierra al elegir una accion y al tocar fuera.
 // v0.5.0 lo abria arriba de 720 px (el details era display:contents y cerrado no pintaba a sus hijos); desde v0.13.0 es un menu
@@ -1348,7 +1363,7 @@ $('filtroEquipoMovil').addEventListener('change', () => { estado.filtroEquipo = 
 $('textoProyectos').addEventListener('input', () => { estado.textoProyectos = $('textoProyectos').value; if (estado.pestana === 'proyectos') pintarProyectos(); });
 $('textoMis').addEventListener('input', () => { estado.textoMis = $('textoMis').value; if (estado.pestana === 'mis') pintarMisTareas(); });
 $('btnNuevoProyecto').addEventListener('click', () => abrirFormaProyecto(null));
-$('btnEditarProyecto').addEventListener('click', () => abrirFormaProyecto(estado.proyectoAbierto));
+$('btnEditarProyecto').addEventListener('click', () => abrirFormaProyecto(proyectoAbierto()));
 $('btnCerrarProyecto').addEventListener('click', cerrarProyecto);
 $('btnReabrirProyecto').addEventListener('click', reabrirProyecto);
 $('btnEliminarProyecto').addEventListener('click', eliminarProyecto);   // v0.13.0
@@ -1359,11 +1374,11 @@ engancharDocs();
 engancharChat();
 engancharMensajes();   // v0.42.0
 engancharCapital(); alCambiarCapital(repintar); fijarIrAProyecto(p => abrirProyecto(p.id));   // v0.100.0
-$('pCapitalIr').addEventListener('click', () => { const p = estado.proyectoAbierto; if (!p) return; estado.filtroCapital = p.id; irA('capital'); });
+$('pCapitalIr').addEventListener('click', () => { const p = proyectoAbierto(); if (!p) return; estado.filtroCapital = p.id; irA('capital'); });
 engancharRoadmap(); engancharCalendario(); engancharArchivos(); engancharReportes();   // v0.10.0 · v0.26.0 roadmap a pantalla completa
 for (const b of document.querySelectorAll('.ir-movil')) b.addEventListener('click', () => { $('menuMovil').open = false; irA(b.dataset.ir); });   // v0.10.0: Roadmap · Archivos · Reportes no caben en la barra del celular
 $('btnActividadInicio').addEventListener('click', () => abrirActividad(null));
-$('btnActividadProyecto').addEventListener('click', () => abrirActividad(estado.proyectoAbierto && estado.proyectoAbierto.id));
+$('btnActividadProyecto').addEventListener('click', () => abrirActividad(proyectoAbierto() ? estado.proyectoAbiertoId : null));
 $('acCerrar').addEventListener('click', () => cerrarDialogo('dlgActividad'));
 $('acMas').addEventListener('click', () => { acCtx.n += 50; pintarActividad(); });
 $('btnEquipo').addEventListener('click', abrirEquipo);

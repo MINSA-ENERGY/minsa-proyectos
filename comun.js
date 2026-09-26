@@ -5,7 +5,7 @@
 import { CONFIG } from './config.js';
 import { PUEDE, nombreDe, diasPara, diaDe, estadoVence, tipoArchivo, trozosConMenciones, columnasDe, leerVisto, fundirVisto, marcaFiable, vistosDe, aliasParaMencion, activosDe, proyectosVisibles , fechaMexico } from './reglas.js';
 
-export const VERSION = '0.114.0';
+export const VERSION = '0.115.0';
 export const $ = id => document.getElementById(id);
 export const L = CONFIG.listas;
 /** C-13 (v0.95.0): el filtro de tarjetas vacio, en UN lugar — su forma ya cambio dos veces (quien paso a arreglo en v0.30.0, se sumo
@@ -17,7 +17,7 @@ export function limpiarFiltroTareas(extra) { estado.filtroTareas = filtroVacio(e
 export const estado = {
     cuenta: null, cliente: null, siteId: null, sesion: false, rol: 'lectura',   // C-03 (v0.87.0): `sesion` es lo que consultan timers y eventos; la enciende sesionIniciada cuando cargarTodo ya termino, antes de destapar el shell. C-06: `token` salio (nadie lo leia)
     proyectos: [], tareas: [], ligas: [], roles: [], actividad: [],
-    proyectoAbierto: null,   // renglon de PROY_Proyectos
+    proyectoAbiertoId: null,   // C-11 (v0.115.0): el ID del renglon de PROY_Proyectos; el objeto lo resuelve proyectoAbierto() (antes se guardaba el objeto y una relectura lo dejaba viejo)
     mensajesSel: null, buscaMensajes: '',   // v0.42.0: lo elegido en Mensajes ({t:'f'|'d', k: clave | correo}) y su buscador
     pestana: 'inicio', tab: 'tablero',
     filtroEquipo: null,
@@ -122,6 +122,8 @@ export function tonoDe(correo) {
 export function chip(texto, estado2) { return el('span', 'mn-chip' + (estado2 ? ' is-' + estado2 : ''), texto); }
 export function limpiar(obj) { const o = {}; for (const k in obj) if (obj[k] !== undefined && obj[k] !== '') o[k] = obj[k]; return o; }
 export function porId(coleccion, id) { return coleccion.find(x => x.id === Number(id)) || null; }
+/** C-11 (v0.115.0): el proyecto abierto, resuelto por id contra estado.proyectos en cada lectura (null si no hay o ya no existe). */
+export function proyectoAbierto() { return estado.proyectoAbiertoId == null ? null : porId(estado.proyectos, estado.proyectoAbiertoId); }
 /** C-07 (mensajes, 17-sep): el frente por su clave del hash, en UN sitio (antes app.js x2 y vistas.js x2 repetian el find). */
 export const proyectoPorClave = clave => estado.proyectos.find(x => String(x.Clave || '') === String(clave || '')) || null;
 
@@ -249,8 +251,9 @@ export function confirmar({ titulo, texto, ok = 'Confirmar', motivo = false, eti
  */
 export function hashDe(tareaId) {
     let h;
-    if (estado.pestana === 'proyecto' && estado.proyectoAbierto) {
-        h = '#p/' + estado.proyectoAbierto.Clave;
+    const pa = proyectoAbierto();
+    if (estado.pestana === 'proyecto' && pa) {
+        h = '#p/' + pa.Clave;
         if (estado.tab && estado.tab !== 'tablero') h += '/' + estado.tab;
     } else h = '#' + (estado.pestana || 'inicio');
     // v0.42.0: Mensajes lleva lo elegido (el hilo de un frente o la ficha de una persona, por su alias de @mencion)
