@@ -2114,3 +2114,8 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .cmeses th.c-acum { white-space: normal; }
 /* R-01: con la cuarta columna de dinero la hoja Por mes desbordaba 3 px a 390; en celular sus celdas se aprietan */
 @media (max-width: 720px) { .cmeses th, .cmeses td { padding-left: var(--sp-1); padding-right: var(--sp-1); } }
+/* R-05 (26-sep, /mejorar-app capital): «+ partida» en el renglon del frente — boton de texto chico, sin relleno ni borde */
+.cgrupo-mas { margin-left: var(--sp-3); background: none; border: 0; padding: 0 var(--sp-1); font-family: var(--font-ui); font-size: .72rem; font-weight: 600; color: var(--text-muted); cursor: pointer; white-space: nowrap; border-radius: var(--r-sm); }
+.cgrupo-mas:hover { color: var(--text-strong); text-decoration: underline; }
+.cgrupo-mas:focus-visible { outline: 2px solid var(--brand-primary, currentColor); outline-offset: 1px; }
+@media (max-width: 720px) { .cgrupo-mas { display: block; min-height: 32px; margin: 0; padding: 0; text-align: left; } }   /* bajo el nombre, alineado con el numero */

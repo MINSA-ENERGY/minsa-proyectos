@@ -161,6 +161,13 @@ function pintarTabla(grupos, n) {
         } else td.appendChild(el('span', 'cgrupo-nombre', `Proyecto eliminado (#${g.proyectoId})`));
         // v0.113.0 (Carlos): en celular la columna .rn se esconde; el numero va DENTRO del nombre (un <button> no parte renglon con lo de fuera)
         td.firstChild.prepend(el('span', 'cnum', num));
+        // R-05 (26-sep): «+ partida» en el renglon del frente abre el dialogo con ese proyecto ya puesto (fijo, como en su
+        // pestaña). Capital solo la ve gerencia, que es quien escribe: no hace falta otra guarda. Sin boton en un eliminado.
+        if (g.proyecto) {
+            const mas = el('button', 'cgrupo-mas', '+ partida'); mas.type = 'button'; mas.title = 'Agregar una partida a este proyecto';
+            const pid = g.proyectoId; mas.addEventListener('click', () => abrirPartida(null, pid));
+            td.appendChild(mas);
+        }
         tr.appendChild(td); vacias(tr); tr.appendChild(celdaFalta(g, true)); tb.appendChild(tr);
         for (const x of ordenarPartidas(g.partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x));
     }
