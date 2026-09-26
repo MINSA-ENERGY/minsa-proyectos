@@ -5,7 +5,7 @@
 // Sin bitacora en PROY_Actividad: su choice `Accion` no tiene opcion para esto y la actividad la lee todo el equipo.
 
 import { esConflicto } from './graph.js';
-import { PUEDE, CAPITAL_CATEGORIAS, CAPITAL_TIPOS, formatoMXN, leerMonto, validarPartida, resumenCapital, capitalPorProyecto, totalCapital, capitalPorMes, ordenarPartidas, ordenarProyectos, activosDe, diaDe } from './reglas.js';
+import { PUEDE, CAPITAL_CATEGORIAS, CAPITAL_TIPOS, formatoMXN, leerMonto, validarPartida, resumenCapital, capitalPorProyecto, totalCapital, capitalPorMes, ordenarPartidas, ordenarProyectos, activosDe, diaDe, partidaVencida } from './reglas.js';
 import { $, L, estado, el, avisar, abrirDialogo, cerrarDialogo, confirmar, fijarGuarda, opciones, porId, aplicar, pedirRelectura, fechaCorta, aIsoDia, diaInput, fechaInput, limpiar, equipoDe, iconoEquipo, iconoSvg, fijarHash, hashDe, mayusculasEnVivo } from './comun.js';
 
 let repintar = () => {};
@@ -78,7 +78,7 @@ function hojaResumen(titulo, r) {
     for (const [cls, texto] of [['c-concepto', 'Resumen'], ['c-n', 'Partidas'], ['c-monto', 'Necesario'], ['c-monto', 'Cubierto'], ['c-monto', 'Falta']]) { const c = el('th', cls, texto); c.scope = 'col'; h.appendChild(c); }
     th.appendChild(h); t.appendChild(th);
     const tb = el('tbody'); const tr = el('tr');
-    const conteo = PARTIDAS(r.n) + (r.pagado ? ` · ${formatoMXN(r.pagado)} ya pagado` : '') + (r.sobra > 0 ? ` · ${formatoMXN(r.sobra)} de sobra` : '');   // R-02 (26-sep)
+    const conteo = PARTIDAS(r.n) + (r.pagado ? ` · ${formatoMXN(r.pagado)} ya pagado` : '') + (r.comprometido ? ` · ${formatoMXN(r.comprometido)} comprometido` : '') + (r.sobra > 0 ? ` · ${formatoMXN(r.sobra)} de sobra` : '');   // R-02 (26-sep); R-04: comprometido
     // U-03 (26-sep): a 720 px la columna Partidas se esconde; el conteo baja como segundo renglon del titulo (cres-sub)
     const tt = el('td', 'c-concepto cres-t', titulo); tt.appendChild(el('span', 'cres-sub', conteo)); tr.appendChild(tt);
     const n = el('td', 'c-n', conteo); n.dataset.kpi = 'n'; tr.appendChild(n);
@@ -200,12 +200,22 @@ function filaPartida(x) {
     // en celular las columnas chicas se esconden y este renglon las dice (estilo.css .ctabla .p). U-01 (26-sep): va DENTRO
     // del boton, que ocupa la celda entera: el objetivo de toque deja de ser el texto de 17 px. U-06: con mayuscula inicial,
     // como las columnas de escritorio. U-05: «con nota» — el title no existe en el celular.
-    b.appendChild(el('span', 'p', [TIPO[x.Tipo] || x.Tipo, mayuscula(x.Categoria), x.Fecha ? fechaCorta(x.Fecha) : 'sin fecha', mayuscula(x.Estado), x.Notas ? 'con nota' : ''].filter(Boolean).join(' · ')));
+    // R-03 (26-sep): la fecha ya pasada de una partida que sigue estimada o comprometida va en rojo (columna y renglon .p)
+    const vencida = partidaVencida(x), AVISO_VENCIDA = 'La fecha ya pasó y la partida sigue «' + x.Estado + '»';
+    const p = el('span', 'p');
+    const fechaP = x.Fecha ? fechaCorta(x.Fecha) : 'sin fecha';
+    [TIPO[x.Tipo] || x.Tipo, mayuscula(x.Categoria), fechaP, mayuscula(x.Estado), x.Notas ? 'con nota' : ''].filter(Boolean).forEach((s, i) => {
+        if (i) p.appendChild(document.createTextNode(' · '));
+        if (vencida && s === fechaP) { const f = el('span', 'is-danger', s); f.title = AVISO_VENCIDA; p.appendChild(f); } else p.appendChild(document.createTextNode(s));
+    });
+    b.appendChild(p);
     if (x.Notas) { tdc.title = x.Notas; tdc.appendChild(el('span', 'cnota', 'nota')); }
     tr.appendChild(tdc);
     tr.appendChild(el('td', 'c-tipo tipo-' + (x.Tipo || 'otro'), TIPO[x.Tipo] || x.Tipo || '—'));
     tr.appendChild(el('td', 'c-cat', mayuscula(x.Categoria) || '—'));
-    tr.appendChild(el('td', 'c-fecha', x.Fecha ? fechaCorta(x.Fecha) : '—'));
+    const tdf = el('td', 'c-fecha' + (vencida ? ' is-danger' : ''), x.Fecha ? fechaCorta(x.Fecha) : '—');
+    if (vencida) tdf.title = AVISO_VENCIDA;
+    tr.appendChild(tdf);
     tr.appendChild(el('td', 'c-estado estado-' + (x.Estado || ''), mayuscula(x.Estado) || '—'));
     tr.appendChild(el('td', 'c-monto', (x.Tipo === 'fondeo' ? '− ' : '') + formatoMXN(x)));   // v0.109.0: el fondeo RESTA en la hoja
     return tr;
@@ -217,13 +227,16 @@ function pintarMeses(partidas) {
     if (!meses.length) { cont.appendChild(el('p', 'vacio', 'Sin partidas que repartir por mes.')); return; }
     // v0.110.0: la tabla por mes es la misma hoja (rejilla, cifras tabulares) con su renglon TOTAL al pie
     const w = el('div', 'dtabla ctabla choja cmeses'); const t = el('table'); const th = el('thead'); const tr = el('tr');
-    for (const [cls, texto] of [['c-mes', 'Mes'], ['c-monto', 'Necesidad'], ['c-monto', 'Fondeo'], ['c-n', 'Partidas']]) { const h = el('th', cls, texto); h.scope = 'col'; tr.appendChild(h); }
+    for (const [cls, texto] of [['c-mes', 'Mes'], ['c-monto', 'Necesidad'], ['c-monto', 'Fondeo'], ['c-monto c-acum', 'Falta acumulada'], ['c-n', 'Partidas']]) { const h = el('th', cls, texto); h.scope = 'col'; tr.appendChild(h); }
     th.appendChild(tr); t.appendChild(th); const tb = el('tbody'); t.appendChild(tb);
+    // R-01 (26-sep): lo que falta al cierre de cada mes (reglas.js capitalPorMes); rojo si falta, «—» si ya esta cubierto
+    const acum = v => el('td', 'c-monto c-acum ' + (v > 0 ? 'is-danger' : 'is-ok'), v > 0 ? formatoMXN(v) : '—');
     for (const m of meses) {
         const f = el('tr', 'mes'); f.dataset.mes = m.mes || 'sin-fecha';
         f.appendChild(el('td', 'c-mes', rotuloMes(m.mes)));
         f.appendChild(el('td', 'c-monto', formatoMXN(m.necesidad)));
         f.appendChild(el('td', 'c-monto', m.fondeo ? '− ' + formatoMXN(m.fondeo) : '—'));   // U-02 (26-sep): el mismo signo que la hoja (el fondeo RESTA)
+        f.appendChild(acum(m.faltaAcumulada));
         f.appendChild(el('td', 'c-n', String(m.n)));
         tb.appendChild(f);
     }
@@ -232,6 +245,7 @@ function pintarMeses(partidas) {
     ft.appendChild(el('td', 'c-mes', 'TOTAL'));
     ft.appendChild(el('td', 'c-monto', formatoMXN(sum('necesidad'))));
     ft.appendChild(el('td', 'c-monto', sum('fondeo') ? '− ' + formatoMXN(sum('fondeo')) : '—'));
+    ft.appendChild(acum(meses[meses.length - 1].faltaAcumulada));
     ft.appendChild(el('td', 'c-n', String(sum('n'))));
     tf.appendChild(ft); t.appendChild(tf);
     w.appendChild(t); cont.appendChild(w);

@@ -1006,15 +1006,20 @@ export function validarPartida(c) {
     if (!CAPITAL_ESTADOS.includes(c.Estado)) return { ok: false, motivo: 'Elige el estado de la partida.' };
     return { ok: true, motivo: '' };
 }
-/** Necesario · Cubierto · Falta · Sobra · Ya pagado · n de un conjunto de partidas (un proyecto). Un Tipo fuera del catalogo no suma. */
+/** Necesario · Cubierto · Falta · Sobra · Ya pagado · Comprometido · n de un conjunto de partidas (un proyecto). Un Tipo fuera del catalogo no suma. */
 export function resumenCapital(partidas) {
-    let necesario = 0, cubierto = 0, pagado = 0;
+    let necesario = 0, cubierto = 0, pagado = 0, comprometido = 0;   // R-04 (26-sep): comprometido = necesidades en estado «comprometido», como pagado
     for (const x of partidas || []) {
         if (x.Tipo === 'fondeo') cubierto += montoDe(x);
-        else if (x.Tipo === 'necesidad') { necesario += montoDe(x); if (x.Estado === 'pagado') pagado += montoDe(x); }
+        else if (x.Tipo === 'necesidad') { necesario += montoDe(x); if (x.Estado === 'pagado') pagado += montoDe(x); else if (x.Estado === 'comprometido') comprometido += montoDe(x); }
     }
-    necesario = centavos(necesario); cubierto = centavos(cubierto); pagado = centavos(pagado);
-    return { necesario, cubierto, pagado, falta: Math.max(0, centavos(necesario - cubierto)), sobra: Math.max(0, centavos(cubierto - necesario)), n: (partidas || []).length };
+    necesario = centavos(necesario); cubierto = centavos(cubierto); pagado = centavos(pagado); comprometido = centavos(comprometido);
+    return { necesario, cubierto, pagado, comprometido, falta: Math.max(0, centavos(necesario - cubierto)), sobra: Math.max(0, centavos(cubierto - necesario)), n: (partidas || []).length };
+}
+/** R-03 (26-sep): la partida cuya fecha ya paso (dia de Mexico) y sigue «estimado» o «comprometido»; las pagadas no. */
+export function partidaVencida(x, hoy = new Date()) {
+    const d = diaDe(x && x.Fecha);
+    return !!d && (x.Estado === 'estimado' || x.Estado === 'comprometido') && d < diaDe(hoy);
 }
 /** Las partidas agrupadas por proyecto, cada grupo con su resumen; primero el que mas falta, luego por nombre. `proyecto` es null si ya no existe. */
 export function capitalPorProyecto(partidas, proyectos) {
@@ -1026,22 +1031,34 @@ export function capitalPorProyecto(partidas, proyectos) {
 }
 /** Totales de la vista: sumas de los grupos de capitalPorProyecto (el Falta global = Σ Falta por proyecto). */
 export function totalCapital(grupos) {
-    const t = { necesario: 0, cubierto: 0, pagado: 0, falta: 0, n: 0 };
+    const t = { necesario: 0, cubierto: 0, pagado: 0, comprometido: 0, falta: 0, n: 0 };
     for (const g of grupos || []) for (const k in t) t[k] += g[k];
-    for (const k of ['necesario', 'cubierto', 'pagado', 'falta']) t[k] = centavos(t[k]);
+    for (const k of ['necesario', 'cubierto', 'pagado', 'comprometido', 'falta']) t[k] = centavos(t[k]);
     return t;
 }
-/** Corte por mes segun Fecha (dia de Mexico): [{ mes: 'YYYY-MM' | '' (sin fecha, al final), necesidad, fondeo, n }] en orden de mes. */
+/**
+ * Corte por mes segun Fecha (dia de Mexico): [{ mes: 'YYYY-MM' | '' (sin fecha, al final), necesidad, fondeo, n, faltaAcumulada }]
+ * en orden de mes. R-01 (26-sep): faltaAcumulada = corrido de necesidad − fondeo hasta ese mes, llevado POR PROYECTO y sumando
+ * solo lo que falta (la misma regla que totalCapital: la sobra de un frente no cubre a otro). Asi el ultimo renglon cuadra
+ * siempre con la Falta del resumen, tambien cuando un frente tiene fondeo de sobra.
+ */
 export function capitalPorMes(partidas) {
     const m = new Map();
     for (const x of partidas || []) {
         if (x.Tipo !== 'necesidad' && x.Tipo !== 'fondeo') continue;
         const d = diaDe(x.Fecha), k = d ? d.slice(0, 7) : '';
-        const g = m.get(k) || { mes: k, necesidad: 0, fondeo: 0, n: 0 };
+        const g = m.get(k) || { mes: k, necesidad: 0, fondeo: 0, n: 0, porProyecto: new Map() };
+        const pid = Number(x.ProyectoId) || 0, signo = x.Tipo === 'fondeo' ? -1 : 1;
         if (x.Tipo === 'fondeo') g.fondeo += montoDe(x); else g.necesidad += montoDe(x);
+        g.porProyecto.set(pid, (g.porProyecto.get(pid) || 0) + signo * montoDe(x));
         g.n++; m.set(k, g);
     }
-    return [...m.values()].map(g => ({ ...g, necesidad: centavos(g.necesidad), fondeo: centavos(g.fondeo) })).sort((a, b) => (a.mes || '9999-99').localeCompare(b.mes || '9999-99'));
+    const corrido = new Map();
+    return [...m.values()].sort((a, b) => (a.mes || '9999-99').localeCompare(b.mes || '9999-99')).map(({ porProyecto, ...g }) => {
+        for (const [pid, v] of porProyecto) corrido.set(pid, (corrido.get(pid) || 0) + v);
+        let falta = 0; for (const v of corrido.values()) falta += Math.max(0, centavos(v));
+        return { ...g, necesidad: centavos(g.necesidad), fondeo: centavos(g.fondeo), faltaAcumulada: centavos(falta) };
+    });
 }
 /** Orden de la tabla de partidas (dentro de cada proyecto). `dir` 1 asc, -1 desc; la partida sin fecha va al final en los dos sentidos. */
 export const COLUMNAS_CAPITAL = ['concepto', 'tipo', 'categoria', 'fecha', 'estado', 'monto'];

@@ -2593,6 +2593,25 @@ try {
               R.ok('C-03 (v0.117.0): al editarla, el diálogo conserva «Proyecto eliminado (#999999)» como proyecto elegido', $('cpProyecto').value === '999999' && $('cpProyecto').selectedOptions[0].textContent === 'Proyecto eliminado (#999999)', $('cpProyecto').value);
               clic('cpCancelar'); await esperar(() => !$('dlgPartida').open, 'cerrar huerfana');
               DB.listas.capital.items = DB.listas.capital.items.filter(x => x.id !== huerfana.id); await recargarYEsperar(); await dormir(30); }
+            // ---- R-01 · R-03 · R-04 (v0.118.0, referentes de /mejorar-app capital). Cuatro partidas de enero (fecha ya pasada):
+            // A necesidad comprometida 300 y C fondeo estimado 100 en este frente → vencidas; B necesidad pagada 200 → no;
+            // D fondeo estimado 1,000 en OTRO frente (sobra que no cubre a este: la falta acumulada se lleva por frente).
+            { const nueva = f => ({ id: DB.siguienteId++, fields: { Fecha: '2026-01-15T18:00:00Z', ...f } });
+              const A = nueva({ Title: 'VENCIDA COMPROMETIDA', ProyectoId: pid, Tipo: 'necesidad', Monto: 300, Estado: 'comprometido' });
+              const B = nueva({ Title: 'PAGADA DE ENERO', ProyectoId: pid, Tipo: 'necesidad', Monto: 200, Estado: 'pagado' });
+              const C = nueva({ Title: 'FONDEO VENCIDO', ProyectoId: pid, Tipo: 'fondeo', Monto: 100, Estado: 'estimado' });
+              const D = nueva({ Title: 'FONDEO DE OTRO FRENTE', ProyectoId: otro.id, Tipo: 'fondeo', Monto: 1000, Estado: 'estimado' });
+              cap().push(A, B, C, D); await recargarYEsperar(); await dormir(30);
+              const fecha = x => document.querySelector(`#capitalTabla tr[data-partida="${x.id}"] td.c-fecha`);
+              const fechaP = x => document.querySelector(`#capitalTabla tr[data-partida="${x.id}"] .p .is-danger`);
+              R.ok('R-03 (v0.118.0): fecha pasada y estado estimado/comprometido → fecha en rojo en la columna y en el renglón .p del celular; la pagada no', fecha(A).classList.contains('is-danger') && !!fechaP(A) && fechaP(A).textContent === fecha(A).textContent && fecha(C).classList.contains('is-danger') && !fecha(B).classList.contains('is-danger') && !fechaP(B) && fecha(A).title.includes('comprometido'), [fecha(A).className, fecha(B).className].join(' | '));
+              const nota = document.querySelector('#capitalKpis [data-kpi="n"]').textContent;
+              R.ok('R-04 (v0.118.0): la nota del resumen agrega «· $300.00 comprometido» (el fondeo comprometido no cuenta) sin columnas nuevas', nota.includes('$2,700.50 ya pagado · $300.00 comprometido') && document.querySelectorAll('#capitalKpis thead th').length === 5, nota);
+              const filasMes = [...document.querySelectorAll('#capitalMeses tr.mes')];
+              const acumDe = r => r.querySelector('td.c-acum').textContent;
+              R.ok('R-01 (v0.118.0): «Falta acumulada» mes a mes (ene $400.00 · oct $8,400.00 · sin fecha $10,900.50) y el último renglón y el pie cuadran con la Falta de arriba', !!document.querySelector('#capitalMeses th.c-acum') && filasMes.map(r => r.dataset.mes).join(',') === '2026-01,2026-10,sin-fecha' && filasMes.map(acumDe).join(',') === '$400.00,$8,400.00,$10,900.50' && acumDe(filasMes[2]) === kpi('falta') && document.querySelector('#capitalMeses tfoot td.c-acum').textContent === kpi('falta') && filasMes[0].querySelector('td.c-acum').classList.contains('is-danger'), filasMes.map(acumDe).join(',') + ' vs ' + kpi('falta'));
+              const quitar = new Set([A.id, B.id, C.id, D.id]);
+              DB.listas.capital.items = DB.listas.capital.items.filter(x => !quitar.has(x.id)); await recargarYEsperar(); await dormir(30); }
             // Lectura fallida (no «no existe»): el aviso en rojo dice por qué y se queda lo de la lectura anterior
             { const antes = ESTADO.capital.length;
               DB.fallas.push({ metodo: 'GET', incluye: 'lista-capital/items', status: 400, veces: 99 });

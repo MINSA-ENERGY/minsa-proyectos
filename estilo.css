@@ -2107,3 +2107,10 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
   .ctabla .cnota { display: none; }
   .cresumen .cres-sub { display: block; font-weight: 400; font-size: .72rem; color: var(--text-muted); }
 }
+/* R-03 (26-sep, /mejorar-app capital): la fecha ya pasada de una partida que sigue estimada o comprometida, en rojo —
+   la misma convencion de vencida de la Lista (#tab-lista td.vence.is-danger). En celular va dentro del renglon .p. */
+.choja td.c-fecha.is-danger, .ctabla .c-concepto .p .is-danger { color: var(--status-danger-fg); font-weight: 600; }
+/* R-01 (26-sep): «Falta acumulada» en la tabla Por mes; el encabezado largo parte renglon en vez de ensanchar la hoja */
+.cmeses th.c-acum { white-space: normal; }
+/* R-01: con la cuarta columna de dinero la hoja Por mes desbordaba 3 px a 390; en celular sus celdas se aprietan */
+@media (max-width: 720px) { .cmeses th, .cmeses td { padding-left: var(--sp-1); padding-right: var(--sp-1); } }

@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { ordenarLigas, direccionInicial, nombreHumano, nombreDeLiga, rolDe, PUEDE, diasPara, slug, validarClave, tareasDe, avance, proximos, estadoVence, claseVence, fraseVence, semaforo, vencidasEn, sinMovimiento, diasQuieta, rotuloQuieta, pisoNuevo, marcaFiable, ordenar, camposDeMovimiento, iniciales, nombreDe, COLUMNAS, COLUMNAS_DEFAULT, columnasDe, normalizarColumnas, COLORES, colorValido, nombreColumnaEn, claseDeColumna, categoriaDe, enProceso, avanceGlobal, segmentosDe, segmentosGlobales, tituloSegmentos, partesEnProceso, filtrarTareas, ordenarLista, reordenar, validarUrl, urlParaLiga, urlCortaDeGuid, resumenLargos, textosLargos, sinDueno, ordenarProyectos, filtrarProyectos, activosDe, proyectosVisibles, extensionDe, tipoArchivo, aliasDe, aliasParaMencion, trozosConMenciones, mencionesEn, mencionEnCurso, diaDe, sumarDias, diasEntre, diaSemana, lunesDe, mesSumar, lapsoTarea, lapsoProyecto, rangoRoadmap, barraEn, mesesDelRango, celdasDelMes, agendaPorDia, hechasPorSemana, cargaPorPersona, actividadPorPersona, ultimoComentarioPorProyecto, filtrarLigas, hrefSeguro, desdeHaceDias, nuevoParaMi, delegadas, sellarAsignadoPor, misAbiertas, porVence, vistosDe, leerVisto, fundirVisto, gruposHoy, saludoDe, hitosDe, acomodarHitos } from '../reglas.js';
 
-import { CAPITAL_ESTADOS, CAPITAL_CATEGORIAS, montoDe, formatoMXN, leerMonto, validarPartida, resumenCapital, capitalPorProyecto, totalCapital, capitalPorMes, ordenarPartidas } from '../reglas.js';
+import { CAPITAL_ESTADOS, CAPITAL_CATEGORIAS, montoDe, formatoMXN, leerMonto, validarPartida, resumenCapital, capitalPorProyecto, totalCapital, capitalPorMes, ordenarPartidas, partidaVencida } from '../reglas.js';
 
 const HOY = new Date('2026-09-11T18:00:00Z');
 let n = 0;
@@ -352,6 +352,17 @@ ok('S-12 (v0.96.0): marcaFiable topa la marca en ahora + 5 min: un Cuando del fu
   ok('capital: un proyecto que ya no existe queda con proyecto null y al final si empata', capitalPorProyecto([{ id: 9, ProyectoId: 99, Tipo: 'necesidad', Monto: 0, Estado: 'estimado' }, { id: 8, ProyectoId: 20, Tipo: 'necesidad', Monto: 0, Estado: 'estimado' }], proys).map(x => x.proyecto && x.proyecto.Title).join(',') === 'Alfa,');
   const m = capitalPorMes(P);
   ok('capital: corte por mes por la fecha (día de México), sin fecha al final, fondeo aparte', m.map(x => x.mes).join(',') === '2026-09,2026-10,' && m[1].necesidad === 10000 && m[1].fondeo === 5500 && m[0].necesidad === 2500.5 && m[2].necesidad === 1000 && m[2].n === 1);
+  // R-01 (26-sep): falta acumulada por mes, llevada por proyecto — P20 tiene fondeo de sobra en octubre y no cubre a P10
+  ok('R-01: falta acumulada — sep 2,500.50 · oct 8,500.50 (P20 con sobra no resta) · sin fecha 8,500.50 = Falta del resumen', m.map(x => x.faltaAcumulada).join(',') === '2500.5,8500.5,8500.5' && m[m.length - 1].faltaAcumulada === t.falta);
+  { const s = capitalPorMes([{ ProyectoId: 1, Tipo: 'fondeo', Monto: 100, Fecha: '2026-01-10T18:00:00Z' }, { ProyectoId: 1, Tipo: 'necesidad', Monto: 250, Fecha: '2026-02-10T18:00:00Z' }]);
+    ok('R-01: un fondeo temprano cubre las necesidades posteriores DEL MISMO frente (ene —, feb 150)', s.map(x => x.faltaAcumulada).join(',') === '0,150'); }
+  // R-04 (26-sep): comprometido = necesidades comprometidas (un fondeo comprometido no cuenta)
+  { const c = resumenCapital([{ Tipo: 'necesidad', Monto: 300, Estado: 'comprometido' }, { Tipo: 'necesidad', Monto: 50, Estado: 'pagado' }, { Tipo: 'fondeo', Monto: 70, Estado: 'comprometido' }]);
+    ok('R-04: resumenCapital suma comprometido aparte de pagado; totalCapital lo agrega', c.comprometido === 300 && c.pagado === 50 && r10.comprometido === 0 && totalCapital([c, c]).comprometido === 600); }
+  // R-03 (26-sep): vencida = fecha antes de hoy (dia de Mexico) y estado estimado o comprometido
+  { const hoy = new Date('2026-09-26T18:00:00Z');
+    const v = (Fecha, Estado) => partidaVencida({ Fecha, Estado }, hoy);
+    ok('R-03: partidaVencida — ayer estimada o comprometida sí; pagada, hoy, mañana o sin fecha no; las 23:00 de México del 25 es ayer', v('2026-09-25T18:00:00Z', 'estimado') && v('2026-09-25T18:00:00Z', 'comprometido') && !v('2026-09-25T18:00:00Z', 'pagado') && !v('2026-09-26T18:00:00Z', 'estimado') && !v('2026-09-27T18:00:00Z', 'estimado') && !v(null, 'estimado') && v('2026-09-26T05:00:00Z', 'estimado')); }
   ok('capital: formatoMXN es-MX con 2 decimales', formatoMXN(10000) === '$10,000.00' && formatoMXN(2500.5) === '$2,500.50' && formatoMXN({ Monto: 0 }) === '$0.00' && formatoMXN('x') === '$0.00');
   ok('capital: montoDe acepta número, cadena u objeto; lo que no es número vale 0', montoDe(5) === 5 && montoDe('7.5') === 7.5 && montoDe({ Monto: 3 }) === 3 && montoDe(null) === 0 && montoDe(undefined) === 0);
   ok('capital: leerMonto acepta 10000 · 10,000.50 · $ 10,000 y rechaza 0, negativos, texto y 3 decimales', leerMonto('10000') === 10000 && leerMonto('10,000.50') === 10000.5 && leerMonto('$ 10,000') === 10000 && leerMonto('0') === null && leerMonto('-5') === null && leerMonto('diez') === null && leerMonto('1.234') === null && leerMonto('') === null);
