@@ -2032,7 +2032,10 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .choja .estado-comprometido { color: var(--status-warn-fg); }
 .choja .estado-pagado { color: var(--status-ok-fg); }
 .choja tfoot td { background: var(--surface-sunken); font-weight: 700; color: var(--text-strong); border-top: 1px solid var(--border-default); border-bottom: 0; }
-@media (max-width: 720px) { .choja .rn { display: none; } }
+@media (max-width: 720px) {
+  .choja .rn { display: none; }
+  .choja tr.cgrupo .cnum { display: inline; margin-right: .4em; font-family: var(--font-data); font-weight: 600; color: var(--text-strong); }   /* v0.113.0 (Carlos): el numero del frente tambien en celular */
+}
 /* v0.110.0 (Carlos, 25-sep: «legible en claro y oscuro … que no se vea tan bloaty … el encabezado así como la sección de abajo
    similar» a la hoja): la hoja se compacta (renglon denso, cifras tabulares a la derecha) y el total de arriba y la tabla por
    mes usan la MISMA rejilla — sin tarjetas, sin sombras. Solo tokens de base.css: el tema oscuro sale solo. */
@@ -2062,7 +2065,8 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .choja tbody tr.partida:hover td:not(.rn) { background: var(--surface-hover); }
 /* v0.112.0: sin renglon de letras */
 .choja .rn { background: var(--surface-sunken); }
-.choja tr.cgrupo .rn { color: var(--text-strong); font-weight: 600; }
+.choja tr.cgrupo .rn { color: var(--text-strong); font-weight: 600; }
+.choja .cnum { display: none; }
 #capitalTabla .choja tr.partida td.c-concepto { padding-left: calc(var(--sp-2) + 1.25rem); }
 @media (max-width: 720px) {
   .cresumen .c-n { display: none; }

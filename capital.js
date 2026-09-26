@@ -138,7 +138,7 @@ function pintarTabla(grupos, n) {
     const w = encabezado(); const tb = w.querySelector('tbody'); let fila = 1;
     for (const g of grupos) {
         const tr = el('tr', 'cgrupo'); tr.dataset.capitalProyecto = String(g.proyectoId);
-        tr.appendChild(el('td', 'rn', (fila++) + '.'));   // v0.111.0 (Carlos): «1. OTROS, 2. …» — numero solo en el frente
+        const num = (fila++) + '.'; tr.appendChild(el('td', 'rn', num));   // v0.111.0 (Carlos): «1. OTROS, 2. …» — numero solo en el frente
         const td = el('td', 'c-concepto');
         if (g.proyecto) {
             const b = el('button', 'cgrupo-nombre', g.proyecto.Title + (g.proyecto.Estado === 'activo' ? '' : ' (cerrado)'));
@@ -146,6 +146,8 @@ function pintarTabla(grupos, n) {
             b.addEventListener('click', () => irAProyecto(g.proyecto));
             td.appendChild(b);
         } else td.appendChild(el('span', 'cgrupo-nombre', `Proyecto eliminado (#${g.proyectoId})`));
+        // v0.113.0 (Carlos): en celular la columna .rn se esconde; el numero va DENTRO del nombre (un <button> no parte renglon con lo de fuera)
+        td.firstChild.prepend(el('span', 'cnum', num));
         tr.appendChild(td); vacias(tr); tr.appendChild(celdaFalta(g, true)); tb.appendChild(tr);
         for (const x of ordenarPartidas(g.partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x));
     }
