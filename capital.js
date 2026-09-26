@@ -126,7 +126,7 @@ const vacias = tr => { for (const c of ['c-tipo', 'c-cat', 'c-fecha', 'c-estado'
 /** Pie de la hoja: la falta total en el ultimo numero de fila. */
 function pie(t, n, r) {
     const tf = el('tfoot'); const tr = el('tr');
-    tr.appendChild(el('td', 'rn', String(n)));
+    tr.appendChild(el('td', 'rn'));   // v0.111.0: solo los frentes llevan numero
     tr.appendChild(el('td', 'c-concepto', 'FALTA TOTAL (necesario − fondeo)')); vacias(tr);
     tr.appendChild(celdaFalta(r, false)); tf.appendChild(tr); t.appendChild(tf);
 }
@@ -140,7 +140,7 @@ function pintarTabla(grupos, n) {
     const w = encabezado(); const tb = w.querySelector('tbody'); let fila = 1;
     for (const g of grupos) {
         const tr = el('tr', 'cgrupo'); tr.dataset.capitalProyecto = String(g.proyectoId);
-        tr.appendChild(el('td', 'rn', String(fila++)));
+        tr.appendChild(el('td', 'rn', (fila++) + '.'));   // v0.111.0 (Carlos): «1. OTROS, 2. …» — numero solo en el frente
         const td = el('td', 'c-concepto');
         if (g.proyecto) {
             const b = el('button', 'cgrupo-nombre', g.proyecto.Title + (g.proyecto.Estado === 'activo' ? '' : ' (cerrado)'));
@@ -149,7 +149,7 @@ function pintarTabla(grupos, n) {
             td.appendChild(b);
         } else td.appendChild(el('span', 'cgrupo-nombre', `Proyecto eliminado (#${g.proyectoId})`));
         tr.appendChild(td); vacias(tr); tr.appendChild(celdaFalta(g, true)); tb.appendChild(tr);
-        for (const x of ordenarPartidas(g.partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x, fila++));
+        for (const x of ordenarPartidas(g.partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x));
     }
     pie(w.querySelector('table'), fila, totalCapital(grupos));
     cont.appendChild(w);
@@ -158,7 +158,7 @@ function pintarTabla(grupos, n) {
 /** La hoja de UN proyecto (su pestaña): sin renglon de grupo, con su falta al pie. */
 function tablaPartidas(partidas) {
     const w = encabezado(); const tb = w.querySelector('tbody'); let fila = 1;
-    for (const x of ordenarPartidas(partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x, fila++));
+    for (const x of ordenarPartidas(partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x));
     pie(w.querySelector('table'), fila, resumenCapital(partidas));
     return w;
 }
@@ -175,9 +175,9 @@ export function pintarCapitalTab(p) {
 
 const mayuscula = s => s ? s.charAt(0).toLocaleUpperCase('es-MX') + s.slice(1) : s;
 
-function filaPartida(x, fila) {
+function filaPartida(x) {
     const tr = el('tr', 'partida' + (x.Tipo === 'fondeo' ? ' is-fondeo' : '')); tr.dataset.partida = String(x.id);
-    tr.appendChild(el('td', 'rn', String(fila)));
+    tr.appendChild(el('td', 'rn'));
     const tdc = el('td', 'c-concepto');
     const b = el('button', 'partida-t', x.Title || '(sin concepto)'); b.type = 'button'; b.title = 'Editar la partida';
     b.addEventListener('click', () => abrirPartida(x.id));

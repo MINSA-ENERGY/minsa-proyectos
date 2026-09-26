@@ -2056,7 +2056,14 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .cmeses.choja tbody tr:nth-child(even) td { background: var(--banda); }
 .cmeses.choja tbody tr:nth-child(odd) td { background: var(--surface-card); }
 .cmeses td.c-mes { text-transform: none; }
-.cmeses td.c-mes::first-letter { text-transform: uppercase; }
+.cmeses td.c-mes::first-letter { text-transform: uppercase; }
+/* v0.111.0 (Carlos, 25-sep): la hoja entera con el fondo del renglon «Todos los proyectos» (--surface-card; sin bandas que
+   se confundian con el fondo de la app), el frente con su numero «1.» y la partida sangrada bajo su frente. */
+.choja tbody tr.partida:nth-child(n) td:not(.rn), .cmeses.choja tbody tr:nth-child(n) td { background: var(--surface-card); }
+.choja tbody tr.partida:hover td:not(.rn) { background: var(--surface-hover); }
+.choja .rn, .choja thead tr.letras th { background: var(--surface-sunken); }
+.choja tr.cgrupo .rn { color: var(--text-strong); font-weight: 600; }
+#capitalTabla .choja tr.partida td.c-concepto { padding-left: calc(var(--sp-2) + 1.25rem); }
 @media (max-width: 720px) {
   .cresumen .c-n { display: none; }
   .cresumen .c-concepto { white-space: normal; }
