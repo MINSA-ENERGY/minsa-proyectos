@@ -2016,7 +2016,6 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .choja { overflow-x: auto; border-radius: var(--r-sm); box-shadow: none; }   /* v0.110.0: esquina chica, sin sombra */
 .choja th, .choja td { border-right: 1px solid var(--border-hairline); }
 .choja th:last-child, .choja td:last-child { border-right: 0; }
-.choja thead tr.letras th { font-weight: 400; letter-spacing: 0; text-align: center; color: var(--text-faint); background: var(--surface-page); padding-top: 2px; padding-bottom: 2px; }
 .choja .rn { width: 1%; text-align: center; font-family: var(--font-data); font-size: .72rem; color: var(--text-faint); background: var(--surface-page); }
 .choja th.c-monto, .choja th.c-fecha { text-align: right; }
 .choja .c-fecha { text-align: right; }
@@ -2033,7 +2032,7 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .choja .estado-comprometido { color: var(--status-warn-fg); }
 .choja .estado-pagado { color: var(--status-ok-fg); }
 .choja tfoot td { background: var(--surface-sunken); font-weight: 700; color: var(--text-strong); border-top: 1px solid var(--border-default); border-bottom: 0; }
-@media (max-width: 720px) { .choja thead tr.letras, .choja .rn { display: none; } }
+@media (max-width: 720px) { .choja .rn { display: none; } }
 /* v0.110.0 (Carlos, 25-sep: «legible en claro y oscuro … que no se vea tan bloaty … el encabezado así como la sección de abajo
    similar» a la hoja): la hoja se compacta (renglon denso, cifras tabulares a la derecha) y el total de arriba y la tabla por
    mes usan la MISMA rejilla — sin tarjetas, sin sombras. Solo tokens de base.css: el tema oscuro sale solo. */
@@ -2061,7 +2060,8 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
    se confundian con el fondo de la app), el frente con su numero «1.» y la partida sangrada bajo su frente. */
 .choja tbody tr.partida:nth-child(n) td:not(.rn), .cmeses.choja tbody tr:nth-child(n) td { background: var(--surface-card); }
 .choja tbody tr.partida:hover td:not(.rn) { background: var(--surface-hover); }
-.choja .rn, .choja thead tr.letras th { background: var(--surface-sunken); }
+/* v0.112.0: sin renglon de letras */
+.choja .rn { background: var(--surface-sunken); }
 .choja tr.cgrupo .rn { color: var(--text-strong); font-weight: 600; }
 #capitalTabla .choja tr.partida td.c-concepto { padding-left: calc(var(--sp-2) + 1.25rem); }
 @media (max-width: 720px) {

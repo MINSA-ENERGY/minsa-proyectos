@@ -88,13 +88,11 @@ function pintarKpis(t) {
 
 // v0.109.0 (Carlos, 25-sep; artifact 7QYCC9Ly, opcion C «Excel literal»): el acordeon sale. Las partidas son UNA hoja:
 // letras de columna y numero de fila, cada proyecto un renglon gris (nombre + su Falta) y al pie la falta total. Nada se pliega.
-const LETRAS = 'ABCDEF';
+// v0.112.0 (Carlos, 25-sep): sale el renglon de letras A–F.
 
-/** La hoja vacia: renglon de letras + encabezado ordenable (con la columna de numero de fila) + tbody. */
+/** La hoja vacia: encabezado ordenable (con la columna de numero de fila) + tbody. */
 function encabezado() {
     const w = el('div', 'dtabla ctabla choja'); const t = el('table'); const th = el('thead');
-    const letras = el('tr', 'letras'); letras.appendChild(el('th', 'rn'));
-    for (const c of LETRAS) letras.appendChild(el('th', '', c));
     const tr = el('tr'); tr.appendChild(el('th', 'rn'));
     const o = estado.ordenCapital;
     for (const [cls, texto, clave] of COLUMNAS) {
@@ -108,7 +106,7 @@ function encabezado() {
         h.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); elegir(); } });
         tr.appendChild(h);
     }
-    th.appendChild(letras); th.appendChild(tr); t.appendChild(th); t.appendChild(el('tbody')); w.appendChild(t);
+    th.appendChild(tr); t.appendChild(th); t.appendChild(el('tbody')); w.appendChild(t);
     return w;
 }
 
