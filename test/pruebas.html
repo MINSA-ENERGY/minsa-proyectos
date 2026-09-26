@@ -2559,6 +2559,53 @@ try {
             poner('capitalProyecto', String(otro.id)); await dormir(30);
             R.ok('filtro (v0.100.0): elegir un proyecto deja solo sus partidas y KPI (Falta $500.00) y lo pone en el hash', kpi('falta') === '$500.00' && document.querySelectorAll('#capitalTabla tr.cgrupo').length === 1 && location.hash === '#capital/f/' + otro.fields.Clave, location.hash);
             poner('capitalProyecto', ''); await dormir(30);
+            // ---- C-03 (v0.117.0, /mejorar-app capital): lo que ninguna prueba tocaba, y lo de la tanda 1 que solo se revisó en código
+            // C-01: si la relectura trae el renglón mientras el POST sigue en vuelo, la partida NO se duplica (se simula la relectura
+            // envolviendo crearRenglon: al volver el POST, estado.capital ya lo trae). U-05: con notas, el renglón dice «con nota».
+            { const cli = ESTADO.cliente, orig = cli.crearRenglon;
+              cli.crearRenglon = async function (...a) { const n = await orig.apply(this, a); if (/capital/i.test(String(a[1]))) ESTADO.capital = [...ESTADO.capital, { ...n }]; return n; };
+              try {
+                  clic('btnNuevaPartida'); await esperar(() => $('dlgPartida').open, 'partida C-01');
+                  poner('cpConcepto', 'PARTIDA DE CARRERA'); poner('cpProyecto', String(otro.id)); poner('cpMonto', '100'); poner('cpNotas', 'revisar con Carlos');
+                  const nCap = cap().length; clic('cpGuardar'); await esperar(() => cap().length === nCap + 1 && !$('dlgPartida').open, 'partida C-01 creada');
+              } finally { cli.crearRenglon = orig; }
+              const nueva = cap().find(x => x.fields.Title === 'PARTIDA DE CARRERA');
+              const filasNueva = document.querySelectorAll(`#capitalTabla tr[data-partida="${nueva.id}"]`);
+              R.ok('C-01 (v0.116.0): una relectura durante el POST no duplica la partida (una sola en estado y un solo renglón)', ESTADO.capital.filter(x => x.id === nueva.id).length === 1 && filasNueva.length === 1, `estado=${ESTADO.capital.filter(x => x.id === nueva.id).length} renglones=${filasNueva.length}`);
+              R.ok('U-05 (v0.116.0): la partida con notas dice «con nota» en su renglón y trae la marca «nota»', !!filasNueva[0] && filasNueva[0].querySelector('.p').textContent.includes('con nota') && !!filasNueva[0].querySelector('.cnota') && filasNueva[0].querySelector('.c-concepto').title === 'revisar con Carlos');
+              DB.listas.capital.items = DB.listas.capital.items.filter(x => x.id !== nueva.id); await recargarYEsperar(); await dormir(30); }
+            // C-02 + filtro con cerrado: un frente CERRADO con partidas sigue en el filtro con «(cerrado)», y «Nueva partida» desde ese
+            // filtro abre con él puesto (antes el select salía vacío)
+            { const estadoOtro = otro.fields.Estado; otro.fields.Estado = 'cerrado'; await recargarYEsperar(); await dormir(30);
+              const op = [...$('capitalProyecto').options].find(o => o.value === String(otro.id));
+              R.ok('C-03 (v0.117.0): un proyecto cerrado con partidas sigue en el filtro y dice «(cerrado)»', !!op && op.textContent.endsWith('(cerrado)'), op && op.textContent);
+              poner('capitalProyecto', String(otro.id)); await dormir(30);
+              clic('btnNuevaPartida'); await esperar(() => $('dlgPartida').open, 'partida desde cerrado');
+              R.ok('C-02 (v0.116.0): «Nueva partida» con la sección filtrada por un cerrado abre con ese proyecto puesto', $('cpProyecto').value === String(otro.id) && $('cpProyecto').selectedOptions[0].textContent.endsWith('(cerrado)'), $('cpProyecto').value);
+              clic('cpCancelar'); await esperar(() => !$('dlgPartida').open, 'cerrar C-02');
+              poner('capitalProyecto', ''); otro.fields.Estado = estadoOtro; await recargarYEsperar(); await dormir(30); }
+            // Proyecto eliminado: sus partidas siguen, bajo «Proyecto eliminado (#id)», y el diálogo lo conserva como opción extra
+            { const huerfana = { id: DB.siguienteId++, fields: { Title: 'PARTIDA HUERFANA', ProyectoId: 999999, Tipo: 'necesidad', Monto: 50, Estado: 'estimado' } };
+              cap().push(huerfana); await recargarYEsperar(); await dormir(30);
+              const g = document.querySelector('#capitalTabla tr.cgrupo[data-capital-proyecto="999999"]');
+              R.ok('C-03 (v0.117.0): una partida de un proyecto que ya no existe sale bajo «Proyecto eliminado (#999999)», sin botón', !!g && g.textContent.includes('Proyecto eliminado (#999999)') && !g.querySelector('button.cgrupo-nombre'), g && g.textContent);
+              document.querySelector(`#capitalTabla tr[data-partida="${huerfana.id}"] .partida-t`).click(); await esperar(() => $('dlgPartida').open, 'editar huerfana');
+              R.ok('C-03 (v0.117.0): al editarla, el diálogo conserva «Proyecto eliminado (#999999)» como proyecto elegido', $('cpProyecto').value === '999999' && $('cpProyecto').selectedOptions[0].textContent === 'Proyecto eliminado (#999999)', $('cpProyecto').value);
+              clic('cpCancelar'); await esperar(() => !$('dlgPartida').open, 'cerrar huerfana');
+              DB.listas.capital.items = DB.listas.capital.items.filter(x => x.id !== huerfana.id); await recargarYEsperar(); await dormir(30); }
+            // Lectura fallida (no «no existe»): el aviso en rojo dice por qué y se queda lo de la lectura anterior
+            { const antes = ESTADO.capital.length;
+              DB.fallas.push({ metodo: 'GET', incluye: 'lista-capital/items', status: 400, veces: 99 });
+              try { await recargarYEsperar(); await dormir(30);
+                  R.ok('C-03 (v0.117.0): una lectura fallida de PROY_Capital avisa en rojo «No se pudo leer PROY_Capital» y conserva las partidas de la lectura anterior', !$('capitalFalta').classList.contains('oculto') && $('capitalFalta').classList.contains('is-error') && $('capitalFalta').textContent.startsWith('No se pudo leer PROY_Capital') && ESTADO.capital.length === antes && ESTADO.capitalLista === true, $('capitalFalta').textContent);
+              } finally { DB.fallas = DB.fallas.filter(f => f.incluye !== 'lista-capital/items'); }
+              await recargarYEsperar(); await dormir(30);
+              R.ok('C-03 (v0.117.0): al volver la lectura, el aviso se va', $('capitalFalta').classList.contains('oculto') && !ESTADO.capitalError); }
+            // Clic en el nombre del frente: abre ese proyecto (C-04: por id)
+            document.querySelector(`#capitalTabla tr.cgrupo[data-capital-proyecto="${pid}"] button.cgrupo-nombre`).click();
+            await esperar(() => ESTADO.proyectoAbiertoId === pid && location.hash.startsWith(`#p/${CLAVE}`), 'abrir desde el frente');
+            R.ok('C-03 (v0.117.0): clic en el nombre del frente abre ese proyecto', ESTADO.proyectoAbiertoId === pid && location.hash.startsWith(`#p/${CLAVE}`), location.hash);
+            pestana('capital'); await esperar(() => visible('p-capital'), 'capital tras abrir el frente');
             // Resumen del proyecto → Capital filtrado
             irHash(`#p/${CLAVE}/resumen`); await esperar(() => $('p-proyecto').classList.contains('ver-resumen'), 'resumen');
             R.ok('resumen (v0.100.0): la tarjeta «Capital de trabajo» del proyecto dice Falta $10,500.50', !$('pCapital').classList.contains('oculto') && $('pCapitalKv').textContent.includes('Falta$10,500.50') && $('pCapitalIr').textContent === 'Ver las 3 partidas', $('pCapitalKv').textContent);
@@ -2568,6 +2615,9 @@ try {
             document.querySelector(`#capitalTabla tr[data-partida="${x1.id}"] .partida-t`).click(); await esperar(() => $('dlgPartida').open, 'borrar');
             clic('cpBorrar'); await confirmar(); await esperar(() => !cap().some(x => x.id === x1.id) && !$('dlgPartida').open, 'partida borrada');
             R.ok('borrar (v0.101.0; U-04 v0.116.0): confirma, borra el renglón y el Falta dice «sobra $1,499.50» en verde (queda fondeo de sobra)', !cap().some(x => x.id === x1.id) && kpi('falta') === 'sobra $1,499.50' && !!document.querySelector('#capitalKpis [data-kpi="falta"] b.is-ok') && document.querySelector('#capitalKpis [data-kpi="n"]').textContent.includes('$1,499.50 de sobra') && !!avisoCon('borrada'), kpi('falta'));
+            irHash(`#p/${CLAVE}/resumen`); await esperar(() => $('p-proyecto').classList.contains('ver-resumen'), 'resumen con sobra');
+            R.ok('U-04 (v0.116.0): con fondeo de sobra, la tarjeta del Resumen del proyecto dice «Sobra $1,499.50», no «Falta $0.00»', $('pCapitalKv').textContent.includes('Sobra$1,499.50') && !$('pCapitalKv').textContent.includes('Falta'), $('pCapitalKv').textContent);
+            pestana('capital'); await esperar(() => visible('p-capital'), 'capital tras la tarjeta');   // la prueba de «lista ausente» lee la seccion
             R.ok('bitácora (v0.100.0): Capital no escribe en PROY_Actividad (su choice Accion no tiene opción para esto)', !filas('actividad').some(a => /partida/i.test(a.fields.Title || '')));
             // lista AUSENTE: el sitio no tiene PROY_Capital → aviso claro, ninguna lectura de items, el resto de la app igual
             const guardada = DB.listas.capital; delete DB.listas.capital; ESTADO.cliente = null; ESTADO.capitalLista = null;
