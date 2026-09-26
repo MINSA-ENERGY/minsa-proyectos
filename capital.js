@@ -22,8 +22,13 @@ const COLUMNAS = [['c-concepto', 'Concepto', 'concepto'], ['c-tipo', 'Tipo', 'ti
 /** ¿Esta persona ve Capital? (rol + la lista leida). La lista ausente SI se ve: es donde se avisa que falta. */
 export const puedeVerCapital = () => PUEDE.capital(estado.rol);
 
+// C-05 (mejorar-app capital, 26-sep): lo que estaba escrito tres veces, una sola vez
+const SOLO_GERENCIA = 'Solo gerencia ve y edita el capital de trabajo.';
+const partidasDe = proyectoId => estado.capital.filter(x => Number(x.ProyectoId) === Number(proyectoId));
+const nombreProyecto = p => p.Estado === 'activo' ? p.Title : `${p.Title} (cerrado)`;
+
 /** Las partidas de un proyecto y su resumen (para la tarjeta del Resumen del proyecto). */
-export function capitalDe(proyectoId) { return resumenCapital(estado.capital.filter(x => Number(x.ProyectoId) === Number(proyectoId))); }
+export function capitalDe(proyectoId) { return resumenCapital(partidasDe(proyectoId)); }
 
 /** Proyectos que ofrece el select: los activos + los que ya tienen partidas (un cerrado con partidas se sigue viendo) + el elegido. */
 function proyectosDelFiltro() {
@@ -46,14 +51,16 @@ export function pintarCapital() {
     // el filtro: un proyecto que ya no existe cae a «Todos»
     if (estado.filtroCapital && !porId(estado.proyectos, estado.filtroCapital)) estado.filtroCapital = null;
     const sel = $('capitalProyecto');
-    opciones(sel, proyectosDelFiltro(), p => p.id, p => p.Estado === 'activo' ? p.Title : `${p.Title} (cerrado)`, 'Todos los proyectos');
+    opciones(sel, proyectosDelFiltro(), p => p.id, nombreProyecto, 'Todos los proyectos');
     sel.value = estado.filtroCapital ? String(estado.filtroCapital) : '';
-    const partidas = estado.filtroCapital ? estado.capital.filter(x => Number(x.ProyectoId) === estado.filtroCapital) : estado.capital;
+    const partidas = estado.filtroCapital ? partidasDe(estado.filtroCapital) : estado.capital;
     const grupos = capitalPorProyecto(partidas, estado.proyectos);
     const t = totalCapital(grupos);
     const fp = estado.filtroCapital ? porId(estado.proyectos, estado.filtroCapital) : null;
     $('capitalSub').textContent = fp ? `Capital de trabajo estimado de «${fp.Title}». En pesos (MXN).` : 'Capital de trabajo estimado por proyecto: lo necesario, lo cubierto y lo que falta. En pesos (MXN).';
-    pintarKpis(t);
+    // U-04 (revisor-entregable, 26-sep): filtrado a UN frente, el resumen es el de ese frente (trae `sobra`); totalCapital no
+    // la suma a proposito — con varios frentes la sobra de uno no cubre a otro
+    pintarKpis(estado.filtroCapital && grupos.length === 1 ? grupos[0] : t);
     pintarTabla(grupos, partidas.length);
     pintarMeses(partidas);
 }
@@ -71,12 +78,14 @@ function hojaResumen(titulo, r) {
     for (const [cls, texto] of [['c-concepto', 'Resumen'], ['c-n', 'Partidas'], ['c-monto', 'Necesario'], ['c-monto', 'Cubierto'], ['c-monto', 'Falta']]) { const c = el('th', cls, texto); c.scope = 'col'; h.appendChild(c); }
     th.appendChild(h); t.appendChild(th);
     const tb = el('tbody'); const tr = el('tr');
-    tr.appendChild(el('td', 'c-concepto cres-t', titulo));
-    const n = el('td', 'c-n', PARTIDAS(r.n) + (r.pagado ? ` · ${formatoMXN(r.pagado)} ya pagado` : '')); n.dataset.kpi = 'n'; tr.appendChild(n);
+    const conteo = PARTIDAS(r.n) + (r.pagado ? ` · ${formatoMXN(r.pagado)} ya pagado` : '') + (r.sobra > 0 ? ` · ${formatoMXN(r.sobra)} de sobra` : '');   // R-02 (26-sep)
+    // U-03 (26-sep): a 720 px la columna Partidas se esconde; el conteo baja como segundo renglon del titulo (cres-sub)
+    const tt = el('td', 'c-concepto cres-t', titulo); tt.appendChild(el('span', 'cres-sub', conteo)); tr.appendChild(tt);
+    const n = el('td', 'c-n', conteo); n.dataset.kpi = 'n'; tr.appendChild(n);
     const celda = (clave, valor, cls = '') => { const td = el('td', 'c-monto'); td.dataset.kpi = clave; td.appendChild(el('b', cls, valor)); tr.appendChild(td); };
     celda('necesario', formatoMXN(r.necesario));
     celda('cubierto', formatoMXN(r.cubierto), 'is-ok');
-    celda('falta', r.falta > 0 ? formatoMXN(r.falta) : '—', r.falta > 0 ? 'is-danger' : 'is-ok');
+    celda('falta', textoFalta(r), r.falta > 0 ? 'is-danger' : 'is-ok');
     tb.appendChild(tr); t.appendChild(tb); w.appendChild(t);
     return w;
 }
@@ -110,10 +119,13 @@ function encabezado() {
     return w;
 }
 
+// U-04 (26-sep): la sobra de un frente sobre-fondeado se dice («sobra $X» en verde); antes salia «—», igual que un frente
+// cuadrado al centavo. Los totales de varios frentes no traen `sobra` (totalCapital suma faltas): ahi sigue «—».
+const textoFalta = r => r.falta > 0 ? formatoMXN(r.falta) : r.sobra > 0 ? 'sobra ' + formatoMXN(r.sobra) : '—';
 const celdaFalta = (r, conRotulo) => {
     const td = el('td', 'c-monto ' + (r.falta > 0 ? 'is-danger' : 'is-ok'));
-    if (conRotulo) td.appendChild(el('span', 'rot', 'falta'));
-    td.appendChild(document.createTextNode(r.falta > 0 ? formatoMXN(r.falta) : '—'));
+    if (conRotulo && !(r.falta <= 0 && r.sobra > 0)) td.appendChild(el('span', 'rot', 'falta'));
+    td.appendChild(document.createTextNode(textoFalta(r)));
     return td;
 };
 
@@ -122,10 +134,10 @@ const celdaFalta = (r, conRotulo) => {
 const vacias = tr => { for (const c of ['c-tipo', 'c-cat', 'c-fecha', 'c-estado']) tr.appendChild(el('td', c)); };
 
 /** Pie de la hoja: la falta total (C-15, v0.114.0: sin el parametro de numero de fila, que ya no se leia desde v0.111.0). */
-function pie(t, r) {
+function pie(t, r, rotulo = 'FALTA TOTAL (necesario − fondeo)') {
     const tf = el('tfoot'); const tr = el('tr');
     tr.appendChild(el('td', 'rn'));   // v0.111.0: solo los frentes llevan numero
-    tr.appendChild(el('td', 'c-concepto', 'FALTA TOTAL (necesario − fondeo)')); vacias(tr);
+    tr.appendChild(el('td', 'c-concepto', rotulo)); vacias(tr);
     tr.appendChild(celdaFalta(r, false)); tf.appendChild(tr); t.appendChild(tf);
 }
 
@@ -141,9 +153,10 @@ function pintarTabla(grupos, n) {
         const num = (fila++) + '.'; tr.appendChild(el('td', 'rn', num));   // v0.111.0 (Carlos): «1. OTROS, 2. …» — numero solo en el frente
         const td = el('td', 'c-concepto');
         if (g.proyecto) {
-            const b = el('button', 'cgrupo-nombre', g.proyecto.Title + (g.proyecto.Estado === 'activo' ? '' : ' (cerrado)'));
+            const b = el('button', 'cgrupo-nombre', nombreProyecto(g.proyecto));
             b.type = 'button'; b.title = 'Abrir el proyecto';
-            b.addEventListener('click', () => irAProyecto(g.proyecto));
+            const pid = g.proyectoId;   // C-04 (26-sep): el id, no el objeto (regla v0.4.0)
+            b.addEventListener('click', () => irAProyecto(pid));
             td.appendChild(b);
         } else td.appendChild(el('span', 'cgrupo-nombre', `Proyecto eliminado (#${g.proyectoId})`));
         // v0.113.0 (Carlos): en celular la columna .rn se esconde; el numero va DENTRO del nombre (un <button> no parte renglon con lo de fuera)
@@ -151,7 +164,8 @@ function pintarTabla(grupos, n) {
         tr.appendChild(td); vacias(tr); tr.appendChild(celdaFalta(g, true)); tb.appendChild(tr);
         for (const x of ordenarPartidas(g.partidas, estado.ordenCapital.col, estado.ordenCapital.dir)) tb.appendChild(filaPartida(x));
     }
-    pie(w.querySelector('table'), totalCapital(grupos));
+    // U-04: con varios frentes la falta total es la SUMA de faltas (la sobra de uno no cubre a otro), no necesario − fondeo
+    pie(w.querySelector('table'), totalCapital(grupos), 'FALTA TOTAL (suma de lo que falta por frente)');
     cont.appendChild(w);
 }
 
@@ -166,7 +180,7 @@ function tablaPartidas(partidas) {
 /** v0.102.0 (Carlos, 25-sep): la pestaña «Capital» DENTRO del proyecto — su total (misma forma que la seccion) y sus partidas. */
 export function pintarCapitalTab(p) {
     const tot = $('pcapTotal'); tot.textContent = '';
-    const mias = estado.capital.filter(x => Number(x.ProyectoId) === p.id);
+    const mias = partidasDe(p.id);
     tot.appendChild(hojaResumen('Capital de trabajo', resumenCapital(mias)));
     const cont = $('pcapTabla'); cont.textContent = '';
     if (!mias.length) { cont.appendChild(el('p', 'vacio', 'Este proyecto no tiene partidas todavía. «Nueva partida» agrega la primera.')); return; }
@@ -179,12 +193,15 @@ function filaPartida(x) {
     const tr = el('tr', 'partida' + (x.Tipo === 'fondeo' ? ' is-fondeo' : '')); tr.dataset.partida = String(x.id);
     tr.appendChild(el('td', 'rn'));
     const tdc = el('td', 'c-concepto');
-    const b = el('button', 'partida-t', x.Title || '(sin concepto)'); b.type = 'button'; b.title = 'Editar la partida';
+    const b = el('button', 'partida-t'); b.type = 'button'; b.title = 'Editar la partida';
+    b.appendChild(el('span', 'pt', x.Title || '(sin concepto)'));
     b.addEventListener('click', () => abrirPartida(x.id));
     tdc.appendChild(b);
-    // en celular las columnas chicas se esconden y este renglon las dice (estilo.css .ctabla .p)
-    tdc.appendChild(el('span', 'p', [TIPO[x.Tipo] || x.Tipo, x.Categoria, x.Fecha ? fechaCorta(x.Fecha) : 'sin fecha', x.Estado].filter(Boolean).join(' · ')));
-    if (x.Notas) tdc.title = x.Notas;
+    // en celular las columnas chicas se esconden y este renglon las dice (estilo.css .ctabla .p). U-01 (26-sep): va DENTRO
+    // del boton, que ocupa la celda entera: el objetivo de toque deja de ser el texto de 17 px. U-06: con mayuscula inicial,
+    // como las columnas de escritorio. U-05: «con nota» — el title no existe en el celular.
+    b.appendChild(el('span', 'p', [TIPO[x.Tipo] || x.Tipo, mayuscula(x.Categoria), x.Fecha ? fechaCorta(x.Fecha) : 'sin fecha', mayuscula(x.Estado), x.Notas ? 'con nota' : ''].filter(Boolean).join(' · ')));
+    if (x.Notas) { tdc.title = x.Notas; tdc.appendChild(el('span', 'cnota', 'nota')); }
     tr.appendChild(tdc);
     tr.appendChild(el('td', 'c-tipo tipo-' + (x.Tipo || 'otro'), TIPO[x.Tipo] || x.Tipo || '—'));
     tr.appendChild(el('td', 'c-cat', mayuscula(x.Categoria) || '—'));
@@ -206,7 +223,7 @@ function pintarMeses(partidas) {
         const f = el('tr', 'mes'); f.dataset.mes = m.mes || 'sin-fecha';
         f.appendChild(el('td', 'c-mes', rotuloMes(m.mes)));
         f.appendChild(el('td', 'c-monto', formatoMXN(m.necesidad)));
-        f.appendChild(el('td', 'c-monto', m.fondeo ? '+ ' + formatoMXN(m.fondeo) : '—'));
+        f.appendChild(el('td', 'c-monto', m.fondeo ? '− ' + formatoMXN(m.fondeo) : '—'));   // U-02 (26-sep): el mismo signo que la hoja (el fondeo RESTA)
         f.appendChild(el('td', 'c-n', String(m.n)));
         tb.appendChild(f);
     }
@@ -214,7 +231,7 @@ function pintarMeses(partidas) {
     const tf = el('tfoot'); const ft = el('tr');
     ft.appendChild(el('td', 'c-mes', 'TOTAL'));
     ft.appendChild(el('td', 'c-monto', formatoMXN(sum('necesidad'))));
-    ft.appendChild(el('td', 'c-monto', sum('fondeo') ? '+ ' + formatoMXN(sum('fondeo')) : '—'));
+    ft.appendChild(el('td', 'c-monto', sum('fondeo') ? '− ' + formatoMXN(sum('fondeo')) : '—'));
     ft.appendChild(el('td', 'c-n', String(sum('n'))));
     tf.appendChild(ft); t.appendChild(tf);
     w.appendChild(t); cont.appendChild(w);
@@ -231,7 +248,8 @@ export function pintarCapitalProyecto(p) {
     const par = (k, v, cls) => { kv.appendChild(el('b', '', k)); kv.appendChild(el('span', cls || '', v)); };
     if (!r.n) { par('Partidas', 'ninguna todavía'); }
     else {
-        par('Falta', formatoMXN(r.falta), r.falta > 0 ? 'is-danger' : 'is-ok');
+        if (r.falta <= 0 && r.sobra > 0) par('Sobra', formatoMXN(r.sobra), 'is-ok');   // U-04 (26-sep): antes decia «Falta $0.00»
+        else par('Falta', formatoMXN(r.falta), r.falta > 0 ? 'is-danger' : 'is-ok');
         par('Necesario', formatoMXN(r.necesario)); par('Cubierto', formatoMXN(r.cubierto));
         if (r.pagado) par('Ya pagado', formatoMXN(r.pagado));
     }
@@ -242,14 +260,13 @@ export function pintarCapitalProyecto(p) {
 // ---------------------------------------------------------------- nueva / editar / borrar partida
 
 let enEdicionId = null, alAbrir = '', preguntando = false;
-$('cpConcepto').addEventListener('input', () => mayusculasEnVivo($('cpConcepto')));   // v0.107.0
 const CAMPOS = ['cpConcepto', 'cpProyecto', 'cpTipo', 'cpMonto', 'cpFecha', 'cpCategoria', 'cpEstado', 'cpNotas'];
 const valores = () => JSON.stringify(CAMPOS.map(id => $(id).value));
 const sucio = () => $('dlgPartida').open && valores() !== alAbrir;
 
 /** v0.103.0: con `proyectoId` (pestaña Capital del proyecto) el select Proyecto nace fijo en ese frente y no se mueve. */
 export function abrirPartida(id, proyectoId = null) {
-    if (!puedeVerCapital()) { avisar('Solo gerencia ve y edita el capital de trabajo.', 'error'); return; }
+    if (!puedeVerCapital()) { avisar(SOLO_GERENCIA, 'error'); return; }
     if (estado.capitalLista !== true) { avisar('Falta crear la lista PROY_Capital (ver README, «Al publicar v0.100.0»).', 'error'); return; }
     const x = id ? porId(estado.capital, id) : null;
     if (id && !x) { avisar('Esa partida ya no existe: alguien la borró.', 'error'); return; }
@@ -258,13 +275,16 @@ export function abrirPartida(id, proyectoId = null) {
     $('cpGuardar').textContent = x ? 'Guardar cambios' : 'Guardar partida';
     $('cpBorrar').classList.toggle('oculto', !x);
     const lista = ordenarProyectos(activosDe(estado.proyectos));
-    const actual = x ? porId(estado.proyectos, x.ProyectoId) : proyectoId ? porId(estado.proyectos, proyectoId) : null;
+    // C-02 (26-sep): sin partida ni proyecto fijo, el frente del filtro de la seccion tambien cuenta — un cerrado filtrado
+    // dejaba el select vacio porque no estaba entre las opciones (solo activos)
+    const pidInicial = x ? x.ProyectoId : proyectoId || estado.filtroCapital;
+    const actual = pidInicial ? porId(estado.proyectos, pidInicial) : null;
     if (actual && !lista.includes(actual)) lista.unshift(actual);
-    opciones($('cpProyecto'), lista, p => p.id, p => p.Estado === 'activo' ? p.Title : `${p.Title} (cerrado)`, '— elige el proyecto —');
+    opciones($('cpProyecto'), lista, p => p.id, nombreProyecto, '— elige el proyecto —');
     if (x && !actual) { const o = el('option', '', `Proyecto eliminado (#${x.ProyectoId})`); o.value = String(x.ProyectoId); $('cpProyecto').appendChild(o); }
     // v0.103.0 (Carlos, 25-sep): Categoría es un plegable; una categoria vieja escrita a mano se conserva como opcion extra.
     const cats = [...CAPITAL_CATEGORIAS]; if (x && x.Categoria && !cats.includes(x.Categoria)) cats.push(x.Categoria);
-    opciones($('cpCategoria'), cats, c => c, c => c, '— elige la categoría —');
+    opciones($('cpCategoria'), cats, c => c, mayuscula, '— elige la categoría —');   // U-06: se ve con mayuscula; el value no cambia
     $('cpConcepto').value = x ? x.Title || '' : '';
     $('cpProyecto').value = x ? String(x.ProyectoId) : proyectoId ? String(proyectoId) : estado.filtroCapital ? String(estado.filtroCapital) : '';
     $('cpProyecto').disabled = !!proyectoId;
@@ -301,7 +321,7 @@ const igual = (k, a, b) => { const n = v => v === null || v === undefined ? '' :
 
 async function guardar(ev) {
     ev.preventDefault();
-    if (!puedeVerCapital()) { avisar('Solo gerencia ve y edita el capital de trabajo.', 'error'); return; }
+    if (!puedeVerCapital()) { avisar(SOLO_GERENCIA, 'error'); return; }
     let c;
     try { c = leerForma(); } catch (e) { avisar(e.message, 'error'); $('cpFecha').focus(); return; }
     if (c.Monto === null && $('cpMonto').value.trim()) { avisar('Monto: escríbelo en pesos, mayor que cero y con 2 decimales a lo más (p. ej. 10000 o 10,000.50).', 'error'); $('cpMonto').focus(); return; }
@@ -320,7 +340,8 @@ async function guardar(ev) {
             hecho = `Partida «${c.Title}» actualizada.`;
         } else {
             const nuevo = await estado.cliente.crearRenglon(estado.siteId, L.capital, limpiar({ ...c, Categoria: c.Categoria || undefined, Fecha: c.Fecha || undefined, Notas: c.Notas || undefined }), m => avisar(m, 'ojo'));
-            estado.capital.push(nuevo);
+            // C-01 (26-sep): si el refresco de 120 s entro durante el POST, la relectura ya trae el renglon: no duplicar
+            if (!porId(estado.capital, nuevo.id)) estado.capital.push(nuevo);
             hecho = `Partida «${c.Title}» agregada: ${formatoMXN(c.Monto)}.`;
         }
     } catch (e) {
@@ -332,7 +353,7 @@ async function guardar(ev) {
 }
 
 async function borrar() {
-    if (!puedeVerCapital()) { avisar('Solo gerencia ve y edita el capital de trabajo.', 'error'); return; }
+    if (!puedeVerCapital()) { avisar(SOLO_GERENCIA, 'error'); return; }
     const x = enEdicionId && porId(estado.capital, enEdicionId); if (!x) return;
     const { ok } = await confirmar({ titulo: 'Borrar la partida', ok: 'Borrar', texto: `«${x.Title}» (${formatoMXN(x)}) sale del capital de trabajo. El renglón va a la papelera del sitio.` });
     if (!ok) return;
@@ -346,6 +367,7 @@ async function borrar() {
 }
 
 export function engancharCapital() {
+    $('cpConcepto').addEventListener('input', () => mayusculasEnVivo($('cpConcepto')));   // v0.107.0; C-06 (26-sep): aqui, no al importar
     $('btnNuevaPartida').addEventListener('click', () => abrirPartida(null));
     $('formPartida').addEventListener('submit', guardar);
     $('cpCancelar').addEventListener('click', cancelar);

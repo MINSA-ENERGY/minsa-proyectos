@@ -2094,3 +2094,16 @@ button.cgrupo-nombre:hover .t { text-decoration: underline; }
 .kv b.muestra i { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--border-default); }
 .kv b.muestra.is-h i { background: var(--status-ok-solid); } .kv b.muestra.is-r i { background: var(--status-info-solid); } .kv b.muestra.is-c i { background: var(--brand-primary); }
 .kv b.muestra[data-tono] i { background: var(--tono); }
+/* ---- v0.116.0: tanda 1 de /mejorar-app proyectos capital (26-sep) */
+/* U-01: el boton de la partida ocupa la celda entera (concepto + renglon .p): en celular el toque ya no es el texto de 17 px */
+.ctabla .partida-t { display: block; width: 100%; }
+.ctabla .partida-t .pt { display: block; }
+/* U-05: en escritorio, las notas se anuncian junto al concepto (el title no existe en el celular; ahi lo dice el renglon .p) */
+.ctabla .cnota { font-family: var(--font-data); font-size: .66rem; color: var(--text-muted); margin-left: var(--sp-1); }
+/* U-03: el conteo de partidas vive en su columna; a 720 px la columna se esconde y el conteo baja bajo el titulo */
+.cresumen .cres-sub { display: none; }
+@media (max-width: 720px) {
+  .ctabla .partida-t, .choja tr.cgrupo .cgrupo-nombre { min-height: 36px; }
+  .ctabla .cnota { display: none; }
+  .cresumen .cres-sub { display: block; font-weight: 400; font-size: .72rem; color: var(--text-muted); }
+}

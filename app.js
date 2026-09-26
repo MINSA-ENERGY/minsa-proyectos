@@ -1373,7 +1373,7 @@ engancharTablero();
 engancharDocs();
 engancharChat();
 engancharMensajes();   // v0.42.0
-engancharCapital(); alCambiarCapital(repintar); fijarIrAProyecto(p => abrirProyecto(p.id));   // v0.100.0
+engancharCapital(); alCambiarCapital(repintar); fijarIrAProyecto(id => abrirProyecto(id));   // v0.100.0; C-04 (26-sep): recibe el id
 $('pCapitalIr').addEventListener('click', () => { const p = proyectoAbierto(); if (!p) return; estado.filtroCapital = p.id; irA('capital'); });
 engancharRoadmap(); engancharCalendario(); engancharArchivos(); engancharReportes();   // v0.10.0 · v0.26.0 roadmap a pantalla completa
 for (const b of document.querySelectorAll('.ir-movil')) b.addEventListener('click', () => { $('menuMovil').open = false; irA(b.dataset.ir); });   // v0.10.0: Roadmap · Archivos · Reportes no caben en la barra del celular

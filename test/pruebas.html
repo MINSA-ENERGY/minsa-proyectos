@@ -2567,7 +2567,7 @@ try {
             // borrar
             document.querySelector(`#capitalTabla tr[data-partida="${x1.id}"] .partida-t`).click(); await esperar(() => $('dlgPartida').open, 'borrar');
             clic('cpBorrar'); await confirmar(); await esperar(() => !cap().some(x => x.id === x1.id) && !$('dlgPartida').open, 'partida borrada');
-            R.ok('borrar (v0.101.0): confirma, borra el renglón y el Falta queda en «—» en verde (queda fondeo de sobra)', !cap().some(x => x.id === x1.id) && kpi('falta') === '—' && !!document.querySelector('#capitalKpis [data-kpi="falta"] b.is-ok') && !!avisoCon('borrada'), kpi('falta'));
+            R.ok('borrar (v0.101.0; U-04 v0.116.0): confirma, borra el renglón y el Falta dice «sobra $1,499.50» en verde (queda fondeo de sobra)', !cap().some(x => x.id === x1.id) && kpi('falta') === 'sobra $1,499.50' && !!document.querySelector('#capitalKpis [data-kpi="falta"] b.is-ok') && document.querySelector('#capitalKpis [data-kpi="n"]').textContent.includes('$1,499.50 de sobra') && !!avisoCon('borrada'), kpi('falta'));
             R.ok('bitácora (v0.100.0): Capital no escribe en PROY_Actividad (su choice Accion no tiene opción para esto)', !filas('actividad').some(a => /partida/i.test(a.fields.Title || '')));
             // lista AUSENTE: el sitio no tiene PROY_Capital → aviso claro, ninguna lectura de items, el resto de la app igual
             const guardada = DB.listas.capital; delete DB.listas.capital; ESTADO.cliente = null; ESTADO.capitalLista = null;
