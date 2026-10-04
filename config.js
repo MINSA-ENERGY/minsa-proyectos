@@ -106,7 +106,7 @@ export const CONFIG = {
         PITEPEC: { nombre: 'Quimicos-PITEPEC', sitio: '/sites/Quimicos-PITEPEC', piloto: true, destinoLotes: '01_Servicios' },
         RABASA: { nombre: 'Quimicos-RABASA', sitio: '/sites/Quimicos-RABASA', piloto: true, destinoLotes: '10_Interno' },
         LEGAL: { nombre: 'Administracion-Legal', sitio: '/sites/Administracion-Legal', piloto: false, destinoLotes: '05_Contratos' },
-        FINANZAS: { nombre: 'Administracion-Finanzas', sitio: '/sites/Administracion-Documentos', piloto: false, destinoLotes: '06_Soporte-Fiscal' }
+        FINANZAS: { nombre: 'Administracion-Finanzas', sitio: '/sites/Administracion-Documentos', piloto: false, destinoLotes: '06_Soporte-Fiscal', equipo: 'Administracion' }   // v1.0.3: sin equipo propio, toma el icono de Administración
     },
 
     // Donde deja lo que se sube desde Docs: el buzon de la biblioteca de la unidad, en una

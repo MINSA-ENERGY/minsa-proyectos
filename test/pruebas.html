@@ -125,7 +125,7 @@
     const G = 'https://graph.microsoft.com/v1.0';
     const DESCARGA = 'https://minsaenergy.sharepoint.com/_descarga-falsa/';
     // Dos sitios: el de las listas (Administracion) y la biblioteca de CALYTEK; el resto contesta 403.
-    const SITIOS = { '/sites/Administracion': 'sitio-falso', '/sites/Ambiental-CALYTEK': 'sitio-calytek' };
+    const SITIOS = { '/sites/Administracion': 'sitio-falso', '/sites/Ambiental-CALYTEK': 'sitio-calytek', '/sites/Administracion-Documentos': 'sitio-finanzas' };   // v1.0.3: Finanzas como en el tenant: el SITIO contesta 200 y su drive 403
     const DB = { listas: {}, carpetas: [], archivos: [], gastosDrive: { carpetas: [], archivos: [] }, siguienteId: 1, esquema: null, fallas: [], llamadas: [], filtros: [], ifMatch: 0, textoLargo: [], itemsLeidos: [], descargas: [], sinAsignadoPor: false, sinSalud: false };   // sinSalud (R-05): PROY_Proyectos antes de provisionar Salud/SaludNota/SaludPor/SaludEl   // sinAsignadoPor: la lista viva ANTES de provisionar la columna (C-02)
     window.__DB = DB;
 
@@ -429,6 +429,7 @@
             }
             if (a && sinQ === `/drives/drive-proyectos/items/${encodeURIComponent(a.id)}` && metodo === 'DELETE') { DB.proy = DB.proy.filter(x => x !== a); return new Response(null, { status: 204 }); }
         }
+        if (ruta.startsWith('/sites/sitio-finanzas/drive')) return error(403, 'Access denied');   // v1.0.3: sin Sites.Selected sobre Finanzas
         // ---- v1.0.0 (cubeta 5): el drive de la biblioteca de CALYTEK (destino de «Mandar a archivar») y sus carpetas («Bibliotecas»)
         if (ruta === '/sites/sitio-calytek/drive?$select=id,webUrl' && metodo === 'GET') return json(200, { id: 'drive-calytek', webUrl: 'https://minsaenergy.sharepoint.com/sites/Ambiental-CALYTEK/Documentos compartidos' });
         if ((m = /^\/sites\/sitio-calytek\/drive\/(?:root\/children|root:\/(.+):\/children)\?\$top=200$/.exec(ruta)) && metodo === 'GET') {
@@ -4767,7 +4768,13 @@ try {
             R.ok('v1.0.0 (cubeta 3): «Guardados» del panel de Trabajo lista la vista guardada', !!sv);
             if (sv) { sv.click(); await esperar(() => pagR() === 'reportes-carga' && location.hash === '#reportes/carga', 'vista de Trabajo abierta', 4000).catch(() => {}); }
             R.ok('v1.0.0 (cubeta 3): abrir la vista guardada lleva a #reportes/carga y vuelve a poner su ámbito (CALYTEK)', location.hash === '#reportes/carga' && ESTADO.filtroEquipo === 'CALYTEK' && !$('chipAmbito').hidden, `${location.hash} · ${ESTADO.filtroEquipo}`);
-            await GU.borrarVista(gv); ESTADO.filtroEquipo = null;
+            // v1.0.3 (Carlos, 3-oct: «no sé cómo borrar las vistas creadas»): la papelera del panel la quita, tras confirmar
+            { const q = document.querySelector(`#panelArbol [data-modulo="trabajo"] .panel-guardados .sv-fila [data-quitar-vista="${gv.id}"]`);
+              R.ok('v1.0.3: la vista propia lleva su papelera en «Guardados» del panel', !!q);
+              if (q) { q.click(); await esperar(() => $('dlg').open, 'confirmar quitar'); clic('dlgOk'); await esperar(() => !GU.guardadosDe('trabajo').some(v => v.titulo === 'Carga de CALYTEK (prueba)'), 'vista quitada', 4000).catch(() => {}); }
+              else await GU.borrarVista(gv);
+              R.ok('v1.0.3: tras quitarla ya no sale en el panel', ![...document.querySelectorAll('#panelArbol [data-modulo="trabajo"] .panel-guardados .sv')].some(b => /Carga de CALYTEK \(prueba\)/.test(b.textContent))); }
+            ESTADO.filtroEquipo = null;
             R.ok('v1.0.0 (cubeta 3): quitar la vista de Trabajo la borra (de ERP_Vistas o de este equipo)', !GU.guardadosDe('trabajo').some(v => v.titulo === 'Carga de CALYTEK (prueba)') && (GU.estadoGuardados().modo === 'local' || !DB.listas.vistas.items.some(x => x.fields.Modulo === 'trabajo')));
         } else {
             await irHash('#reportes/carga'); await esperar(() => pagR() === 'reportes-carga', 'carga');
@@ -5193,6 +5200,7 @@ try {
                 await irArchivos('#archivos/bibliotecas', 'bibliotecas');
                 await esperar(() => document.querySelector('#archivosSeccion [data-biblioteca]'), 'bibliotecas con permiso');
                 R.ok('cubeta 5: Bibliotecas pinta SOLO las de unidad que contestan 200 (CALYTEK); PITEPEC, RABASA, LEGAL y FINANZAS contestan 403 y no se pintan', [...document.querySelectorAll('#archivosSeccion [data-biblioteca]')].map(b => b.dataset.biblioteca).join() === 'CALYTEK' && DB.llamadas.some(c => c === 'GET /sites/minsaenergy.sharepoint.com:/sites/Quimicos-PITEPEC'));
+                R.ok('v1.0.3: FINANZAS —el sitio contesta 200 y su raíz 403, como en el tenant— tampoco se pinta: la prueba de permiso lee la raíz', DB.llamadas.some(c => c === 'GET /sites/minsaenergy.sharepoint.com:/sites/Administracion-Documentos') && DB.llamadas.some(c => c.startsWith('GET /sites/sitio-finanzas/drive/root/children')) && !document.querySelector('#archivosSeccion [data-biblioteca="FINANZAS"]'));
                 document.querySelector('#archivosSeccion [data-biblioteca="CALYTEK"]').click(); await esperar(() => location.hash === '#archivos/bibliotecas/CALYTEK' && document.querySelector('#archivosSeccion .arch-migas'), 'la raíz de CALYTEK');
                 await esperar(() => document.querySelector('#archivosSeccion .arch-fila[data-ir="#archivos/bibliotecas/CALYTEK/02_Planta"]'), 'carpetas de la raíz');
                 R.ok('cubeta 5: la raíz de la biblioteca lista sus carpetas (children) SIN el buzón 99_Pendiente-Archivar', !document.querySelector('#archivosSeccion .arch-fila[data-ir^="#archivos/bibliotecas/CALYTEK/99_Pendiente-Archivar"]') && !!document.querySelector('#archivosSeccion .arch-fila[data-ir="#archivos/bibliotecas/CALYTEK/04_SGI"]'));

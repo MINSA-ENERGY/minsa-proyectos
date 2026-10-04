@@ -173,6 +173,8 @@
 .panel .ch.on { background: var(--side-on); font-weight: 600; }
 .panel .ch.is-sub { width: calc(100% - 52px); margin-left: 30px; font-size: 13.5px; padding-left: 8px; }
 .panel .ch.is-sep { margin-top: 6px; }
+.panel .is-unico .ch { width: calc(100% - 22px); margin-left: 11px; }   /* v1.0.3: sin carpeta (un solo grupo), las entradas van al ras de Guardados */
+.panel .is-unico .ch.is-sub { width: calc(100% - 30px); margin-left: 19px; }
 .panel .ch .eqi.is-sm { width: 20px; height: 20px; } .panel .ch .eqi.is-sm svg { width: 12px; height: 12px; }
 .panel .ch .n { flex: none; font: 500 .72rem var(--f-data); color: var(--ink-3); }
 .panel .ch .n.is-info { color: var(--info-fg); }
@@ -691,6 +693,7 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
 .grupo > button.is-on, .col-tabs > button.is-on { background: var(--brand-primary); color: var(--text-on-brand); border-color: var(--brand-primary); }
 .grupo > button.is-on .n, .col-tabs > button.is-on .n, .col-tabs > button.is-on .n.is-hot { color: inherit; }
 .grupo > button:focus-visible, .col-tabs > button:focus-visible { outline-offset: -2px; }   /* el overflow:hidden del marco recortaria un anillo exterior */
+#dlgActividad .ac-tipo { margin-top: var(--sp-2); }   /* v1.0.3 (Carlos, 3-oct): «solo comentarios» quedaba pegado al marco de personas */
 /* F9: filtro de tarjetas dentro del proyecto (chips + texto) */
 .tareas-filtros { align-items: center; }
 .tareas-filtros .chips { display: flex; flex-wrap: wrap; gap: var(--sp-1); align-items: center; }
@@ -948,8 +951,10 @@ body:has(#pantallaEntrar:not(.oculto)) #pie { display: none; }
   .densa .tr .k { grid-row: 1 / span 2; }
   .densa .tr .cl { display: block; grid-column: 2; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font: 500 .7rem/1.25 var(--font-data); color: var(--text-faint); }
 }
-/* U-09 + U-10 (mejorar-app mis, 2-oct): en escritorio la lista de Mis tareas tiene ancho de lectura —a 1366 el proyecto y la cubeta caian a ~1,100 px del titulo— y la columna de proyecto crece porque ahora lleva el NOMBRE, no la clave. */
-@media (min-width: 721px) { #misLista { max-width: 1080px; } #misLista .densa .tr { grid-template-columns: 46px minmax(0, 1fr) 200px 120px; } }
+/* U-09 + U-10 (mejorar-app mis, 2-oct; el tope de ancho lo QUITO v1.0.3, abajo): en escritorio la lista de Mis tareas tenia ancho de lectura —a 1366 el proyecto y la cubeta caian a ~1,100 px del titulo— y la columna de proyecto crece porque ahora lleva el NOMBRE, no la clave. */
+/* v1.0.3 (Carlos, 3-oct: «espacio muerto»): dentro de la tarjeta .mis-hoja el tope de 1080 px dejaba un hueco a la derecha; la lista llena la
+   tarjeta y el proyecto crece en proporción (26 %) para no alejarse del título, que era lo que cuidaba U-09. */
+@media (min-width: 721px) { #misLista .densa .tr { grid-template-columns: 46px minmax(0, 1fr) minmax(200px, 26%) 140px; } }
 @media (max-width: 720px) {
   .densa .tr { grid-template-columns: 40px minmax(0, 1fr); }
   .densa .tr .eqc, .densa .tr .cu { display: none; }
@@ -2732,6 +2737,13 @@ body .pficha.is-danger .cal .dia { color: var(--status-danger-fg); } body .pfich
 .panel .sv .em { width: 16px; height: 16px; flex: none; fill: none; stroke: var(--ink-2); stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
 .panel .sv .tx { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .panel .sv .n { flex: none; color: var(--ink-3); font-size: 11.5px; }
+/* v1.0.3 (Carlos, 3-oct): la vista propia lleva su papelera; en escritorio asoma al pasar el ratón o con el foco, en el celular siempre */
+.panel .sv-fila { display: flex; align-items: center; margin-right: 11px; }
+.panel .sv-fila .sv { flex: 1; width: auto; min-width: 0; }
+.panel .sv-quitar { width: 32px; height: 32px; flex: none; padding: 0; border: 0; border-radius: 3px; background: none; color: var(--ink-3); display: grid; place-items: center; cursor: pointer; }
+.panel .sv-quitar:hover { background: var(--hover); color: var(--bad-fg); }
+.panel .sv-quitar svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+@media (hover: hover) { .panel .sv-fila:not(:hover):not(:focus-within) .sv-quitar { opacity: 0; } }
 .panel .panel-nota { margin-top: 4px; font-size: 12px; }
 /* ---- Capital y Gastos con la plantilla */
 .rp-hoja { padding-bottom: 16px; }
@@ -2921,7 +2933,8 @@ body .pficha.is-danger .cal .dia { color: var(--status-danger-fg); } body .pfich
 #inicioHoy .hoy-r .t { font-size: 14.5px; font-weight: 500; color: var(--ink); }
 #inicioHoy .hoy-r .p { font-size: 13px; color: var(--ink-3); }
 #inicioHoy .hoy-r .abrir { display: inline-flex; align-items: center; height: 28px; padding: 0 10px; border: 1px solid var(--campo); border-radius: 3px; font-size: 12px; font-weight: 600; letter-spacing: .04em; color: var(--ink); white-space: nowrap; }
-#inicioHoy button.hoy-r:hover .abrir, #inicioHoy button.hoy-r:focus-visible .abrir { background: var(--hover); border-color: var(--ink-3); }
+#inicioHoy button.hoy-r:hover { background: none; }   /* v1.0.3 (Carlos, 3-oct): al pasar el ratón se marca SOLO el botón ABRIR, no el renglón */
+#inicioHoy button.hoy-r:hover .abrir, #inicioHoy button.hoy-r:focus-visible .abrir { background: var(--surface-active); border-color: var(--ink-2); }
 #inicioHoy .hoy-g { margin-top: 14px; padding-bottom: 6px; font-size: 11.5px; letter-spacing: .06em; }
 #inicioHoy .hoy-semana { margin-top: 8px; }
 /* ---- Mis tareas: los cinco contadores como la fila de KPIs de la maqueta (siguen siendo botones que filtran) y la lista en una tarjeta */
@@ -3017,6 +3030,7 @@ body.con-preguntar .app.panel-plegado:not(.sin-sesion) { grid-template-columns: 
   #p-inicio .bandas > .mn-card, #p-inicio .dosmitad > .mn-card { padding: 16px; }
   #inicioHoy .hoy-r { grid-template-columns: 40px minmax(0, 1fr); }
   #inicioHoy .hoy-r .abrir { display: none; }
+  #inicioHoy button.hoy-r:hover { background: var(--surface-hover); }   /* sin ABRIR a la vista, el renglón vuelve a marcarse */
   .mis-kpis .resumen { grid-auto-columns: minmax(40%, 1fr); overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding: 12px 0 14px; }
   .mis-kpis .resumen::-webkit-scrollbar { display: none; }
   .mis-kpis .kpi { flex: none; padding-left: 16px; scroll-snap-align: start; }
@@ -3093,7 +3107,7 @@ body.con-preguntar .app.panel-plegado:not(.sin-sesion) { grid-template-columns: 
 .arch-migas .sep { color: var(--ink-3); }
 .arch-bibliotecas > .vacio, .arch-bibliotecas > .arch-error { margin: 0 20px; }
 .arch-mias > .arch-nota, .arch-mias > .arch-error, .arch-mias > .vacio, .arch-mias > .arch-cola { margin-left: 20px; margin-right: 20px; }
-.arch-subidas > .vacio, .arch-enviados > .vacio, .arch-recientes > .vacio, .arch-fijados > .vacio, .arch-fijados > .arch-nota { margin: 0 20px; }
+.arch-subidas > .vacio, .arch-enviados > .vacio, .arch-recientes > .vacio, .arch-fijados > .vacio, .arch-fijados > .arch-nota, .arch-ligas > .vacio, .arch-proyectos > .vacio { margin: 0 20px; }   /* v1.0.3: + ligas y proyectos («Sin ligas» quedaba al ras del borde) */
 .arch-nota { margin-top: 0; font-size: 13px; }
 .arch-error { color: var(--bad-fg); font-size: 13.5px; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 /* «Falta preparar ERP_Proyectos» */

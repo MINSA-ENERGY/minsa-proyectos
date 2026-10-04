@@ -865,7 +865,9 @@ function pintarFijados(cont) {
 const permisos = { promesa: null, lista: null };   // las bibliotecas de unidad que contestan 200
 function bibliotecasConPermiso() {
     if (!permisos.promesa) permisos.promesa = Promise.all(Object.entries(CONFIG.bibliotecas).map(async ([clave, b]) => {
-        try { const s = await sitioDe({ clave, ...b }); return s.id ? { clave, ...b, siteId: s.id } : null; } catch (_) { return null; }
+        // v1.0.3 (Carlos, 3-oct: «¿por qué no puedo leer la carpeta?»): con Sites.Selected el SITIO contesta 200 aunque la app no tenga permiso
+        // sobre él (Legal y Finanzas, fuera del piloto) y el 403 llegaba hasta abrir la raíz; la prueba es leer la raíz misma.
+        try { const s = await sitioDe({ clave, ...b }); if (!s.id) return null; await estado.cliente.hijos(baseSitio(s.id), '', {}); return { clave, ...b, siteId: s.id }; } catch (_) { return null; }
     })).then(xs => { permisos.lista = xs.filter(Boolean); return permisos.lista; });
     return permisos.promesa;
 }
@@ -891,7 +893,7 @@ function pintarBibliotecas(cont, s) {
         if (!permisos.lista.length) card.appendChild(el('p', 'vacio', 'Ninguna biblioteca de unidad tiene todavía el permiso de la app.'));
         const l = el('div', 'arch-filas'); l.setAttribute('role', 'list');
         for (const b of permisos.lista) {
-            const eq = CONFIG.equipos.find(e => e.unidad === b.clave);
+            const eq = CONFIG.equipos.find(e => e.unidad === b.clave || e.clave === b.equipo);   // v1.0.3: Finanzas no tiene equipo propio y salía sin icono
             const x = el('button', 'arch-fila'); x.type = 'button'; x.dataset.biblioteca = b.clave; x.dataset.ir = rutaSeccion('bibliotecas', { unidad: b.clave }); x.setAttribute('role', 'listitem');
             if (eq) x.appendChild(iconoEquipo(eq, 'sm')); x.appendChild(iconoSvg(TRAZOS.folder, 'carp'));
             const t = el('span', 'tx'); t.appendChild(el('b', '', b.nombre)); t.appendChild(el('small', '', 'solo lectura · ligar a un proyecto')); x.appendChild(t);

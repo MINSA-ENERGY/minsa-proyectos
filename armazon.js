@@ -15,7 +15,7 @@
 
 import { CONFIG } from './config.js';
 import { PUEDE, MODULOS, MODULO_DE, modulosDe, principalDe, leerRuta, rutaActiva, miDia, infoVence, misAbiertas, plural, sinAcentos, ordenarProyectos, nombreDe, nombreCorto, HECHO, diaDe, sumarDias, nuevoParaMi, desdeHaceDias, avisosNoVistos } from './reglas.js';
-import { $, estado, el, boton, chip, iconoSvg, TRAZOS, iconoEquipo, activos, visibles, abrirDialogo, cerrarDialogo, proyectoAbierto, porId, equipoDe, nuevosDe, mencionesA, comentariosDe, haceCuanto, avisosVistoHasta, marcarAvisosVisto, conservarFoco, opciones, hashDe, VERSION } from './comun.js';
+import { $, estado, el, boton, chip, iconoSvg, TRAZOS, iconoEquipo, activos, visibles, abrirDialogo, cerrarDialogo, proyectoAbierto, porId, equipoDe, nuevosDe, mencionesA, comentariosDe, haceCuanto, avisosVistoHasta, marcarAvisosVisto, conservarFoco, opciones, hashDe, VERSION, avisar, confirmar } from './comun.js';
 import { ordenarVigencias } from './vigencias-reglas.js';
 import { DIAS_VIGENCIA_ATENCION } from './inicio-reglas.js';
 import { datosPublicados } from './inicio.js';   // v1.0.0 (cubeta 4): las vigencias de la campana (gerencia)
@@ -25,7 +25,7 @@ import { abrirNuevoGasto, estadoGastos, misRolesErp } from './gastos.js';
 import { PUEDE_GASTO } from './gastos-reglas.js';   // v1.0.0 (vuelta 1): «+ Nuevo › Gasto» con el mismo permiso que Gastos
 import { estadoServicios } from './servicios.js';
 import { mensajesNuevos, proyectoDeMensajes } from './vistas.js';
-import { guardadosDe, puedeAbrir, abrirGuardado, iconoDe, estadoGuardados, asegurarGuardados } from './guardados.js';   // v1.0.0 (cubeta 2): «Guardados» del panel
+import { guardadosDe, puedeAbrir, abrirGuardado, iconoDe, estadoGuardados, asegurarGuardados, esMia, borrarVista } from './guardados.js';   // v1.0.0 (cubeta 2): «Guardados» del panel
 
 // app.js pasa su navegacion: irARuta(hash) escribe el hash y aplica la ruta (sincrono, sin popstate: no cierra dialogos ajenos);
 // irA(pantalla) va a una pantalla sin sufijo; abrirProyecto(id) abre el frente en su Tablero.
@@ -164,18 +164,25 @@ function pintarArbol() {
             const grupos = arbolDe(m);
             const todas = grupos.filter(g => !g.oculto).flatMap(g => g.entradas.filter(e => e.ir && !e.oculto));
             const activa = activaDe(todas, hash);
+            // v1.0.3 (Carlos, 3-oct): con UN solo grupo visible (Inicio, Archivos, Cuenta) no hay nada que plegar — sin carpeta ni «Abrir/Plegar todo»
+            const unico = grupos.filter(g => !g.oculto).length === 1;
             const cab = el('div', 'gh'); cab.appendChild(el('span', '', 'Predeterminados'));
-            cab.appendChild(botonIcono('updown', 'Abrir todo', () => { for (const gr of grupos) { plegados.delete(m + '/' + gr.clave); desplegados.add(m + '/' + gr.clave); } pintarArbol(); }, { grupo: m + '/*abrir' }));
-            cab.appendChild(botonIcono('x', 'Plegar todo', () => { for (const gr of grupos) { plegados.add(m + '/' + gr.clave); desplegados.delete(m + '/' + gr.clave); } pintarArbol(); }, { grupo: m + '/*plegar' }));
+            if (!unico) {
+                cab.appendChild(botonIcono('updown', 'Abrir todo', () => { for (const gr of grupos) { plegados.delete(m + '/' + gr.clave); desplegados.add(m + '/' + gr.clave); } pintarArbol(); }, { grupo: m + '/*abrir' }));
+                cab.appendChild(botonIcono('x', 'Plegar todo', () => { for (const gr of grupos) { plegados.add(m + '/' + gr.clave); desplegados.delete(m + '/' + gr.clave); } pintarArbol(); }, { grupo: m + '/*plegar' }));
+            }
             div.appendChild(cab);
             for (const gr of grupos) {
                 const llave = m + '/' + gr.clave;
-                const abierto = gr.plegadoDefault ? desplegados.has(llave) : !plegados.has(llave);
-                const caja2 = el('div', 'grupo-panel' + (gr.oculto ? ' oculto' : '')); caja2.dataset.grupo = gr.clave;
-                const fo = el('button', 'fo'); fo.type = 'button'; fo.dataset.grupo = llave; fo.setAttribute('aria-expanded', String(abierto));
-                fo.appendChild(iconoSvg(TRAZOS.folder)); fo.appendChild(el('span', '', gr.titulo));
-                fo.addEventListener('click', () => { if (abierto) { plegados.add(llave); desplegados.delete(llave); } else { plegados.delete(llave); desplegados.add(llave); } pintarArbol(); });
-                caja2.appendChild(fo);
+                const sinCarpeta = unico && !gr.oculto;
+                const abierto = sinCarpeta || (gr.plegadoDefault ? desplegados.has(llave) : !plegados.has(llave));
+                const caja2 = el('div', 'grupo-panel' + (gr.oculto ? ' oculto' : '') + (sinCarpeta ? ' is-unico' : '')); caja2.dataset.grupo = gr.clave;
+                if (!sinCarpeta) {
+                    const fo = el('button', 'fo'); fo.type = 'button'; fo.dataset.grupo = llave; fo.setAttribute('aria-expanded', String(abierto));
+                    fo.appendChild(iconoSvg(TRAZOS.folder)); fo.appendChild(el('span', '', gr.titulo));
+                    fo.addEventListener('click', () => { if (abierto) { plegados.add(llave); desplegados.delete(llave); } else { plegados.delete(llave); desplegados.add(llave); } pintarArbol(); });
+                    caja2.appendChild(fo);
+                }
                 const hijos = el('div', 'fo-hijos'); hijos.hidden = !abierto;
                 for (const e of gr.entradas) hijos.appendChild(entrada(gr.oculto ? { ...e, oculto: true } : e, e === activa));   // un grupo que el rol no ve oculta también cada entrada (las pruebas miran #panelCapital…)
                 caja2.appendChild(hijos);
@@ -203,10 +210,21 @@ function pintarGuardados(m) {
         if (enEquipo) b.appendChild(el('span', 'n', 'este equipo'));
         else if (v.compartida) b.appendChild(el('span', 'n', 'equipo'));
         b.addEventListener('click', () => { cerrarHoja(); abrirGuardado(v); });
-        caja.appendChild(b);
+        if (!esMia(v)) { caja.appendChild(b); continue; }
+        // v1.0.3 (Carlos, 3-oct: «no sé cómo borrar las vistas creadas»): la propia lleva su papelera al lado (en escritorio asoma al pasar el ratón)
+        const fila = el('div', 'sv-fila'); fila.appendChild(b);
+        const q = boton('', 'sv-quitar', () => quitarGuardado(v), { quitarVista: String(v.id) }); q.title = `Quitar «${v.titulo}» de Guardados`; q.setAttribute('aria-label', q.title);
+        q.appendChild(iconoSvg(TRAZOS.basura)); fila.appendChild(q);
+        caja.appendChild(fila);
     }
     if (g.modo === 'local') { const p = el('p', 'panel-vacio panel-nota', 'Guardados en este equipo.'); p.title = g.nota; caja.appendChild(p); }
     return caja;
+}
+async function quitarGuardado(v) {
+    const { ok } = await confirmar({ titulo: 'Quitar de Guardados', ok: 'Quitar', texto: `«${v.titulo}» deja de estar en Guardados${v.compartida ? ' (también para el equipo)' : ''}. Lo que muestra no se borra.` });
+    if (!ok) return;
+    try { await borrarVista(v); avisar(`«${v.titulo}» ya no está en Guardados.`, 'ok'); pintarArbol(); }
+    catch (e) { avisar('No se pudo quitar: ' + (e && e.message ? e.message : e), 'error'); }
 }
 function botonIcono(icono, titulo, alClic, datos = {}) {
     const b = boton('', 'gh-btn', alClic, datos); b.title = titulo; b.setAttribute('aria-label', titulo); b.appendChild(iconoSvg(TRAZOS[icono])); return b;
@@ -231,7 +249,7 @@ function filtrarPanel() {
     const q = sinAcentos($('panelBusca').value.trim());
     for (const g of document.querySelectorAll('#panelArbol .grupo-panel')) {
         let alguna = false;
-        for (const c of g.querySelectorAll('.ch, .sv')) { const si = !q || sinAcentos(c.textContent).includes(q); c.classList.toggle('no-casa', !si); if (si) alguna = true; }
+        for (const c of g.querySelectorAll('.ch, .sv')) { const si = !q || sinAcentos(c.textContent).includes(q); (c.closest('.sv-fila') || c).classList.toggle('no-casa', !si); if (si) alguna = true; }   // v1.0.3: la fila entera, con su papelera
         g.classList.toggle('no-casa', !!q && !alguna && !g.classList.contains('panel-guardados'));
         const hijos = g.querySelector('.fo-hijos'); if (hijos) { if (q) hijos.dataset.busca = '1'; else delete hijos.dataset.busca; }
     }
